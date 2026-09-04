@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
@@ -7,10 +8,13 @@ cd "$ROOT"
 QUICK_TESTS=(
     tests/test_bringup_robustness.py
     tests/test_chat_template.py
+    tests/test_commit_provenance.py
     tests/test_image_recipe.py
     tests/test_indexer_workspace.py
     tests/test_kpool_tail_slotmap.py
+    tests/test_licensing.py
     tests/test_local_links.py
+    tests/test_model_revision_pins.py
     tests/test_numeric_config.py
     tests/test_spinwait_patch.py
     tests/test_start_overrides.py

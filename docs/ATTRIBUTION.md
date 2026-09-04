@@ -14,9 +14,9 @@ in `LICENSES/` or file-level SPDX identifiers.
 | [vllm-project/vllm](https://github.com/vllm-project/vllm) | `487ecf187d3dfe74d2cf6119a92881dba403c219` | Apache-2.0 | Runtime source base used by the reproducible build |
 | [turboderp-org/exllamav3](https://github.com/turboderp-org/exllamav3) | `c5d9c657966ffeeaa9353f0cc899f18629da4a13` | MIT | EXL3 K4 trellis decode, Hadamard helpers, and tensor-core MMA foundations |
 | [Reederey87/glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark) | `0c03250cd7176a2fef9cbbf9329fed08c8750e7d` | Apache-2.0 with retained Mia MIT notice | M64 `cp.async` fat-GEMM pipeline adapted into the current kernel |
-| [vcruz305/vllm-exl3](https://github.com/vcruz305/vllm-exl3) | `67dc742` | Apache-2.0 | Cooperative-grid decode direction; wrapper and kernel were not copied |
-| [vLLM PR 53109](https://github.com/vllm-project/vllm/pull/53109) | `515c2470db4b` | Apache-2.0 | Packed fused-RMSNorm output fix, directly ported |
-| [vLLM PR 52696](https://github.com/vllm-project/vllm/pull/52696) | `2908700406` campaign tip | Apache-2.0 | Native FP16 sparse-selector capability, ported; FP16 remains off by default in the accepted image |
+| [vcruz305/vllm-exl3](https://github.com/vcruz305/vllm-exl3) | `67dc7426dfbdecbc1527199eb32c0d328d8f609f` | Apache-2.0 | Cooperative-grid decode direction; wrapper and kernel were not copied |
+| [vLLM PR 53109](https://github.com/vllm-project/vllm/pull/53109) | `515c2470db4b81f639b88f17817a43836354fddc` | Apache-2.0 | Packed fused-RMSNorm output fix, directly ported |
+| [vLLM PR 52696](https://github.com/vllm-project/vllm/pull/52696) | `290870040627818252b045382914fbfc6377c80b` campaign tip | Apache-2.0 | Native FP16 sparse-selector capability, ported; FP16 remains off by default in the accepted image |
 | [vLLM PR 52805](https://github.com/vllm-project/vllm/pull/52805) | `12f64b39d29282437e35be9aa5db432fb2a1a6e6` | Apache-2.0 | XGrammar termination correctness backport inherited from Mia |
 | [vLLM PR 53046](https://github.com/vllm-project/vllm/pull/53046) | `c6e19b3be24338759a443e03c8325d76da9ee202` | Apache-2.0 | Speculative-reasoning FSM correctness backport inherited from Mia |
 
@@ -44,10 +44,12 @@ the M64 `cp.async` tile, packed RMSNorm, or the FP16 sparse selector.
 | Artifact | Author/source | License boundary |
 | --- | --- | --- |
 | GLM-5.3-Flash | [zai-org](https://huggingface.co/zai-org/GLM-5.3-Flash) | Model license at the source repository |
-| EXL3/TR3 4bpw weights | [brandonmusic](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw) | ShapleyMCG License 1.0 at the source repository |
-| DFlash2 drafter | [incoai](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) | CC BY-NC-ND 4.0 at the source repository |
+| EXL3/TR3 4bpw weights | [Mia mirror](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw/tree/25a44fdbf16862a46b7cc9921142c6c81350af2f), [brandonmusic fallback](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw/tree/5ab363a8dcf6405955fd5f99671e01a1c9fb124b) | ShapleyMCG License 1.0; both launcher revisions are immutable |
+| DFlash2 drafter | [incoai](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2/tree/bf582e4eacc1810f76656d1811693ff6c6737d2a) | CC BY-NC-ND 4.0; non-commercial/no-derivatives terms; immutable launcher revision |
 
 No checkpoint or derived direction tensor from these projects is committed.
+No DFlash2 checkpoint source or modified artifact is copied into SparkGLM;
+operators can select `SPEC_METHOD=mtp` or `none` when its terms do not fit.
 
 ## Atlas-native archive
 
@@ -56,10 +58,17 @@ No checkpoint or derived direction tensor from these projects is committed.
 | [Atlas-Inf/atlas](https://github.com/Atlas-Inf/atlas) | `bdcccc2ca91eba084aac94a059e3b0f4a5d556dd` | AGPL-3.0-only | Native Rust/CUDA engine base |
 | SparkGLM Atlas archive | `775cb3655e29a3735f4f58faa540608f9427bf51` | AGPL-3.0-only | GLM parser, typed state, KDA/DSA/MoE/EXL3 work, probes, and incomplete end-to-end integration |
 | [MoonshotAI/FlashKDA](https://github.com/MoonshotAI/FlashKDA) | `1ce47ea3bb22c84eb9cc665028399cf35e8ffb0b` | MIT | KDA prefill kernel source used by the Atlas experiment |
-| NVIDIA CUTLASS | `5c149f52a436782210263fb2f19b354443a61c6a` | upstream license | FlashKDA build dependency pin |
+| [NVIDIA CUTLASS](https://github.com/NVIDIA/cutlass) | `5c149f52a436782210263fb2f19b354443a61c6a` | BSD-3-Clause | Build-only FlashKDA dependency pin; not redistributed here |
 
 The Atlas patch and copied Atlas-derived documentation remain explicitly
 AGPL-3.0-only. No attempt is made to relicense Atlas work as Apache or MIT.
+Within `research/atlas/flash_kda/`, the upstream FlashKDA license is MIT, the
+SparkGLM bridge and archive glue are AGPL, and the slot patch contains
+MIT-derived context plus AGPL modifications.
+
+The complete machine-readable source, notice, and path-boundary ledger is
+[`provenance/upstreams.json`](../provenance/upstreams.json). Practical rules
+are in [`docs/LICENSING.md`](LICENSING.md).
 
 ## Contributor handles
 

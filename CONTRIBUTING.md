@@ -8,6 +8,11 @@ its state, target workload and metric, protected behavior, applicable gate
 level, and rollback. Use the pull-request template; do not substitute an
 isolated peak result for its requested evidence.
 
+Read [docs/LICENSING.md](docs/LICENSING.md) before carrying code, templates,
+weights, or results across project boundaries. Update
+`provenance/upstreams.json` whenever an upstream, revision, relationship,
+notice, or affected path changes.
+
 - Preserve exact upstream attribution and license notices.
 - State whether external work was copied, adapted, ported, or merely inspired
   the change.
@@ -33,7 +38,9 @@ isolated peak result for its requested evidence.
   hardware. Maintainers qualify reviewed commits.
 
 Every optimization commit should use the provenance structure documented in
-`docs/PROVENANCE.md`.
+`docs/PROVENANCE.md`. Pull-request CI checks runtime commit messages with
+`scripts/check_commit_provenance.py`; do not squash away distinctions among
+separate optimizations before review.
 
 Passing tinyGLM is required for relevant engine changes but is not a
 full-model speed or quality claim. See [docs/QUALIFICATION.md](docs/QUALIFICATION.md)

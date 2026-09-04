@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Correctness and latency probe for GLM-5.3's native sparse selector.
 
 The GLM-5.3 indexer pools four KV positions into one score column. Therefore

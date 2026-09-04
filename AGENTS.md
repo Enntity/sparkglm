@@ -2,10 +2,13 @@
 
 ## Provenance
 
-For every optimization commit, follow `docs/PROVENANCE.md`. The commit message
+For every optimization commit, follow `docs/PROVENANCE.md` and
+`docs/LICENSING.md`. The commit message
 must distinguish copied, adapted, inspired, and original work; name upstream
 URLs and exact revisions when known; and record verification. Preserve all
 applicable upstream copyright and license notices in source files.
+Keep `provenance/upstreams.json` synchronized with every external source,
+revision, relationship, license/notice file, and affected path.
 
 ## Publication safety
 

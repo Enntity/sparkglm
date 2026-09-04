@@ -1,8 +1,13 @@
 # Optimization provenance policy
 
-Every commit that ports, adapts, or is materially inspired by external work
+Every new commit that ports, adapts, or is materially inspired by external work
 must make the lineage visible in the commit message. Source comments and design
 documents are useful, but they do not replace commit-level attribution.
+
+The preserved patch mailboxes predate this release policy and remain immutable
+historical evidence. We do not rewrite their messages; their lineage is
+normalized in `provenance/upstreams.json` and `docs/ATTRIBUTION.md`. CI applies
+this policy to every new pull-request commit that touches runtime paths.
 
 Use this body structure:
 
@@ -28,13 +33,17 @@ Rules:
   ideas, identify those foundations and state the original boundary precisely.
 - If there is no external lineage, write `Provenance: original implementation`
   rather than leaving the question ambiguous.
+- `scripts/check_commit_provenance.py BASE_SHA HEAD_SHA` enforces the three
+  sections. External provenance must include a canonical HTTPS URL and full
+  40-character revision.
 
 ## Current EXL3 cooperative-decode lineage
 
 - [`turboderp-org/exllamav3`](https://github.com/turboderp-org/exllamav3) at
   `c5d9c657966ffeeaa9353f0cc899f18629da4a13`: EXL3 K4 trellis decoding,
   Hadamard helpers, and tensor-core MMA arrangement.
-- [`vcruz305/vllm-exl3`](https://github.com/vcruz305/vllm-exl3) at `67dc742`:
+- [`vcruz305/vllm-exl3`](https://github.com/vcruz305/vllm-exl3) at
+  `67dc7426dfbdecbc1527199eb32c0d328d8f609f`:
   inspiration for applying a cooperative
   CUDA grid to small-batch EXL3 MoE decode.
 - This repository: the TP2-local GLM-5.3 shape, whole-layer launch contract,

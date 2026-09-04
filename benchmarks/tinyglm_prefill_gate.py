@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Focused tinyGLM gate for medium/large C1-C2 prefill changes."""
 from __future__ import annotations
 

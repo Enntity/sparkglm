@@ -7,6 +7,12 @@ mailbox patches under `research/current-engine-history/patches/`; the public
 branch itself uses a fresh sanitized history so excluded model artifacts from
 the upstream recipe are not reachable through Git history.
 
+Before downloading weights, read `docs/LICENSING.md`. In particular, the
+DFlash2 checkpoint selected by the fastest default is separately licensed CC
+BY-NC-ND 4.0. Use `SPEC_METHOD=mtp` or `SPEC_METHOD=none` if its
+non-commercial/no-derivatives terms do not fit your use. Model and drafter
+revisions are pinned independently from source and container revisions.
+
 The EXL3 changes build through this repository's normal `Dockerfile`. The two
 vLLM-core changes are stored as patches against the exact vLLM source revision
 used by Mia, `487ecf187d3dfe74d2cf6119a92881dba403c219`. Apply them before building

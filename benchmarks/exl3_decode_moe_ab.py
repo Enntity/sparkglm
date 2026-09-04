@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Numerical and latency A/B for the exact GLM-5.3 TP2 EXL3 decode shape."""
 
 from __future__ import annotations

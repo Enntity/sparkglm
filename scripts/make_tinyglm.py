@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Create a weightless, kernel-faithful miniature GLM-5.3 model directory.
 
 The checkpoint is used with vLLM's ``--load-format dummy``. It preserves the

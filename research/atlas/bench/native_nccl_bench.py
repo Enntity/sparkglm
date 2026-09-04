@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-only
 """Two-rank native NCCL all-reduce latency probe for the GLM verifier sizes."""
 
 from __future__ import annotations

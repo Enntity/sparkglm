@@ -30,12 +30,16 @@ kept as explicitly legacy evidence rather than retroactively certified.
 
 ## Start here
 
+- **Check the component licenses before downloading:** read
+  [docs/LICENSING.md](docs/LICENSING.md). The fastest default downloads a
+  CC BY-NC-ND 4.0 DFlash2 checkpoint; `SPEC_METHOD=mtp` and `none` avoid it.
 - **Run the current engine:** follow the build and two-node launch process in
   [SPARKGLM.md](SPARKGLM.md) and the detailed upstream recipe guide in
   [docs/upstream/MIA_RECIPE_README.md](docs/upstream/MIA_RECIPE_README.md).
 - **Understand what is original:** read
   [docs/PROVENANCE.md](docs/PROVENANCE.md) and
-  [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md).
+  [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md), then consult the practical
+  [licensing boundaries](docs/LICENSING.md).
 - **Inspect the evidence:** see [docs/RESULTS.md](docs/RESULTS.md), retained raw
   receipts and reports under `results/`, and the code archive under
   `research/vllm-iterations/`.
@@ -119,15 +123,20 @@ controls.
 SparkGLM is a multi-license repository because it preserves work from several
 upstreams:
 
-- Current project integration and Apache-marked sources: Apache-2.0.
-- MiaAI-Lab serving-kit material: MIT.
+- Original project integration: Apache-2.0 unless an explicit path rule says
+  otherwise.
+- MiaAI-Lab serving-kit material and retained modifications: MIT; mixed vLLM
+  patchers also retain Apache-2.0 obligations.
 - Atlas-derived source and patches under `research/atlas/`: AGPL-3.0-only.
-- FlashKDA material under `research/atlas/flash_kda/`: MIT.
+- Upstream FlashKDA source: MIT. SparkGLM's Atlas bridge is AGPL, while the
+  slot patch contains MIT-derived context plus AGPL modifications.
 - Other third-party material retains its file-level license and attribution.
 - The bundled Z.ai chat template is covered by the GLM-5.3 License.
 
 Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
-[docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) before redistribution.
+[docs/LICENSING.md](docs/LICENSING.md) before redistribution. The optional
+DFlash2 checkpoint is CC BY-NC-ND 4.0; use `SPEC_METHOD=mtp` or `none` when
+those terms do not fit the deployment.
 
 ## Publication gate
 

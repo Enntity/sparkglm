@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Measure the crossover for JIT-promoting one GLM EXL3 expert.
 
 The current direct K4 kernel decodes a packed weight tile for every M64 row

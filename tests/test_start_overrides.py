@@ -169,13 +169,17 @@ def test_decode_coop_overrides_win_and_defaults_are_materialized() -> None:
 
 def test_tiny_model_identity_overrides_win() -> None:
     probe = (
-        '\nprintf "%s|%s|%s|%s|%s\\n" "$MODEL" "$MODEL_FALLBACK" '
-        '"$MODEL_CACHE_NAME" "$SERVED_MODEL_NAME" "$GLM53_BOOT_SHAPE_WARMUP"\n'
+        '\nprintf "%s|%s|%s|%s|%s|%s|%s|%s\\n" "$MODEL" "$MODEL_FALLBACK" '
+        '"$MODEL_CACHE_NAME" "$MODEL_REVISION" "$MODEL_FALLBACK_REVISION" '
+        '"$DFLASH_REVISION" "$SERVED_MODEL_NAME" "$GLM53_BOOT_SHAPE_WARMUP"\n'
     )
     env_file = (
         "MODEL=production/model\n"
         "MODEL_FALLBACK=production/fallback\n"
         "MODEL_CACHE_NAME=models--production\n"
+        "MODEL_REVISION=production-model-revision\n"
+        "MODEL_FALLBACK_REVISION=production-fallback-revision\n"
+        "DFLASH_REVISION=production-dflash-revision\n"
         "SERVED_MODEL_NAME=production\n"
         "GLM53_BOOT_SHAPE_WARMUP=1\n"
     )
@@ -185,14 +189,17 @@ def test_tiny_model_identity_overrides_win() -> None:
             "MODEL": "sparkglm/tinyglm",
             "MODEL_FALLBACK": "sparkglm/tinyglm",
             "MODEL_CACHE_NAME": "models--sparkglm--tinyglm",
+            "MODEL_REVISION": "tinyglm-v1",
+            "MODEL_FALLBACK_REVISION": "tinyglm-v1",
+            "DFLASH_REVISION": "test-dflash-revision",
             "SERVED_MODEL_NAME": "tinyGLM-5.3-EXL3",
             "GLM53_BOOT_SHAPE_WARMUP": "0",
         },
         probe,
     )
     assert result == (
-        "sparkglm/tinyglm|sparkglm/tinyglm|models--sparkglm--tinyglm|"
-        "tinyGLM-5.3-EXL3|0"
+        "sparkglm/tinyglm|sparkglm/tinyglm|models--sparkglm--tinyglm|tinyglm-v1|"
+        "tinyglm-v1|test-dflash-revision|tinyGLM-5.3-EXL3|0"
     )
 
 

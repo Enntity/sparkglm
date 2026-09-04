@@ -8,8 +8,10 @@ competitive end-to-end serving performance and is not the recommended engine.
 ## License
 
 Atlas and the SparkGLM modifications to it are **AGPL-3.0-only**. See
-`../../LICENSES/AGPL-3.0-only.txt`. FlashKDA material under `flash_kda/` is MIT
-and retains its own license.
+`../../LICENSES/AGPL-3.0-only.txt`. FlashKDA itself is MIT and retains its
+license. The SparkGLM bridge/archive glue is AGPL; the slot patch contains
+MIT-derived context plus AGPL modifications. See `../../docs/LICENSING.md` for
+the exact per-path boundary.
 
 ## Exact reconstruction
 

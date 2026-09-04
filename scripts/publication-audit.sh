@@ -25,12 +25,14 @@ require_file LICENSES/MIT-FlashKDA.txt
 require_file LICENSES/NOTICE-Reederey.txt
 require_file LICENSES/GLM-5.3.txt
 require_file docs/ATTRIBUTION.md
+require_file docs/LICENSING.md
 require_file docs/PUBLICATION_REVIEW.md
 require_file docs/METHODOLOGY.md
 require_file docs/QUALIFICATION.md
 require_file results/README.md
 require_file results/index.json
 require_file schemas/qualification-v1.schema.json
+require_file provenance/upstreams.json
 require_file research/atlas/atlas-glm53.patch
 
 prohibited_files="$({
@@ -79,6 +81,8 @@ done < <(git ls-files '*.sh')
 
 python3 scripts/qualification.py verify-all \
     || fail "qualification records are invalid or the result index is stale"
+python3 tests/test_licensing.py \
+    || fail "licensing or attribution ledger is invalid"
 
 if ! grep -q 'libatlas_glm53_flash_kda.so' research/atlas/README.md; then
     fail "Atlas binary exclusion is undocumented"

@@ -4,7 +4,8 @@
 # ============================================================================
 #
 # We serve Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw (mirror of
-# brandonmusic/GLM-5.3-Flash-tr3-4bpw @ 5ab363a8) on this 2× DGX Spark (GB10 /
+# brandonmusic/GLM-5.3-Flash-tr3-4bpw @
+# 5ab363a8dcf6405955fd5f99671e01a1c9fb124b) on this 2× DGX Spark (GB10 /
 # SM121) kit: vLLM TP=2 over CX7, OpenAI API on :8888, NoPE-MLA overlay image.
 # DFlash2-7 is the default speculator. Target KV stays packed fp8_ds_mla;
 # the SM120 B12X recipe (EP2/DCP2 + nvfp4_ds_mla) is a different image/arch.
@@ -80,6 +81,10 @@ _cli_model_fallback="${MODEL_FALLBACK-}"
 _cli_model_cache_name="${MODEL_CACHE_NAME-}"
 _cli_model_fallback_cache_name="${MODEL_FALLBACK_CACHE_NAME-}"
 _cli_model_revision="${MODEL_REVISION-}"
+_cli_model_fallback_revision="${MODEL_FALLBACK_REVISION-}"
+_cli_dflash_model="${DFLASH_MODEL-}"
+_cli_dflash_cache_name="${DFLASH_CACHE_NAME-}"
+_cli_dflash_revision="${DFLASH_REVISION-}"
 _cli_served_model_name="${SERVED_MODEL_NAME-}"
 _cli_max_model_len="${MAX_MODEL_LEN-}"
 _cli_util="${GPU_MEM_UTIL-}"
@@ -129,6 +134,10 @@ set +a
 [ -n "${_cli_model_cache_name}" ] && MODEL_CACHE_NAME="$_cli_model_cache_name"
 [ -n "${_cli_model_fallback_cache_name}" ] && MODEL_FALLBACK_CACHE_NAME="$_cli_model_fallback_cache_name"
 [ -n "${_cli_model_revision}" ] && MODEL_REVISION="$_cli_model_revision"
+[ -n "${_cli_model_fallback_revision}" ] && MODEL_FALLBACK_REVISION="$_cli_model_fallback_revision"
+[ -n "${_cli_dflash_model}" ] && DFLASH_MODEL="$_cli_dflash_model"
+[ -n "${_cli_dflash_cache_name}" ] && DFLASH_CACHE_NAME="$_cli_dflash_cache_name"
+[ -n "${_cli_dflash_revision}" ] && DFLASH_REVISION="$_cli_dflash_revision"
 [ -n "${_cli_served_model_name}" ] && SERVED_MODEL_NAME="$_cli_served_model_name"
 [ -n "${_cli_max_model_len}" ] && MAX_MODEL_LEN="$_cli_max_model_len"
 [ -n "${_cli_util}" ] && GPU_MEM_UTIL="$_cli_util"
@@ -153,8 +162,9 @@ MODEL="${MODEL:-Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw}"
 MODEL_FALLBACK="${MODEL_FALLBACK:-brandonmusic/GLM-5.3-Flash-tr3-4bpw}"
 MODEL_CACHE_NAME="${MODEL_CACHE_NAME:-models--${MODEL//\//--}}"
 MODEL_FALLBACK_CACHE_NAME="${MODEL_FALLBACK_CACHE_NAME:-models--${MODEL_FALLBACK//\//--}}"
-# Hub commit on the Mia-AiLab mirror (the 5ab363a8-byte-identical upload).
+# Immutable Hub commits for the Mia-AiLab mirror and byte-identical fallback.
 MODEL_REVISION="${MODEL_REVISION:-25a44fdbf16862a46b7cc9921142c6c81350af2f}"
+MODEL_FALLBACK_REVISION="${MODEL_FALLBACK_REVISION:-5ab363a8dcf6405955fd5f99671e01a1c9fb124b}"
 IMAGE="${IMAGE:-ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3}"
 SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-GLM-5.3-Flash-EXL3}"
 GHCR_USER="${GHCR_USER:-MiaAI-Lab}"
@@ -205,6 +215,7 @@ MTP_TOKENS="${MTP_TOKENS:-2}"
 SPEC_METHOD="${SPEC_METHOD:-dflash}"
 DFLASH_MODEL="${DFLASH_MODEL:-incoai/GLM-5.3-Flash-DFlash2}"
 DFLASH_CACHE_NAME="${DFLASH_CACHE_NAME:-models--${DFLASH_MODEL//\//--}}"
+DFLASH_REVISION="${DFLASH_REVISION:-bf582e4eacc1810f76656d1811693ff6c6737d2a}"
 DFLASH_TOKENS="${DFLASH_TOKENS:-7}"
 # 2 = shard the ~2.3 GiB DFlash2 drafter across TP (C4 keep, 2026-08-30:
 # idle 8k 938 / 16k 972 / 100k 997; decode structured 65.1 / prose 27.1).
@@ -334,6 +345,8 @@ HF_CACHE_DIR="${HF_HOME:-$HOME/.cache/huggingface}"
 MODEL_PATH="$HF_CACHE_DIR/hub/$MODEL_CACHE_NAME"
 FALLBACK_MODEL_PATH="$HF_CACHE_DIR/hub/$MODEL_FALLBACK_CACHE_NAME"
 DFLASH_PATH="$HF_CACHE_DIR/hub/$DFLASH_CACHE_NAME"
+ACTIVE_MODEL="$MODEL"
+ACTIVE_MODEL_REVISION="$MODEL_REVISION"
 # Allow a durable rank-1 model store to be mounted directly. This mirrors the
 # existing HF_HOME override on rank 0 and avoids copying the same weights into
 # a launcher-owned cache.
@@ -483,8 +496,28 @@ count_shards() {
     find "$1/snapshots" -name '*.safetensors' 2>/dev/null | wc -l | tr -d '[:space:]' || true
 }
 
+count_revision_shards() {
+    local repo_path="$1" revision="$2"
+    if [ -n "$revision" ]; then
+        find "$repo_path/snapshots/$revision" -name '*.safetensors' 2>/dev/null \
+            | wc -l | tr -d '[:space:]' || true
+    else
+        count_shards "$repo_path"
+    fi
+}
+
 ensure_refs_main() {
     local ref="$MODEL_PATH/refs/main" snap
+    if [ -n "$ACTIVE_MODEL_REVISION" ]; then
+        [ -d "$MODEL_PATH/snapshots/$ACTIVE_MODEL_REVISION" ] \
+            || die "pinned model revision missing: ${ACTIVE_MODEL_REVISION}"
+        mkdir -p "$MODEL_PATH/refs"
+        if [ ! -f "$ref" ] || [ "$(<"$ref")" != "$ACTIVE_MODEL_REVISION" ]; then
+            printf '%s' "$ACTIVE_MODEL_REVISION" >"$ref"
+            log "pinned model refs/main -> $ACTIVE_MODEL_REVISION"
+        fi
+        return 0
+    fi
     [ -f "$ref" ] && [ -n "$(<"$ref")" ] && return 0
     snap="$(ls -1t "$MODEL_PATH/snapshots" 2>/dev/null | head -n 1 || true)"
     [ -n "$snap" ] || die "no snapshots under $MODEL_PATH — re-run download"
@@ -504,6 +537,16 @@ resolve_model_dir() {
 
 ensure_dflash_refs_main() {
     local ref="$DFLASH_PATH/refs/main" snap
+    if [ -n "$DFLASH_REVISION" ]; then
+        [ -d "$DFLASH_PATH/snapshots/$DFLASH_REVISION" ] \
+            || die "pinned DFlash2 revision missing: ${DFLASH_REVISION}"
+        mkdir -p "$DFLASH_PATH/refs"
+        if [ ! -f "$ref" ] || [ "$(<"$ref")" != "$DFLASH_REVISION" ]; then
+            printf '%s' "$DFLASH_REVISION" >"$ref"
+            log "pinned DFlash2 refs/main -> $DFLASH_REVISION"
+        fi
+        return 0
+    fi
     [ -f "$ref" ] && [ -n "$(<"$ref")" ] && return 0
     snap="$(ls -1t "$DFLASH_PATH/snapshots" 2>/dev/null | head -n 1 || true)"
     [ -n "$snap" ] || die "no snapshots under $DFLASH_PATH — re-run download"
@@ -848,17 +891,19 @@ ensure_image() {
 # brandonmusic cache folder without a second 164 GiB pull.
 adopt_complete_weights() {
     local have
-    have="$(count_shards "$MODEL_PATH")"
+    have="$(count_revision_shards "$MODEL_PATH" "$MODEL_REVISION")"
     if [ "${have:-0}" -ge "$EXPECTED_SHARDS" ]; then
         ensure_refs_main
-        log "weights already present: $MODEL_PATH ($have shards)"
+        log "weights already present: $MODEL_PATH@${MODEL_REVISION} ($have shards)"
         return 0
     fi
-    have="$(count_shards "$FALLBACK_MODEL_PATH")"
+    have="$(count_revision_shards "$FALLBACK_MODEL_PATH" "$MODEL_FALLBACK_REVISION")"
     if [ "${have:-0}" -ge "$EXPECTED_SHARDS" ]; then
-        log "primary cache incomplete — using fallback ${MODEL_FALLBACK} at $FALLBACK_MODEL_PATH ($have shards)"
+        log "primary cache incomplete — using fallback ${MODEL_FALLBACK}@${MODEL_FALLBACK_REVISION} at $FALLBACK_MODEL_PATH ($have shards)"
         MODEL_PATH="$FALLBACK_MODEL_PATH"
         MODEL_CACHE_NAME="$MODEL_FALLBACK_CACHE_NAME"
+        ACTIVE_MODEL="$MODEL_FALLBACK"
+        ACTIVE_MODEL_REVISION="$MODEL_FALLBACK_REVISION"
         ensure_refs_main
         return 0
     fi
@@ -893,6 +938,10 @@ hf_download_repo() {
     local -a args=("$repo")
     if [ -n "${MODEL_REVISION:-}" ] && [ "$repo" = "$MODEL" ]; then
         args+=(--revision "$MODEL_REVISION")
+    elif [ -n "${MODEL_FALLBACK_REVISION:-}" ] && [ "$repo" = "$MODEL_FALLBACK" ]; then
+        args+=(--revision "$MODEL_FALLBACK_REVISION")
+    elif [ -n "${DFLASH_REVISION:-}" ] && [ "$repo" = "$DFLASH_MODEL" ]; then
+        args+=(--revision "$DFLASH_REVISION")
     fi
     args+=("$@")
     HF_HOME="$HF_CACHE_DIR" "${HF_BIN_CMD[@]}" download "${args[@]}"
@@ -914,14 +963,14 @@ download_weights() {
         [ -n "$pat" ] && hf_excl+=(--exclude "$pat")
     done
 
-    log "downloading ${MODEL} (~164 GiB / ${EXPECTED_SHARDS} shards) into ${HF_CACHE_DIR} ..."
+    log "downloading ${MODEL}@${MODEL_REVISION} (~164 GiB / ${EXPECTED_SHARDS} shards) into ${HF_CACHE_DIR} ..."
     hf_download_repo "$MODEL" "${hf_excl[@]}" || warn "download of ${MODEL} failed — will try ${MODEL_FALLBACK}"
     if adopt_complete_weights; then
         return
     fi
 
     if [ "$MODEL_FALLBACK" != "$MODEL" ]; then
-        log "falling back to ${MODEL_FALLBACK} ..."
+        log "falling back to ${MODEL_FALLBACK}@${MODEL_FALLBACK_REVISION} ..."
         hf_download_repo "$MODEL_FALLBACK" "${hf_excl[@]}" \
             || die "download of ${MODEL} and ${MODEL_FALLBACK} both failed"
     fi
@@ -933,18 +982,18 @@ download_dflash() {
     [ "$SPEC_METHOD" = "dflash" ] || return 0
     [ "${SKIP_DOWNLOAD:-0}" = "1" ] && { log "SKIP_DOWNLOAD=1 — skipping DFlash2 download check"; return; }
     local have
-    have="$(find "$DFLASH_PATH/snapshots" -name 'model.safetensors' 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
+    have="$(find "$DFLASH_PATH/snapshots/$DFLASH_REVISION" -name 'model.safetensors' 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
     if [ "${have:-0}" -ge 1 ] && [ "${REFRESH_WEIGHTS:-0}" != "1" ]; then
-        log "DFlash2 already present: $DFLASH_PATH"
+        log "DFlash2 already present: $DFLASH_PATH@${DFLASH_REVISION}"
         ensure_dflash_refs_main
         return
     fi
     resolve_hf_bin || die "no 'hf' / 'huggingface-cli' on PATH and no python huggingface_hub — pip install --user -U 'huggingface_hub[cli]' (or set HF_BIN=/path/to/hf)"
     mkdir -p "$HF_CACHE_DIR"
-    log "downloading ${DFLASH_MODEL} (~2.3 GiB) into ${HF_CACHE_DIR} ..."
-    HF_HOME="$HF_CACHE_DIR" "${HF_BIN_CMD[@]}" download "$DFLASH_MODEL"
+    log "downloading ${DFLASH_MODEL}@${DFLASH_REVISION} (~2.3 GiB) into ${HF_CACHE_DIR} ..."
+    hf_download_repo "$DFLASH_MODEL"
     ensure_dflash_refs_main
-    have="$(find "$DFLASH_PATH/snapshots" -name 'model.safetensors' 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
+    have="$(find "$DFLASH_PATH/snapshots/$DFLASH_REVISION" -name 'model.safetensors' 2>/dev/null | wc -l | tr -d '[:space:]' || true)"
     [ "${have:-0}" -ge 1 ] || die "DFlash2 download finished without model.safetensors"
     log "DFlash2 download complete"
 }
@@ -969,7 +1018,7 @@ download_only() {
     log "  target      : ${MODEL}  (${have} / ${EXPECTED_SHARDS} shards)"
     log "  snapshot    : ${MODEL_PATH}"
     if [ "$SPEC_METHOD" = "dflash" ]; then
-        log "  DFlash2     : ${DFLASH_MODEL}"
+        log "  DFlash2     : ${DFLASH_MODEL}@${DFLASH_REVISION} (CC BY-NC-ND 4.0)"
         log "  draft cache : ${DFLASH_PATH}"
     else
         log "  DFlash2     : skipped (SPEC_METHOD=${SPEC_METHOD})"
@@ -1528,11 +1577,11 @@ on_ready() {
     log "GLM-5.3-Flash EXL3 is UP (TP=${TP}, nnodes=${NNODES})"
     log "  endpoints  : http://127.0.0.1:${PORT}/v1   (LAN: ${HEAD_IP}:${PORT})"
     log "  model name : ${SERVED_MODEL_NAME}"
-    log "  weights    : ${MODEL}  quant=${QUANTIZATION}  kv=${KV_CACHE_DTYPE}"
+    log "  weights    : ${ACTIVE_MODEL}@${ACTIVE_MODEL_REVISION}  quant=${QUANTIZATION}  kv=${KV_CACHE_DTYPE}"
     local vision=on
     [ "${LANGUAGE_MODEL_ONLY}" = "1" ] && vision=off
     local spec="MTP k=${MTP_TOKENS}"
-    [ "$SPEC_METHOD" = "dflash" ] && spec="DFlash2 k=${DFLASH_TOKENS} (${DFLASH_MODEL})"
+    [ "$SPEC_METHOD" = "dflash" ] && spec="DFlash2 k=${DFLASH_TOKENS} (${DFLASH_MODEL}@${DFLASH_REVISION}; CC BY-NC-ND 4.0)"
     [ "$SPEC_METHOD" = "none" ] && spec=off
     local ablit="off (stock weights)"
     [ "$ABLIT" = "1" ] && ablit="ON method=${ABLIT_METHOD} direction=${ABLIT_DIRECTION} layers=${ABLIT_LAYERS} alpha=${ABLIT_ALPHA}"

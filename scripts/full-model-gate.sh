@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Collect the frozen full-model G3 matrix for one baseline or candidate arm.
 set -euo pipefail
 

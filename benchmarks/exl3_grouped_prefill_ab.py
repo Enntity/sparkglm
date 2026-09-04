@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Exact-shape A/B for the GPU-resident GLM-5.3 fat-expert prefill path.
 
 This is intentionally model-free: it constructs valid synthetic K4 MCG

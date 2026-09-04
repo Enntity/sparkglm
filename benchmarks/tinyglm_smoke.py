@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Fast streamed concurrency smoke test for the synthetic tinyGLM endpoint."""
 
 from __future__ import annotations

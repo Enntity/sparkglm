@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Repeatable tinyGLM promotion gate with correctness and latency checks."""
 
 from __future__ import annotations

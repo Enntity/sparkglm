@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Create and verify small, checksum-bound SparkGLM qualification bundles."""
 
 from __future__ import annotations

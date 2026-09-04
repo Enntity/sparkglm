@@ -38,6 +38,7 @@ case "${1:-build}" in
         export MODEL_CACHE_NAME
         export MODEL_FALLBACK_CACHE_NAME="$MODEL_CACHE_NAME"
         export MODEL_REVISION="tinyglm-v1"
+        export MODEL_FALLBACK_REVISION="$MODEL_REVISION"
         export EXPECTED_SHARDS=0
         export SKIP_DOWNLOAD=1
         export SPEC_METHOD=none

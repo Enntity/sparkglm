@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Summarize EXL3_ROUTE_PROFILE lines emitted by the diagnostic overlay.
 
 The useful cache question is not merely whether each chunk has a large expert.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Measure the exact BF16 TP=2 collective shapes used by GLM-5.3.
 
 Run one process on each Spark with matching MASTER_ADDR/MASTER_PORT and RANK.

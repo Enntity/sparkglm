@@ -28,6 +28,12 @@ The repository must remain private until a human completes this checklist.
       drafter sources are credited.
 - [ ] Confirm no model license is implied to cover code and no code license is
       implied to cover model weights.
+- [ ] Run `python3 tests/test_licensing.py` and manually review
+      `provenance/upstreams.json` plus every attribution-related diff.
+- [ ] Confirm every new runtime commit passes
+      `scripts/check_commit_provenance.py` for the proposed public range.
+- [ ] Confirm DFlash2's CC BY-NC-ND 4.0 warning and MTP/none alternative are
+      visible before the first download/run instructions.
 
 ## Technical claims
 
@@ -48,8 +54,8 @@ The repository must remain private until a human completes this checklist.
       the entire local render archive.
 - [ ] Decide whether the staging repository should be renamed to `sparkglm`
       before public release.
-- [ ] Decide whether the inherited `.github/FUNDING.yml` should continue to
-      show MiaAI-Lab's sponsor link on the public fork.
+- [ ] Confirm the deliberately retained `.github/FUNDING.yml` MiaAI-Lab
+      sponsor link still matches the disclosure in `docs/LICENSING.md`.
 - [ ] Verify GitHub description, topics, default branch, issue templates, and
       security policy.
 - [ ] Enable the static workflow as a required branch check before accepting
