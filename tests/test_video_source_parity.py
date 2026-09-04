@@ -43,6 +43,8 @@ def test_wiring():
     docker = (ROOT / "Dockerfile").read_text()
     assert "--kind native" in docker and "--kind python" in docker
     assert "COPY --from=video-native /opt/video-native/vllm/" in docker
+    native_build = (ROOT / "scripts/build-video-native.sh").read_text()
+    assert "-U '*_GEN_SCRIPT_HASH_AND_ARCH'" in native_build
     assert docker.index("video-runtime.patch") < docker.index("--kind python")
     runtime = (ROOT / "patches/video/runtime.patch").read_text()
     for name in ("config/attention.py", "layers/sparse_attn_indexer.py",

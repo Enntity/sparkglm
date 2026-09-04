@@ -37,7 +37,11 @@ export CPLUS_INCLUDE_PATH="$CPATH"
 export C_INCLUDE_PATH="$CPATH"
 # The runtime base ships versioned NVRTC without the development linker name.
 ln -sf libnvrtc.so.13 /usr/local/cuda/targets/sbsa-linux/lib/libnvrtc.so
+# Generator outputs live in the fresh source tree, while CMake's "already
+# generated" markers live in the persistent build cache. Recreate those
+# outputs even when the generator script itself has not changed.
 cmake -S "$source_dir" -B "$build_dir" -G Ninja \
+    -U '*_GEN_SCRIPT_HASH_AND_ARCH' \
     -DCMAKE_BUILD_TYPE=Release \
     -DVLLM_TARGET_DEVICE=cuda \
     -DVLLM_PYTHON_EXECUTABLE=/usr/bin/python3 \
