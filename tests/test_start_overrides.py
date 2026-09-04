@@ -160,7 +160,7 @@ def test_decode_coop_overrides_win_and_defaults_are_materialized() -> None:
         probe,
     ) == "COOP=1 MAX=16"
     source = (ROOT / "start.sh").read_text()
-    assert 'EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}"' in source
+    assert 'EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-1}"' in source
     assert (
         'EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}"'
         in source

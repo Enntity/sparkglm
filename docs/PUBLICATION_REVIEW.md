@@ -50,8 +50,10 @@ The repository must remain private until a human completes this checklist.
 - [ ] Confirm legacy evidence is never described as post-policy certification.
 - [ ] Review `docs/KNOWN_LIMITATIONS.md`, especially the 2051-to-2048 sparse-MLA
       candidate-set approximation, and ensure the README disclosure remains.
-- [ ] Confirm grouped prefill, cooperative decode, vision, and DFlash2 remain
-      opt-in unless a current qualification explicitly promotes them.
+- [ ] Confirm grouped prefill, cooperative decode, vision, and DFlash2 are
+      disclosed as the posted-video defaults, with their legacy evidence,
+      incomplete current qualification, rollback controls, and license limits
+      visible before performance claims or launch instructions.
 
 ## Repository presentation
 

@@ -32,14 +32,16 @@ approximation on both arms and disclose it.
   qualification record; the script cannot restart two different engines by
   itself.
 
-## Candidate optimizations kept off by default
+## Current-best optimizations and their limits
 
-- `EXL3_GROUPED_PREFILL_K4=1` showed encouraging legacy results but allocates
-  roughly 1.2 GiB of persistent scratch per rank and has not passed the current
-  full G3/G4 matrix. It defaults off.
-- `EXL3_DECODE_COOP_K4=1` passed exact-shape and tinyGLM checks, but its long C2
-  full-model signal was flat and its broader semantic qualification is
-  incomplete. It defaults off.
+- `EXL3_GROUPED_PREFILL_K4=1` is part of the posted current-best configuration
+  and defaults on. Its retained pre-policy evidence was positive, but it
+  allocates roughly 1.2 GiB of persistent scratch per rank and has not passed
+  the current full G3/G4 matrix. Set it to `0` for rollback.
+- `EXL3_DECODE_COOP_K4=1` is also part of the posted configuration and defaults
+  on. It passed exact-shape and tinyGLM checks, but its isolated long-C2 signal
+  was flat and its broader semantic qualification is incomplete. Set it to `0`
+  for rollback.
 - Native FP16 sparse-selector logits require a separately rebuilt DeepGEMM
   artifact. The accepted binary rejected that dtype during graph profiling, so
   FP32 remains the supported setting.

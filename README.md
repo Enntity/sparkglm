@@ -121,12 +121,14 @@ The optimized path is intentionally narrow:
 Fallbacks and rollback knobs remain because a fast unsupported shape is a bug,
 not an optimization.
 
-Important candidate defaults include work-conserving
+Important defaults include work-conserving
 `GLM53_MIXED_PREFILL_CHUNK=0`, the GB10-selected 16 ms TP spin window, and the
-`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. Grouped prefill and cooperative
-EXL3 decode remain explicit opt-ins until they pass the current full-checkpoint
-workload and semantic gates; see `.env.example` and
-[SPARKGLM.md](SPARKGLM.md) for the complete controls.
+`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. The posted-current-build target
+also enables grouped prefill and cooperative EXL3 decode. Their retained
+evidence and incomplete current qualification are stated explicitly in
+[the posted-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md) and
+[known limitations](docs/KNOWN_LIMITATIONS.md); both retain immediate rollback
+switches in `.env.example`.
 
 ## Licensing
 

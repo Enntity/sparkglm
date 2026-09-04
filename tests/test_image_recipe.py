@@ -26,8 +26,8 @@ PUBLISHED_VIDEO_DEFAULTS = {
     "EXL3_FAT_TILE_M": "64",
     "EXL3_FAT_PAIR": "1",
     "EXL3_FAT_FUSED_ACT": "1",
-    "EXL3_GROUPED_PREFILL_K4": "0",
-    "EXL3_DECODE_COOP_K4": "0",
+    "EXL3_GROUPED_PREFILL_K4": "1",
+    "EXL3_DECODE_COOP_K4": "1",
     "EXL3_DECODE_COOP_MAX_TOKENS": "16",
     "SPEC_METHOD": "dflash",
     "DFLASH_REVISION": "7d74cdd881ed7e32c31175984a67823127b66cfe",
@@ -66,13 +66,15 @@ def test_documented_defaults() -> None:
     assert 'IMAGE="${IMAGE:-sparkglm:local}"' in start
     assert 'SPEC_METHOD="${SPEC_METHOD:-dflash}"' in start
     assert 'LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-0}"' in start
-    assert 'EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-0}"' in start
+    assert 'EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-1}"' in start
+    assert 'EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-1}"' in start
     assert "MAX_NUM_BATCHED_TOKENS=7168" in example
     assert re.search(r"^EXL3_FAT_KERNEL=1$", example, re.M)
     assert re.search(r"^IMAGE=sparkglm:local$", example, re.M)
     assert re.search(r"^SPEC_METHOD=dflash$", example, re.M)
     assert re.search(r"^LANGUAGE_MODEL_ONLY=0$", example, re.M)
-    assert re.search(r"^EXL3_GROUPED_PREFILL_K4=0$", example, re.M)
+    assert re.search(r"^EXL3_GROUPED_PREFILL_K4=1$", example, re.M)
+    assert re.search(r"^EXL3_DECODE_COOP_K4=1$", example, re.M)
 
 
 def test_fresh_checkout_matches_published_video_profile() -> None:
@@ -80,8 +82,9 @@ def test_fresh_checkout_matches_published_video_profile() -> None:
     observed = {name: values.get(name) for name in PUBLISHED_VIDEO_DEFAULTS}
     assert observed == PUBLISHED_VIDEO_DEFAULTS
     docs = VIDEO_PROFILE_DOC.read_text()
-    assert "e7e35579b8058bbacb2408dce67b8fb7dd39f9b4" in docs
-    assert "single warmed visual run" in docs
+    assert "4b2375977df873be57bc277b17778f94323ef7e6" in docs
+    assert "c80531867e13085c356ae5b9bff4c3b98ee64e8b" in docs
+    assert "one warmed visual sample" in docs
     assert "CC BY-NC-ND 4.0" in docs
 
 

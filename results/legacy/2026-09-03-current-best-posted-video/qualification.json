@@ -1,0 +1,93 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-03-current-best-posted-video",
+  "title": "Current-best posted four-stream video",
+  "date": "2026-09-03",
+  "state": "measurement",
+  "qualification_level": "legacy",
+  "target": "Four staggered 16K-class prompts with 400 output tokens per stream",
+  "change": {
+    "baseline_ref": null,
+    "candidate_ref": "c80531867e13085c356ae5b9bff4c3b98ee64e8b",
+    "working_tree_clean": true,
+    "provenance": [
+      "4b2375977df873be57bc277b17778f94323ef7e6 provides the original project grouped-prefill orchestration over attributed EXL3 and Reederey arithmetic foundations.",
+      "c80531867e13085c356ae5b9bff4c3b98ee64e8b is the original project launcher fix required to materialize cooperative-decode limits on rank 1.",
+      "Migrated from pre-policy SparkGLM evidence without retroactive certification."
+    ]
+  },
+  "environment": {
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "cross-node TP=2",
+    "model": "GLM-5.3-Flash EXL3/TR3 K4",
+    "drafter": "DFlash2 k=7, TP=2",
+    "kv_cache": "FP8 target KV",
+    "configuration": {
+      "streams": 4,
+      "stagger_ms": 1000,
+      "max_output_tokens_per_stream": 400,
+      "max_num_batched_tokens": 7168,
+      "scheduler": "work-conserving mixed prefill",
+      "grouped_prefill": true,
+      "cooperative_decode": true,
+      "cooperative_decode_max_tokens": 16
+    }
+  },
+  "gates": [
+    {
+      "id": "G3",
+      "status": "not-applicable",
+      "summary": "This was a single warmed visual capture before qualification-v1, not the current repeated G3 matrix."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "The capture proves complete requests and visible output, not broad semantic quality."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "wall",
+      "candidate": 86.14865,
+      "unit": "s"
+    },
+    {
+      "name": "aggregate_delivered_output",
+      "candidate": 24.267091,
+      "unit": "tokens/s"
+    },
+    {
+      "name": "completed_requests",
+      "candidate": 4,
+      "unit": "requests"
+    },
+    {
+      "name": "delivered_output_tokens",
+      "candidate": 1600,
+      "unit": "tokens"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "kind": "human-report",
+      "sha256": "b118e50b3c9972b668af340cb9abf74d87219130ca0f8c8f1cda86e402d8d042"
+    },
+    {
+      "path": "current-best-posted-video.json",
+      "kind": "raw-receipt",
+      "sha256": "39b9ce6628be25b4872f0475aadb1f2afe13d0fc91c57dadbc31f531a8630abd"
+    }
+  ],
+  "limitations": [
+    "This is one warmed visual sample and predates qualification-v1.",
+    "There is no paired baseline in this qualification record.",
+    "The checked-in receipt does not include server-side speculative acceptance counters or a broad semantic-quality suite.",
+    "The rendered MP4 is intentionally excluded from the source repository; its locally preserved SHA-256 is recorded in the report."
+  ],
+  "attestation": {
+    "status": "legacy",
+    "maintainer": null,
+    "date": null
+  }
+}

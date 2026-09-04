@@ -293,13 +293,11 @@ EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"
 EXL3_FAT_TILE_M="${EXL3_FAT_TILE_M:-64}"
 EXL3_FAT_PAIR="${EXL3_FAT_PAIR:-1}"
 EXL3_FAT_FUSED_ACT="${EXL3_FAT_FUSED_ACT:-1}"
-# Candidate GPU-resident grouped-prefill path. Legacy evidence was encouraging,
-# but it predates qualification-v1 and reserves about 1.2 GiB/rank of scratch.
-# Keep it opt-in until it passes the current G3/G4 matrix.
-EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-0}"
-# Cooperative decode remains opt-in. Materialize both defaults before building
-# rank-1's env list so an enabled worker never receives an empty max-token value.
-EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}"
+# Current-best video path: GPU-resident grouped prefill plus cooperative K4
+# decode. Materialize both defaults before rank 1's env list is constructed.
+# Either path can be disabled independently as an immediate rollback.
+EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-1}"
+EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-1}"
 EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}"
 
 # --- abliteration (ablit/) --------------------------------------------------
