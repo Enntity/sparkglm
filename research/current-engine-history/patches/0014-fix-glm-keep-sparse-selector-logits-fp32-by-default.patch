@@ -1,0 +1,72 @@
+From 5940f05b08155f5c276ee0bccfedb5cfa1d7ee04 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 12:49:02 -0700
+Subject: [PATCH 14/21] fix(glm): keep sparse selector logits fp32 by default
+
+---
+ patches/runtime/native-fp16-sparse-selector.patch | 6 +++---
+ patches/vllm/native-fp16-sparse-selector.patch    | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/patches/runtime/native-fp16-sparse-selector.patch b/patches/runtime/native-fp16-sparse-selector.patch
+index 9eb0a00..81be085 100644
+--- a/patches/runtime/native-fp16-sparse-selector.patch
++++ b/patches/runtime/native-fp16-sparse-selector.patch
+@@ -16,7 +16,7 @@ index 994be05f54..5b56b22b0b 100644
+  
+ +    indexer_logits_dtype: IndexerLogitsDType = "auto"
+ +    """Output data type for sparse-attention indexer logits. "auto" uses
+-+    float16 on CUDA and float32 on other platforms."""
+++    float32; float16 is opt-in until the bundled DeepGEMM accepts it."""
+ +
+      use_non_causal: bool = False
+      """Whether to use non-causal (bidirectional) attention."""
+@@ -56,7 +56,7 @@ index d94b377dbe..f1607e3fed 100644
+ +        return _INDEXER_LOGITS_DTYPES[setting]
+ +    if not current_platform.is_cuda():
+ +        return torch.float32
+-+    return torch.float16
+++    return torch.float32
+ +
+  
+  def _assert_cutedsl_dcp_merge_supported(
+@@ -201,7 +201,7 @@ index 6e475d9ce3..40d28e8a4b 100644
+ +        return _INDEXER_LOGITS_DTYPES[setting]
+ +    if not current_platform.is_cuda():
+ +        return torch.float32
+-+    return torch.float16
+++    return torch.float32
+ +
+  # kpool write helper: form pools from the current token batch and compress them
+  # into the index K cache via the fused Triton kernel.
+diff --git a/patches/vllm/native-fp16-sparse-selector.patch b/patches/vllm/native-fp16-sparse-selector.patch
+index f3cf2ae..a55b01f 100644
+--- a/patches/vllm/native-fp16-sparse-selector.patch
++++ b/patches/vllm/native-fp16-sparse-selector.patch
+@@ -2545,7 +2545,7 @@ index 994be05f54..5b56b22b0b 100644
+  
+ +    indexer_logits_dtype: IndexerLogitsDType = "auto"
+ +    """Output data type for sparse-attention indexer logits. "auto" uses
+-+    float16 on CUDA and float32 on other platforms."""
+++    float32; float16 is opt-in until the bundled DeepGEMM accepts it."""
+ +
+      use_non_causal: bool = False
+      """Whether to use non-causal (bidirectional) attention."""
+@@ -2585,7 +2585,7 @@ index d94b377dbe..f1607e3fed 100644
+ +        return _INDEXER_LOGITS_DTYPES[setting]
+ +    if not current_platform.is_cuda():
+ +        return torch.float32
+-+    return torch.float16
+++    return torch.float32
+ +
+  
+  def _assert_cutedsl_dcp_merge_supported(
+@@ -2730,7 +2730,7 @@ index 6e475d9ce3..40d28e8a4b 100644
+ +        return _INDEXER_LOGITS_DTYPES[setting]
+ +    if not current_platform.is_cuda():
+ +        return torch.float32
+-+    return torch.float16
+++    return torch.float32
+ +
+  # kpool write helper: form pools from the current token batch and compress them
+  # into the index K cache via the fused Triton kernel.

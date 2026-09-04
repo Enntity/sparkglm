@@ -1,0 +1,71 @@
+From 2607089ad0576b369e43bb6906249e6dc654f988 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 12:16:47 -0700
+Subject: [PATCH 13/21] fix(launch): preserve mixed-prefill caller policy
+
+---
+ start.sh                      |  3 +++
+ tests/test_start_overrides.py | 22 ++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/start.sh b/start.sh
+index c13700b..5650d43 100755
+--- a/start.sh
++++ b/start.sh
+@@ -76,6 +76,8 @@ _cli_util="${GPU_MEM_UTIL-}"
+ _cli_lm="${LANGUAGE_MODEL_ONLY-}"
+ _cli_max_num_seqs="${MAX_NUM_SEQS-}"
+ _cli_boot_long_c4="${GLM53_BOOT_LONG_C4-}"
++_cli_mixed_prefill_set="${GLM53_MIXED_PREFILL_CHUNK+1}"
++_cli_mixed_prefill="${GLM53_MIXED_PREFILL_CHUNK-}"
+ _cli_extra_args_set="${EXTRA_ARGS+1}"
+ _cli_extra_args="${EXTRA_ARGS-}"
+ _cli_ablit="${ABLIT-}"
+@@ -112,6 +114,7 @@ set +a
+ [ -n "${_cli_lm}" ] && LANGUAGE_MODEL_ONLY="$_cli_lm"
+ [ -n "${_cli_max_num_seqs}" ] && MAX_NUM_SEQS="$_cli_max_num_seqs"
+ [ -n "${_cli_boot_long_c4}" ] && GLM53_BOOT_LONG_C4="$_cli_boot_long_c4"
++[ -n "${_cli_mixed_prefill_set}" ] && GLM53_MIXED_PREFILL_CHUNK="$_cli_mixed_prefill"
+ [ -n "${_cli_extra_args_set}" ] && EXTRA_ARGS="$_cli_extra_args"
+ [ -n "${_cli_ablit}" ] && ABLIT="$_cli_ablit"
+ [ -n "${_cli_ablit_method}" ] && ABLIT_METHOD="$_cli_ablit_method"
+diff --git a/tests/test_start_overrides.py b/tests/test_start_overrides.py
+index 6c599dd..c24293e 100644
+--- a/tests/test_start_overrides.py
++++ b/tests/test_start_overrides.py
+@@ -54,8 +54,16 @@ def _run_preamble(env_file: str, caller: dict[str, str], probe: str) -> str:
+         script.chmod(0o755)
+         (tmp / ".env").write_text(env_file)
+ 
+-        env = {k: v for k, v in os.environ.items()
+-               if k not in ("GLM53_INDEXER_WORKSPACE", "GLM53_SPINWAIT_MS")}
++        env = {
++            k: v
++            for k, v in os.environ.items()
++            if k
++            not in (
++                "GLM53_INDEXER_WORKSPACE",
++                "GLM53_MIXED_PREFILL_CHUNK",
++                "GLM53_SPINWAIT_MS",
++            )
++        }
+         env.update(caller)
+         result = subprocess.run(
+             ["bash", str(script)], check=True, capture_output=True, text=True, env=env
+@@ -104,6 +112,16 @@ def test_spinwait_caller_capture_is_setness_aware() -> None:
+     assert _run_preamble("", {}, probe) == "V=[UNSET]"
+ 
+ 
++def test_mixed_prefill_caller_override_wins() -> None:
++    probe = '\nprintf "V=[%s]\\n" "${GLM53_MIXED_PREFILL_CHUNK-UNSET}"\n'
++    env_file = "GLM53_MIXED_PREFILL_CHUNK=0\n"
++
++    assert _run_preamble(env_file, {}, probe) == "V=[0]"
++    assert _run_preamble(
++        env_file, {"GLM53_MIXED_PREFILL_CHUNK": "skip"}, probe
++    ) == "V=[skip]"
++
++
+ def test_fat_kernel_subfeature_overrides_win() -> None:
+     probe = (
+         '\nprintf "TILE=%s PAIR=%s ACT=%s\\n" '

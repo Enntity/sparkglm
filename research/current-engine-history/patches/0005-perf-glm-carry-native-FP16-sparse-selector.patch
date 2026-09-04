@@ -1,0 +1,2879 @@
+From 14c2cb83e66d3c778648db33fad9ace863e2dfd9 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:41:27 -0700
+Subject: [PATCH 05/21] perf(glm): carry native FP16 sparse selector
+
+Apply to pinned vLLM 487ecf187d before building the source image.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../vllm/native-fp16-sparse-selector.patch    | 2860 +++++++++++++++++
+ 1 file changed, 2860 insertions(+)
+ create mode 100644 patches/vllm/native-fp16-sparse-selector.patch
+
+diff --git a/patches/vllm/native-fp16-sparse-selector.patch b/patches/vllm/native-fp16-sparse-selector.patch
+new file mode 100644
+index 0000000..f3cf2ae
+--- /dev/null
++++ b/patches/vllm/native-fp16-sparse-selector.patch
+@@ -0,0 +1,2860 @@
++diff --git a/cmake/external_projects/deepgemm.cmake b/cmake/external_projects/deepgemm.cmake
++index 72f7f5eb66..0414136045 100644
++--- a/cmake/external_projects/deepgemm.cmake
+++++ b/cmake/external_projects/deepgemm.cmake
++@@ -58,6 +58,32 @@ else()
++   message(STATUS "DeepGEMM is available at ${deepgemm_SOURCE_DIR}")
++ endif()
++ 
+++set(_deepgemm_fp16_patch
+++  "${CMAKE_SOURCE_DIR}/cmake/patches/deepgemm_fp16_paged_mqa.patch")
+++execute_process(
+++  COMMAND git apply --check "${_deepgemm_fp16_patch}"
+++  WORKING_DIRECTORY "${deepgemm_SOURCE_DIR}"
+++  RESULT_VARIABLE _deepgemm_patch_check
+++  OUTPUT_QUIET
+++  ERROR_QUIET)
+++if(_deepgemm_patch_check EQUAL 0)
+++  execute_process(
+++    COMMAND git apply "${_deepgemm_fp16_patch}"
+++    WORKING_DIRECTORY "${deepgemm_SOURCE_DIR}"
+++    COMMAND_ERROR_IS_FATAL ANY)
+++else()
+++  execute_process(
+++    COMMAND git apply --reverse --check "${_deepgemm_fp16_patch}"
+++    WORKING_DIRECTORY "${deepgemm_SOURCE_DIR}"
+++    RESULT_VARIABLE _deepgemm_patch_applied
+++    OUTPUT_QUIET
+++    ERROR_QUIET)
+++  if(NOT _deepgemm_patch_applied EQUAL 0)
+++    message(FATAL_ERROR
+++      "DeepGEMM FP16 paged-MQA patch does not apply to ${deepgemm_SOURCE_DIR}")
+++  endif()
+++endif()
+++
++ # DeepGEMM requires CUDA 12.3+ for SM90, 12.9+ for SM100 (official upstream),
++ # and 12.8+ for SM120 / SM12x. CUDA 13+ can use the family-specific SM12x
++ # arch; CUDA 12.x builds the arch-specific SM120/SM121 variants.
++@@ -150,6 +176,7 @@ if(DEEPGEMM_ARCHS)
++               "${deepgemm_SOURCE_DIR}" "${_dg_dir}" "${_pybin}"
++       COMMAND "${CMAKE_COMMAND}" -E touch "${_dg_marker}"
++       DEPENDS "${CMAKE_SOURCE_DIR}/tools/build_deepgemm_C.py"
+++              "${_deepgemm_fp16_patch}"
++               "${deepgemm_SOURCE_DIR}/csrc/python_api.cpp"
++               ${_dg_headers}
++       COMMENT "Building DeepGEMM _C for ${_pybin}"
++diff --git a/cmake/patches/deepgemm_fp16_paged_mqa.patch b/cmake/patches/deepgemm_fp16_paged_mqa.patch
++new file mode 100644
++index 0000000000..dab8d27d55
++--- /dev/null
+++++ b/cmake/patches/deepgemm_fp16_paged_mqa.patch
++@@ -0,0 +1,27 @@
+++diff --git a/csrc/apis/attention.hpp b/csrc/apis/attention.hpp
+++index 1abfd5c..de7d55d 100644
+++--- a/csrc/apis/attention.hpp
++++++ b/csrc/apis/attention.hpp
+++@@ -387,7 +387,9 @@ static torch::Tensor fp8_fp4_paged_mqa_logits(const std::tuple<torch::Tensor, st
+++     // Allocate output
+++     // SM120a: 2 groups × 64 KV rows = 128; SM90/100: 256
+++     const int split_kv = (arch_major == 12) ? 128 : 256;
+++-    DG_HOST_ASSERT(logits_dtype == torch::kFloat32 or logits_dtype == torch::kBFloat16);
++++    DG_HOST_ASSERT(logits_dtype == torch::kFloat32 or
++++                   logits_dtype == torch::kFloat16 or
++++                   logits_dtype == torch::kBFloat16);
+++     // Logits row stride must be 1024-byte aligned
+++     const int stride_logits_alignment = 1024 / static_cast<int>(c10::elementSize(logits_dtype));
+++     const auto aligned_max_context_len = align(align(max_context_len, split_kv), stride_logits_alignment);
+++diff --git a/csrc/jit_kernels/impls/runtime_utils.hpp b/csrc/jit_kernels/impls/runtime_utils.hpp
+++index 6a1e068..b7656a2 100644
+++--- a/csrc/jit_kernels/impls/runtime_utils.hpp
++++++ b/csrc/jit_kernels/impls/runtime_utils.hpp
+++@@ -55,6 +55,7 @@ static std::string to_string(const at::ScalarType& dtype) {
+++     switch (dtype) {
+++         case torch::kInt:           return "int";
+++         case torch::kFloat:         return "float";
++++        case torch::kFloat16:       return "cutlass::half_t";
+++         case torch::kBFloat16:      return "cutlass::bfloat16_t";
+++         case torch::kFloat8_e4m3fn: return "cutlass::float_e4m3_t";
+++         case kPackedFP4:            return "cutlass::detail::float_e2m1_unpacksmem_t";
++diff --git a/csrc/libtorch_stable/cooperative_topk.cu b/csrc/libtorch_stable/cooperative_topk.cu
++index f388a9e6c8..e025078899 100644
++--- a/csrc/libtorch_stable/cooperative_topk.cu
+++++ b/csrc/libtorch_stable/cooperative_topk.cu
++@@ -12,17 +12,18 @@ namespace hist4096 = vllm::topk_histogram_4096;
++ #endif
++ 
++ #ifndef USE_ROCM
++-template <uint32_t TopK, uint32_t CS>
++-void launch_cooperative_cluster(ct::CooperativeTopKParams<TopK>& params,
++-                                size_t smem, cudaStream_t stream) {
+++template <typename InputType, uint32_t TopK, uint32_t CS>
+++void launch_cooperative_cluster(
+++    ct::CooperativeTopKParams<InputType, TopK>& params, size_t smem,
+++    cudaStream_t stream) {
++   auto kernel = []() {
++     if constexpr (CS == 16) {
++-      return &ct::cooperative_topk_cs16<TopK>;
+++      return &ct::cooperative_topk_cs16<InputType, TopK>;
++     } else if constexpr (CS == 8) {
++-      return &ct::cooperative_topk_cs8<TopK>;
+++      return &ct::cooperative_topk_cs8<InputType, TopK>;
++     } else {
++       static_assert(CS == 4, "unsupported cooperative_topk cluster size");
++-      return &ct::cooperative_topk_cs4<TopK>;
+++      return &ct::cooperative_topk_cs4<InputType, TopK>;
++     }
++   }();
++   if constexpr (CS > 8) {
++@@ -47,7 +48,7 @@ void launch_cooperative_cluster(ct::CooperativeTopKParams<TopK>& params,
++                   "cooperative_topk launch failed: ", cudaGetErrorString(err));
++ }
++ 
++-template <uint32_t TopK>
+++template <typename InputType, uint32_t TopK>
++ void launch_cooperative_topk_impl(const torch::stable::Tensor& logits,
++                                   const torch::stable::Tensor& lengths,
++                                   torch::stable::Tensor& output,
++@@ -65,8 +66,9 @@ void launch_cooperative_topk_impl(const torch::stable::Tensor& logits,
++       "cooperative_topk supports <=32 rows; use persistent_topk for "
++       "larger batches");
++ 
++-  STD_TORCH_CHECK(stride % 4 == 0,
++-                  "cooperative_topk: stride must be multiple of 4 for TMA "
+++  constexpr uint32_t kTmaAlignment = 16 / sizeof(InputType);
+++  STD_TORCH_CHECK(stride % kTmaAlignment == 0,
+++                  "cooperative_topk: stride must satisfy 16-byte TMA "
++                   "alignment, got stride (max_model_len)=",
++                   stride);
++ 
++@@ -75,8 +77,12 @@ void launch_cooperative_topk_impl(const torch::stable::Tensor& logits,
++       workspace.scalar_type() == torch::headeronly::ScalarType::Byte,
++       "workspace must be uint8");
++ 
++-  ct::CooperativeTopKParams<TopK> params;
++-  params.input = logits.const_data_ptr<float>();
+++  ct::CooperativeTopKParams<InputType, TopK> params;
+++  if constexpr (std::is_same_v<InputType, float>) {
+++    params.input = logits.const_data_ptr<float>();
+++  } else {
+++    params.input = reinterpret_cast<const InputType*>(logits.const_data_ptr());
+++  }
++   params.output = output.mutable_data_ptr<int32_t>();
++   params.lengths = lengths.const_data_ptr<int32_t>();
++   params.num_rows = static_cast<uint32_t>(num_rows);
++@@ -93,11 +99,14 @@ void launch_cooperative_topk_impl(const torch::stable::Tensor& logits,
++ 
++   const bool supports_cluster16 = get_device_prop()->major >= 10;
++   if (num_rows <= 4 && supports_cluster16) {
++-    launch_cooperative_cluster<TopK, 16>(params, ct::kSmemSize8, stream);
+++    launch_cooperative_cluster<InputType, TopK, 16>(
+++        params, ct::kSmemSize8<InputType>, stream);
++   } else if (num_rows <= 8) {
++-    launch_cooperative_cluster<TopK, 8>(params, ct::kSmemSize8, stream);
+++    launch_cooperative_cluster<InputType, TopK, 8>(
+++        params, ct::kSmemSize8<InputType>, stream);
++   } else {
++-    launch_cooperative_cluster<TopK, 4>(params, ct::kSmemSize4, stream);
+++    launch_cooperative_cluster<InputType, TopK, 4>(
+++        params, ct::kSmemSize4<InputType>, stream);
++   }
++ }
++ #endif  // USE_ROCM
++@@ -111,8 +120,10 @@ void cooperative_topk(const torch::stable::Tensor& logits,
++   STD_TORCH_CHECK(logits.is_cuda(), "logits must be CUDA tensor");
++   STD_TORCH_CHECK(lengths.is_cuda(), "lengths must be CUDA tensor");
++   STD_TORCH_CHECK(output.is_cuda(), "output must be CUDA tensor");
++-  STD_TORCH_CHECK(logits.scalar_type() == torch::headeronly::ScalarType::Float,
++-                  "Only float32 supported");
+++  STD_TORCH_CHECK(
+++      logits.scalar_type() == torch::headeronly::ScalarType::Float ||
+++          logits.scalar_type() == torch::headeronly::ScalarType::Half,
+++      "Only float32 and float16 are supported");
++   STD_TORCH_CHECK(lengths.scalar_type() == torch::headeronly::ScalarType::Int,
++                   "lengths must be int32");
++   STD_TORCH_CHECK(output.scalar_type() == torch::headeronly::ScalarType::Int,
++@@ -130,15 +141,32 @@ void cooperative_topk(const torch::stable::Tensor& logits,
++       k == 512 || k == 1024 || k == 2048,
++       "cooperative_topk supports k=512, k=1024, or k=2048, got k=", k);
++ 
+++  const bool is_half =
+++      logits.scalar_type() == torch::headeronly::ScalarType::Half;
++   if (k == 512) {
++-    launch_cooperative_topk_impl<512>(logits, lengths, output, workspace,
++-                                      max_seq_len);
+++    if (is_half) {
+++      launch_cooperative_topk_impl<__half, 512>(logits, lengths, output,
+++                                                workspace, max_seq_len);
+++    } else {
+++      launch_cooperative_topk_impl<float, 512>(logits, lengths, output,
+++                                               workspace, max_seq_len);
+++    }
++   } else if (k == 1024) {
++-    launch_cooperative_topk_impl<1024>(logits, lengths, output, workspace,
++-                                       max_seq_len);
+++    if (is_half) {
+++      launch_cooperative_topk_impl<__half, 1024>(logits, lengths, output,
+++                                                 workspace, max_seq_len);
+++    } else {
+++      launch_cooperative_topk_impl<float, 1024>(logits, lengths, output,
+++                                                workspace, max_seq_len);
+++    }
++   } else {
++-    launch_cooperative_topk_impl<2048>(logits, lengths, output, workspace,
++-                                       max_seq_len);
+++    if (is_half) {
+++      launch_cooperative_topk_impl<__half, 2048>(logits, lengths, output,
+++                                                 workspace, max_seq_len);
+++    } else {
+++      launch_cooperative_topk_impl<float, 2048>(logits, lengths, output,
+++                                                workspace, max_seq_len);
+++    }
++   }
++ #else
++   STD_TORCH_CHECK(false, "cooperative_topk is not supported on ROCm");
++diff --git a/csrc/libtorch_stable/cooperative_topk.cuh b/csrc/libtorch_stable/cooperative_topk.cuh
++index b43b9b8447..0a4b088fda 100644
++--- a/csrc/libtorch_stable/cooperative_topk.cuh
+++++ b/csrc/libtorch_stable/cooperative_topk.cuh
++@@ -39,9 +39,9 @@ constexpr uint32_t kMaxSinglePassStages = 3;
++ constexpr uint32_t kMaxSinglePassPerBlock =
++     kMaxSinglePassStages * kSizePerStage;  // 49152
++ 
++-template <uint32_t TopK = 1024>
+++template <typename InputType, uint32_t TopK = 1024>
++ struct CooperativeTopKParams {
++-  const float* __restrict__ input;
+++  const InputType* __restrict__ input;
++   int32_t* __restrict__ output;
++   const int32_t* __restrict__ lengths;
++   hist4096::Tie* __restrict__ tie_ws;  // per-row tie workspace, see
++@@ -67,8 +67,9 @@ __device__ __forceinline__ uint32_t warp_reduce_sum_subN(uint32_t v) {
++ // Helpers
++ // ============================================================================
++ 
++-__device__ __forceinline__ uint32_t extract_coarse_bin(float x) {
++-  return hist4096::extract_coarse_bin_N<kHistBits>(x);
+++template <typename InputType>
+++__device__ __forceinline__ uint32_t extract_coarse_bin(InputType x) {
+++  return hist4096::extract_input_coarse_bin<kHistBits>(x);
++ }
++ 
++ __device__ __forceinline__ void mbarrier_init(uint64_t* a, uint32_t n) {
++@@ -144,17 +145,17 @@ __device__ __forceinline__ void find_threshold(uint32_t* histogram,
++ // Streams data through shared memory in chunks, processing each chunk before
++ // loading the next overwrites each buffer after processing it (the epilogue
++ // prefetch loads the next chunk into the same slot)
++-template <typename SmemType, uint32_t kStages, uint32_t kBinBits,
++-          bool kIsScatter>
++-__device__ void tma_stream_pass(const float* scores, uint32_t length,
+++template <typename InputType, typename SmemType, uint32_t kStages,
+++          uint32_t kBinBits, bool kIsScatter>
+++__device__ void tma_stream_pass(const InputType* scores, uint32_t length,
++                                 uint32_t thr_bin, int32_t* indices,
++                                 uint32_t* phases, SmemType* smem) {
++   const auto tx = threadIdx.x;
++   const auto lane = tx % hist4096::kWarpSize;
++   const auto ni =
++       (length + kSizePerStage - 1) / kSizePerStage;  // total stages needed
++-  const auto la =
++-      (length + 3u) & ~3u;  // length rounded up to float4 (TMA alignment)
+++  constexpr uint32_t kTmaAlign = 16 / sizeof(InputType);
+++  const auto la = (length + kTmaAlign - 1) & ~(kTmaAlign - 1);
++   const auto pass =
++       kIsScatter ? 1 : 0;  // barrier dim: [0] for histogram, [1] for scatter
++ 
++@@ -166,7 +167,7 @@ __device__ void tma_stream_pass(const float* scores, uint32_t length,
++         break;
++       }
++       const auto o = i * kSizePerStage;
++-      const auto sz = min(kSizePerStage, la - o) * sizeof(float);
+++      const auto sz = min(kSizePerStage, la - o) * sizeof(InputType);
++       tma_load(smem->score_buffer[i], scores + o, sz,
++                &smem->barrier[pass][i]);  // cp.async.bulk is non-blocking
++       mbarrier_arrive_expect_tx(&smem->barrier[pass][i], sz);
++@@ -192,8 +193,8 @@ __device__ void tma_stream_pass(const float* scores, uint32_t length,
++       if (li >= sz) {
++         break;
++       }
++-      const auto sc = smem->score_buffer[b][li];
++-      const auto bn = hist4096::extract_coarse_bin_N<kBinBits>(sc);
+++      const auto raw_score = smem->score_buffer[b][li];
+++      const auto bn = hist4096::extract_input_coarse_bin<kBinBits>(raw_score);
++       if constexpr (kIsScatter) {  // compile-time branch
++         // Scatter pass: place above-threshold and collect ties
++         const auto gi = o + li;
++@@ -202,7 +203,7 @@ __device__ void tma_stream_pass(const float* scores, uint32_t length,
++         } else if (bn == thr_bin) {
++           const auto p = atomicAdd(&smem->counter_eq, 1);
++           if (p < hist4096::kMaxTies) {
++-            smem->tie_buffer[p] = {gi, sc};
+++            smem->tie_buffer[p] = {gi, hist4096::score_to_ordered(raw_score)};
++           }
++         }
++       } else {
++@@ -216,7 +217,7 @@ __device__ void tma_stream_pass(const float* scores, uint32_t length,
++     // Epilogue: issue next TMA load
++     if (tx == 0 && it + kStages < ni) {
++       const auto no = (it + kStages) * kSizePerStage;
++-      const auto nsz = min(kSizePerStage, la - no) * sizeof(float);
+++      const auto nsz = min(kSizePerStage, la - no) * sizeof(InputType);
++       tma_load(smem->score_buffer[b], scores + no, nsz,
++                &smem->barrier[pass][b]);
++       mbarrier_arrive_expect_tx(&smem->barrier[pass][b], nsz);
++@@ -231,7 +232,7 @@ __device__ void tma_stream_pass(const float* scores, uint32_t length,
++ // Fused shared memory layout for cluster cooperative paths.
++ // kPasses=1 for single-pass (CS=8, CS=4 singlepass), kPasses=2 for two-pass
++ // (CS=4).
++-template <uint32_t kStages, uint32_t kPasses = 1>
+++template <typename InputType, uint32_t kStages, uint32_t kPasses = 1>
++ struct SmemFused {
++   uint64_t barrier[kPasses][kStages];
++   alignas(128) uint32_t counter_gt;
++@@ -242,20 +243,25 @@ struct SmemFused {
++     uint32_t histogram[kHistBins];
++     hist4096::Tie tie_buffer[kMaxTopK];
++   };
++-  alignas(128) float score_buffer[kStages][kSizePerStage];
+++  alignas(128) InputType score_buffer[kStages][kSizePerStage];
++ };
++ 
++-using Smem8 = SmemFused<kFusedStagesCS8>;
++-using Smem16 = SmemFused<kFusedStagesCS16>;
++-using Smem4 = SmemFused<kStreamingStagesCS4, 2>;
++-using SmemSinglePass = SmemFused<kMaxSinglePassStages>;
+++template <typename InputType>
+++using Smem8 = SmemFused<InputType, kFusedStagesCS8>;
+++template <typename InputType>
+++using Smem16 = SmemFused<InputType, kFusedStagesCS16>;
+++template <typename InputType>
+++using Smem4 = SmemFused<InputType, kStreamingStagesCS4, 2>;
+++template <typename InputType>
+++using SmemSinglePass = SmemFused<InputType, kMaxSinglePassStages>;
++ 
++ // Cluster-cooperative large path.
++ // kFused=true: all TMA stages resident, single-pass histogram + scatter (rescan
++ // from smem). kFused=false: TMA double-buffer streaming, two passes (histogram
++ // then scatter).
++-template <uint32_t TopK, uint32_t CS, typename SmemType, bool kFused>
++-__device__ void large_topk(const float* __restrict__ row_input,
+++template <typename InputType, uint32_t TopK, uint32_t CS, typename SmemType,
+++          bool kFused>
+++__device__ void large_topk(const InputType* __restrict__ row_input,
++                            int32_t* __restrict__ row_output, uint32_t seq_len,
++                            uint32_t* phases, hist4096::Tie* tie_ws) {
++   const auto rank = blockIdx.y;  // this block's position in cluster
++@@ -267,9 +273,9 @@ __device__ void large_topk(const float* __restrict__ row_input,
++   int32_t* s_topk = reinterpret_cast<int32_t*>(smem_raw + sizeof(SmemType));
++ 
++   // Partition row across cluster ranks
++-  constexpr uint32_t kAlign = 4;
+++  constexpr uint32_t kAlign = 16 / sizeof(InputType);
++   const auto units =
++-      (seq_len + kAlign - 1) / kAlign;  // float4-aligned element count
+++      (seq_len + kAlign - 1) / kAlign;  // TMA-aligned element count
++   const auto base = units / CS, extra = units % CS;  // elements per block
++   const auto lu = base + (rank < extra ? 1u : 0u);   // remainder blocks
++   const auto ou =
++@@ -279,7 +285,7 @@ __device__ void large_topk(const float* __restrict__ row_input,
++                       my_start;  // actual length of this block
++   const auto num_iters =
++       (my_len + kSizePerStage - 1) / kSizePerStage;  // TMA stages needed
++-  const auto len_aligned = (my_len + 3u) & ~3u;
+++  const auto len_aligned = (my_len + kAlign - 1) & ~(kAlign - 1);
++ 
++   if constexpr (kFused) {
++     // Fused init + TMA prologue
++@@ -292,10 +298,11 @@ __device__ void large_topk(const float* __restrict__ row_input,
++       smem->counter_eq = 0;
++       for (uint32_t i = 0; i < num_iters; i++) {
++         const auto off = i * kSizePerStage;
++-        const auto sz = min(kSizePerStage, len_aligned - off) * sizeof(float);
+++        const auto sz =
+++            min(kSizePerStage, len_aligned - off) * sizeof(InputType);
++         tma_load(smem->score_buffer[i], row_input + my_start + off, sz,
++                  &smem->barrier[0][i]);  // cp.async.bulk of size kSizePerStage
++-                                         // × sizeof(float)
+++                                         // × sizeof(InputType)
++         mbarrier_arrive_expect_tx(&smem->barrier[0][i], sz);
++       }
++     }
++@@ -338,7 +345,7 @@ __device__ void large_topk(const float* __restrict__ row_input,
++       smem->counter_eq = 0;
++     }
++     __syncthreads();
++-    tma_stream_pass<SmemType, kStreamingStagesCS4, kHistBits, false>(
+++    tma_stream_pass<InputType, SmemType, kStreamingStagesCS4, kHistBits, false>(
++         row_input + my_start, my_len, 0, nullptr, phases, smem);
++   }
++ 
++@@ -361,8 +368,8 @@ __device__ void large_topk(const float* __restrict__ row_input,
++         if (li >= sz) {
++           break;
++         }
++-        const auto score = smem->score_buffer[iter][li];  // still in smem
++-        const auto bin = extract_coarse_bin(score);
+++        const auto raw_score = smem->score_buffer[iter][li];  // still in smem
+++        const auto bin = extract_coarse_bin(raw_score);
++         const auto gidx = off + li;
++         if (bin > thr) {
++           s_topk[atomicAdd(&smem->counter_gt, 1)] = gidx;  // above -> s_topk
++@@ -370,7 +377,7 @@ __device__ void large_topk(const float* __restrict__ row_input,
++           const auto p = atomicAdd(&smem->counter_eq,
++                                    1);  // equal -> ties (later refinement)
++           if (p < hist4096::kMaxTies) {
++-            smem->tie_buffer[p] = {gidx, score};
+++            smem->tie_buffer[p] = {gidx, hist4096::score_to_ordered(raw_score)};
++           }
++         }
++       }
++@@ -379,7 +386,7 @@ __device__ void large_topk(const float* __restrict__ row_input,
++   } else {
++     // Twopass scatter: re-stream data via TMA
++     uint32_t scatter_phases[kStreamingStagesCS4] = {0, 0};
++-    tma_stream_pass<SmemType, kStreamingStagesCS4, kHistBits, true>(
+++    tma_stream_pass<InputType, SmemType, kStreamingStagesCS4, kHistBits, true>(
++         row_input + my_start, my_len, thr, s_topk, scatter_phases, smem);
++   }
++ 
++@@ -443,7 +450,7 @@ __device__ void large_topk(const float* __restrict__ row_input,
++     }
++     uint32_t tp = prefix_equal + i;
++     if (tp < (TopK <= hist4096::kBlockSize ? hist4096::kMaxTies : TopK)) {
++-      tie_ws[tp] = hist4096::Tie{t.idx + my_start, t.score};
+++      tie_ws[tp] = hist4096::Tie{t.idx + my_start, t.key};
++     }
++   }
++ 
++@@ -456,13 +463,17 @@ __device__ void large_topk(const float* __restrict__ row_input,
++     return;
++   }
++ 
++-  // Tie-breaking uses FP32 (4-round radix sort)
++-  if constexpr (TopK <= hist4096::kBlockSize) {
+++  // Refine the score bits below the coarse histogram.
+++  if constexpr (std::is_same_v<InputType, __half>) {
+++    const uint32_t num_ties = min(s_total_equal, static_cast<uint32_t>(TopK));
+++    hist4096::tie_handle_fp16<TopK, 16 - kHistBits>(
+++        tie_ws, num_ties, s_total_above, row_output, smem);
+++  } else if constexpr (TopK <= hist4096::kBlockSize) {
++     // copy ties from tie_ws back to smem, then refine
++     const uint32_t num_ties = min(s_total_equal, hist4096::kMaxTies);
++     // TODO (roberto): could vectorize with uint2 (8 bytes = exactly one Tie)
++     for (uint32_t i = tx; i < num_ties; i += hist4096::kBlockSize) {
++-      smem->tie_buffer[i] = hist4096::Tie{tie_ws[i].idx, tie_ws[i].score};
+++      smem->tie_buffer[i] = hist4096::Tie{tie_ws[i].idx, tie_ws[i].key};
++     }
++     __syncthreads();
++     hist4096::tie_handle<TopK>(smem->tie_buffer, num_ties, s_total_above,
++@@ -481,12 +492,13 @@ __device__ void large_topk(const float* __restrict__ row_input,
++ // (python/sglang/jit_kernel/include/sgl_kernel/deepseek_v4/topk/)
++ // ============================================================================
++ 
++-template <uint32_t TopK, uint32_t CS>
++-__device__ void cooperative_topk_body(CooperativeTopKParams<TopK> params) {
+++template <typename InputType, uint32_t TopK, uint32_t CS>
+++__device__ void cooperative_topk_body(
+++    CooperativeTopKParams<InputType, TopK> params) {
++   const auto rank = blockIdx.y, row = blockIdx.x, tx = threadIdx.x;
++   const auto sl = params.lengths[row];
++   int32_t* out = params.output + row * TopK;
++-  const float* in = params.input + row * params.stride;
+++  const InputType* in = params.input + row * params.stride;
++ 
++   // Trivial: seq_len <= TopK
++   if (sl <= static_cast<int32_t>(TopK)) {
++@@ -502,8 +514,10 @@ __device__ void cooperative_topk_body(CooperativeTopKParams<TopK> params) {
++   if (sl <= static_cast<int32_t>(hist4096::kHist4096MaxLen)) {
++     if (rank == 0) {
++       extern __shared__ uint8_t sr[];
++-      hist4096::histogram_4096_topk<TopK, 12>(
++-          in, out, sl, sr);  // 4096-bin (12-bit) histogram
+++      constexpr uint32_t kVecsPerThread =
+++          std::is_same_v<InputType, __half> ? 2 : 4;
+++      hist4096::histogram_4096_topk<InputType, TopK, 12, kVecsPerThread>(
+++          in, out, sl, sr);
++     }
++     return;
++   }
++@@ -523,7 +537,7 @@ __device__ void cooperative_topk_body(CooperativeTopKParams<TopK> params) {
++   constexpr uint32_t kFusedStages = (CS == 16)  ? kFusedStagesCS16
++                                     : (CS == 8) ? kFusedStagesCS8
++                                                 : kMaxSinglePassStages;
++-  using FusedSmem = SmemFused<kFusedStages>;
+++  using FusedSmem = SmemFused<InputType, kFusedStages>;
++ 
++   extern __shared__ uint8_t sr[];
++ 
++@@ -542,10 +556,12 @@ __device__ void cooperative_topk_body(CooperativeTopKParams<TopK> params) {
++     __syncthreads();
++     uint32_t phases[kFusedStages] =
++         {};  // tracks the parity for mbarrier wait/arrive protocol
++-    large_topk<TopK, CS, FusedSmem, true>(in, out, sl, phases, row_tie_ws);
+++    large_topk<InputType, TopK, CS, FusedSmem, true>(in, out, sl, phases,
+++                                                     row_tie_ws);
++   } else {
++     // Two-pass: only CS=4 in practice (CS=8 always fits in singlepass)
++-    auto* smem = reinterpret_cast<Smem4*>(sr);
+++    using StreamingSmem = Smem4<InputType>;
+++    auto* smem = reinterpret_cast<StreamingSmem*>(sr);
++     if (tx < 2 * kStreamingStagesCS4) {
++       mbarrier_init(&smem->barrier[0][tx],
++                     1);  // init 2×2=4 barriers (2 passes × 2 stages)
++@@ -553,38 +569,47 @@ __device__ void cooperative_topk_body(CooperativeTopKParams<TopK> params) {
++     __syncthreads();
++     uint32_t hp[kStreamingStagesCS4] = {0,
++                                         0};  // histogram+scatter pass counters
++-    large_topk<TopK, CS, Smem4, false>(in, out, sl, hp, row_tie_ws);
+++    large_topk<InputType, TopK, CS, StreamingSmem, false>(in, out, sl, hp,
+++                                                          row_tie_ws);
++   }
++ }
++ 
++-template <uint32_t TopK>
+++template <typename InputType, uint32_t TopK>
++ __global__ void __launch_bounds__(hist4096::kBlockSize, 1)
++     __cluster_dims__(1, 4, 1)
++-        cooperative_topk_cs4(CooperativeTopKParams<TopK> params) {
++-  cooperative_topk_body<TopK, 4>(params);
+++        cooperative_topk_cs4(CooperativeTopKParams<InputType, TopK> params) {
+++  cooperative_topk_body<InputType, TopK, 4>(params);
++ }
++ 
++-template <uint32_t TopK>
+++template <typename InputType, uint32_t TopK>
++ __global__ void __launch_bounds__(hist4096::kBlockSize, 1)
++     __cluster_dims__(1, 8, 1)
++-        cooperative_topk_cs8(CooperativeTopKParams<TopK> params) {
++-  cooperative_topk_body<TopK, 8>(params);
+++        cooperative_topk_cs8(CooperativeTopKParams<InputType, TopK> params) {
+++  cooperative_topk_body<InputType, TopK, 8>(params);
++ }
++ 
++-template <uint32_t TopK>
+++template <typename InputType, uint32_t TopK>
++ __global__ void __launch_bounds__(hist4096::kBlockSize, 1)
++     __cluster_dims__(1, 16, 1)
++-        cooperative_topk_cs16(CooperativeTopKParams<TopK> params) {
++-  cooperative_topk_body<TopK, 16>(params);
+++        cooperative_topk_cs16(CooperativeTopKParams<InputType, TopK> params) {
+++  cooperative_topk_body<InputType, TopK, 16>(params);
++ }
++ 
++-constexpr size_t kSmemSize4_base = sizeof(Smem4);
++-constexpr size_t kSmemSize4_sp = sizeof(SmemSinglePass);
+++template <typename InputType>
+++constexpr size_t kSmemSize4Base = sizeof(Smem4<InputType>);
+++template <typename InputType>
+++constexpr size_t kSmemSize4SinglePass = sizeof(SmemSinglePass<InputType>);
+++template <typename InputType>
+++constexpr size_t kSmemSize4Storage =
+++    (kSmemSize4Base<InputType> > kSmemSize4SinglePass<InputType>
+++         ? kSmemSize4Base<InputType>
+++         : kSmemSize4SinglePass<InputType>);
+++template <typename InputType>
++ constexpr size_t kSmemSize4 =
++-    (kSmemSize4_base > kSmemSize4_sp ? kSmemSize4_base : kSmemSize4_sp) +
++-    sizeof(int32_t) * 2048 + 128;
++-constexpr size_t kSmemSize8 =
++-    sizeof(SmemFused<kFusedStagesCS8>) + sizeof(int32_t) * 2048 + 128;
+++    kSmemSize4Storage<InputType> + sizeof(int32_t) * 2048 + 128;
+++template <typename InputType>
+++constexpr size_t kSmemSize8 = sizeof(SmemFused<InputType, kFusedStagesCS8>) +
+++                              sizeof(int32_t) * 2048 + 128;
++ 
++ }  // namespace cooperative
++ 
++diff --git a/csrc/libtorch_stable/persistent_topk.cuh b/csrc/libtorch_stable/persistent_topk.cuh
++index 91717f53b2..41a8151651 100644
++--- a/csrc/libtorch_stable/persistent_topk.cuh
+++++ b/csrc/libtorch_stable/persistent_topk.cuh
++@@ -10,6 +10,7 @@
++ #include <cuda_runtime.h>
++ #include <cub/cub.cuh>
++ #include <cstdint>
+++#include <type_traits>
++ 
++ #include "topk_histogram_4096.cuh"
++ 
++@@ -1005,16 +1006,41 @@ struct FilteredTopKTraits<float> {
++   }
++ };
++ 
+++// FP16 keys are already the precision being selected. The coarse pass consumes
+++// the high byte of the ordered 16-bit key and one refinement pass resolves the
+++// low byte exactly.
+++template <>
+++struct FilteredTopKTraits<__half> {
+++  using OrderedType = uint16_t;
+++  static constexpr int NUM_REFINE_ROUNDS = 1;
+++  static constexpr int FIRST_REFINE_SHIFT = 0;
+++
+++  __device__ __forceinline__ static OrderedType ToOrdered(__half x) {
+++    const uint16_t bits = __half_as_ushort(x);
+++    return (bits & 0x8000) ? static_cast<uint16_t>(~bits)
+++                           : static_cast<uint16_t>(bits | 0x8000);
+++  }
+++
+++  __device__ __forceinline__ static uint8_t ToCoarseKey(__half x) {
+++    return static_cast<uint8_t>(ToOrdered(x) >> 8);
+++  }
+++};
+++
++ constexpr uint32_t FILTERED_TOPK_BLOCK_THREADS = 1024;
++ constexpr uint32_t FILTERED_TOPK_SMEM_INPUT_SIZE =
++     16 * 1024;  // 16K indices per buffer
++-constexpr size_t FILTERED_TOPK_SMEM_DYNAMIC =
++-    sizeof(int) * 2 * FILTERED_TOPK_SMEM_INPUT_SIZE;  // 128KB
+++
+++template <typename DType>
+++constexpr size_t filtered_topk_smem_dynamic() {
+++  constexpr int kBuffers =
+++      FilteredTopKTraits<DType>::NUM_REFINE_ROUNDS == 1 ? 1 : 2;
+++  return sizeof(int) * kBuffers * FILTERED_TOPK_SMEM_INPUT_SIZE;
+++}
++ 
++ /*!
++  * \brief Filtered Top-K kernel for ragged sequences.
++  *
++- * \tparam DType Data type (float, half, nv_bfloat16)
+++ * \tparam DType Data type (float or half)
++  * \tparam IdType Index type (int32_t)
++  * \tparam VEC_SIZE Vector size for input loads (1, 2, 4, or 8)
++  */
++@@ -1052,13 +1078,17 @@ __global__ void __launch_bounds__(FILTERED_TOPK_BLOCK_THREADS)
++   if (length <= 32768) {
++     extern __shared__ uint8_t _smem_reg[];
++     if constexpr (UsePredicatedShortLoads) {
++-      hist4096::histogram_4096_topk_predicated<MAX_K, 12, 8>(score, dst, length,
++-                                                             _smem_reg);
+++      if constexpr (std::is_same_v<DType, float>) {
+++        hist4096::histogram_4096_topk_predicated<MAX_K, 12, 8>(
+++            score, dst, length, _smem_reg);
+++        return;
+++      }
++     } else {
++-      hist4096::histogram_4096_topk<MAX_K, 12, 8>(score, dst, length,
++-                                                  _smem_reg);
+++      constexpr uint32_t kVecsPerThread = std::is_same_v<DType, __half> ? 4 : 8;
+++      hist4096::histogram_4096_topk<DType, MAX_K, 12, kVecsPerThread>(
+++          score, dst, length, _smem_reg);
+++      return;
++     }
++-    return;
++   }
++ 
++   // Static shared memory
++@@ -1287,6 +1317,41 @@ constexpr int ComputeFilteredTopKVecSize(uint32_t max_len) {
++   return static_cast<int>(g);
++ }
++ 
+++template <typename DType, typename IdType, uint32_t MAX_K, int VEC_SIZE>
+++cudaError_t UpdateFilteredTopKStaticSmem(size_t* max_static_smem) {
+++  constexpr int MAX_VEC = 16 / sizeof(DType);
+++  auto kernel = FilteredTopKUnifiedKernel<DType, IdType, VEC_SIZE, MAX_K,
+++                                          (VEC_SIZE != MAX_VEC)>;
+++  cudaFuncAttributes attributes{};
+++  cudaError_t status = cudaFuncGetAttributes(&attributes, kernel);
+++  if (status != cudaSuccess) return status;
+++  if (attributes.sharedSizeBytes > *max_static_smem) {
+++    *max_static_smem = attributes.sharedSizeBytes;
+++  }
+++  return cudaSuccess;
+++}
+++
+++template <typename DType, typename IdType, uint32_t MAX_K = 2048>
+++cudaError_t GetFilteredTopKRequiredSmem(size_t* required_smem) {
+++  size_t max_static_smem = 0;
+++#define QUERY_STATIC_SMEM(VS)                                   \
+++  {                                                             \
+++    cudaError_t status =                                        \
+++        UpdateFilteredTopKStaticSmem<DType, IdType, MAX_K, VS>( \
+++            &max_static_smem);                                  \
+++    if (status != cudaSuccess) return status;                   \
+++  }
+++  QUERY_STATIC_SMEM(1)
+++  QUERY_STATIC_SMEM(2)
+++  QUERY_STATIC_SMEM(4)
+++  if constexpr (16 / sizeof(DType) >= 8) {
+++    QUERY_STATIC_SMEM(8)
+++  }
+++#undef QUERY_STATIC_SMEM
+++  *required_smem = filtered_topk_smem_dynamic<DType>() + max_static_smem;
+++  return cudaSuccess;
+++}
+++
++ template <typename DType, typename IdType, uint32_t MAX_K = 2048>
++ cudaError_t FilteredTopKRaggedTransform(const DType* input,
++                                         IdType* output_indices,
++@@ -1294,7 +1359,7 @@ cudaError_t FilteredTopKRaggedTransform(const DType* input,
++                                         uint32_t num_rows, uint32_t top_k_val,
++                                         uint32_t max_len,
++                                         cudaStream_t stream = 0) {
++-  constexpr size_t smem_size = FILTERED_TOPK_SMEM_DYNAMIC;
+++  constexpr size_t smem_size = filtered_topk_smem_dynamic<DType>();
++   constexpr int MAX_VEC = 16 / sizeof(DType);
++ 
++   dim3 grid(num_rows);
++@@ -1328,6 +1393,12 @@ cudaError_t FilteredTopKRaggedTransform(const DType* input,
++ 
++ }  // namespace filtered_topk
++ 
+++template <typename DType, typename IdType, uint32_t MAX_K = 2048>
+++cudaError_t GetFilteredTopKRequiredSmem(size_t* required_smem) {
+++  return filtered_topk::GetFilteredTopKRequiredSmem<DType, IdType, MAX_K>(
+++      required_smem);
+++}
+++
++ template <typename DType, typename IdType, uint32_t MAX_K = 2048>
++ cudaError_t FilteredTopKRaggedTransform(const DType* input,
++                                         IdType* output_indices,
++diff --git a/csrc/libtorch_stable/sampler.cu b/csrc/libtorch_stable/sampler.cu
++index 519e213281..c4790ad9e3 100644
++--- a/csrc/libtorch_stable/sampler.cu
+++++ b/csrc/libtorch_stable/sampler.cu
++@@ -48,6 +48,11 @@ __device__ __forceinline__ auto convert_to_uint32(float x) -> uint32_t {
++   return (bits & 0x80000000) ? bits : ~bits & 0x7fffffff;
++ }
++ 
+++__device__ __forceinline__ auto halfOrderedKey(__half x) -> uint16_t {
+++  uint16_t bits = __half_as_ushort(x);
+++  return (bits & 0x8000) ? bits : static_cast<uint16_t>(~bits & 0x7fff);
+++}
+++
++ template <int step>
++ static inline __device__ uint32_t extractBinIdx(float x) {
++   if constexpr (step == 0) {
++@@ -69,6 +74,17 @@ static inline __device__ uint32_t extractBinIdx(float x) {
++   }
++ }
++ 
+++template <int step>
+++static inline __device__ uint32_t extractBinIdx(__half x) {
+++  if constexpr (step == 0) {
+++    return halfOrderedKey(x) >> 5;
+++  } else if constexpr (step == 1) {
+++    return halfOrderedKey(x) & 0x1f;
+++  } else {
+++    return 0;
+++  }
+++}
+++
++ template <int shift>
++ static inline __device__ bool isPartialMatch(float x, uint32_t pattern) {
++   if constexpr (shift == 0) {
++@@ -79,6 +95,15 @@ static inline __device__ bool isPartialMatch(float x, uint32_t pattern) {
++   return (bits ^ pattern) >> shift == 0;
++ }
++ 
+++template <int shift>
+++static inline __device__ bool isPartialMatch(__half x, uint32_t pattern) {
+++  if constexpr (shift == 0) {
+++    return true;
+++  } else {
+++    return (halfOrderedKey(x) ^ pattern) >> shift == 0;
+++  }
+++}
+++
++ /**
++  * Map a Func over the input data, using vectorized load instructions if
++  * possible.
++@@ -152,13 +177,14 @@ __device__ void vectorized_process(size_t thread_rank, size_t num_threads,
++ }
++ 
++ template <int step, int kNumThreadsPerBlock, int kNumBins, int kNumFinalItems,
++-          bool multipleBlocksPerRow, bool mergeBlocks, typename SmemFinalType,
++-          typename SmemOutputType>
+++          bool multipleBlocksPerRow, bool mergeBlocks, typename InputType,
+++          typename SmemFinalType, typename SmemOutputType>
++ __device__ bool processHistogramStep(
++-    const int* indices, const float* logits, int rowEnd, uint32_t& logitPattern,
++-    int& thresholdBinIdx, SmemOutputType& smemOutput, int* smemThresholdBinIdx,
++-    int* smemFinalDstIdx, int* smemFinalBinSize, int* smemFoundTopKValues,
++-    SmemFinalType& smemFinal, int stride1, int rowStart, int topK) {
+++    const int* indices, const InputType* logits, int rowEnd,
+++    uint32_t& logitPattern, int& thresholdBinIdx, SmemOutputType& smemOutput,
+++    int* smemThresholdBinIdx, int* smemFinalDstIdx, int* smemFinalBinSize,
+++    int* smemFoundTopKValues, SmemFinalType& smemFinal, int stride1,
+++    int rowStart, int topK) {
++   // Clear the histogram.
++ #pragma unroll
++   for (int idx = threadIdx.x; idx < kNumBins; idx += kNumThreadsPerBlock) {
++@@ -169,16 +195,20 @@ __device__ bool processHistogramStep(
++   __syncthreads();
++ 
++   // Update pattern
++-  constexpr auto patternShift = step < 2 ? 0 : step == 2 ? 21 : 10;
++-  if constexpr (step == 2) {
++-    logitPattern = static_cast<uint32_t>(thresholdBinIdx & 0x7ff)
++-                   << patternShift;
++-  } else if constexpr (step == 3) {
++-    logitPattern |= static_cast<uint32_t>(thresholdBinIdx & 0x7ff)
++-                    << patternShift;
+++  constexpr bool kNativeHalf = std::is_same_v<InputType, __half>;
+++  constexpr auto patternShift = kNativeHalf ? (step == 1 ? 5 : 0)
+++                                            : (step < 2    ? 0
+++                                               : step == 2 ? 21
+++                                                           : 10);
+++  if constexpr (kNativeHalf && step == 1) {
+++    logitPattern = static_cast<uint32_t>(thresholdBinIdx & 0x7ff) << 5;
+++  } else if constexpr (!kNativeHalf && step == 2) {
+++    logitPattern = static_cast<uint32_t>(thresholdBinIdx & 0x7ff) << 21;
+++  } else if constexpr (!kNativeHalf && step == 3) {
+++    logitPattern |= static_cast<uint32_t>(thresholdBinIdx & 0x7ff) << 10;
++   }
++ 
++-  auto distributeToBins = [&](float logit, int /* idx */ = 0) {
+++  auto distributeToBins = [&](InputType logit, int /* idx */ = 0) {
++     if (isPartialMatch<patternShift>(logit, logitPattern)) {
++       uint32_t binIdx = extractBinIdx<step>(logit);
++       atomicAdd(&smemFinal.histo.data[binIdx], 1);
++@@ -192,7 +222,7 @@ __device__ bool processHistogramStep(
++   } else {
++     for (int idx = rowStart + threadIdx.x; idx < rowEnd;
++          idx += kNumThreadsPerBlock) {
++-      float logit = logits[idx * stride1];
+++      InputType logit = logits[idx * stride1];
++       distributeToBins(logit, idx);
++     }
++   }
++@@ -253,7 +283,7 @@ __device__ bool processHistogramStep(
++   // The threshold bin.
++   thresholdBinIdx = smemThresholdBinIdx[0];
++ 
++-  auto processBins = [&](float logit, int idx) {
+++  auto processBins = [&](InputType logit, int idx) {
++     if (isPartialMatch<patternShift>(logit, logitPattern)) {
++       uint32_t binIdx = extractBinIdx<step>(logit);
++       // Only write elements with binIdx < thresholdBinIdx when:
++@@ -261,7 +291,9 @@ __device__ bool processHistogramStep(
++       // 2. This is step >= 1 (where pattern matching filters correctly)
++       // This prevents duplicates when step 0 and step 1 both run.
++       bool shouldWriteDirectly =
++-          (step == 0 && smemFinalBinSize[0] <= kNumFinalItems) || (step >= 1);
+++          (step == 0 &&
+++           (smemFinalBinSize[0] <= kNumFinalItems || kNativeHalf)) ||
+++          (step >= 1);
++       if (binIdx < thresholdBinIdx && shouldWriteDirectly) {
++         // The element is part of the top-k selection
++         int dstIdx = atomicAdd(&smemFoundTopKValues[0], 1);
++@@ -280,7 +312,11 @@ __device__ bool processHistogramStep(
++         if (binIdx == thresholdBinIdx &&
++             smemFinalBinSize[0] <= kNumFinalItems) {
++           int dstIdx = atomicAdd(&smemFinalDstIdx[0], 1);
++-          smemFinal.items.logits[dstIdx] = logit;
+++          if constexpr (std::is_same_v<InputType, __half>) {
+++            smemFinal.items.logits[dstIdx] = halfOrderedKey(logit);
+++          } else {
+++            smemFinal.items.logits[dstIdx] = logit;
+++          }
++           if constexpr (mergeBlocks) {
++             smemFinal.items.indices[dstIdx] = indices[idx];
++           } else if constexpr (multipleBlocksPerRow) {
++@@ -314,7 +350,7 @@ __device__ bool processHistogramStep(
++   } else {
++     for (int idx = rowStart + threadIdx.x; idx < rowEnd;
++          idx += kNumThreadsPerBlock) {
++-      float logit = logits[idx * stride1];
+++      InputType logit = logits[idx * stride1];
++       processBins(logit, idx);
++     }
++   }
++@@ -326,19 +362,80 @@ __device__ bool processHistogramStep(
++   return smemFinalBinSize[0] > kNumFinalItems;
++ }
++ 
+++template <int kNumThreadsPerBlock, bool multipleBlocksPerRow>
+++__device__ __noinline__ void finalizeHalfFineHistogram(
+++    const uint16_t* candidateKeys, const int* candidateIndices,
+++    int candidateCount, const __half* logits, int stride1, int topK,
+++    int* smemOutput, int* smemFoundTopKValues, int* smemHalfHistogram,
+++    int* smemHalfThreshold) {
+++  for (int i = threadIdx.x; i < 32; i += kNumThreadsPerBlock) {
+++    smemHalfHistogram[i] = 0;
+++  }
+++  __syncthreads();
+++
+++  for (int i = threadIdx.x; i < candidateCount; i += kNumThreadsPerBlock) {
+++    atomicAdd(&smemHalfHistogram[candidateKeys[i] & 0x1f], 1);
+++  }
+++  __syncthreads();
+++
+++  if (threadIdx.x == 0) {
+++    int remaining = topK - smemFoundTopKValues[0];
+++    int count = 0;
+++    for (int i = 0; i < 32; i++) {
+++      if (count + smemHalfHistogram[i] >= remaining) {
+++        smemHalfThreshold[0] = i;
+++        break;
+++      }
+++      count += smemHalfHistogram[i];
+++    }
+++  }
+++  __syncthreads();
+++
+++  for (int i = threadIdx.x; i < candidateCount; i += kNumThreadsPerBlock) {
+++    if ((candidateKeys[i] & 0x1f) < smemHalfThreshold[0]) {
+++      int dstIdx = atomicAdd(&smemFoundTopKValues[0], 1);
+++      smemOutput[dstIdx] = candidateIndices[i];
+++      if constexpr (multipleBlocksPerRow) {
+++        reinterpret_cast<float*>(smemOutput + topK)[dstIdx] =
+++            static_cast<float>(logits[candidateIndices[i] * stride1]);
+++      }
+++    }
+++  }
+++  __syncthreads();
+++
+++  for (int i = threadIdx.x; i < candidateCount; i += kNumThreadsPerBlock) {
+++    if ((candidateKeys[i] & 0x1f) == smemHalfThreshold[0]) {
+++      int dstIdx = atomicAdd(&smemFoundTopKValues[0], 1);
+++      if (dstIdx < topK) {
+++        smemOutput[dstIdx] = candidateIndices[i];
+++        if constexpr (multipleBlocksPerRow) {
+++          reinterpret_cast<float*>(smemOutput + topK)[dstIdx] =
+++              static_cast<float>(logits[candidateIndices[i] * stride1]);
+++        }
+++      }
+++    }
+++  }
+++  __syncthreads();
+++}
+++
++ // Follows half - 11 - 11 - 10 bit iterations
++-template <int kNumThreadsPerBlock, int kNumBins, bool useRadixSort,
++-          bool multipleBlocksPerRow = false, bool mergeBlocks = false>
++-static __device__ void topKPerRowJob(const int* indices, const float* logits,
++-                                     int rowStart, int rowEnd, int* outIndices,
+++template <typename InputType, int kNumThreadsPerBlock, int kNumBins,
+++          bool useRadixSort, bool multipleBlocksPerRow = false,
+++          bool mergeBlocks = false>
+++static __device__ void topKPerRowJob(const int* indices,
+++                                     const InputType* logits, int rowStart,
+++                                     int rowEnd, int* outIndices,
++                                      float* outLogits, int stride1, int topK) {
++   // The number of slots for the final pass.
++   static constexpr int kNumFinalItems = 2048;
+++  static constexpr int kHalfInsertionCandidateThreshold = 64;
++   // The number of elements per thread for the final sort.
++   static constexpr int kNumFinalItemsPerThread =
++       kNumFinalItems / kNumThreadsPerBlock;
+++  static constexpr bool kNativeHalf = std::is_same_v<InputType, __half>;
+++  using CandidateType = std::conditional_t<kNativeHalf, uint16_t, float>;
++   // The class to sort the elements during the final pass.
++-  using FinalSort = cub::BlockRadixSort<float, kNumThreadsPerBlock,
+++  using FinalSort = cub::BlockRadixSort<CandidateType, kNumThreadsPerBlock,
++                                         kNumFinalItemsPerThread, int>;
++   using FinalSortTempStorage =
++       std::conditional_t<useRadixSort, typename FinalSort::TempStorage, int>;
++@@ -350,7 +447,7 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++     // Shared memory to store the indices for the final pass.
++     int indices[kNumFinalItems];
++     // Shared memory to store the logits for the final pass.
++-    float logits[kNumFinalItems];
+++    CandidateType logits[kNumFinalItems];
++   };
++ 
++   struct Histogram {
++@@ -379,6 +476,8 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++   // Shared memory to keep track of the top-k values found so far by the
++   // previous iterations
++   __shared__ int smemFoundTopKValues[1];
+++  __shared__ int smemHalfHistogram[kNativeHalf ? 32 : 1];
+++  __shared__ int smemHalfThreshold[1];
++ 
++   // The length of the row.
++   int rowLen = rowEnd - rowStart;
++@@ -390,7 +489,7 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++          rowIt += kNumThreadsPerBlock) {
++       if constexpr (multipleBlocksPerRow) {
++         outIndices[rowIt] = rowIt + rowStart;
++-        outLogits[rowIt] = logits[rowIt + rowStart];
+++        outLogits[rowIt] = static_cast<float>(logits[rowIt + rowStart]);
++       } else {
++         outIndices[rowIt] = rowIt;
++       }
++@@ -421,7 +520,9 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++           indices, logits, rowEnd, logitPattern, thresholdBinIdx, smemOutput,
++           smemThresholdBinIdx, smemFinalDstIdx, smemFinalBinSize,
++           smemFoundTopKValues, smemFinal, stride1, rowStart, topK);
++-
+++  const bool useHalfFineHistogram =
+++      kNativeHalf && !continueToNextStep &&
+++      smemFinalDstIdx[0] > kHalfInsertionCandidateThreshold;
++   if (continueToNextStep) {
++     // Step 1: Process next 11 bits
++     continueToNextStep =
++@@ -432,6 +533,41 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++             smemFoundTopKValues, smemFinal, stride1, rowStart, topK);
++   }
++ 
+++  if constexpr (kNativeHalf) {
+++    if (continueToNextStep) {
+++      uint16_t thresholdKey =
+++          static_cast<uint16_t>(logitPattern | thresholdBinIdx);
+++      auto fillThresholdTies = [&](InputType logit, int idx) {
+++        if (halfOrderedKey(logit) == thresholdKey) {
+++          int dstIdx = atomicAdd(&smemFoundTopKValues[0], 1);
+++          if (dstIdx < topK) {
+++            if constexpr (mergeBlocks) {
+++              smemOutput[dstIdx] = indices[idx];
+++            } else if constexpr (multipleBlocksPerRow) {
+++              smemOutput[dstIdx] = idx + rowStart;
+++              reinterpret_cast<float*>(smemOutput + topK)[dstIdx] =
+++                  static_cast<float>(logit);
+++            } else {
+++              smemOutput[dstIdx] = idx;
+++            }
+++          }
+++        }
+++      };
+++
+++      if (stride1 == 1) {
+++        vectorized_process(threadIdx.x, kNumThreadsPerBlock, logits + rowStart,
+++                           rowEnd - rowStart, fillThresholdTies);
+++      } else {
+++        for (int idx = rowStart + threadIdx.x; idx < rowEnd;
+++             idx += kNumThreadsPerBlock) {
+++          fillThresholdTies(logits[idx * stride1], idx);
+++        }
+++      }
+++      __syncthreads();
+++      continueToNextStep = false;
+++    }
+++  }
+++
++   if (continueToNextStep) {
++     // Step 2: Process next 11 bits
++     continueToNextStep =
++@@ -452,18 +588,26 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++   }
++ 
++   if (!continueToNextStep) {
++-    // The histogram did not proceed to the final 10 bits, therefore we need to
++-    // sort the final items The logits of the elements to be sorted in the final
++-    // pass.
++-    if constexpr (useRadixSort) {
+++    // Finalize the candidates without another global-memory pass.
+++    if (useHalfFineHistogram) {
+++      finalizeHalfFineHistogram<kNumThreadsPerBlock, multipleBlocksPerRow>(
+++          reinterpret_cast<const uint16_t*>(smemFinal.items.logits),
+++          smemFinal.items.indices, smemFinalDstIdx[0],
+++          reinterpret_cast<const __half*>(logits), stride1, topK, smemOutput,
+++          smemFoundTopKValues, smemHalfHistogram, smemHalfThreshold);
+++    } else if constexpr (useRadixSort) {
++       // Sorting with radix sort
++-      float finalLogits[kNumFinalItemsPerThread];
+++      CandidateType finalKeys[kNumFinalItemsPerThread];
++       // The indices of the elements to be sorted in the final pass.
++       int finalIndices[kNumFinalItemsPerThread];
++ 
++ #pragma unroll
++       for (int ii = 0; ii < kNumFinalItemsPerThread; ++ii) {
++-        finalLogits[ii] = -FLT_MAX;
+++        if constexpr (kNativeHalf) {
+++          finalKeys[ii] = UINT16_MAX;
+++        } else {
+++          finalKeys[ii] = -FLT_MAX;
+++        }
++       }
++ 
++       // Read the elements from SMEM.
++@@ -471,7 +615,7 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++       for (int ii = 0; ii < kNumFinalItemsPerThread; ++ii) {
++         int srcIdx = ii * kNumThreadsPerBlock + threadIdx.x;
++         if (srcIdx < smemFinalDstIdx[0]) {
++-          finalLogits[ii] = smemFinal.items.logits[srcIdx];
+++          finalKeys[ii] = smemFinal.items.logits[srcIdx];
++           finalIndices[ii] = smemFinal.items.indices[srcIdx];
++         }
++       }
++@@ -479,8 +623,13 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++       __syncthreads();
++ 
++       // Sort the elements.
++-      FinalSort(smemFinal.finalSort)
++-          .SortDescendingBlockedToStriped(finalLogits, finalIndices);
+++      if constexpr (kNativeHalf) {
+++        FinalSort(smemFinal.finalSort)
+++            .SortBlockedToStriped(finalKeys, finalIndices);
+++      } else {
+++        FinalSort(smemFinal.finalSort)
+++            .SortDescendingBlockedToStriped(finalKeys, finalIndices);
+++      }
++ 
++       // Copy the data back to the shared memory storage.
++       int baseIdx = smemFoundTopKValues[0];
++@@ -494,7 +643,7 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++           smemOutput[dstIdx] = finalIndices[ii];
++           if constexpr (multipleBlocksPerRow) {
++             reinterpret_cast<float*>(smemOutput + topK)[dstIdx] =
++-                finalLogits[ii];
+++                static_cast<float>(logits[finalIndices[ii] * stride1]);
++           }
++         }
++       }
++@@ -507,7 +656,8 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++         auto logit = smemFinal.items.logits[i];
++         for (int j = 0; j < smemFinalDstIdx[0]; j++) {
++           auto otherLogit = smemFinal.items.logits[j];
++-          if (logit < otherLogit || (logit == otherLogit && i < j)) {
+++          bool isAfter = kNativeHalf ? logit > otherLogit : logit < otherLogit;
+++          if (isAfter || (logit == otherLogit && i < j)) {
++             outIndex++;
++           }
++         }
++@@ -516,7 +666,8 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++           smemOutput[outIndex + baseIdx] = smemFinal.items.indices[i];
++           if constexpr (multipleBlocksPerRow) {
++             reinterpret_cast<float*>(smemOutput + topK)[outIndex + baseIdx] =
++-                smemFinal.items.logits[i];
+++                static_cast<float>(
+++                    logits[smemFinal.items.indices[i] * stride1]);
++           }
++         }
++       }
++@@ -541,9 +692,9 @@ static __device__ void topKPerRowJob(const int* indices, const float* logits,
++   }
++ }
++ 
++-template <int kNumThreadsPerBlock, bool useRadixSort>
+++template <typename InputType, int kNumThreadsPerBlock, bool useRadixSort>
++ static __global__ __launch_bounds__(kNumThreadsPerBlock) void topKPerRowPrefill(
++-    const float* logits, const int* rowStarts, const int* rowEnds,
+++    const InputType* logits, const int* rowStarts, const int* rowEnds,
++     int* outIndices, int stride0, int stride1, const int topK,
++     const int offsetIndex) {
++   // The number of bins in the histogram.
++@@ -560,14 +711,49 @@ static __global__ __launch_bounds__(kNumThreadsPerBlock) void topKPerRowPrefill(
++   outIndices += static_cast<int64_t>(rowIdx) * topK;
++   logits += static_cast<int64_t>(rowIdx) * stride0;
++ 
++-  topKPerRowJob<kNumThreadsPerBlock, kNumBins, useRadixSort>(
+++  topKPerRowJob<InputType, kNumThreadsPerBlock, kNumBins, useRadixSort>(
+++      nullptr, logits, rowStart, rowEnd, outIndices, nullptr, stride1, topK);
+++}
+++
+++template <int kNumThreadsPerBlock, bool useRadixSort>
+++static __global__ __launch_bounds__(
+++    kNumThreadsPerBlock,
+++    4) void topKPerRowPrefillHalf(const __half* logits, const int* rowStarts,
+++                                  const int* rowEnds, int* outIndices,
+++                                  int stride0, int stride1, const int topK,
+++                                  const int offsetIndex) {
+++  static constexpr int kNumBins = 2048;
+++  int rowIdx = blockIdx.x + offsetIndex;
+++  int rowStart = rowStarts[rowIdx];
+++  int rowEnd = rowEnds[rowIdx];
+++  outIndices += static_cast<int64_t>(rowIdx) * topK;
+++  logits += static_cast<int64_t>(rowIdx) * stride0;
+++
+++  topKPerRowJob<__half, kNumThreadsPerBlock, kNumBins, useRadixSort>(
++       nullptr, logits, rowStart, rowEnd, outIndices, nullptr, stride1, topK);
++ }
++ 
++-template <int kNumThreadsPerBlock, bool useRadixSort,
+++template <int kNumThreadsPerBlock, bool useRadixSort>
+++static __global__
+++__launch_bounds__(kNumThreadsPerBlock) void topKPerRowPrefillHalfLatency(
+++    const __half* logits, const int* rowStarts, const int* rowEnds,
+++    int* outIndices, int stride0, int stride1, const int topK,
+++    const int offsetIndex) {
+++  static constexpr int kNumBins = 2048;
+++  int rowIdx = blockIdx.x + offsetIndex;
+++  int rowStart = rowStarts[rowIdx];
+++  int rowEnd = rowEnds[rowIdx];
+++  outIndices += static_cast<int64_t>(rowIdx) * topK;
+++  logits += static_cast<int64_t>(rowIdx) * stride0;
+++
+++  topKPerRowJob<__half, kNumThreadsPerBlock, kNumBins, useRadixSort>(
+++      nullptr, logits, rowStart, rowEnd, outIndices, nullptr, stride1, topK);
+++}
+++
+++template <typename InputType, int kNumThreadsPerBlock, bool useRadixSort,
++           bool multipleBlocksPerRow = false, bool mergeBlocks = false>
++ static __global__ __launch_bounds__(kNumThreadsPerBlock) void topKPerRowDecode(
++-    const float* logits, const int* seqLens, int* outIndices, int stride0,
+++    const InputType* logits, const int* seqLens, int* outIndices, int stride0,
++     int stride1, const int topK, int next_n, int seqLensIs2D = 0,
++     float* outLogits = nullptr, const int numBlocksToMerge = 0,
++     const int* indices = nullptr) {
++@@ -608,7 +794,7 @@ static __global__ __launch_bounds__(kNumThreadsPerBlock) void topKPerRowDecode(
++   }
++   logits += static_cast<int64_t>(rowIdx) * stride0;
++ 
++-  topKPerRowJob<kNumThreadsPerBlock, kNumBins, useRadixSort,
+++  topKPerRowJob<InputType, kNumThreadsPerBlock, kNumBins, useRadixSort,
++                 multipleBlocksPerRow, mergeBlocks>(
++       indices, logits, rowStart, rowEnd, outIndices, outLogits, stride1, topK);
++ }
++@@ -669,6 +855,11 @@ void top_k_per_row_decode(const torch::stable::Tensor& logits, int64_t next_n,
++       logits.get_device_index());
++   const cudaStream_t stream = get_current_cuda_stream();
++   const auto numColumns = logits.size(1);
+++  const bool is_half =
+++      logits.scalar_type() == torch::headeronly::ScalarType::Half;
+++  STD_TORCH_CHECK(
+++      is_half || logits.scalar_type() == torch::headeronly::ScalarType::Float,
+++      "top_k_per_row_decode supports only float32 and float16 logits");
++ 
++   // True if seqLens is 2D (B, next_n): each logit row has its own pre-computed
++   // effective seq_len. False if seqLens is 1D (B,): all rows in a batch share
++@@ -677,20 +868,38 @@ void top_k_per_row_decode(const torch::stable::Tensor& logits, int64_t next_n,
++ 
++   if (numColumns < kSortingAlgorithmThreshold) {
++     // Use insertion sort
++-    vllm::topKPerRowDecode<kNumThreadsPerBlock, false>
++-        <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
++-            logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
++-            indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
++-            static_cast<int>(stride1), static_cast<int>(topK),
++-            static_cast<int>(next_n), seqLensIs2D);
+++    if (is_half) {
+++      vllm::topKPerRowDecode<__half, kNumThreadsPerBlock, false>
+++          <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
+++              reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++              seqLens.const_data_ptr<int>(), indices.mutable_data_ptr<int>(),
+++              static_cast<int>(stride0), static_cast<int>(stride1),
+++              static_cast<int>(topK), static_cast<int>(next_n), seqLensIs2D);
+++    } else {
+++      vllm::topKPerRowDecode<float, kNumThreadsPerBlock, false>
+++          <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
+++              logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
+++              indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK),
+++              static_cast<int>(next_n), seqLensIs2D);
+++    }
++   } else if (numColumns < kSplitWorkThreshold) {
++     // From this threshold, use radix sort instead
++-    vllm::topKPerRowDecode<kNumThreadsPerBlock, true>
++-        <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
++-            logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
++-            indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
++-            static_cast<int>(stride1), static_cast<int>(topK),
++-            static_cast<int>(next_n), seqLensIs2D);
+++    if (is_half) {
+++      vllm::topKPerRowDecode<__half, kNumThreadsPerBlock, true>
+++          <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
+++              reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++              seqLens.const_data_ptr<int>(), indices.mutable_data_ptr<int>(),
+++              static_cast<int>(stride0), static_cast<int>(stride1),
+++              static_cast<int>(topK), static_cast<int>(next_n), seqLensIs2D);
+++    } else {
+++      vllm::topKPerRowDecode<float, kNumThreadsPerBlock, true>
+++          <<<numRows, kNumThreadsPerBlock, topK * sizeof(int32_t), stream>>>(
+++              logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
+++              indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK),
+++              static_cast<int>(next_n), seqLensIs2D);
+++    }
++   } else {
++     // Long sequences are run in two steps
++     constexpr auto multipleBlocksPerRowConfig = 10;
++@@ -702,17 +911,29 @@ void top_k_per_row_decode(const torch::stable::Tensor& logits, int64_t next_n,
++         {numRows, multipleBlocksPerRowConfig, topK},
++         torch::headeronly::ScalarType::Float, std::nullopt, logits.device());
++ 
++-    vllm::topKPerRowDecode<kNumThreadsPerBlock, true, true>
++-        <<<dim3(numRows, multipleBlocksPerRowConfig), kNumThreadsPerBlock,
++-           2 * topK * sizeof(int32_t), stream>>>(
++-            logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
++-            outIndicesAux.mutable_data_ptr<int>(), static_cast<int>(stride0),
++-            static_cast<int>(stride1), static_cast<int>(topK),
++-            static_cast<int>(next_n), seqLensIs2D,
++-            outLogitsAux.mutable_data_ptr<float>());
+++    if (is_half) {
+++      vllm::topKPerRowDecode<__half, kNumThreadsPerBlock, true, true>
+++          <<<dim3(numRows, multipleBlocksPerRowConfig), kNumThreadsPerBlock,
+++             2 * topK * sizeof(int32_t), stream>>>(
+++              reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++              seqLens.const_data_ptr<int>(),
+++              outIndicesAux.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK),
+++              static_cast<int>(next_n), seqLensIs2D,
+++              outLogitsAux.mutable_data_ptr<float>());
+++    } else {
+++      vllm::topKPerRowDecode<float, kNumThreadsPerBlock, true, true>
+++          <<<dim3(numRows, multipleBlocksPerRowConfig), kNumThreadsPerBlock,
+++             2 * topK * sizeof(int32_t), stream>>>(
+++              logits.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
+++              outIndicesAux.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK),
+++              static_cast<int>(next_n), seqLensIs2D,
+++              outLogitsAux.mutable_data_ptr<float>());
+++    }
++ 
++     constexpr int kNumThreadsPerBlockMerge = 1024;
++-    vllm::topKPerRowDecode<kNumThreadsPerBlockMerge, true, false, true>
+++    vllm::topKPerRowDecode<float, kNumThreadsPerBlockMerge, true, false, true>
++         <<<numRows, kNumThreadsPerBlockMerge, topK * sizeof(int32_t), stream>>>(
++             outLogitsAux.const_data_ptr<float>(), seqLens.const_data_ptr<int>(),
++             indices.mutable_data_ptr<int>(), multipleBlocksPerRowConfig * topK,
++@@ -729,28 +950,65 @@ void top_k_per_row_prefill(const torch::stable::Tensor& logits,
++                            int64_t stride0, int64_t stride1, int64_t topK) {
++   constexpr int kSortingAlgorithmThreshold = 12288;
++   constexpr int kNumThreadsPerBlock = 512;
+++  constexpr int kNumHalfThreadsPerBlock = 512;
++   const torch::stable::accelerator::DeviceGuard device_guard(
++       logits.get_device_index());
++   const cudaStream_t stream = get_current_cuda_stream();
+++  const bool is_half =
+++      logits.scalar_type() == torch::headeronly::ScalarType::Half;
+++  STD_TORCH_CHECK(
+++      is_half || logits.scalar_type() == torch::headeronly::ScalarType::Float,
+++      "top_k_per_row_prefill supports only float32 and float16 logits");
++ 
++   int numInsertionBlocks =
++       std::min(static_cast<int>(numRows), kSortingAlgorithmThreshold);
++-  vllm::topKPerRowPrefill<kNumThreadsPerBlock, false>
++-      <<<numInsertionBlocks, kNumThreadsPerBlock, topK * sizeof(int32_t),
++-         stream>>>(logits.const_data_ptr<float>(),
++-                   rowStarts.const_data_ptr<int>(),
++-                   rowEnds.const_data_ptr<int>(),
++-                   indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
++-                   static_cast<int>(stride1), static_cast<int>(topK), 0);
+++  if (is_half) {
+++    if (numRows < 512) {
+++      vllm::topKPerRowPrefillHalfLatency<kNumHalfThreadsPerBlock, false>
+++          <<<numInsertionBlocks, kNumHalfThreadsPerBlock,
+++             topK * sizeof(int32_t), stream>>>(
+++              reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++              rowStarts.const_data_ptr<int>(), rowEnds.const_data_ptr<int>(),
+++              indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK), 0);
+++    } else {
+++      vllm::topKPerRowPrefillHalf<kNumHalfThreadsPerBlock, false>
+++          <<<numInsertionBlocks, kNumHalfThreadsPerBlock,
+++             topK * sizeof(int32_t), stream>>>(
+++              reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++              rowStarts.const_data_ptr<int>(), rowEnds.const_data_ptr<int>(),
+++              indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++              static_cast<int>(stride1), static_cast<int>(topK), 0);
+++    }
+++  } else {
+++    vllm::topKPerRowPrefill<float, kNumThreadsPerBlock, false>
+++        <<<numInsertionBlocks, kNumThreadsPerBlock, topK * sizeof(int32_t),
+++           stream>>>(logits.const_data_ptr<float>(),
+++                     rowStarts.const_data_ptr<int>(),
+++                     rowEnds.const_data_ptr<int>(),
+++                     indices.mutable_data_ptr<int>(), static_cast<int>(stride0),
+++                     static_cast<int>(stride1), static_cast<int>(topK), 0);
+++  }
++ 
++   if (numRows > kSortingAlgorithmThreshold) {
++     int numRadixBlocks = numRows - kSortingAlgorithmThreshold;
++-    vllm::topKPerRowPrefill<kNumThreadsPerBlock, true>
++-        <<<numRadixBlocks, kNumThreadsPerBlock, topK * sizeof(int32_t),
++-           stream>>>(
++-            logits.const_data_ptr<float>(), rowStarts.const_data_ptr<int>(),
++-            rowEnds.const_data_ptr<int>(), indices.mutable_data_ptr<int>(),
++-            static_cast<int>(stride0), static_cast<int>(stride1),
++-            static_cast<int>(topK), kSortingAlgorithmThreshold);
+++    if (is_half) {
+++      vllm::topKPerRowPrefillHalf<kNumHalfThreadsPerBlock, true>
+++          <<<numRadixBlocks, kNumHalfThreadsPerBlock, topK * sizeof(int32_t),
+++             stream>>>(reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++                       rowStarts.const_data_ptr<int>(),
+++                       rowEnds.const_data_ptr<int>(),
+++                       indices.mutable_data_ptr<int>(),
+++                       static_cast<int>(stride0), static_cast<int>(stride1),
+++                       static_cast<int>(topK), kSortingAlgorithmThreshold);
+++    } else {
+++      vllm::topKPerRowPrefill<float, kNumThreadsPerBlock, true>
+++          <<<numRadixBlocks, kNumThreadsPerBlock, topK * sizeof(int32_t),
+++             stream>>>(
+++              logits.const_data_ptr<float>(), rowStarts.const_data_ptr<int>(),
+++              rowEnds.const_data_ptr<int>(), indices.mutable_data_ptr<int>(),
+++              static_cast<int>(stride0), static_cast<int>(stride1),
+++              static_cast<int>(topK), kSortingAlgorithmThreshold);
+++    }
++   }
++-}
++\ No newline at end of file
+++}
++diff --git a/csrc/libtorch_stable/topk.cu b/csrc/libtorch_stable/topk.cu
++index 07b7521f86..7a4a5d5372 100644
++--- a/csrc/libtorch_stable/topk.cu
+++++ b/csrc/libtorch_stable/topk.cu
++@@ -13,6 +13,20 @@
++ namespace {
++ 
++ #ifndef USE_ROCM
+++template <typename DType, int TopK>
+++size_t get_filtered_topk_required_smem() {
+++  static const size_t required_smem = []() {
+++    size_t value = 0;
+++    cudaError_t status =
+++        vllm::GetFilteredTopKRequiredSmem<DType, int32_t, TopK>(&value);
+++    STD_TORCH_CHECK(status == cudaSuccess,
+++                    "Failed to query FilteredTopK shared memory: ",
+++                    cudaGetErrorString(status));
+++    return value;
+++  }();
+++  return required_smem;
+++}
+++
++ template <int TopK>
++ void launch_persistent_topk(const torch::stable::Tensor& logits,
++                             const torch::stable::Tensor& lengths,
++@@ -35,12 +49,35 @@ void launch_persistent_topk(const torch::stable::Tensor& logits,
++     max_smem_per_block = device_prop->sharedMemPerBlockOptin;
++   }
++ 
++-  if (num_rows > 32 && max_smem_per_block >= 128 * 1024) {
++-    cudaError_t status =
++-        vllm::FilteredTopKRaggedTransform<float, int32_t, TopK>(
++-            logits.const_data_ptr<float>(), output.mutable_data_ptr<int32_t>(),
++-            lengths.const_data_ptr<int32_t>(), static_cast<uint32_t>(num_rows),
++-            static_cast<uint32_t>(TopK), static_cast<uint32_t>(stride), stream);
+++  const bool is_half =
+++      logits.scalar_type() == torch::headeronly::ScalarType::Half;
+++  const size_t filtered_topk_required_smem =
+++      is_half ? get_filtered_topk_required_smem<__half, TopK>()
+++              : get_filtered_topk_required_smem<float, TopK>();
+++  const bool filtered_topk_supported =
+++      static_cast<size_t>(max_smem_per_block) >= filtered_topk_required_smem;
+++  STD_TORCH_CHECK(!is_half || filtered_topk_supported,
+++                  "FP16 persistent_topk requires ", filtered_topk_required_smem,
+++                  " bytes of shared memory per block, but the device has ",
+++                  max_smem_per_block);
+++
+++  // The cooperative persistent implementation below remains FP32-only.
+++  const bool use_filtered_topk =
+++      filtered_topk_supported && (is_half || num_rows > 32);
+++  if (use_filtered_topk) {
+++    cudaError_t status;
+++    if (is_half) {
+++      status = vllm::FilteredTopKRaggedTransform<__half, int32_t, TopK>(
+++          reinterpret_cast<const __half*>(logits.const_data_ptr()),
+++          output.mutable_data_ptr<int32_t>(), lengths.const_data_ptr<int32_t>(),
+++          static_cast<uint32_t>(num_rows), static_cast<uint32_t>(TopK),
+++          static_cast<uint32_t>(stride), stream);
+++    } else {
+++      status = vllm::FilteredTopKRaggedTransform<float, int32_t, TopK>(
+++          logits.const_data_ptr<float>(), output.mutable_data_ptr<int32_t>(),
+++          lengths.const_data_ptr<int32_t>(), static_cast<uint32_t>(num_rows),
+++          static_cast<uint32_t>(TopK), static_cast<uint32_t>(stride), stream);
+++    }
++     STD_TORCH_CHECK(status == cudaSuccess,
++                     "FilteredTopK failed: ", cudaGetErrorString(status));
++   } else {
++@@ -136,10 +173,12 @@ void launch_persistent_topk(const torch::stable::Tensor& logits,
++     // instead of deadlocking. Only relevant when needs_cooperative.
++     if (needs_cooperative && total_ctas > hw_resident_cap) {
++       STD_TORCH_CHECK(
++-          max_smem_per_block >= 128 * 1024,
+++          filtered_topk_supported,
++           "persistent_topk would oversubscribe and the FilteredTopK "
++-          "fallback requires >=128KB smem per block (have ",
++-          max_smem_per_block, "). total_ctas=", total_ctas,
+++          "fallback requires ",
+++          filtered_topk_required_smem,
+++          " bytes of shared memory per block (have ", max_smem_per_block,
+++          "). total_ctas=", total_ctas,
++           " > num_sms*occupancy=", hw_resident_cap, " (TopK=", TopK,
++           ", vec_size=", vec_size, ", ctas_per_group=", ctas_per_group,
++           ", smem=", smem_size, ").");
++@@ -241,8 +280,10 @@ void persistent_topk(const torch::stable::Tensor& logits,
++   STD_TORCH_CHECK(logits.is_cuda(), "logits must be CUDA tensor");
++   STD_TORCH_CHECK(lengths.is_cuda(), "lengths must be CUDA tensor");
++   STD_TORCH_CHECK(output.is_cuda(), "output must be CUDA tensor");
++-  STD_TORCH_CHECK(logits.scalar_type() == torch::headeronly::ScalarType::Float,
++-                  "Only float32 supported");
+++  STD_TORCH_CHECK(
+++      logits.scalar_type() == torch::headeronly::ScalarType::Float ||
+++          logits.scalar_type() == torch::headeronly::ScalarType::Half,
+++      "Only float32 and float16 are supported");
++   STD_TORCH_CHECK(lengths.scalar_type() == torch::headeronly::ScalarType::Int,
++                   "lengths must be int32");
++   STD_TORCH_CHECK(output.scalar_type() == torch::headeronly::ScalarType::Int,
++diff --git a/csrc/libtorch_stable/topk_histogram_4096.cuh b/csrc/libtorch_stable/topk_histogram_4096.cuh
++index 5f9f823a33..db97ee9367 100644
++--- a/csrc/libtorch_stable/topk_histogram_4096.cuh
+++++ b/csrc/libtorch_stable/topk_histogram_4096.cuh
++@@ -8,6 +8,7 @@
++ #include <cuda_fp16.h>
++ #include <cuda_runtime.h>
++ #include <cstdint>
+++#include <type_traits>
++ 
++ namespace vllm {
++ namespace topk_histogram_4096 {
++@@ -30,7 +31,7 @@ struct alignas(16) MatchBin {
++ };
++ struct alignas(8) Tie {
++   uint32_t idx;
++-  float score;
+++  uint32_t key;
++ };
++ 
++ __device__ __forceinline__ void load_float4_predicated(const float* ptr,
++@@ -66,13 +67,22 @@ __device__ __forceinline__ void load_float4_predicated(const float* ptr,
++   v3 = __uint_as_float(r3);
++ }
++ 
++-// converts the float32 score to a 32-bit ordered unsigned integer — the full
++-// precision key for radix sorting
++-__device__ __forceinline__ auto convert_to_uint32_v2(float x) -> uint32_t {
+++__device__ __forceinline__ uint32_t score_to_ordered(float x) {
++   uint32_t bits = __float_as_uint(x);
++   return (bits & 0x80000000u) ? ~bits : (bits | 0x80000000u);
++ }
++ 
+++__device__ __forceinline__ uint32_t score_to_ordered(__half x) {
+++  const uint16_t bits = __half_as_ushort(x);
+++  return (bits & 0x8000) ? static_cast<uint16_t>(~bits)
+++                         : static_cast<uint16_t>(bits | 0x8000);
+++}
+++
+++__device__ __forceinline__ uint32_t fp16x2_bits_to_ordered(uint32_t bits) {
+++  const uint32_t negative = (bits & 0x80008000u) >> 15;
+++  return bits ^ (0x80008000u | negative * 0xFFFFu);
+++}
+++
++ // Converts each score to a 12-bit bin (FP16 sign-magnitude -> top 12 bits ->
++ // bin 0-4095)
++ template <uint32_t kBits>
++@@ -84,6 +94,16 @@ __device__ __forceinline__ uint32_t extract_coarse_bin_N(float x) {
++   return key >> (16 - kBits);
++ }
++ 
+++template <uint32_t kBits>
+++__device__ __forceinline__ uint32_t extract_coarse_bin_N(__half x) {
+++  return score_to_ordered(x) >> (16 - kBits);
+++}
+++
+++template <uint32_t kBits, typename InputType>
+++__device__ __forceinline__ uint32_t extract_input_coarse_bin(InputType x) {
+++  return extract_coarse_bin_N<kBits>(x);
+++}
+++
++ // running sum within each warp — thread 0 gets its own value, thread 1 gets
++ // thread 0 + thread 1, thread 2 gets threads 0+1+2, etc.
++ __device__ __forceinline__ uint32_t warp_inclusive_sum(uint32_t lane,
++@@ -116,10 +136,89 @@ __device__ __forceinline__ uint32_t warp_reduce_sum_full(uint32_t v) {
++ }
++ 
++ // ============================================================================
++-// Tie refinement (single CTA): 4-round radix-256 topK on the full FP32 ordered
++-// key Each round narrows by 8 bits until ties are fully resolved
+++// Tie refinement on ordered score keys. FP16 scans only the native key bits
+++// below its coarse histogram. FP32 needs four radix passes because its coarse
+++// histogram is based on an FP16 projection.
++ // ============================================================================
++ 
+++template <uint32_t TopK, uint32_t FineBits>
+++__device__ void tie_handle_fp16(const Tie* ties, uint32_t num_ties,
+++                                uint32_t num_above, int32_t* output,
+++                                void* _smem) {
+++  constexpr uint32_t kFineBins = 1 << FineBits;
+++  constexpr uint32_t kFineWarps = (kFineBins + kWarpSize - 1) / kWarpSize;
+++  constexpr uint32_t kScanThreads = kFineWarps * kWarpSize;
+++  constexpr uint32_t kPerThread = (TopK + kBlockSize - 1) / kBlockSize;
+++  struct TS {
+++    alignas(128) uint32_t counter;
+++    alignas(128) MatchBin match;
+++    uint32_t histogram[kFineBins];
+++    uint32_t warp_sum[kFineWarps];
+++  };
+++  auto* s = static_cast<TS*>(_smem);
+++  const auto tx = threadIdx.x;
+++  const auto lane = tx % kWarpSize;
+++
+++  Tie my_ties[kPerThread];
+++  bool active[kPerThread];
+++#pragma unroll
+++  for (uint32_t e = 0; e < kPerThread; e++) {
+++    const uint32_t pos = e * kBlockSize + tx;
+++    active[e] = pos < num_ties;
+++    my_ties[e] = active[e] ? ties[pos] : Tie{0, 0};
+++  }
+++
+++  if (tx < kFineBins) s->histogram[tx] = 0;
+++  if (tx == 0) s->counter = 0;
+++  __syncthreads();
+++
+++#pragma unroll
+++  for (uint32_t e = 0; e < kPerThread; e++) {
+++    if (active[e])
+++      atomicAdd(&s->histogram[my_ties[e].key & (kFineBins - 1)], 1);
+++  }
+++  __syncthreads();
+++
+++  const uint32_t value = tx < kFineBins ? s->histogram[tx] : 0;
+++  const uint32_t inclusive =
+++      tx < kScanThreads ? warp_inclusive_sum(lane, value) : 0;
+++  const uint32_t warp = tx / kWarpSize;
+++  if (tx < kScanThreads) {
+++    if (lane == kWarpSize - 1) s->warp_sum[warp] = inclusive;
+++  }
+++  __syncthreads();
+++  if (tx < kScanThreads) {
+++    uint32_t total = 0;
+++    uint32_t prior = 0;
+++#pragma unroll
+++    for (uint32_t w = 0; w < kFineWarps; w++) {
+++      total += s->warp_sum[w];
+++      if (w < warp) prior += s->warp_sum[w];
+++    }
+++    const uint32_t above = total - prior - inclusive;
+++    const uint32_t remaining = TopK - num_above;
+++    if (tx < kFineBins && above < remaining && above + value >= remaining) {
+++      s->match = {
+++          .bin = tx, .above_count = above, .equal_count = remaining - above};
+++    }
+++  }
+++  __syncthreads();
+++
+++  const auto threshold = s->match.bin;
+++#pragma unroll
+++  for (uint32_t e = 0; e < kPerThread; e++) {
+++    if (!active[e]) continue;
+++    const uint32_t bin = my_ties[e].key & (kFineBins - 1);
+++    uint32_t pos = TopK;
+++    if (bin > threshold) {
+++      pos = num_above + atomicAdd(&s->counter, 1);
+++    } else if (bin == threshold) {
+++      pos = TopK - atomicAdd(&s->match.equal_count, -1u);
+++    }
+++    if (pos < TopK) output[pos] = my_ties[e].idx;
+++  }
+++}
+++
++ template <uint32_t TopK>
++ __device__ void tie_handle(const Tie* ties, uint32_t num_ties,
++                            uint32_t num_above, int32_t* output, void* _smem) {
++@@ -135,8 +234,10 @@ __device__ void tie_handle(const Tie* ties, uint32_t num_ties,
++ 
++   // Each thread loads one tie element.
++   const bool has = tx < num_ties;
++-  const auto tie = has ? ties[tx] : Tie{0, 0.0f};
++-  const uint32_t key = convert_to_uint32_v2(tie.score);
+++  const auto tie = has ? ties[tx] : Tie{0, 0};
+++  const uint32_t key = tie.key;
+++
+++  constexpr int kRadixRounds = 4;
++ 
++   bool active = has;  // tracks whether this thread's tie is still a candidate.
++   uint32_t remain =
++@@ -145,11 +246,9 @@ __device__ void tie_handle(const Tie* ties, uint32_t num_ties,
++   s->counter = 0;
++   __syncthreads();
++ 
++-  // The 4-round radix loop - each round narrows by 8 bits until ties are fully
++-  // resolved
++ #pragma unroll
++-  for (int r = 0; r < 4; r++) {
++-    uint32_t sh = 24 - r * 8;  // round 0: bits 31-24, round 1: 23-16, etc.
+++  for (int r = 0; r < kRadixRounds; r++) {
+++    uint32_t sh = (kRadixRounds - 1 - r) * 8;
++     uint32_t bin = (key >> sh) & 0xFF;  // this tie's 8-bit bin for this round
++ 
++     // Step 1: Build 256-bin histogram.
++@@ -187,7 +286,7 @@ __device__ void tie_handle(const Tie* ties, uint32_t num_ties,
++         active = false;
++       } else if (bin < thr)
++         active = false;  // below -> discard
++-      else if (r == 3)
+++      else if (r == kRadixRounds - 1)
++         wpos = TopK - atomicAdd(&s->match.equal_count,
++                                 -1u);  // last round: place remaining
++     }
++@@ -226,21 +325,23 @@ __device__ void tie_handle_large(const Tie* ties, uint32_t num_ties,
++     uint32_t idx = e * kBlockSize + tx;
++     if (idx < num_ties) {
++       my_ties[e] = ties[idx];
++-      keys[e] = convert_to_uint32_v2(ties[idx].score);
+++      keys[e] = ties[idx].key;
++       active[e] = true;
++     } else {
++-      my_ties[e] = {0, 0.0f};
+++      my_ties[e] = {0, 0};
++       keys[e] = 0;
++       active[e] = false;
++     }
++   }
++ 
+++  constexpr int kRadixRounds = 4;
+++
++   uint32_t remain = TopK - num_above;
++   s->counter = 0;
++   __syncthreads();
++ 
++-  for (int r = 0; r < 4; r++) {
++-    uint32_t sh = 24 - r * 8;
+++  for (int r = 0; r < kRadixRounds; r++) {
+++    uint32_t sh = (kRadixRounds - 1 - r) * 8;
++     if (tx < RADIX) {
++       s->histogram[tx] = 0;
++     }
++@@ -291,7 +392,7 @@ __device__ void tie_handle_large(const Tie* ties, uint32_t num_ties,
++         active[e] = false;
++       } else if (bin < thr) {
++         active[e] = false;
++-      } else if (r == 3) {
+++      } else if (r == kRadixRounds - 1) {
++         uint32_t wpos = TopK - atomicAdd(&s->match.equal_count, -1u);
++         if (wpos < TopK) {
++           output[wpos] = my_ties[e].idx;
++@@ -327,10 +428,10 @@ struct Histogram4096Smem {
++   };
++ };
++ 
++-template <uint32_t TopK, uint32_t HIST_BITS,
+++template <typename InputType, uint32_t TopK, uint32_t HIST_BITS,
++           uint32_t VECS_PER_THREAD = kHist4096VecsPerThread,
++           bool UsePredicatedLoads = false>
++-__device__ void histogram_4096_topk(const float* __restrict__ scores,
+++__device__ void histogram_4096_topk(const InputType* __restrict__ scores,
++                                     int32_t* __restrict__ output,
++                                     uint32_t length, void* _smem) {
++   constexpr uint32_t HIST_BINS = 1 << HIST_BITS;
++@@ -344,9 +445,17 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++   const auto lane_id = tx % kWarpSize;
++   const auto warp_id = tx / kWarpSize;
++ 
+++  static_assert(std::is_same_v<InputType, float> ||
+++                std::is_same_v<InputType, __half>);
+++  constexpr uint32_t ELEMS_PER_VEC = sizeof(uint4) / sizeof(InputType);
+++  union InputVec {
+++    uint4 packed;
+++    InputType elems[ELEMS_PER_VEC];
+++    uint32_t fp16_pairs[sizeof(uint4) / sizeof(uint32_t)];
+++  };
+++
++   // Phase 1: Load all data into RF + build histogram
++-  float4
++-      vecs[VECS_PER_THREAD];  // 4 vectors x 4 floats = 16 elements per thread
+++  InputVec vecs[VECS_PER_THREAD];
++   if constexpr (ITEMS_PER_THREAD >= 4) {
++     // Zero the histogram (SMEM writes)
++     for (uint32_t i = 0; i < ITEMS_PER_THREAD / 4; i++)
++@@ -361,26 +470,28 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++     smem->counter_eq = 0;
++   }
++   if constexpr (UsePredicatedLoads) {
+++    static_assert(std::is_same_v<InputType, float>);
++     const bool row_aligned = (reinterpret_cast<uintptr_t>(scores) & 0xFu) == 0;
++ #pragma unroll
++     for (uint32_t v = 0; v < VECS_PER_THREAD; v++) {
++-      const uint32_t base = (tx + v * kBlockSize) * 4;
+++      const uint32_t base = (tx + v * kBlockSize) * ELEMS_PER_VEC;
++       if (base < length) {
++-        if (row_aligned && base + 3 < length) {
++-          vecs[v] = *reinterpret_cast<const float4*>(scores + base);
+++        if (row_aligned && base + ELEMS_PER_VEC - 1 < length) {
+++          vecs[v].packed = *reinterpret_cast<const uint4*>(scores + base);
++         } else {
++           load_float4_predicated(scores + base, static_cast<int>(base),
++-                                 static_cast<int>(length), vecs[v].x, vecs[v].y,
++-                                 vecs[v].z, vecs[v].w);
+++                                 static_cast<int>(length), vecs[v].elems[0],
+++                                 vecs[v].elems[1], vecs[v].elems[2],
+++                                 vecs[v].elems[3]);
++         }
++       }
++     }
++   } else {
++ #pragma unroll
++     for (uint32_t v = 0; v < VECS_PER_THREAD; v++) {
++-      const uint32_t base = (tx + v * kBlockSize) * 4;
+++      const uint32_t base = (tx + v * kBlockSize) * ELEMS_PER_VEC;
++       if (base < length) {
++-        vecs[v] = *reinterpret_cast<const float4*>(scores + base);
+++        vecs[v].packed = *reinterpret_cast<const uint4*>(scores + base);
++       }
++     }
++   }
++@@ -388,17 +499,38 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++ 
++   // Build histogram from RF via atomic adds into the shared histogram
++   bool done = false;
+++  if constexpr (std::is_same_v<InputType, __half>) {
+++#pragma unroll
+++    for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
+++#pragma unroll
+++      for (uint32_t p = 0; p < ELEMS_PER_VEC / 2 && !done; p++) {
+++        const uint32_t idx = (tx + v * kBlockSize) * ELEMS_PER_VEC + p * 2;
+++        if (idx >= length) {
+++          done = true;
+++          continue;
+++        }
+++        const uint32_t keys = fp16x2_bits_to_ordered(vecs[v].fp16_pairs[p]);
+++        atomicAdd(&smem->histogram[(keys & 0xFFFFu) >> (16 - HIST_BITS)], 1);
+++        if (idx + 1 < length) {
+++          atomicAdd(&smem->histogram[keys >> (32 - HIST_BITS)], 1);
+++        } else {
+++          done = true;
+++        }
+++      }
+++    }
+++  } else {
++ #pragma unroll
++-  for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
++-    const float* elems = reinterpret_cast<const float*>(&vecs[v]);
+++    for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
++ #pragma unroll
++-    for (uint32_t e = 0; e < 4 && !done; e++) {
++-      const uint32_t idx = (tx + v * kBlockSize) * 4 + e;
++-      if (idx >= length) {
++-        done = true;
++-      } else {
++-        atomicAdd(&smem->histogram[extract_coarse_bin_N<HIST_BITS>(elems[e])],
++-                  1);
+++      for (uint32_t e = 0; e < ELEMS_PER_VEC && !done; e++) {
+++        const uint32_t idx = (tx + v * kBlockSize) * ELEMS_PER_VEC + e;
+++        if (idx >= length) {
+++          done = true;
+++        } else {
+++          const uint32_t bin =
+++              extract_input_coarse_bin<HIST_BITS>(vecs[v].elems[e]);
+++          atomicAdd(&smem->histogram[bin], 1);
+++        }
++       }
++     }
++   }
++@@ -447,32 +579,58 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++   const bool need_tie = (num_equal + num_above > TopK);
++ 
++   done = false;
+++  if constexpr (std::is_same_v<InputType, __half>) {
++ #pragma unroll
++-  for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
++-    const float* elems = reinterpret_cast<const float*>(&vecs[v]);
+++    for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
+++#pragma unroll
+++      for (uint32_t p = 0; p < ELEMS_PER_VEC / 2 && !done; p++) {
+++        const uint32_t base = (tx + v * kBlockSize) * ELEMS_PER_VEC + p * 2;
+++        if (base >= length) {
+++          done = true;
+++          continue;
+++        }
+++        const uint32_t keys = fp16x2_bits_to_ordered(vecs[v].fp16_pairs[p]);
++ #pragma unroll
++-    for (uint32_t e = 0; e < 4 && !done; e++) {
++-      const uint32_t idx = (tx + v * kBlockSize) * 4 + e;
++-      if (idx >= length) {
++-        done = true;
++-      } else {
++-        const uint32_t bin = extract_coarse_bin_N<HIST_BITS>(elems[e]);
++-        if (bin > thr_bin) {
++-          output[atomicAdd(&smem->counter_gt, 1)] =
++-              idx;  // above -> output directly
++-        } else if (bin == thr_bin) {
++-          const auto pos = atomicAdd(&smem->counter_eq, 1);
++-          if (!need_tie) {
++-            if (pos + num_above < TopK) {
++-              output[pos + num_above] = idx;  // all fit
+++        for (uint32_t e = 0; e < 2; e++) {
+++          const uint32_t idx = base + e;
+++          if (idx >= length) continue;
+++          const uint32_t key = (keys >> (e * 16)) & 0xFFFFu;
+++          const uint32_t bin = key >> (16 - HIST_BITS);
+++          if (bin > thr_bin) {
+++            output[atomicAdd(&smem->counter_gt, 1)] = idx;
+++          } else if (bin == thr_bin) {
+++            const auto pos = atomicAdd(&smem->counter_eq, 1);
+++            if (!need_tie) {
+++              if (pos + num_above < TopK) output[pos + num_above] = idx;
+++            } else if (pos < TopK) {
+++              smem->tie_buffer[pos] = {idx, key};
++             }
++-          } else {
++-            if (pos < TopK) {
++-              smem->tie_buffer[pos] = {idx, elems[e]};  // store for refirement
+++          }
+++        }
+++      }
+++    }
+++  } else {
+++#pragma unroll
+++    for (uint32_t v = 0; v < VECS_PER_THREAD && !done; v++) {
+++#pragma unroll
+++      for (uint32_t e = 0; e < ELEMS_PER_VEC && !done; e++) {
+++        const uint32_t idx = (tx + v * kBlockSize) * ELEMS_PER_VEC + e;
+++        if (idx >= length) {
+++          done = true;
+++        } else {
+++          const auto raw_score = vecs[v].elems[e];
+++          const uint32_t bin = extract_input_coarse_bin<HIST_BITS>(raw_score);
+++          if (bin > thr_bin) {
+++            output[atomicAdd(&smem->counter_gt, 1)] = idx;
+++          } else if (bin == thr_bin) {
+++            const auto pos = atomicAdd(&smem->counter_eq, 1);
+++            if (!need_tie) {
+++              if (pos + num_above < TopK) output[pos + num_above] = idx;
+++            } else if (pos < TopK) {
+++              smem->tie_buffer[pos] = {idx, score_to_ordered(raw_score)};
++             }
++           }
++         }
++-        // else: bin < thr_bin - discard (not in top-k)
++       }
++     }
++   }
++@@ -487,7 +645,7 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++       TopK - num_above;  // pick exactly remaining elements to fill topK
++ 
++   auto is_greater = [](const Tie& a, const Tie& b) {
++-    return (a.score > b.score) || (a.score == b.score && a.idx < b.idx);
+++    return (a.key > b.key) || (a.key == b.key && a.idx < b.idx);
++   };
++ 
++   if (num_ties <= kWarpSize) {
++@@ -516,7 +674,7 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++     const auto warp_id = tx / kWarpSize;
++     const auto lane1 = lane_id + kWarpSize;
++     const auto warp1 = warp_id + kWarpSize;
++-    const auto invalid = Tie{0xFFFFFFFF, -__FLT_MAX__};
+++    const auto invalid = Tie{0xFFFFFFFF, 0};
++     const auto tie0 = smem->tie_buffer[lane_id];
++     const auto tie1 = lane1 < num_ties ? smem->tie_buffer[lane1] : invalid;
++     if (warp_id < num_ties) {
++@@ -539,7 +697,10 @@ __device__ void histogram_4096_topk(const float* __restrict__ scores,
++     }
++   } else {
++     // Large tie count: fall back to 4-round radix-256 sort
++-    if constexpr (TopK <= kBlockSize) {
+++    if constexpr (std::is_same_v<InputType, __half>) {
+++      tie_handle_fp16<TopK, 16 - HIST_BITS>(smem->tie_buffer, num_ties,
+++                                            num_above, output, smem);
+++    } else if constexpr (TopK <= kBlockSize) {
++       tie_handle<TopK>(smem->tie_buffer, num_ties, num_above, output, smem);
++     } else {
++       tie_handle_large<TopK>(smem->tie_buffer, num_ties, num_above, output,
++@@ -553,8 +714,8 @@ template <uint32_t TopK, uint32_t HIST_BITS,
++ __device__ __noinline__ void histogram_4096_topk_predicated(
++     const float* __restrict__ scores, int32_t* __restrict__ output,
++     uint32_t length, void* _smem) {
++-  histogram_4096_topk<TopK, HIST_BITS, VECS_PER_THREAD, true>(scores, output,
++-                                                              length, _smem);
+++  histogram_4096_topk<float, TopK, HIST_BITS, VECS_PER_THREAD, true>(
+++      scores, output, length, _smem);
++ }
++ 
++ }  // namespace topk_histogram_4096
++diff --git a/tests/engine/test_arg_utils.py b/tests/engine/test_arg_utils.py
++index 2feb9f7a03..45db358b56 100644
++--- a/tests/engine/test_arg_utils.py
+++++ b/tests/engine/test_arg_utils.py
++@@ -391,6 +391,8 @@ def test_attention_config():
++             "true",
++             "--attention-config.disable_flashinfer_q_quantization",
++             "true",
+++            "--attention-config.indexer_logits_dtype",
+++            "float32",
++         ]
++     )
++     assert args is not None
++@@ -402,6 +404,7 @@ def test_attention_config():
++     assert engine_args.attention_config.flash_attn_max_num_splits_for_cuda_graph == 16
++     assert engine_args.attention_config.use_trtllm_attention is True
++     assert engine_args.attention_config.disable_flashinfer_q_quantization is True
+++    assert engine_args.attention_config.indexer_logits_dtype == "float32"
++ 
++     # set to string form of a dict with all fields
++     args = parser.parse_args(
++diff --git a/tests/kernels/attention/test_deepgemm_attention.py b/tests/kernels/attention/test_deepgemm_attention.py
++index 0cea46d628..adf2877006 100644
++--- a/tests/kernels/attention/test_deepgemm_attention.py
+++++ b/tests/kernels/attention/test_deepgemm_attention.py
++@@ -13,6 +13,7 @@ from vllm.utils.deep_gemm import (
++     fp8_fp4_paged_mqa_logits,
++     get_num_sms,
++     get_paged_mqa_logits_metadata,
+++    native_next_n_supported,
++ )
++ from vllm.utils.import_utils import has_deep_gemm
++ from vllm.utils.math_utils import cdiv
++@@ -96,7 +97,8 @@ def _ref_fp8_mqa_logits(
++     not current_platform.has_device_capability(90), reason="SM90 and SM100 only"
++ )
++ @pytest.mark.parametrize("clean_logits", [True, False])
++-def test_deepgemm_fp8_mqa_logits(clean_logits: bool):
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
+++def test_deepgemm_fp8_mqa_logits(clean_logits: bool, logits_dtype: torch.dtype):
++     torch.manual_seed(0)
++     random.seed(0)
++     num_heads, head_dim = 32, 128
++@@ -128,8 +130,15 @@ def test_deepgemm_fp8_mqa_logits(clean_logits: bool):
++                 q_fp8 = q.to(torch.float8_e4m3fn)
++                 kv_fp8 = per_custom_dims_cast_to_fp8(kv, (0,), False)
++                 logits = fp8_fp4_mqa_logits(
++-                    (q_fp8, None), kv_fp8, weights, ks, ke, clean_logits=clean_logits
+++                    (q_fp8, None),
+++                    kv_fp8,
+++                    weights,
+++                    ks,
+++                    ke,
+++                    clean_logits=clean_logits,
+++                    logits_dtype=logits_dtype,
++                 )
+++                assert logits.dtype == logits_dtype
++ 
++                 ref_logits = _ref_fp8_mqa_logits(
++                     q=q,
++@@ -205,7 +214,15 @@ def _ref_fp8_fp4_paged_mqa_logits(
++ @pytest.mark.skipif(
++     not current_platform.has_device_capability(90), reason="SM90 and SM100 only"
++ )
++-def test_deepgemm_fp8_fp4_paged_mqa_logits():
+++# next_n = 1 + num_speculative_tokens, so next_n=4 is MTP=3 (issue #35878).
+++@pytest.mark.parametrize("batch_size,next_n", [(4, 1), (2, 2), (2, 4)])
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
+++def test_deepgemm_fp8_fp4_paged_mqa_logits(
+++    batch_size: int, next_n: int, logits_dtype: torch.dtype
+++):
+++    if not native_next_n_supported(next_n):
+++        pytest.skip(f"next_n={next_n} has no native kernel on this architecture")
+++
++     # NOTE: clean_logits=True is incompatible with the 2D context_lens
++     # required by csrc/apis/attention.hpp; only the False path is exercised.
++     clean_logits = False
++@@ -213,98 +230,99 @@ def test_deepgemm_fp8_fp4_paged_mqa_logits():
++     random.seed(0)
++ 
++     max_model_len = 4096
++-    for batch_size, next_n in [(4, 1), (2, 2)]:
++-        for heads, index_dim in [(32, 128)]:
++-            for avg_kv in (2048,):
++-                num_blocks, blocksize = max_model_len * 2, 64
++-
++-                q = torch.randn(
++-                    (batch_size, next_n, heads, index_dim),
++-                    device="cuda",
++-                    dtype=torch.bfloat16,
++-                )
++-                kv_cache = torch.randn(
++-                    (num_blocks, blocksize, 1, index_dim),
++-                    device="cuda",
++-                    dtype=torch.bfloat16,
++-                )
++-                weights = torch.randn(
++-                    (batch_size * next_n, heads),
++-                    device="cuda",
++-                    dtype=torch.float32,
++-                )
++-
++-                context_lens = (
++-                    torch.randint(int(0.8 * avg_kv), int(1.2 * avg_kv), (batch_size,))
++-                    .cuda()
++-                    .to(torch.int32)
++-                )
++-                max_block_len = (
++-                    (context_lens.max().item() + blocksize - 1) // blocksize * blocksize
++-                )
++-                block_tables = torch.zeros(
++-                    (batch_size, max_block_len),
++-                    device="cuda",
++-                    dtype=torch.int32,
++-                )
+++    for heads, index_dim in [(32, 128)]:
+++        for avg_kv in (2048,):
+++            num_blocks, blocksize = max_model_len * 2, 64
++ 
++-                counter = 0
++-                block_idx_pool = list(range(num_blocks))
++-                random.shuffle(block_idx_pool)
++-                for i in range(batch_size):
++-                    ctx_len = int(context_lens[i].item())
++-                    for j in range((ctx_len + blocksize - 1) // blocksize):
++-                        block_tables[i][j] = block_idx_pool[counter]
++-                        counter += 1
+++            q = torch.randn(
+++                (batch_size, next_n, heads, index_dim),
+++                device="cuda",
+++                dtype=torch.bfloat16,
+++            )
+++            kv_cache = torch.randn(
+++                (num_blocks, blocksize, 1, index_dim),
+++                device="cuda",
+++                dtype=torch.bfloat16,
+++            )
+++            weights = torch.randn(
+++                (batch_size * next_n, heads),
+++                device="cuda",
+++                dtype=torch.float32,
+++            )
++ 
++-                q_fp8 = q.to(torch.float8_e4m3fn)
++-                kv_cache_fp8 = kv_cache_cast_to_fp8(kv_cache)
++-
++-                # deep_gemm paged MQA logits requires 2D context_lens of
++-                # shape (B, next_n) (csrc/apis/attention.hpp:332-335);
++-                # see indexer.py:607-608. For each batch/next_n token, the
++-                # effective context length is context_lens[b] - next_n + j + 1.
++-                next_n_arange = torch.arange(next_n, device="cuda", dtype=torch.int32)
++-                context_lens_2d = (
++-                    context_lens.unsqueeze(-1) - next_n + 1 + next_n_arange
++-                ).contiguous()
++-                schedule_metadata = get_paged_mqa_logits_metadata(
++-                    context_lens_2d, blocksize, get_num_sms()
++-                )
++-                logits = fp8_fp4_paged_mqa_logits(
++-                    (q_fp8, None),
++-                    kv_cache_fp8,
++-                    weights,
++-                    context_lens_2d,
++-                    block_tables,
++-                    schedule_metadata,
++-                    max_model_len,
++-                    clean_logits=clean_logits,
++-                )
+++            context_lens = (
+++                torch.randint(int(0.8 * avg_kv), int(1.2 * avg_kv), (batch_size,))
+++                .cuda()
+++                .to(torch.int32)
+++            )
+++            max_block_len = (
+++                (context_lens.max().item() + blocksize - 1) // blocksize * blocksize
+++            )
+++            block_tables = torch.zeros(
+++                (batch_size, max_block_len),
+++                device="cuda",
+++                dtype=torch.int32,
+++            )
++ 
++-                ref_logits = _ref_fp8_fp4_paged_mqa_logits(
++-                    q,
++-                    kv_cache,
++-                    weights,
++-                    context_lens,
++-                    block_tables,
++-                    max_model_len,
++-                )
+++            counter = 0
+++            block_idx_pool = list(range(num_blocks))
+++            random.shuffle(block_idx_pool)
+++            for i in range(batch_size):
+++                ctx_len = int(context_lens[i].item())
+++                for j in range((ctx_len + blocksize - 1) // blocksize):
+++                    block_tables[i][j] = block_idx_pool[counter]
+++                    counter += 1
+++
+++            q_fp8 = q.to(torch.float8_e4m3fn)
+++            kv_cache_fp8 = kv_cache_cast_to_fp8(kv_cache)
+++
+++            # deep_gemm paged MQA logits requires 2D context_lens of
+++            # shape (B, next_n) (csrc/apis/attention.hpp:332-335);
+++            # see indexer.py:607-608. For each batch/next_n token, the
+++            # effective context length is context_lens[b] - next_n + j + 1.
+++            next_n_arange = torch.arange(next_n, device="cuda", dtype=torch.int32)
+++            context_lens_2d = (
+++                context_lens.unsqueeze(-1) - next_n + 1 + next_n_arange
+++            ).contiguous()
+++            schedule_metadata = get_paged_mqa_logits_metadata(
+++                context_lens_2d,
+++                blocksize,
+++                get_num_sms(),
+++            )
+++            logits = fp8_fp4_paged_mqa_logits(
+++                (q_fp8, None),
+++                kv_cache_fp8,
+++                weights,
+++                context_lens_2d,
+++                block_tables,
+++                schedule_metadata,
+++                max_model_len,
+++                clean_logits=clean_logits,
+++                logits_dtype=logits_dtype,
+++            )
++ 
++-                positions = (
++-                    torch.arange(max_model_len, device="cuda")
++-                    .unsqueeze(0)
++-                    .expand(batch_size * next_n, -1)
++-                )
++-                row_indices = torch.arange(batch_size * next_n, device="cuda") // next_n
++-                next_n_offset = (
++-                    torch.arange(batch_size * next_n, device="cuda") % next_n
++-                )
++-                mask = positions <= (
++-                    context_lens[row_indices] - next_n + next_n_offset
++-                ).unsqueeze(1)
+++            ref_logits = _ref_fp8_fp4_paged_mqa_logits(
+++                q,
+++                kv_cache,
+++                weights,
+++                context_lens,
+++                block_tables,
+++                max_model_len,
+++            )
++ 
++-                logits = logits.masked_fill(~mask, 0)
++-                ref_logits = ref_logits.masked_fill(~mask, 0)
++-                diff = calc_diff(logits, ref_logits)
++-                assert diff < 1e-3, f"{diff=}"
+++            positions = (
+++                torch.arange(max_model_len, device="cuda")
+++                .unsqueeze(0)
+++                .expand(batch_size * next_n, -1)
+++            )
+++            row_indices = torch.arange(batch_size * next_n, device="cuda") // next_n
+++            next_n_offset = torch.arange(batch_size * next_n, device="cuda") % next_n
+++            mask = positions <= (
+++                context_lens[row_indices] - next_n + next_n_offset
+++            ).unsqueeze(1)
+++
+++            logits = logits.masked_fill(~mask, 0)
+++            ref_logits = ref_logits.masked_fill(~mask, 0)
+++            diff = calc_diff(logits, ref_logits)
+++            assert logits.dtype == logits_dtype
+++            assert diff < 1e-3, f"{diff=}"
++diff --git a/tests/kernels/test_top_k_per_row.py b/tests/kernels/test_top_k_per_row.py
++index dba247bbdb..6587a13ba4 100644
++--- a/tests/kernels/test_top_k_per_row.py
+++++ b/tests/kernels/test_top_k_per_row.py
++@@ -65,10 +65,10 @@ def _run_topk_backend(
++                 "cooperative_topk supports <=32 rows; "
++                 "persistent_topk covers larger batches"
++             )
++-        if logits.stride(0) % 4 != 0:
+++        if logits.stride(0) % (16 // logits.element_size()) != 0:
++             pytest.skip(
++-                "cooperative_topk requires row stride divisible by 4; "
++-                "persistent_topk covers unaligned strides"
+++                "cooperative_topk requires a 16-byte-aligned row stride; "
+++                "persistent_topk covers unaligned rows"
++             )
++         workspace = torch.empty(
++             RADIX_TOPK_WORKSPACE_SIZE, dtype=torch.uint8, device="cuda"
++@@ -80,6 +80,30 @@ def _run_topk_backend(
++         raise ValueError(f"Unknown top-k backend: {backend}")
++ 
++ 
+++@pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
+++@pytest.mark.parametrize("backend", TOPK_BACKENDS)
+++def test_topk_backends_reject_bfloat16(backend: str) -> None:
+++    logits = torch.randn(1, 4096, dtype=torch.bfloat16, device="cuda")
+++    lengths = torch.full((1,), 4096, dtype=torch.int32, device="cuda")
+++    indices = torch.empty((1, 512), dtype=torch.int32, device="cuda")
+++
+++    with pytest.raises(RuntimeError, match="float32.*float16"):
+++        _run_topk_backend(backend, logits, lengths, indices, 512, 4096)
+++
+++
+++@pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
+++def test_top_k_per_row_prefill_rejects_bfloat16() -> None:
+++    logits = torch.randn(1, 4096, dtype=torch.bfloat16, device="cuda")
+++    starts = torch.zeros(1, dtype=torch.int32, device="cuda")
+++    ends = torch.full((1,), 4096, dtype=torch.int32, device="cuda")
+++    indices = torch.empty((1, 512), dtype=torch.int32, device="cuda")
+++
+++    with pytest.raises(RuntimeError, match="float32.*float16"):
+++        torch.ops._C.top_k_per_row_prefill(
+++            logits, starts, ends, indices, 1, 4096, 1, 512
+++        )
+++
+++
++ def create_random_logits(
++     row_starts: torch.Tensor,
++     row_ends: torch.Tensor,
++@@ -222,12 +246,14 @@ def validate_topk_against_reference(
++ @pytest.mark.parametrize("num_rows", NUM_ROWS)
++ @pytest.mark.parametrize("top_k", TOP_K_VALUES)
++ @pytest.mark.parametrize("clean_logits", [True, False])
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
++ @pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
++ @torch.inference_mode()
++ def test_top_k_per_row(
++     num_rows: int,
++     top_k: int,
++     clean_logits: bool,
+++    logits_dtype: torch.dtype,
++ ) -> None:
++     """
++     Test top_k_per_row.
++@@ -239,7 +265,7 @@ def test_top_k_per_row(
++     vocab_size = 20000
++     row_starts, row_ends = create_row_boundaries(num_rows, vocab_size)
++     logits = create_random_logits(
++-        row_starts, row_ends, torch.float32, 42, clean_logits, "random"
+++        row_starts, row_ends, logits_dtype, 42, clean_logits, "random"
++     )
++ 
++     # Create output tensors
++@@ -271,6 +297,79 @@ def test_top_k_per_row(
++     ), "CUDA top_k_per_row_prefill results don't match torch.topk"
++ 
++ 
+++@pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
+++@torch.inference_mode()
+++def test_top_k_per_row_prefill_fp16_refines_native_half_bin() -> None:
+++    """FP16 prefill must refine a partially selected coarse half bin."""
+++    top_k = 2048
+++    better = torch.full((1536,), 2.0, dtype=torch.float16, device="cuda")
+++    candidate_bits = torch.arange(0x3C00, 0x3C20, dtype=torch.int16, device="cuda")
+++    candidates = candidate_bits.view(torch.float16).repeat_interleave(64)
+++    logits = torch.cat((better, candidates))
+++    logits = logits[torch.randperm(logits.numel(), device="cuda")].unsqueeze(0)
+++    row_starts = torch.zeros(1, dtype=torch.int32, device="cuda")
+++    row_ends = torch.full((1,), logits.shape[1], dtype=torch.int32, device="cuda")
+++    indices = torch.empty((1, top_k), dtype=torch.int32, device="cuda")
+++
+++    torch.ops._C.top_k_per_row_prefill(
+++        logits,
+++        row_starts,
+++        row_ends,
+++        indices,
+++        1,
+++        logits.stride(0),
+++        logits.stride(1),
+++        top_k,
+++    )
+++
+++    validate_topk_against_reference(
+++        logits,
+++        indices,
+++        row_starts,
+++        row_ends,
+++        top_k,
+++        "FP16-native prefill top-k",
+++    )
+++
+++
+++@pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
+++@torch.inference_mode()
+++def test_top_k_per_row_prefill_fp16_handles_large_exact_tie() -> None:
+++    """FP16 prefill must fill top-k when an exact-value tie exceeds capacity."""
+++    top_k = 2048
+++    logits = torch.cat(
+++        (
+++            torch.full((512,), 2.0, dtype=torch.float16, device="cuda"),
+++            torch.full((4096,), 1.0, dtype=torch.float16, device="cuda"),
+++            torch.full((512,), 0.0, dtype=torch.float16, device="cuda"),
+++        )
+++    )
+++    logits = logits[torch.randperm(logits.numel(), device="cuda")].unsqueeze(0)
+++    row_starts = torch.zeros(1, dtype=torch.int32, device="cuda")
+++    row_ends = torch.full((1,), logits.shape[1], dtype=torch.int32, device="cuda")
+++    indices = torch.empty((1, top_k), dtype=torch.int32, device="cuda")
+++
+++    torch.ops._C.top_k_per_row_prefill(
+++        logits,
+++        row_starts,
+++        row_ends,
+++        indices,
+++        1,
+++        logits.stride(0),
+++        logits.stride(1),
+++        top_k,
+++    )
+++
+++    validate_topk_against_reference(
+++        logits,
+++        indices,
+++        row_starts,
+++        row_ends,
+++        top_k,
+++        "FP16-native prefill top-k with a large exact tie",
+++    )
+++
+++
++ def _run_top_k_per_row_decode_test(
++     top_k: int,
++     batch_size: int,
++@@ -278,6 +377,7 @@ def _run_top_k_per_row_decode_test(
++     vocab_size: int,
++     clean_logits: bool,
++     data_generation: str,
+++    logits_dtype: torch.dtype = torch.float32,
++ ) -> None:
++     """
++     Helper function to run top_k_per_row_decode test with given parameters.
++@@ -298,7 +398,7 @@ def _run_top_k_per_row_decode_test(
++     next_n_offset = torch.arange(num_rows, device="cuda") % next_n
++     row_ends = seq_lens[row_indices] - next_n + next_n_offset + 1
++     logits = create_random_logits(
++-        row_starts, row_ends, torch.float32, 42, clean_logits, data_generation
+++        row_starts, row_ends, logits_dtype, 42, clean_logits, data_generation
++     )
++ 
++     # Create output tensors
++@@ -374,6 +474,26 @@ def test_top_k_per_row_decode_large_vocab_size(clean_logits: bool) -> None:
++     )
++ 
++ 
+++@pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
+++@pytest.mark.parametrize("vocab_size", [20000, 300000])
+++@pytest.mark.parametrize("logits_dtype", [torch.float16])
+++@torch.inference_mode()
+++def test_top_k_per_row_decode_reduced_precision_matches_torch(
+++    vocab_size: int, logits_dtype: torch.dtype
+++) -> None:
+++    """Reduced-precision logits must work in single- and multi-pass paths."""
+++    set_random_seed(0)
+++    _run_top_k_per_row_decode_test(
+++        top_k=2048,
+++        batch_size=2,
+++        next_n=1,
+++        vocab_size=vocab_size,
+++        clean_logits=False,
+++        data_generation="random",
+++        logits_dtype=logits_dtype,
+++    )
+++
+++
++ @pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
++ @pytest.mark.parametrize(
++     "seq_len_range,test_id",
++@@ -387,6 +507,7 @@ def test_top_k_per_row_decode_large_vocab_size(clean_logits: bool) -> None:
++ @pytest.mark.parametrize("top_k", [2048])
++ @pytest.mark.parametrize("next_n", [1, 4])
++ @pytest.mark.parametrize("backend", WORKSPACE_TOPK_BACKENDS)
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
++ @torch.inference_mode()
++ def test_deepseek_workspace_topk(
++     seq_len_range: tuple[int, int],
++@@ -395,6 +516,7 @@ def test_deepseek_workspace_topk(
++     top_k: int,
++     next_n: int,
++     backend: str,
+++    logits_dtype: torch.dtype,
++ ) -> None:
++     """
++     Test workspace top-k backends with varying sequence lengths and speculative
++@@ -414,7 +536,8 @@ def test_deepseek_workspace_topk(
++         dtype=torch.int32,
++         device="cuda",
++     )
++-    seq_lens = (seq_lens + 3) & ~3  # align to 4 for TMA
+++    alignment = 16 // logits_dtype.itemsize
+++    seq_lens = (seq_lens + alignment - 1) & ~(alignment - 1)
++ 
++     # Compute row boundaries for speculative decoding
++     row_starts = torch.zeros(num_rows, dtype=torch.int32, device="cuda")
++@@ -423,7 +546,7 @@ def test_deepseek_workspace_topk(
++     row_ends = seq_lens[row_indices] - next_n + next_n_offset + 1
++ 
++     logits = create_random_logits(
++-        row_starts, row_ends, torch.float32, 42, clean_logits, "random"
+++        row_starts, row_ends, logits_dtype, 42, clean_logits, "random"
++     )
++ 
++     indices = torch.empty((num_rows, top_k), dtype=torch.int32, device="cuda")
++@@ -962,9 +1085,19 @@ def test_persistent_topk_reused_group_after_short_row() -> None:
++ 
++ @pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
++ @pytest.mark.parametrize("top_k", [512, 2048])
++-@pytest.mark.parametrize("backend", WORKSPACE_TOPK_BACKENDS)
+++@pytest.mark.parametrize(
+++    "backend,logits_dtype",
+++    [
+++        ("cooperative_topk", torch.float32),
+++        ("cooperative_topk", torch.float16),
+++        ("persistent_topk", torch.float32),
+++        ("persistent_topk", torch.float16),
+++    ],
+++)
++ @torch.inference_mode()
++-def test_workspace_topk_padded_stride(top_k: int, backend: str) -> None:
+++def test_workspace_topk_padded_stride(
+++    top_k: int, backend: str, logits_dtype: torch.dtype
+++) -> None:
++     """
++     Test workspace top-k backends with padded logits (large stride, small seq_len)
++     to simulate the e2e CUDAGraph scenario where fp8_paged_mqa_logits
++@@ -975,17 +1108,17 @@ def test_workspace_topk_padded_stride(top_k: int, backend: str) -> None:
++ 
++     batch_size = 4
++     padded_stride = 163840  # DeepSeek-V3.2 max_model_len
++-    actual_seq_lens = [3000, 5000, 8000, 12000]
+++    actual_seq_lens = [3001, 5003, 8191, 12001]
++ 
++     # Create padded logits tensor (like fp8_paged_mqa_logits output)
++     logits = torch.full(
++         (batch_size, padded_stride),
++         float("-inf"),
++-        dtype=torch.float32,
+++        dtype=logits_dtype,
++         device="cuda",
++     )
++     for i, sl in enumerate(actual_seq_lens):
++-        logits[i, :sl] = torch.randn(sl, dtype=torch.float32, device="cuda")
+++        logits[i, :sl] = torch.randn(sl, dtype=logits_dtype, device="cuda")
++ 
++     lengths = torch.tensor(actual_seq_lens, dtype=torch.int32, device="cuda")
++     indices = torch.empty((batch_size, top_k), dtype=torch.int32, device="cuda")
++diff --git a/tests/v1/attention/test_indexer_dcp_localize.py b/tests/v1/attention/test_indexer_dcp_localize.py
++index 60468cd337..af05437a2d 100644
++--- a/tests/v1/attention/test_indexer_dcp_localize.py
+++++ b/tests/v1/attention/test_indexer_dcp_localize.py
++@@ -415,7 +415,10 @@ def test_local_topk_union_is_not_equivalent_to_global_topk_attention():
++ 
++ 
++ @pytest.mark.skipif(not current_platform.is_cuda(), reason="This test requires CUDA")
++-def test_sparse_decode_dcp_persistent_topk_matches_non_dcp():
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
+++def test_sparse_decode_dcp_persistent_topk_matches_non_dcp(
+++    logits_dtype: torch.dtype,
+++):
++     torch.manual_seed(3)
++     device = torch.device("cuda")
++     world = 2
++@@ -428,7 +431,7 @@ def test_sparse_decode_dcp_persistent_topk_matches_non_dcp():
++     q = torch.randn(num_rows, head_dim, device=device)
++     k = torch.randn(max_seq_len, head_dim, device=device)
++     v = torch.randn(max_seq_len, head_dim, device=device)
++-    logits = q @ k.T
+++    logits = (q @ k.T).to(logits_dtype)
++     seq_lens = torch.tensor([[1024], [1025]], dtype=torch.int32, device=device)
++ 
++     non_dcp_topk = torch.empty((num_rows, topk), dtype=torch.int64, device=device)
++@@ -496,8 +499,10 @@ def test_sparse_decode_dcp_persistent_topk_matches_non_dcp():
++     reason="This test requires CUDA and CuteDSL",
++ )
++ @pytest.mark.parametrize("use_row_starts", [False, True])
+++@pytest.mark.parametrize("logits_dtype", [torch.float32, torch.float16])
++ def test_cutedsl_dcp_candidate_pack_and_select_matches_reference(
++     use_row_starts: bool,
+++    logits_dtype: torch.dtype,
++ ):
++     from vllm.model_executor.kernels.attention.dsa.dcp_indexer_cutedsl import (
++         pack_dcp_topk_candidates_cutedsl,
++@@ -524,7 +529,7 @@ def test_cutedsl_dcp_candidate_pack_and_select_matches_reference(
++ 
++     packed_by_rank = []
++     for rank in range(world):
++-        logits = torch.randn((rows, width), device=device, dtype=torch.float32)
+++        logits = torch.randn((rows, width), device=device, dtype=logits_dtype)
++         local_topks = []
++         for row in range(rows):
++             start = int(row_offsets[row].item())
++@@ -548,7 +553,7 @@ def test_cutedsl_dcp_candidate_pack_and_select_matches_reference(
++             1, topk_indices.to(torch.long) + row_offsets.to(torch.long).view(-1, 1)
++         )
++         expected_ids = (topk_indices * world + rank).to(torch.float32)
++-        torch.testing.assert_close(packed[..., 0], expected_scores)
+++        torch.testing.assert_close(packed[..., 0], expected_scores.float())
++         torch.testing.assert_close(packed[..., 1], expected_ids)
++         packed_by_rank.append(packed)
++ 
++diff --git a/vllm/config/attention.py b/vllm/config/attention.py
++index 994be05f54..5b56b22b0b 100644
++--- a/vllm/config/attention.py
+++++ b/vllm/config/attention.py
++@@ -11,6 +11,7 @@ from vllm.v1.attention.backends.mla.prefill.registry import MLAPrefillBackendEnu
++ from vllm.v1.attention.backends.registry import AttentionBackendEnum
++ 
++ IndexerKVDType = Literal["bf16", "fp8", "mxfp4", "nvfp4"]
+++IndexerLogitsDType = Literal["auto", "float16", "float32"]
++ MiniMaxM3MSADecodeBackend = Literal["triton", "cutlass"]
++ 
++ 
++@@ -72,6 +73,10 @@ class AttentionConfig:
++     """Data type for the sparse-attention indexer K cache. Quantized formats
++     (fp8, mxfp4, nvfp4) require indexer kernel support in the backend."""
++ 
+++    indexer_logits_dtype: IndexerLogitsDType = "auto"
+++    """Output data type for sparse-attention indexer logits. "auto" uses
+++    float16 on CUDA and float32 on other platforms."""
+++
++     use_non_causal: bool = False
++     """Whether to use non-causal (bidirectional) attention."""
++ 
++diff --git a/vllm/model_executor/layers/sparse_attn_indexer.py b/vllm/model_executor/layers/sparse_attn_indexer.py
++index d94b377dbe..f1607e3fed 100644
++--- a/vllm/model_executor/layers/sparse_attn_indexer.py
+++++ b/vllm/model_executor/layers/sparse_attn_indexer.py
++@@ -44,6 +44,35 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
++ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
++ MXFP4_BLOCK_SIZE = 32
++ 
+++_INDEXER_LOGITS_DTYPES = {
+++    "float16": torch.float16,
+++    "float32": torch.float32,
+++}
+++
+++
+++def _should_use_native_fp16_decode_topk(
+++    logits_dtype: torch.dtype, num_rows: int, max_seq_len: int
+++) -> bool:
+++    # FP16 crossovers measured on GB200 for #52696; retune on Hopper.
+++    if logits_dtype != torch.float16:
+++        return False
+++    if max_seq_len <= 32768:
+++        return False
+++    if max_seq_len <= 65536:
+++        return num_rows >= 768
+++    if max_seq_len <= 100000:
+++        return num_rows >= 512
+++    return max_seq_len <= 131072 and num_rows >= 1024
+++
+++
+++def _get_indexer_logits_dtype() -> torch.dtype:
+++    setting = get_current_vllm_config().attention_config.indexer_logits_dtype
+++    if setting != "auto":
+++        return _INDEXER_LOGITS_DTYPES[setting]
+++    if not current_platform.is_cuda():
+++        return torch.float32
+++    return torch.float16
+++
++ 
++ def _assert_cutedsl_dcp_merge_supported(
++     logits: torch.Tensor,
++@@ -60,10 +89,10 @@ def _assert_cutedsl_dcp_merge_supported(
++         )
++     if logits.device.type != "cuda":
++         raise RuntimeError("DCP sparse-indexer merge requires CUDA tensors.")
++-    if logits.dtype != torch.float32 or topk_indices.dtype != torch.int32:
++-        raise RuntimeError(
++-            "DCP sparse-indexer merge requires fp32 logits and int32 indices."
++-        )
+++    if logits.dtype not in (torch.float32, torch.float16):
+++        raise RuntimeError("DCP sparse-indexer merge requires fp32 or fp16 logits.")
+++    if topk_indices.dtype != torch.int32:
+++        raise RuntimeError("DCP sparse-indexer merge requires int32 indices.")
++     if k not in (512, 1024, 2048):
++         raise RuntimeError(
++             f"DCP sparse-indexer merge requires index_topk in (512, 1024, 2048); "
++@@ -316,6 +345,7 @@ def sparse_attn_indexer(
++     dcp_world_size: int = 1,
++     cp_kv_cache_interleave_size: int = 1,
++     skip_topk_buffer_clear: bool = False,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     # careful! this will be None in dummy run
++     forward_context = get_forward_context()
++@@ -485,7 +515,12 @@ def sparse_attn_indexer(
++                     q_slice_cast = q_slice
++                     k_quant_cast = k_quant
++                     k_scale_cast = k_scale.view(torch.float32).squeeze(-1)
+++                logits_dtype = torch.float16 if use_fp16_logits else torch.float32
++                 if current_platform.is_xpu():
+++                    if logits_dtype != torch.float32:
+++                        raise RuntimeError(
+++                            "Reduced-precision indexer logits are not supported on XPU"
+++                        )
++                     if q_scale_slice is not None:
++                         raise RuntimeError("XPU fp8_mqa_logits does not support FP4 Q")
++                     logits = torch.ops.vllm.xpu_fp8_mqa_logits(
++@@ -504,6 +539,7 @@ def sparse_attn_indexer(
++                         cu_seqlen_ks,
++                         cu_seqlen_ke,
++                         clean_logits=False,
+++                        logits_dtype=logits_dtype,
++                     )
++                 num_rows = logits.shape[0]
++                 ops.top_k_per_row_prefill(
++@@ -584,7 +620,12 @@ def sparse_attn_indexer(
++             if use_fp4_cache
++             else padded_q_quant_decode_tokens
++         )
+++        logits_dtype = torch.float16 if use_fp16_logits else torch.float32
++         if current_platform.is_xpu():
+++            if logits_dtype != torch.float32:
+++                raise RuntimeError(
+++                    "Reduced-precision indexer logits are not supported on XPU"
+++                )
++             if padded_q_scale is not None:
++                 raise RuntimeError("XPU fp8_paged_mqa_logits does not support FP4 Q")
++             seq_lens_xpu = (
++@@ -610,6 +651,7 @@ def sparse_attn_indexer(
++                 max_model_len=max_model_len,
++                 clean_logits=False,
++                 indices=decode_metadata.indices,
+++                logits_dtype=logits_dtype,
++             )
++         num_rows = logits.shape[0]
++         topk_indices = topk_indices_buffer[:num_padded_tokens, :topk_tokens]
++@@ -618,14 +660,20 @@ def sparse_attn_indexer(
++             current_platform.is_cuda()
++             and topk_tokens in (512, 1024, 2048)
++             and num_rows <= 32
++-            and logits.stride(0) % 4 == 0  # TMA 16-byte alignment
+++            and (
+++                # TMA requires 16-byte alignment.
+++                logits.stride(0) % (16 // logits.element_size()) == 0
+++            )
++             and current_platform.has_device_capability(90)
++             and not current_platform.is_device_capability_family(120)
++         )
++-        use_persistent_topk = current_platform.is_cuda() and topk_tokens in (
++-            512,
++-            1024,
++-            2048,
+++        use_native_fp16_decode_topk = _should_use_native_fp16_decode_topk(
+++            logits.dtype, num_rows, attn_metadata_narrowed.max_seq_len
+++        )
+++        use_persistent_topk = (
+++            current_platform.is_cuda()
+++            and topk_tokens in (512, 1024, 2048)
+++            and not use_native_fp16_decode_topk
++         )
++         if use_cooperative_topk:
++             workspace_manager = current_workspace_manager()
++@@ -712,6 +760,7 @@ def sparse_attn_indexer_fake(
++     dcp_world_size: int = 1,
++     cp_kv_cache_interleave_size: int = 1,
++     skip_topk_buffer_clear: bool = False,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     return topk_indices_buffer
++ 
++@@ -762,6 +811,7 @@ class SparseAttnIndexer(CustomOp):
++         self.topk_indices_buffer = topk_indices_buffer
++         self.skip_k_cache_insert = skip_k_cache_insert
++         self.use_fp4_cache = use_fp4_cache
+++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
++         self.dense_mha_metadata_layer_name = ""
++         # DCP scalars are constant for the run; resolve them here (config is set
++         # during model construction) and pass them into the custom op, rather
++@@ -829,6 +879,8 @@ class SparseAttnIndexer(CustomOp):
++             self.dcp_rank,
++             self.dcp_world_size,
++             self.cp_kv_cache_interleave_size,
+++            False,
+++            self.use_fp16_logits,
++         )
++ 
++     def forward_xpu(
++diff --git a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++index 6e475d9ce3..40d28e8a4b 100644
++--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++@@ -50,6 +50,24 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
++ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
++ MXFP4_BLOCK_SIZE = 32
++ 
+++_INDEXER_LOGITS_DTYPES = {
+++    "float16": torch.float16,
+++    "float32": torch.float32,
+++}
+++
+++
+++def _get_indexer_logits_dtype() -> torch.dtype:
+++    """Resolve score dtype before the custom op leaves config context."""
+++    cfg = get_current_vllm_config_or_none()
+++    setting = (
+++        cfg.attention_config.indexer_logits_dtype if cfg is not None else "auto"
+++    )
+++    if setting != "auto":
+++        return _INDEXER_LOGITS_DTYPES[setting]
+++    if not current_platform.is_cuda():
+++        return torch.float32
+++    return torch.float16
+++
++ # kpool write helper: form pools from the current token batch and compress them
++ # into the index K cache via the fused Triton kernel.
++ 
++@@ -269,6 +287,7 @@ def sparse_attn_indexer_kpool(
++     # path and when the tail cache is disabled.
++     tail_kv_cache: torch.Tensor | None = None,
++     tail_prefix: str | None = None,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     # careful! this will be None in dummy run
++     attn_metadata = get_forward_context().attn_metadata
++@@ -309,8 +328,10 @@ def sparse_attn_indexer_kpool(
++                 sched.max_num_seqs * (num_spec + 1),
++                 sched.max_num_batched_tokens,
++             )
++-        # float32 logits -> 4 bytes/element; uint8 sentinel so elems == bytes.
++-        decode_logits_elems = worst_decode_tokens * max_model_len * 4
+++        # The uint8 sentinel's element count is a byte count. Match the score
+++        # dtype so FP16 mode does not reserve the former FP32 peak.
+++        logits_bytes = 2 if use_fp16_logits else 4
+++        decode_logits_elems = worst_decode_tokens * max_model_len * logits_bytes
++         prefill_cap_elems = envs.VLLM_SPARSE_INDEXER_MAX_LOGITS_MB * 1024 * 1024
++         max_logits_elems = max(decode_logits_elems, prefill_cap_elems)
++         _ = torch.empty(
++@@ -527,6 +548,7 @@ def sparse_attn_indexer_kpool(
++                 chunk.cu_seqlen_ks,
++                 chunk.cu_seqlen_ke,
++                 clean_logits=False,
+++                logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
++             )
++             num_rows = logits.shape[0]
++ 
++@@ -794,6 +816,7 @@ def sparse_attn_indexer_kpool(
++             decode_metadata.schedule_metadata,
++             max_model_len=max_model_len,
++             clean_logits=False,
+++            logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
++         )
++         num_rows = logits.shape[0]
++         # kpool: logits are pool-granular -> select topk_tokens//kpool pools,
++@@ -910,6 +933,7 @@ def sparse_attn_indexer_kpool_fake(
++     positions: torch.Tensor | None = None,
++     tail_kv_cache: torch.Tensor | None = None,
++     tail_prefix: str | None = None,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     return topk_indices_buffer
++ 
++@@ -967,6 +991,7 @@ class SparseAttnIndexerKpool(CustomOp):
++         self.topk_indices_buffer = topk_indices_buffer
++         self.skip_k_cache_insert = skip_k_cache_insert
++         self.use_fp4_cache = use_fp4_cache
+++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
++         if current_platform.is_cuda() and not has_deep_gemm():
++             raise RuntimeError(
++                 "Sparse Attention Indexer CUDA op requires DeepGEMM to be installed."
++@@ -1044,6 +1069,7 @@ class SparseAttnIndexerKpool(CustomOp):
++             positions,
++             self.tail_cache.kv_cache if self.tail_cache is not None else None,
++             self.tail_cache.prefix if self.tail_cache is not None else None,
+++            self.use_fp16_logits,
++         )
++ 
++     def forward_hip(
++diff --git a/vllm/utils/deep_gemm.py b/vllm/utils/deep_gemm.py
++index 434a8d529d..55c6b0fef0 100644
++--- a/vllm/utils/deep_gemm.py
+++++ b/vllm/utils/deep_gemm.py
++@@ -519,6 +519,7 @@ def fp8_fp4_mqa_logits(
++     cu_seqlen_ks: torch.Tensor,
++     cu_seqlen_ke: torch.Tensor,
++     clean_logits: bool,
+++    logits_dtype: torch.dtype = torch.float32,
++ ) -> torch.Tensor:
++     """Compute MQA logits for a single sequence without KV paging.
++ 
++@@ -540,9 +541,10 @@ def fp8_fp4_mqa_logits(
++         cu_seqlen_ke: End indices (exclusive) for valid K per query
++             position, shape [M], dtype int32.
++         clean_logits: Whether to clean the unfilled logits into `-inf`.
+++        logits_dtype: Output dtype. Supports float32 and float16.
++ 
++     Returns:
++-        Logits tensor of shape [M, N], dtype `torch.float32`.
+++        Logits tensor of shape [M, N] with `logits_dtype`.
++     """
++     _lazy_init()
++     if _fp8_fp4_mqa_logits_impl is None:
++@@ -554,6 +556,7 @@ def fp8_fp4_mqa_logits(
++         cu_seqlen_ks,
++         cu_seqlen_ke,
++         clean_logits=clean_logits,
+++        logits_dtype=logits_dtype,
++     )
++ 
++ 
++@@ -595,6 +598,7 @@ def fp8_fp4_paged_mqa_logits(
++     max_model_len: int,
++     clean_logits: bool,
++     indices: torch.Tensor | None = None,
+++    logits_dtype: torch.dtype = torch.float32,
++ ) -> torch.Tensor:
++     """Compute MQA logits using a paged KV-cache.
++ 
++@@ -620,10 +624,11 @@ def fp8_fp4_paged_mqa_logits(
++         max_model_len: Maximum sequence length used to size the logits output.
++         clean_logits: Whether to clean the unfilled logits into `-inf`.
++         indices: Optional request index for each varlen row.
+++        logits_dtype: Output dtype. Supports float32 and float16.
++ 
++     Returns:
++-        Logits tensor of shape [B * next_n, max_model_len], dtype
++-        `torch.float32`.
+++        Logits tensor of shape [B * next_n, max_model_len] with
+++        `logits_dtype`.
++     """
++     _lazy_init()
++     if _fp8_fp4_paged_mqa_logits_impl is None:
++@@ -645,6 +650,7 @@ def fp8_fp4_paged_mqa_logits(
++         schedule_metadata,
++         max_model_len,
++         clean_logits=clean_logits,
+++        logits_dtype=logits_dtype,
++         **kwargs,
++     )
++ 

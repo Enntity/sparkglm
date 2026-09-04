@@ -1,0 +1,54 @@
+From 3d162d09d9c272a28a52aeca9245de7530269bcd Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:57:56 -0700
+Subject: [PATCH 12/21] launch(glm): reuse durable worker model stores
+
+Preserve an explicit WORKER_CACHE_DIR so both ranks can mount the existing LLooM store instead of copying model weights.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .env.example                     | 1 +
+ start.sh                         | 5 ++++-
+ tests/test_bringup_robustness.py | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/.env.example b/.env.example
+index 68a689a..9ba7432 100644
+--- a/.env.example
++++ b/.env.example
+@@ -43,6 +43,7 @@ MODEL_FALLBACK=brandonmusic/GLM-5.3-Flash-tr3-4bpw
+ MODEL_REVISION=25a44fdbf16862a46b7cc9921142c6c81350af2f
+ # HF cache root on the head (worker uses ${WORKER_HOME}/.cache/huggingface)
+ # HF_HOME=/home/you/.cache/huggingface
++# WORKER_CACHE_DIR=/home/you/.cache/huggingface
+ # HF_TOKEN=hf_xxx
+ # HF CLI override when `hf` lives outside PATH (venv installs). May contain
+ # arguments. Without it start.sh falls back to `python3 -m
+diff --git a/start.sh b/start.sh
+index 6ef0978..c13700b 100755
+--- a/start.sh
++++ b/start.sh
+@@ -299,7 +299,10 @@ HF_CACHE_DIR="${HF_HOME:-$HOME/.cache/huggingface}"
+ MODEL_PATH="$HF_CACHE_DIR/hub/$MODEL_CACHE_NAME"
+ FALLBACK_MODEL_PATH="$HF_CACHE_DIR/hub/$MODEL_FALLBACK_CACHE_NAME"
+ DFLASH_PATH="$HF_CACHE_DIR/hub/$DFLASH_CACHE_NAME"
+-WORKER_CACHE_DIR="$WORKER_HOME/.cache/huggingface"
++# Allow a durable rank-1 model store to be mounted directly. This mirrors the
++# existing HF_HOME override on rank 0 and avoids copying the same weights into
++# a launcher-owned cache.
++WORKER_CACHE_DIR="${WORKER_CACHE_DIR:-$WORKER_HOME/.cache/huggingface}"
+ CACHE_ROOT="${CACHE_ROOT:-$HOME/.cache/vllm-glm53-flash}"
+ WORKER_VLLM_CACHE="${WORKER_VLLM_CACHE:-$WORKER_HOME/.cache/vllm-glm53-flash}"
+ # Overlay FS ~/.triton and ~/.tilelang die on container recreate (TP=2 JIT
+diff --git a/tests/test_bringup_robustness.py b/tests/test_bringup_robustness.py
+index 7ebb2b8..f07998b 100644
+--- a/tests/test_bringup_robustness.py
++++ b/tests/test_bringup_robustness.py
+@@ -47,6 +47,7 @@ def test_worker_cache_writability_preflight_wired() -> None:
+     src = _source()
+     assert "worker cannot write $WORKER_CACHE_DIR/hub" in src
+     assert "test -w '$WORKER_CACHE_DIR/hub'" in src
++    assert 'WORKER_CACHE_DIR="${WORKER_CACHE_DIR:-$WORKER_HOME/.cache/huggingface}"' in src
+ 
+ 
+ if __name__ == "__main__":

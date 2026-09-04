@@ -1,0 +1,88 @@
+From d9a1fef8b7e3eab5ea1476e65ac5fe21ef457697 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 03:48:23 -0700
+Subject: [PATCH 18/37] bench(glm): reject paired gate-up tile reuse
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ ...2026-09-03-exl3-paired-a-reuse-rejected.md | 71 +++++++++++++++++++
+ 1 file changed, 71 insertions(+)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-exl3-paired-a-reuse-rejected.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-03-exl3-paired-a-reuse-rejected.md b/benchmarks/sparkglm/results/2026-09-03-exl3-paired-a-reuse-rejected.md
+new file mode 100644
+index 0000000000..12f2d3f884
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-exl3-paired-a-reuse-rejected.md
+@@ -0,0 +1,71 @@
++# EXL3 paired gate/up A-tile reuse: rejected
++
++Date: 2026-09-03
++
++## Verdict
++
++Reject the single-CTA paired gate/up experiment. It is bit-exact against the
++accepted M64 pipeline, but it is substantially slower at the expert row counts
++that dominate the synchronized long-prefill trace and is neutral to slightly
++slower at large row counts. The candidate was never wired into serving.
++
++## Candidate
++
++The accepted paired gate/up path launches one CTA for each 128-column tile of
++each matrix. The candidate halved the X grid by making one CTA compute the
++corresponding gate and up tiles together. It loaded each activation tile once,
++then loaded and decoded two packed-weight tiles and maintained two accumulator
++banks. The output order, EXL3 K4 MCG decode, FP32 accumulation, Hadamard
++scaling, SwiGLU and down/scatter stages were unchanged.
++
++- Source base: `7a7cfe2c9e`
++- Candidate image: `sparkglm-vllm:exl3-pairreuse-candidate-20260903a`
++- Head image ID: `c5be5ad6fa723085a0137111642d4b549dc59994032afa8a50755a43a7a13bc8`
++- Worker image ID: `b3d9c100886c1f5dd52aa550e6bd7f2cabf624ac0a8317de607fd3d845379be9`
++- Target: `sm_121a`, one GB10, CUDA events
++- Shape: hidden 4,096, TP-local intermediate 1,024, EXL3 K4 MCG
++- Timing: 20 warmups, 100 iterations, five alternating-order repeats; median
++- Timed pipeline: paired gate/up, fused SwiGLU/Hadamard and M64 down/scatter
++
++## Results
++
++Every tested row count produced bit-identical gate/up, post-SwiGLU/Hadamard and
++final down/scatter tensors (`max_abs=0`). Times are milliseconds per complete
++pipeline. Delta is candidate versus the accepted M64 pipeline; positive is
++slower.
++
++| Expert rows | Accepted M64 | Paired-A reuse | Delta |
++| ---: | ---: | ---: | ---: |
++| 129 | 0.1131 | 0.1772 | +56.7% |
++| 145 | 0.1153 | 0.1780 | +54.4% |
++| 192 | 0.1197 | 0.1838 | +53.5% |
++| 255 | 0.1658 | 0.1910 | +15.2% |
++| 257 | 0.1735 | 0.2000 | +15.3% |
++| 320 | 0.1867 | 0.2226 | +19.2% |
++| 383 | 0.1940 | 0.2249 | +15.9% |
++| 385 | 0.2390 | 0.2730 | +14.2% |
++| 512 | 0.2882 | 0.3162 | +9.7% |
++| 640 | 0.3540 | 0.3478 | -1.7% |
++| 768 | 0.3900 | 0.3858 | -1.1% |
++| 1,024 | 0.5466 | 0.5749 | +5.2% |
++| 2,048 | 1.1484 | 1.1834 | +3.0% |
++| 4,096 | 2.3309 | 2.3188 | -0.5% |
++| 6,528 | 3.7820 | 3.8163 | +0.9% |
++
++The synchronized production profile contains many more calls near the lower
++end than the very large synthetic rows. This is therefore a broad production-
++shape regression, not a potentially useful trade at a rare boundary.
++
++## Why activation reuse lost
++
++The compiled candidate confirms the resource trade. `cuobjdump` reports 98
++registers per thread for the M64 paired-reuse kernel versus 64 for the accepted
++M64 paired kernel. The candidate also carries two packed-B pipeline banks and
++two FP32 accumulator banks and performs both matrix MMA sequences serially in
++half as many CTAs. Saving the second activation load is smaller than the lost
++parallelism and added register/dataflow pressure on this shape.
++
++Future gate/up work must retain independent CTA scheduling or share A without
++doubling live B/accumulator state in one CTA. The more credible next kernel
++target is the packed-codebook decode and Hadamard/scatter dataflow within each
++independent matrix, not serial gate/up co-residency.

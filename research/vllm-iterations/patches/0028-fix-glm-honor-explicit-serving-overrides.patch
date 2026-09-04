@@ -1,0 +1,66 @@
+From 8f35c5fb251753258ec9715c64910cca55c3bfb3 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 07:32:26 -0700
+Subject: [PATCH 28/37] fix(glm): honor explicit serving overrides
+
+Preserve caller-selected mixed-prefill and DFlash draft-TP settings across recipe .env loading so benchmark and appliance launches cannot silently run a different scheduler or topology.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ recipes/mia/start.sh                   | 6 ++++++
+ recipes/mia/tests/test_image_recipe.py | 4 ++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/recipes/mia/start.sh b/recipes/mia/start.sh
+index a57caad0b6..94f1ce8c21 100755
+--- a/recipes/mia/start.sh
++++ b/recipes/mia/start.sh
+@@ -59,6 +59,7 @@ if [ ! -f "$SCRIPT_DIR/.env" ]; then
+ fi
+ # Caller exports (MTP_TOKENS=2 ./start.sh restart) must win over .env.
+ _cli_mtp="${MTP_TOKENS-}"
++_cli_dflash_draft_tp="${DFLASH_DRAFT_TP-}"
+ _cli_spec="${SPEC_METHOD-}"
+ _cli_eager="${ENFORCE_EAGER-}"
+ _cli_fused="${EXL3_FUSED_MOE-}"
+@@ -76,6 +77,8 @@ _cli_util="${GPU_MEM_UTIL-}"
+ _cli_lm="${LANGUAGE_MODEL_ONLY-}"
+ _cli_max_num_seqs="${MAX_NUM_SEQS-}"
+ _cli_boot_shape_warmup="${GLM53_BOOT_SHAPE_WARMUP-}"
++_cli_mixed_prefill_chunk_set="${GLM53_MIXED_PREFILL_CHUNK+1}"
++_cli_mixed_prefill_chunk="${GLM53_MIXED_PREFILL_CHUNK-}"
+ _cli_phase_interleave="${GLM53_PHASE_INTERLEAVE-}"
+ _cli_phase_decode_steps="${GLM53_PHASE_DECODE_STEPS-}"
+ _cli_phase_prefill_tokens="${GLM53_PHASE_PREFILL_TOKENS-}"
+@@ -98,6 +101,7 @@ set -a
+ source "$SCRIPT_DIR/.env"
+ set +a
+ [ -n "${_cli_mtp}" ] && MTP_TOKENS="$_cli_mtp"
++[ -n "${_cli_dflash_draft_tp}" ] && DFLASH_DRAFT_TP="$_cli_dflash_draft_tp"
+ [ -n "${_cli_spec}" ] && SPEC_METHOD="$_cli_spec"
+ [ -n "${_cli_eager}" ] && ENFORCE_EAGER="$_cli_eager"
+ [ -n "${_cli_fused}" ] && EXL3_FUSED_MOE="$_cli_fused"
+@@ -116,6 +120,8 @@ set +a
+ [ -n "${_cli_max_num_seqs}" ] && MAX_NUM_SEQS="$_cli_max_num_seqs"
+ [ -n "${_cli_boot_shape_warmup}" ] \
+     && GLM53_BOOT_SHAPE_WARMUP="$_cli_boot_shape_warmup"
++[ -n "${_cli_mixed_prefill_chunk_set}" ] \
++    && GLM53_MIXED_PREFILL_CHUNK="$_cli_mixed_prefill_chunk"
+ [ -n "${_cli_phase_interleave}" ] \
+     && GLM53_PHASE_INTERLEAVE="$_cli_phase_interleave"
+ [ -n "${_cli_phase_decode_steps}" ] \
+diff --git a/recipes/mia/tests/test_image_recipe.py b/recipes/mia/tests/test_image_recipe.py
+index e83b436c65..8c94988a0d 100644
+--- a/recipes/mia/tests/test_image_recipe.py
++++ b/recipes/mia/tests/test_image_recipe.py
+@@ -29,6 +29,10 @@ def test_documented_defaults() -> None:
+     assert re.search(r"^EXL3_FAT_PAIR=1$", example, re.M)
+     assert re.search(r"^EXL3_FAT_FUSED_ACT=1$", example, re.M)
+     assert re.search(r"^GLM53_MIXED_PREFILL_CHUNK=0$", example, re.M)
++    assert '_cli_dflash_draft_tp="${DFLASH_DRAFT_TP-}"' in start
++    assert 'DFLASH_DRAFT_TP="$_cli_dflash_draft_tp"' in start
++    assert '_cli_mixed_prefill_chunk="${GLM53_MIXED_PREFILL_CHUNK-}"' in start
++    assert 'GLM53_MIXED_PREFILL_CHUNK="$_cli_mixed_prefill_chunk"' in start
+     assert re.search(r"^GLM53_PHASE_INTERLEAVE=0$", example, re.M)
+     assert re.search(r"^GLM53_PHASE_DECODE_STEPS=8$", example, re.M)
+     assert re.search(r"^GLM53_PHASE_PREFILL_TOKENS=2048$", example, re.M)

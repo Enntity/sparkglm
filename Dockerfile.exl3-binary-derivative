@@ -1,0 +1,11 @@
+ARG BASE_IMAGE=sparkglm-vllm:fp16-cpasync-0c03250
+FROM ${BASE_IMAGE}
+
+COPY exllamav3_ext.cpython-312-aarch64-linux-gnu.so \
+  /usr/local/lib/python3.12/dist-packages/exllamav3_ext.cpython-312-aarch64-linux-gnu.so
+COPY overlay/exl3.py \
+  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
+COPY tests/test_exl3_overlay.py /opt/glm53/test_exl3_overlay.py
+
+LABEL ai.enntity.sparkglm.exl3-fat-pair="1"
+LABEL ai.enntity.sparkglm.exl3-fat-fused-act="1"

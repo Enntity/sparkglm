@@ -1,0 +1,1596 @@
+From 4b2375977df873be57bc277b17778f94323ef7e6 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 17:57:47 -0700
+Subject: [PATCH 20/21] perf(exl3): group fat-expert prefill on GPU
+
+Replace the host-synchronized per-expert fat path with a device task planner and five phase-wide launches specialized for GLM-5.3 K4 H4096/I1024 TP2. Promote it in the two-Spark launcher with an immediate env rollback.
+
+Provenance:
+- https://github.com/turboderp-org/exllamav3 at c5d9c657966ffeeaa9353f0cc899f18629da4a13: K4 trellis decode, Hadamard helpers, and tensor-core MMA foundations used by the existing arithmetic kernel.
+- https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark at 0c03250cd7176a2fef9cbbf9329fed08c8750e7d: cp.async M64 fat-GEMM pipeline adapted by the existing local kernel and reused here. No grouped-prefill implementation was copied.
+
+Original work:
+- GPU-resident M64 task planner, persistent route scratch, phase-wide cross-expert scheduling, FP32 atomic routed accumulation, exact-shape dispatch, rollback wiring, and comparison gates.
+
+Verification:
+- scripts/tinyglm-gate.sh static: PASS.
+- Native SM121 image compiled independently on both GB10s; overlay GPU self-check passed.
+- Model-free production-shape A/B: max_abs=0; +9.5% to +51.9% across tested expert distributions.
+- Full 320B TP2, ~33K actual-token prompts, three paired reps: C1 TTFT -8.8% and effective prefill +9.6%; staggered C2 TTFT p50 -6.1%, p95 -6.0%, wall -5.9%, aggregate effective prefill +6.3%; all requests successful and prefix-cache hit rate 0%.
+---
+ .env.example                                 |   3 +
+ Dockerfile.exl3-derivative                   |   3 +-
+ benchmarks/exl3_grouped_prefill_ab.py        | 224 ++++++++
+ benchmarks/receipts/baseline-16k-c1-r1.json  |   1 +
+ benchmarks/receipts/baseline-16k-c1-r2.json  |   1 +
+ benchmarks/receipts/baseline-16k-c1-r3.json  |   1 +
+ benchmarks/receipts/baseline-16k-c2-r1.json  |   1 +
+ benchmarks/receipts/baseline-16k-c2-r2.json  |   1 +
+ benchmarks/receipts/baseline-16k-c2-r3.json  |   1 +
+ benchmarks/receipts/candidate-16k-c1-r1.json |   1 +
+ benchmarks/receipts/candidate-16k-c1-r2.json |   1 +
+ benchmarks/receipts/candidate-16k-c1-r3.json |   1 +
+ benchmarks/receipts/candidate-16k-c2-r1.json |   1 +
+ benchmarks/receipts/candidate-16k-c2-r2.json |   1 +
+ benchmarks/receipts/candidate-16k-c2-r3.json |   1 +
+ benchmarks/tinyglm_prefill_gate.py           | 107 ++++
+ benchmarks/tinyglm_smoke.py                  |  13 +-
+ docs/PROVENANCE.md                           |  22 +-
+ docs/grouped-prefill-k4.md                   |  92 +++
+ overlay/exl3.py                              | 101 ++++
+ overlay/exl3_fat_gemm.cu                     | 575 +++++++++++++++++++
+ overlay/exl3_fat_gemm.cuh                    |  22 +
+ overlay/patch_exl3_fat_kernel.py             |   1 +
+ scripts/tinyglm-gate.sh                      |   4 +-
+ start.sh                                     |   8 +-
+ tests/test_exl3_overlay.py                   |   1 +
+ tests/test_start_overrides.py                |   8 +-
+ 27 files changed, 1185 insertions(+), 11 deletions(-)
+ create mode 100644 benchmarks/exl3_grouped_prefill_ab.py
+ create mode 100644 benchmarks/receipts/baseline-16k-c1-r1.json
+ create mode 100644 benchmarks/receipts/baseline-16k-c1-r2.json
+ create mode 100644 benchmarks/receipts/baseline-16k-c1-r3.json
+ create mode 100644 benchmarks/receipts/baseline-16k-c2-r1.json
+ create mode 100644 benchmarks/receipts/baseline-16k-c2-r2.json
+ create mode 100644 benchmarks/receipts/baseline-16k-c2-r3.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c1-r1.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c1-r2.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c1-r3.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c2-r1.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c2-r2.json
+ create mode 100644 benchmarks/receipts/candidate-16k-c2-r3.json
+ create mode 100644 benchmarks/tinyglm_prefill_gate.py
+ create mode 100644 docs/grouped-prefill-k4.md
+
+diff --git a/.env.example b/.env.example
+index 9ba7432..def0e8c 100644
+--- a/.env.example
++++ b/.env.example
+@@ -90,6 +90,9 @@ EXL3_FAT_KERNEL=1
+ EXL3_FAT_TILE_M=64
+ EXL3_FAT_PAIR=1
+ EXL3_FAT_FUSED_ACT=1
++# GPU-resident phase-wide fat-expert prefill. Measured +9.6% C1 and +6.3% C2
++# effective prefill on ~33K actual-token prompts. Rollback: set this to 0.
++EXL3_GROUPED_PREFILL_K4=1
+ SERVED_MODEL_NAME=GLM-5.3-Flash-EXL3
+ 
+ # Winner on this 2× GB10 kit with DFlash2: fused MoE + DFlash2 k=7.
+diff --git a/Dockerfile.exl3-derivative b/Dockerfile.exl3-derivative
+index 103aa29..1a7b795 100644
+--- a/Dockerfile.exl3-derivative
++++ b/Dockerfile.exl3-derivative
+@@ -29,7 +29,7 @@ RUN set -eux; \
+     cd /tmp/exllamav3; \
+     TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=8 \
+       pip install --no-deps --no-build-isolation --no-cache-dir .; \
+-    python3 -c "import exllamav3_ext; assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_swiglu_had'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_scatter_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_decode_moe_k4'), dir(exllamav3_ext); print(exllamav3_ext.__file__)"; \
++    python3 -c "import exllamav3_ext; assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_swiglu_had'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_scatter_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_grouped_prefill_k4'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_decode_moe_k4'), dir(exllamav3_ext); print(exllamav3_ext.__file__)"; \
+     rm -rf /tmp/exllamav3 /root/.cache/pip
+ 
+ COPY overlay/exl3.py /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
+@@ -37,4 +37,5 @@ COPY tests/test_exl3_overlay.py /opt/glm53/test_exl3_overlay.py
+ 
+ LABEL ai.enntity.sparkglm.exl3-fat-pair="1"
+ LABEL ai.enntity.sparkglm.exl3-fat-fused-act="1"
++LABEL ai.enntity.sparkglm.exl3-grouped-prefill-k4="1"
+ LABEL ai.enntity.sparkglm.exl3-decode-coop-k4="experimental"
+diff --git a/benchmarks/exl3_grouped_prefill_ab.py b/benchmarks/exl3_grouped_prefill_ab.py
+new file mode 100644
+index 0000000..4f195fc
+--- /dev/null
++++ b/benchmarks/exl3_grouped_prefill_ab.py
+@@ -0,0 +1,224 @@
++#!/usr/bin/env python3
++"""Exact-shape A/B for the GPU-resident GLM-5.3 fat-expert prefill path.
++
++This is intentionally model-free: it constructs valid synthetic K4 MCG
++trellises at the production TP2 shard dimensions and compares the existing
++per-expert launch sequence with exl3_grouped_prefill_k4.
++"""
++from __future__ import annotations
++
++import argparse
++import statistics
++
++import torch
++
++import exllamav3_ext as ext
++
++
++HIDDEN = 4096
++INTERMEDIATE = 1024
++PACKED_WORDS = 64
++
++
++def make_matrix(size_k: int, size_n: int, seed: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
++    generator = torch.Generator(device="cuda")
++    generator.manual_seed(seed)
++    trellis = torch.randint(
++        -(1 << 15),
++        1 << 15,
++        (size_k // 16, size_n // 16, PACKED_WORDS),
++        dtype=torch.int16,
++        device="cuda",
++        generator=generator,
++    )
++    suh = torch.empty(size_k, dtype=torch.float16, device="cuda").uniform_(
++        0.004, 0.012, generator=generator
++    )
++    svh = torch.empty(size_n, dtype=torch.float16, device="cuda").uniform_(
++        0.004, 0.012, generator=generator
++    )
++    return trellis, suh, svh
++
++
++def ptrs(items: list[torch.Tensor]) -> torch.Tensor:
++    return torch.tensor([item.data_ptr() for item in items], dtype=torch.int64, device="cuda")
++
++
++def event_ms(fn, iterations: int) -> list[float]:
++    values: list[float] = []
++    for _ in range(iterations):
++        start = torch.cuda.Event(enable_timing=True)
++        end = torch.cuda.Event(enable_timing=True)
++        start.record()
++        fn()
++        end.record()
++        end.synchronize()
++        values.append(start.elapsed_time(end))
++    return values
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--tokens", type=int, default=512)
++    parser.add_argument("--rows", type=int, default=256)
++    parser.add_argument("--experts", type=int, default=16)
++    parser.add_argument("--cap", type=int, default=128)
++    parser.add_argument("--warmup", type=int, default=3)
++    parser.add_argument("--iterations", type=int, default=10)
++    args = parser.parse_args()
++    if not (args.cap < args.rows <= args.tokens):
++        raise SystemExit("require cap < rows <= tokens")
++
++    torch.manual_seed(20260903)
++    x = (torch.randn(args.tokens, HIDDEN, device="cuda") * 0.05).half()
++    counts = torch.full((args.experts,), args.rows, dtype=torch.int64, device="cuda")
++    offsets = torch.cat(
++        (torch.zeros(1, dtype=torch.int64, device="cuda"), counts.cumsum(0))
++    )
++    token_parts = [
++        (torch.arange(args.rows, device="cuda", dtype=torch.int64) + 17 * e)
++        % args.tokens
++        for e in range(args.experts)
++    ]
++    token_sorted = torch.cat(token_parts)
++    weight_sorted = torch.full(
++        (token_sorted.numel(),),
++        1.0 / args.experts,
++        dtype=torch.float16,
++        device="cuda",
++    )
++
++    gate_t: list[torch.Tensor] = []
++    gate_u: list[torch.Tensor] = []
++    gate_v: list[torch.Tensor] = []
++    up_t: list[torch.Tensor] = []
++    up_v: list[torch.Tensor] = []
++    down_t: list[torch.Tensor] = []
++    down_u: list[torch.Tensor] = []
++    down_v: list[torch.Tensor] = []
++    for e in range(args.experts):
++        gt, gu, gv = make_matrix(HIDDEN, INTERMEDIATE, 1000 + e)
++        ut, _, uv = make_matrix(HIDDEN, INTERMEDIATE, 2000 + e)
++        dt, du, dv = make_matrix(INTERMEDIATE, HIDDEN, 3000 + e)
++        gate_t.append(gt)
++        gate_u.append(gu)
++        gate_v.append(gv)
++        up_t.append(ut)
++        up_v.append(uv)
++        down_t.append(dt)
++        down_u.append(du)
++        down_v.append(dv)
++
++    h = torch.empty(args.rows, HIDDEN, dtype=torch.float16, device="cuda")
++    h13 = torch.empty_like(h)
++    gate_up = torch.empty(
++        args.rows, 2 * INTERMEDIATE, dtype=torch.float32, device="cuda"
++    )
++    h2 = torch.empty(args.rows, INTERMEDIATE, dtype=torch.float16, device="cuda")
++    grouped_h13 = torch.empty(
++        token_sorted.numel(), HIDDEN, dtype=torch.float16, device="cuda"
++    )
++    grouped_gate_up = torch.empty(
++        token_sorted.numel(), 2 * INTERMEDIATE, dtype=torch.float32, device="cuda"
++    )
++    grouped_h2 = torch.empty(
++        token_sorted.numel(), INTERMEDIATE, dtype=torch.float16, device="cuda"
++    )
++    task_capacity = (token_sorted.numel() + 63) // 64 + args.experts
++    tasks = torch.empty(task_capacity, 4, dtype=torch.int32, device="cuda")
++    task_count = torch.empty(1, dtype=torch.int32, device="cuda")
++    baseline_out = torch.empty(args.tokens, HIDDEN, dtype=torch.float32, device="cuda")
++    grouped_out = torch.empty_like(baseline_out)
++
++    tables = (
++        ptrs(gate_t),
++        ptrs(gate_u),
++        ptrs(gate_v),
++        ptrs(up_t),
++        ptrs(up_v),
++        ptrs(down_t),
++        ptrs(down_u),
++        ptrs(down_v),
++    )
++
++    def baseline() -> None:
++        baseline_out.zero_()
++        for expert in range(args.experts):
++            start = expert * args.rows
++            stop = start + args.rows
++            torch.index_select(x, 0, token_sorted[start:stop], out=h)
++            ext.had_r_128(h, h13, gate_u[expert], None, 1.0)
++            ext.exl3_fat_gemm_pair_m64(
++                h13,
++                gate_t[expert],
++                up_t[expert],
++                gate_up,
++                gate_v[expert],
++                up_v[expert],
++                4,
++                True,
++                False,
++            )
++            ext.exl3_fat_swiglu_had(gate_up, h2, down_u[expert], 10.0)
++            ext.exl3_fat_gemm_scatter_m64(
++                h2,
++                down_t[expert],
++                baseline_out,
++                down_v[expert],
++                token_sorted[start:stop],
++                weight_sorted[start:stop],
++                4,
++                True,
++                False,
++            )
++
++    def grouped() -> None:
++        grouped_out.zero_()
++        ext.exl3_grouped_prefill_k4(
++            x,
++            grouped_out,
++            offsets,
++            token_sorted,
++            weight_sorted,
++            grouped_h13,
++            grouped_gate_up,
++            grouped_h2,
++            tasks,
++            task_count,
++            *tables,
++            args.cap,
++            10.0,
++        )
++
++    baseline()
++    grouped()
++    torch.cuda.synchronize()
++    difference = (baseline_out - grouped_out).abs()
++    print(
++        "correctness",
++        f"max_abs={difference.max().item():.9g}",
++        f"mean_abs={difference.mean().item():.9g}",
++        f"exact={torch.equal(baseline_out, grouped_out)}",
++    )
++    torch.testing.assert_close(grouped_out, baseline_out, rtol=1e-5, atol=1e-6)
++
++    for _ in range(args.warmup):
++        baseline()
++        grouped()
++    torch.cuda.synchronize()
++    baseline_ms = event_ms(baseline, args.iterations)
++    grouped_ms = event_ms(grouped, args.iterations)
++    base_med = statistics.median(baseline_ms)
++    group_med = statistics.median(grouped_ms)
++    print(
++        "timing",
++        f"baseline_median_ms={base_med:.3f}",
++        f"grouped_median_ms={group_med:.3f}",
++        f"speedup={base_med / group_med:.3f}x",
++        f"improvement={(base_med / group_med - 1.0) * 100.0:.1f}%",
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/benchmarks/receipts/baseline-16k-c1-r1.json b/benchmarks/receipts/baseline-16k-c1-r1.json
+new file mode 100644
+index 0000000..d770e6d
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c1-r1.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r1", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1133.8538797222498, "elapsed_s": 29.100029816036113, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "5c65f60a3d7de6546584f6aa032b53da9fae7266ea7d93e1e4cf735221429a08", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.00036747800186276436, "ttft_s": 29.099869559984654, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1133.8538797222498, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1133.8538797222498, "successful": 1, "ttft_p50_s": 29.099869559984654, "ttft_p95_s": 29.099869559984654, "wall_s": 29.101004750002176}}
+diff --git a/benchmarks/receipts/baseline-16k-c1-r2.json b/benchmarks/receipts/baseline-16k-c1-r2.json
+new file mode 100644
+index 0000000..c41ce27
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c1-r2.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r2", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1281.8937423733776, "elapsed_s": 25.739381745108403, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "5d6e294bfd798bf1b8aabe5bdfee97ff23c094efa564cefd0fee09bd66210f95", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.0007402829360216856, "ttft_s": 25.739262865041383, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1281.8937423733776, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1281.8937423733776, "successful": 1, "ttft_p50_s": 25.739262865041383, "ttft_p95_s": 25.739262865041383, "wall_s": 25.740549116046168}}
+diff --git a/benchmarks/receipts/baseline-16k-c1-r3.json b/benchmarks/receipts/baseline-16k-c1-r3.json
+new file mode 100644
+index 0000000..7ce4911
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c1-r3.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r3", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1285.6530581175527, "elapsed_s": 25.664106206968427, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "8847508a9fe743041493298321e6c250ffa966cd4c60fff3bc56e474a0cd5183", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 9.536603465676308e-05, "ttft_s": 25.663999935030006, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1285.6530581175527, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1285.6530581175527, "successful": 1, "ttft_p50_s": 25.663999935030006, "ttft_p95_s": 25.663999935030006, "wall_s": 25.665060212020762}}
+diff --git a/benchmarks/receipts/baseline-16k-c2-r1.json b/benchmarks/receipts/baseline-16k-c2-r1.json
+new file mode 100644
+index 0000000..d59b84b
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c2-r1.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r1", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1036.0696334518793, "elapsed_s": 31.84644032001961, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "0f4f42f5688c36178169da8b6296d1575c96b91edb894443cf86b1dcf5a255f9", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.0005091159837320447, "ttft_s": 31.846315087983385, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 622.226180138413, "elapsed_s": 53.02259327797219, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "88236045abd97d7944dc969267f171fe9842cca2f2e5049e8e6eee7db19e39e6", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.5001830429537222, "ttft_s": 53.02251986996271, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1232.8904201939056, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 829.1479067951461, "successful": 2, "ttft_p50_s": 42.434417478973046, "ttft_p95_s": 53.02251986996271, "wall_s": 53.52375932899304}}
+diff --git a/benchmarks/receipts/baseline-16k-c2-r2.json b/benchmarks/receipts/baseline-16k-c2-r2.json
+new file mode 100644
+index 0000000..70c01b8
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c2-r2.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r2", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1046.9634295149517, "elapsed_s": 31.515043984982185, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "f8e62ca73bf77ab04e97681e1dc531fff4f67a3acc7b4427a4f51b92472b2351", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 7.136305794119835e-05, "ttft_s": 31.514949872973375, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 688.2983850122257, "elapsed_s": 47.93280654505361, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "6f2f94dc6a64bbea6c922e79ee9f787ffd183883aeeb1c20dee6cd36b3e19c52", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.5000737860100344, "ttft_s": 47.93270000105258, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1362.4472040051785, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 867.6309072635887, "successful": 2, "ttft_p50_s": 39.72382493701298, "ttft_p95_s": 47.93270000105258, "wall_s": 48.43382154707797}}
+diff --git a/benchmarks/receipts/baseline-16k-c2-r3.json b/benchmarks/receipts/baseline-16k-c2-r3.json
+new file mode 100644
+index 0000000..0c98bb4
+--- /dev/null
++++ b/benchmarks/receipts/baseline-16k-c2-r3.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r3", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1008.1769689210735, "elapsed_s": 32.727676034905016, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "6b988ee9f9e1f02ee716ed8acabe34e4b7dcb7d87ae9bc694ad207b05c3134da", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.0005679680034518242, "ttft_s": 32.72738915600348, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 659.3946479148608, "elapsed_s": 50.033845111960545, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 2, "output_preview": "GL", "output_sha256": "86fe002f6ba095dc0ea74520d1dec78403e986389650bc7c315b02943a88f298", "own_request_marker": false, "prompt_sha256": "08f5b3e535adef3d3d13aa460208191b18fbeb60727c21dc7590b167b4d30d2a", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.500463439966552, "ttft_s": 50.03376976796426, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1305.802769039257, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 833.7858084179671, "successful": 2, "ttft_p50_s": 41.38057946198387, "ttft_p95_s": 50.03376976796426, "wall_s": 50.53573106392287}}
+diff --git a/benchmarks/receipts/candidate-16k-c1-r1.json b/benchmarks/receipts/candidate-16k-c1-r1.json
+new file mode 100644
+index 0000000..63c5d9a
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c1-r1.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r1", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1405.3023448511137, "elapsed_s": 23.47900550905615, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "5c65f60a3d7de6546584f6aa032b53da9fae7266ea7d93e1e4cf735221429a08", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.00017454603221267462, "ttft_s": 23.47893328499049, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1405.3023448511137, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1405.3023448511137, "successful": 1, "ttft_p50_s": 23.47893328499049, "ttft_p95_s": 23.47893328499049, "wall_s": 23.479606711072847}}
+diff --git a/benchmarks/receipts/candidate-16k-c1-r2.json b/benchmarks/receipts/candidate-16k-c1-r2.json
+new file mode 100644
+index 0000000..e5e7b02
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c1-r2.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r2", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1404.5141923424053, "elapsed_s": 23.49223674100358, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "5d6e294bfd798bf1b8aabe5bdfee97ff23c094efa564cefd0fee09bd66210f95", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.00016582198441028595, "ttft_s": 23.492108645034023, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1404.5141923424053, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1404.5141923424053, "successful": 1, "ttft_p50_s": 23.492108645034023, "ttft_p95_s": 23.492108645034023, "wall_s": 23.492918147007003}}
+diff --git a/benchmarks/receipts/candidate-16k-c1-r3.json b/benchmarks/receipts/candidate-16k-c1-r3.json
+new file mode 100644
+index 0000000..f5d0589
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c1-r3.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384], "concurrency": 1, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1], "min_output_tokens": 0, "min_output_tokens_by_request": [0], "prompt_salt": "grouped-baseline-16k-c1-r3", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation"], "stagger_ms": 0}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1409.8329712330237, "elapsed_s": 23.403596719028428, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "8847508a9fe743041493298321e6c250ffa966cd4c60fff3bc56e474a0cd5183", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 6.976991426199675e-05, "ttft_s": 23.403481599059887, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1409.8329712330237, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 1409.8329712330237, "successful": 1, "ttft_p50_s": 23.403481599059887, "ttft_p95_s": 23.403481599059887, "wall_s": 23.404688807902858}}
+diff --git a/benchmarks/receipts/candidate-16k-c2-r1.json b/benchmarks/receipts/candidate-16k-c2-r1.json
+new file mode 100644
+index 0000000..86bb1bb
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c2-r1.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r1", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1071.986753094041, "elapsed_s": 30.77954849600792, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "0f4f42f5688c36178169da8b6296d1575c96b91edb894443cf86b1dcf5a255f9", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.00045692804269492626, "ttft_s": 30.779298256034963, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 703.1357436911941, "elapsed_s": 46.92132988292724, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 2, "output_preview": "GL", "output_sha256": "86fe002f6ba095dc0ea74520d1dec78403e986389650bc7c315b02943a88f298", "own_request_marker": false, "prompt_sha256": "88236045abd97d7944dc969267f171fe9842cca2f2e5049e8e6eee7db19e39e6", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.5000979050528258, "ttft_s": 46.92123860295396, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1391.5178416024219, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 887.5612483926175, "successful": 2, "ttft_p50_s": 38.85026842949446, "ttft_p95_s": 46.92123860295396, "wall_s": 47.42188454000279}}
+diff --git a/benchmarks/receipts/candidate-16k-c2-r2.json b/benchmarks/receipts/candidate-16k-c2-r2.json
+new file mode 100644
+index 0000000..e5b6440
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c2-r2.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r2", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1082.093139476463, "elapsed_s": 30.492041358957067, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "f8e62ca73bf77ab04e97681e1dc531fff4f67a3acc7b4427a4f51b92472b2351", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.0007592770271003246, "ttft_s": 30.49182995094452, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 698.7795158576292, "elapsed_s": 47.21382658800576, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 2, "output_preview": "GL", "output_sha256": "86fe002f6ba095dc0ea74520d1dec78403e986389650bc7c315b02943a88f298", "own_request_marker": false, "prompt_sha256": "6f2f94dc6a64bbea6c922e79ee9f787ffd183883aeeb1c20dee6cd36b3e19c52", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.5004157819785178, "ttft_s": 47.213748043985106, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1382.986618201211, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 890.436327667046, "successful": 2, "ttft_p50_s": 38.85278899746481, "ttft_p95_s": 47.213748043985106, "wall_s": 47.71557560097426}}
+diff --git a/benchmarks/receipts/candidate-16k-c2-r3.json b/benchmarks/receipts/candidate-16k-c2-r3.json
+new file mode 100644
+index 0000000..fb74c3b
+--- /dev/null
++++ b/benchmarks/receipts/candidate-16k-c2-r3.json
+@@ -0,0 +1 @@
++{"config": {"approximate_prompt_tokens": 16384, "approximate_prompt_tokens_by_request": [16384, 16384], "concurrency": 2, "disable_loop_watchdog": false, "enable_thinking": false, "max_output_tokens": 1, "max_output_tokens_by_request": [1, 1], "min_output_tokens": 0, "min_output_tokens_by_request": [0, 0], "prompt_salt": "grouped-baseline-16k-c2-r3", "prompt_style": "isolation", "prompt_styles_by_request": ["isolation", "isolation"], "stagger_ms": 500}, "requests": [{"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 1087.2139371521127, "elapsed_s": 30.348399845999666, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 7, "output_preview": "Summary", "output_sha256": "8e76a94ac8320d515375e625bef1829238b097ecbd33611b59eeefd4ffefebfb", "own_request_marker": false, "prompt_sha256": "6b988ee9f9e1f02ee716ed8acabe34e4b7dcb7d87ae9bc694ad207b05c3134da", "prompt_tokens": 32995, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 0, "requested_completion_tokens": 1, "scheduled_s": 0.0, "started_s": 0.0004918009508401155, "ttft_s": 30.34821287007071, "visible_events": 1}, {"accepted_prediction_tokens": 0, "completion_tokens": 1, "decode_tok_s": null, "effective_prefill_tok_s": 701.170211132149, "elapsed_s": 47.05288401292637, "error": null, "finish_reason": "length", "foreign_request_markers": [], "inter_token_gap_p95_s": null, "max_inter_token_gap_s": null, "output_chars": 2, "output_preview": "GL", "output_sha256": "86fe002f6ba095dc0ea74520d1dec78403e986389650bc7c315b02943a88f298", "own_request_marker": false, "prompt_sha256": "08f5b3e535adef3d3d13aa460208191b18fbeb60727c21dc7590b167b4d30d2a", "prompt_tokens": 32992, "reached_requested_completion_tokens": true, "rejected_prediction_tokens": 0, "request_id": 1, "requested_completion_tokens": 1, "scheduled_s": 0.5, "started_s": 0.5004398520104587, "ttft_s": 47.05276903696358, "visible_events": 1}], "summary": {"aggregate_decode_tok_s": 0.0, "aggregate_effective_prefill_tok_s": 1387.6599286188784, "decode_tok_s_p50": null, "decode_tok_s_sum": null, "effective_prefill_tok_s_p50": 894.1920741421309, "successful": 2, "ttft_p50_s": 38.700490953517146, "ttft_p95_s": 47.05276903696358, "wall_s": 47.554236567928456}}
+diff --git a/benchmarks/tinyglm_prefill_gate.py b/benchmarks/tinyglm_prefill_gate.py
+new file mode 100644
+index 0000000..6e8f1fb
+--- /dev/null
++++ b/benchmarks/tinyglm_prefill_gate.py
+@@ -0,0 +1,107 @@
++#!/usr/bin/env python3
++"""Focused tinyGLM gate for medium/large C1-C2 prefill changes."""
++from __future__ import annotations
++
++import argparse
++import importlib.util
++import json
++import statistics
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++SPEC = importlib.util.spec_from_file_location(
++    "tinyglm_smoke", ROOT / "benchmarks" / "tinyglm_smoke.py"
++)
++assert SPEC and SPEC.loader
++SMOKE = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(SMOKE)
++
++CASES = (
++    ("medium_c1", 1, 4096, 0),
++    ("large_c1", 1, 16384, 0),
++    ("large_c2_stagger", 2, 16384, 500),
++)
++
++
++def summarize(runs: list[dict]) -> dict:
++    return {
++        "wall_s_median": statistics.median(run["wall_s"] for run in runs),
++        "ttft_s_median": statistics.median(
++            stream["ttft_s"] for run in runs for stream in run["streams"]
++        ),
++        "signatures": [
++            [stream["token_ids_sha256"] for stream in run["streams"]]
++            for run in runs
++        ],
++    }
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--endpoint", default="http://127.0.0.1:8890")
++    parser.add_argument("--model", default="tinyGLM-5.3-EXL3")
++    parser.add_argument("--repetitions", type=int, default=11)
++    parser.add_argument("--seed-base", type=int, default=0)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--baseline", type=Path)
++    args = parser.parse_args()
++    if args.repetitions < 3:
++        parser.error("--repetitions must be at least 3")
++
++    report = {"schema": 1, "cases": []}
++    for case_index, (name, concurrency, prompt_tokens, stagger_ms) in enumerate(CASES):
++        runs = [
++            SMOKE.benchmark(
++                endpoint=args.endpoint,
++                model=args.model,
++                concurrency=concurrency,
++                prompt_tokens=prompt_tokens,
++                output_tokens=1,
++                stagger_ms=stagger_ms,
++                timeout=180.0,
++                # Disjoint seed ranges keep later cases from reusing an APC
++                # entry created by an earlier case in this same server.
++                prompt_seed=args.seed_base + case_index * 40 + repetition + 1,
++            )
++            for repetition in range(args.repetitions)
++        ]
++        summary = summarize(runs)
++        report["cases"].append(
++            {
++                "name": name,
++                "concurrency": concurrency,
++                "prompt_tokens": prompt_tokens,
++                "stagger_ms": stagger_ms,
++                "runs": runs,
++                "summary": summary,
++            }
++        )
++        print(
++            f"{name:16s} TTFT={summary['ttft_s_median']:.4f}s "
++            f"wall={summary['wall_s_median']:.4f}s"
++        )
++
++    args.output.parent.mkdir(parents=True, exist_ok=True)
++    args.output.write_text(json.dumps(report, indent=2) + "\n")
++    if args.baseline:
++        baseline = json.loads(args.baseline.read_text())
++        base_cases = {case["name"]: case for case in baseline["cases"]}
++        print("comparison")
++        for candidate in report["cases"]:
++            base = base_cases[candidate["name"]]["summary"]
++            current = candidate["summary"]
++            ttft_pct = (base["ttft_s_median"] / current["ttft_s_median"] - 1) * 100
++            wall_pct = (base["wall_s_median"] / current["wall_s_median"] - 1) * 100
++            same = base["signatures"][0] == current["signatures"][0]
++            print(
++                f"{candidate['name']:16s} TTFT={ttft_pct:+.1f}% "
++                f"wall={wall_pct:+.1f}% same_tokens={same}"
++            )
++            if not same:
++                raise SystemExit(f"{candidate['name']}: output token IDs changed")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/benchmarks/tinyglm_smoke.py b/benchmarks/tinyglm_smoke.py
+index 2b921d2..934b6ab 100755
+--- a/benchmarks/tinyglm_smoke.py
++++ b/benchmarks/tinyglm_smoke.py
+@@ -11,10 +11,13 @@ import time
+ import urllib.request
+ 
+ 
+-def prompt_for_tokens(count: int, stream: int) -> str:
++def prompt_for_tokens(count: int, stream: int, prompt_seed: int = 0) -> str:
+     # All tokens are in tinyGLM's WordLevel vocabulary and whitespace maps one
+     # word to one token. The per-stream rotation avoids identical-prefix hits.
+-    return " ".join(f"t{(index + stream * 17) % 200}" for index in range(count))
++    return " ".join(
++        f"t{(index + stream * 17 + prompt_seed * 31) % 200}"
++        for index in range(count)
++    )
+ 
+ 
+ def run_stream(
+@@ -25,13 +28,14 @@ def run_stream(
+     stream: int,
+     stagger_ms: int,
+     timeout: float,
++    prompt_seed: int = 0,
+ ) -> dict:
+     time.sleep(stream * stagger_ms / 1000.0)
+     sent = time.perf_counter()
+     body = json.dumps(
+         {
+             "model": model,
+-            "prompt": prompt_for_tokens(prompt_tokens, stream),
++            "prompt": prompt_for_tokens(prompt_tokens, stream, prompt_seed),
+             "max_tokens": output_tokens,
+             "temperature": 0,
+             "ignore_eos": True,
+@@ -107,6 +111,7 @@ def benchmark(
+     output_tokens: int,
+     stagger_ms: int,
+     timeout: float,
++    prompt_seed: int = 0,
+ ) -> dict:
+     started = time.perf_counter()
+     with concurrent.futures.ThreadPoolExecutor(
+@@ -122,6 +127,7 @@ def benchmark(
+                 stream,
+                 stagger_ms,
+                 timeout,
++                prompt_seed,
+             )
+             for stream in range(concurrency)
+         ]
+@@ -150,6 +156,7 @@ def main() -> None:
+         output_tokens=args.output_tokens,
+         stagger_ms=args.stagger_ms,
+         timeout=args.timeout,
++        prompt_seed=0,
+     )
+     if args.json:
+         print(json.dumps(result, indent=2))
+diff --git a/docs/PROVENANCE.md b/docs/PROVENANCE.md
+index 0eeb3c7..26f2707 100644
+--- a/docs/PROVENANCE.md
++++ b/docs/PROVENANCE.md
+@@ -31,13 +31,31 @@ Rules:
+ 
+ ## Current EXL3 cooperative-decode lineage
+ 
+-- `turboderp-org/exllamav3` at
++- [`turboderp-org/exllamav3`](https://github.com/turboderp-org/exllamav3) at
+   `c5d9c657966ffeeaa9353f0cc899f18629da4a13`: EXL3 K4 trellis decoding,
+   Hadamard helpers, and tensor-core MMA arrangement.
+-- `vcruz305/vllm-exl3` at `67dc742`: inspiration for applying a cooperative
++- [`vcruz305/vllm-exl3`](https://github.com/vcruz305/vllm-exl3) at `67dc742`:
++  inspiration for applying a cooperative
+   CUDA grid to small-batch EXL3 MoE decode.
+ - This repository: the TP2-local GLM-5.3 shape, whole-layer launch contract,
+   expert-sorted multi-row tiling, persistent scratch, GLM clamp/SwiGLU
+   semantics, FP32 routed accumulation, graph-safe integration, bounded
+   dispatch, and the tinyGLM A/B gate.
+ 
++## GPU-resident grouped-prefill lineage
++
++- [`turboderp-org/exllamav3`](https://github.com/turboderp-org/exllamav3) at
++  `c5d9c657966ffeeaa9353f0cc899f18629da4a13`: EXL3 K4 trellis decoding,
++  Hadamard helpers, and tensor-core MMA arrangement.
++- [`Reederey87/glm53-flash-exl3-2x-dgx-spark`](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark)
++  at `0c03250`: the M64
++  `cp.async` fat-GEMM pipeline adapted by this repository's existing
++  `exl3_fat_gemm_kernel` implementation.
++- This repository: the device-side M64 task planner, persistent route scratch,
++  phase-wide gather/gate-up/activation/down scheduling, cross-expert parallel
++  execution, FP32 atomic routed accumulation, exact GLM-5.3 TP2 shape guard,
++  Python dispatch, and model-free plus tinyGLM comparison gates.
++
++No grouped-prefill implementation was copied from either upstream project.
++The new grouped orchestration is original work which calls arithmetic derived
++from the existing attributed fat-GEMM kernel.
+diff --git a/docs/grouped-prefill-k4.md b/docs/grouped-prefill-k4.md
+new file mode 100644
+index 0000000..49ff5c9
+--- /dev/null
++++ b/docs/grouped-prefill-k4.md
+@@ -0,0 +1,92 @@
++# GPU-resident grouped EXL3 prefill
++
++## Problem
++
++The previous GLM-5.3 fat-expert path copied the 288 expert counts to the CPU,
++waited for that copy, then issued gather, gate/up, activation, and down kernels
++one expert at a time. At 16K-32K prefill, many experts overflow the 128-row
++fused-MoE scratch. The arithmetic kernels are useful, but the host-driven
++execution shape serializes independent experts and pays dozens to hundreds of
++launches per layer.
++
++## Candidate
++
++`EXL3_GROUPED_PREFILL_K4=1` enables the promoted exact-shape path for K4 MCG,
++hidden-size 4096, and TP-local intermediate-size 1024. A one-thread GPU planner
++turns device-resident expert offsets into compact M64 work items. Five
++phase-wide launches then execute gather/Hadamard, paired gate+up GEMM,
++clamped SwiGLU/down Hadamard, and down GEMM/scatter across all fat experts.
++Thin experts continue through the existing fused kernel. The host never reads
++expert counts. Down projections use FP32 atomic accumulation because experts
++now overlap.
++
++The first prototype used one cooperative launch with grid barriers. It was
++3-13% slower because its expert loop serialized the GPU. It was discarded.
++
++## Controlled evidence
++
++On one GB10 with production TP-local dimensions, the model-free A/B compared
++the prior per-expert pipeline against the grouped pipeline and got bit-for-bit
++identical output (`max_abs=0`) in every measured shape:
++
++| Tokens | Fat experts x rows | Old ms | Grouped ms | Speedup |
++|---:|---:|---:|---:|---:|
++| 512 | 16 x 256 | 3.133 | 2.062 | 1.519x |
++| 1024 | 8 x 512 | - | - | 1.273x |
++| 1024 | 10 x 512 | - | - | 1.261x |
++| 1024 | 10 x 920 | - | - | 1.123x |
++| 1024 | 4 x 1024 | - | - | 1.095x |
++| 1024 | 12 x 1024 | - | - | 1.119x |
++
++Those numbers include the old GPU launch sequence but exclude its CPU count
++readback, so they do not credit the candidate for removing that synchronization.
++
++The deterministic tinyGLM gate produced identical tokens and neutral results
++within normal run noise: medium C1 TTFT +0.4%, large C1 -0.3%, staggered large
++C2 +0.1%. This is a correctness/dispatch gate, not a performance proxy: its
++small routed-expert count does not reproduce the production model's launch
++fan-out.
++
++The promotion test used the complete 320B model on two GB10s, TP2, DFlash2
++K=7, FP8 KV, 7,168 max batched tokens, mixed prefill scheduling, and the same
++cooperative decode path in both arms. Both arms completed graph capture, the
++20-request shape sweep, and a discarded four-resident 16K warm-up. The three
++retained repetitions used byte-identical, cache-unique prompts; prefix-cache
++hit rate remained zero. The harness's `--prompt-tokens 16384` fixture encoded
++to 32,992-32,995 actual model tokens, so the retained table is honestly labeled
++~33K rather than by its approximate input argument.
++
++| Full-model ~33K actual-token metric | Existing path | Grouped path | Change |
++|---|---:|---:|---:|
++| C1 TTFT median | 25.739 s | 23.479 s | 8.8% faster |
++| C1 effective prefill median | 1,281.9 tok/s | 1,405.3 tok/s | +9.6% |
++| C2 staggered TTFT p50 median | 41.381 s | 38.850 s | 6.1% faster |
++| C2 staggered TTFT p95 median | 50.034 s | 47.053 s | 6.0% faster |
++| C2 staggered wall median | 50.536 s | 47.554 s | 5.9% faster |
++| C2 aggregate effective prefill median | 1,305.8 tok/s | 1,387.7 tok/s | +6.3% |
++
++All nine baseline requests and all nine candidate requests succeeded. The C1
++one-token outputs matched across every repetition. C2 had the same two output
++hashes across the experiment, with one baseline arm selecting the alternate
++first token in one of three repetitions; the candidate was stable across all
++three. Model-free kernel output remained bit-for-bit exact. This benchmark is
++a performance/corruption gate, not a substitute for a broad quality suite.
++
++The 65,536-route scratch is 1,207,980,548 bytes per rank. Reported KV capacity
++changed from 1,268,292 to 1,219,512 tokens (3.8%). During candidate startup,
++vLLM's graph memory accountant reported a nonsensical negative actual graph
++pool after the persistent allocation; graph capture and serving still passed.
++Treat that counter as an accounting anomaly until separately corrected.
++
++Raw receipts retain the original harness-argument filename in
++`benchmarks/receipts/{baseline,candidate}-16k-{c1,c2}-r*.json`; their
++`requests[].prompt_tokens` fields are the authoritative actual counts.
++The two-Spark launcher enables the path by default; set
++`EXL3_GROUPED_PREFILL_K4=0` for immediate rollback.
++
++## Provenance
++
++See [PROVENANCE.md](PROVENANCE.md). The grouped planner and phase-wide
++execution contract are original project work. The direct K4 trellis math and
++M64 `cp.async` tile are derived from the exact upstream revisions recorded
++there.
+diff --git a/overlay/exl3.py b/overlay/exl3.py
+index 41520fd..30f633c 100644
+--- a/overlay/exl3.py
++++ b/overlay/exl3.py
+@@ -57,6 +57,7 @@ MOE_ACT_SILU = 0
+ _FUSED_TEMP_CACHE: dict[tuple, tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] = {}
+ _DECODE_COOP_SCRATCH_CACHE: dict[tuple, dict[str, torch.Tensor]] = {}
+ _FAT_SCRATCH_CACHE: dict[tuple, dict[str, torch.Tensor]] = {}
++_GROUPED_PREFILL_SCRATCH_CACHE: dict[tuple, dict[str, torch.Tensor]] = {}
+ _FAT_COUNT_CACHE: dict[tuple, tuple[torch.Tensor, torch.cuda.Stream]] = {}
+ _FAT_BUCKET_EDGES = (16, 32, 64, 128, 256, 512, 1024, 2048)
+ _FAT_STATS: dict[str, Any] = {
+@@ -210,6 +211,11 @@ def decode_coop_max_tokens() -> int:
+     return max(1, min(32, int(raw)))
+ 
+ 
++def grouped_prefill_enabled() -> bool:
++    """Experimental GPU-resident K4 fat-expert prefill for the GLM TP2 shape."""
++    return os.environ.get("EXL3_GROUPED_PREFILL_K4", "0") != "0"
++
++
+ def fused_moe_row_tile_enabled() -> bool:
+     """GPU row tiles instead of LinearEXL3 fallback. Prefill-only; decode stays one launch.
+ 
+@@ -882,6 +888,44 @@ def apply_exl3_sorted_fat(
+     return out
+ 
+ 
++def _grouped_prefill_scratch(
++    device: torch.device,
++    rows: int,
++    hidden: int,
++    intermediate: int,
++    experts: int,
++) -> dict[str, torch.Tensor]:
++    """Layer-serial scratch for the GPU-resident grouped fat-expert pipeline."""
++    capacity = 1 << (max(256, rows) - 1).bit_length()
++    task_capacity = (capacity + 63) // 64 + experts
++    key = (str(device), hidden, intermediate, experts)
++    scratch = _GROUPED_PREFILL_SCRATCH_CACHE.get(key)
++    if scratch is not None and int(scratch["had_input"].shape[0]) >= rows:
++        return scratch
++    scratch = {
++        "had_input": torch.empty(
++            (capacity, hidden), dtype=torch.float16, device=device
++        ),
++        "gate_up": torch.empty(
++            (capacity, 2 * intermediate), dtype=torch.float32, device=device
++        ),
++        "had_down": torch.empty(
++            (capacity, intermediate), dtype=torch.float16, device=device
++        ),
++        "tasks": torch.empty(
++            (task_capacity, 4), dtype=torch.int32, device=device
++        ),
++        "task_count": torch.empty(1, dtype=torch.int32, device=device),
++    }
++    _GROUPED_PREFILL_SCRATCH_CACHE[key] = scratch
++    logger.info_once(
++        "exl3 grouped prefill scratch: rows=%d bytes=%d",
++        capacity,
++        sum(t.numel() * t.element_size() for t in scratch.values()),
++    )
++    return scratch
++
++
+ def _fat_scratch(
+     device: torch.device,
+     rows: int,
+@@ -1448,6 +1492,63 @@ def apply_exl3_fused_moe(
+     )
+     use_fat_kernel = use_batched_fat and want_fat_kernel
+     use_row_tiles = fused_moe_row_tile_enabled()
++
++    # The grouped candidate leaves routing counts on device and runs all fat
++    # experts through five phase-wide launches. The stock thin kernel is still
++    # launched first on this stream; it skips counts above `cap`, while the
++    # grouped kernels skip counts at or below it.
++    use_grouped_prefill = (
++        grouped_prefill_enabled()
++        and use_fat_kernel
++        and not use_row_tiles
++        and k == 4
++        and hidden == 4096
++        and int(temps[2].shape[2]) == 1024
++    )
++    if use_grouped_prefill:
++        if not hasattr(exllamav3_ext, "exl3_grouped_prefill_k4"):
++            raise RuntimeError(
++                "EXL3_GROUPED_PREFILL_K4=1 requires "
++                "exllamav3_ext.exl3_grouped_prefill_k4"
++            )
++        _exl3_moe_launch(
++            fn, xh, out, expert_count, token_sorted, weight_sorted,
++            temps, ptrs, k, limit, n_active_host,
++        )
++        expert_offsets = torch.cumsum(expert_count, dim=0).sub(expert_count)
++        scratch = _grouped_prefill_scratch(
++            xh.device,
++            int(token_sorted.numel()),
++            hidden,
++            int(temps[2].shape[2]),
++            n_exp,
++        )
++        task_capacity = (int(token_sorted.numel()) + 63) // 64 + n_exp
++        exllamav3_ext.exl3_grouped_prefill_k4(
++            xh,
++            out,
++            expert_offsets,
++            token_sorted,
++            weight_sorted,
++            scratch["had_input"],
++            scratch["gate_up"],
++            scratch["had_down"],
++            scratch["tasks"][:task_capacity],
++            scratch["task_count"],
++            ptrs["gate_trellis"],
++            ptrs["gate_suh"],
++            ptrs["gate_svh"],
++            ptrs["up_trellis"],
++            ptrs["up_svh"],
++            ptrs["down_trellis"],
++            ptrs["down_suh"],
++            ptrs["down_svh"],
++            cap,
++            float(limit),
++        )
++        _record_exl3_fat_tier(layer, "kernel", "grouped_gpu_resident")
++        return out
++
+     launched = False
+     counts_host = None
+     if use_batched_fat and not use_row_tiles:
+diff --git a/overlay/exl3_fat_gemm.cu b/overlay/exl3_fat_gemm.cu
+index fc5c615..a11e855 100644
+--- a/overlay/exl3_fat_gemm.cu
++++ b/overlay/exl3_fat_gemm.cu
+@@ -1,3 +1,11 @@
++// SPDX-License-Identifier: Apache-2.0
++//
++// The direct K4 trellis decode, Hadamard helpers, and tensor-core MMA layout
++// are derived from ExLlamaV3.  The fat-GEMM cp.async pipeline was adapted from
++// Reederey87/glm53-flash-exl3-2x-dgx-spark@0c03250.  The GPU-resident grouped
++// task planner and five-phase GLM-5.3 TP2 prefill execution contract are
++// original to this repository; see docs/PROVENANCE.md.
++
+ #include <cuda_fp16.h>
+ #include <c10/cuda/CUDAGuard.h>
+ #include <ATen/cuda/CUDAContext.h>
+@@ -304,6 +312,436 @@ void exl3_fat_gemm_kernel(
+     }
+ }
+ 
++// One M64xN128 direct-trellis tile used by the grouped prefill kernel below.
++// The arithmetic and cp.async pipeline intentionally mirror
++// exl3_fat_gemm_kernel<64>; the new work is the GPU-resident orchestration,
++// not a different quantization result.
++template <bool scatter, bool atomic_scatter = false>
++__device__ __forceinline__ void grouped_fat_m64_tile(
++    const half* __restrict__ a,
++    const uint16_t* __restrict__ packed,
++    float* __restrict__ out,
++    const half* __restrict__ svh,
++    const int64_t* __restrict__ token_idx,
++    const half* __restrict__ route_weight,
++    int size_m,
++    int size_k,
++    int size_n,
++    int out_stride_n,
++    int m_base,
++    int n_base,
++    int out_n_base,
++    half* sh_a,
++    uint16_t* sh_b,
++    float* sh_c)
++{
++    constexpr int tile_m = FAT_TILE_M_SMALL;
++    constexpr int tile_m_blocks = tile_m / 16;
++    constexpr int FAT_STAGES = 3;
++    int t = threadIdx.x;
++    int warp = t / 32;
++    int lane = t & 31;
++    int tiles_n = size_n / 16;
++
++    FragC frag_c[tile_m_blocks][2];
++    #pragma unroll
++    for (int mb = 0; mb < tile_m_blocks; ++mb)
++    {
++        frag_c[mb][0] = {};
++        frag_c[mb][1] = {};
++    }
++
++    auto issue_stage = [&](int k_block, int stage)
++    {
++        if (t < 2 * tile_m)
++        {
++            int a_row = t / 2;
++            int a_col8 = t & 1;
++            int a_dst_col8 = a_col8 ^ ((a_row >> 2) & 1);
++            int4* a_dst = reinterpret_cast<int4*>(
++                sh_a + stage * tile_m * FAT_TILE_K) + a_row * 2 + a_dst_col8;
++            if (m_base + a_row < size_m)
++            {
++                const int4* a_src = reinterpret_cast<const int4*>(
++                    a + (m_base + a_row) * size_k + k_block * FAT_TILE_K);
++                cp_async(a_dst, a_src + a_col8);
++            }
++            else
++            {
++                *a_dst = int4{};
++            }
++        }
++        if (t < 64)
++        {
++            const int4* b_src = reinterpret_cast<const int4*>(
++                packed + (k_block * tiles_n + n_base / 16) * FAT_PACKED_WORDS);
++            cp_async(
++                reinterpret_cast<int4*>(
++                    sh_b + stage * FAT_N_BLOCKS * FAT_PACKED_WORDS) + t,
++                b_src + t);
++        }
++    };
++
++    int const k_blocks = size_k / FAT_TILE_K;
++    issue_stage(0, 0);
++    cp_async_fence();
++    for (int k_block = 0; k_block < k_blocks; ++k_block)
++    {
++        if (k_block + 1 < k_blocks)
++            issue_stage(k_block + 1, (k_block + 1) % FAT_STAGES);
++        cp_async_fence();
++        cp_async_wait<FAT_STAGES - 2>();
++        __syncthreads();
++
++        int const stage = k_block % FAT_STAGES;
++        FragB frag_b0;
++        FragB frag_b1;
++        const uint32_t* warp_b = reinterpret_cast<const uint32_t*>(
++            sh_b + stage * FAT_N_BLOCKS * FAT_PACKED_WORDS
++            + warp * FAT_PACKED_WORDS);
++        dq_dispatch<4, 1>(warp_b, lane << 3, frag_b0, frag_b1);
++
++        #pragma unroll
++        for (int mb = 0; mb < tile_m_blocks; ++mb)
++        {
++            FragA frag_a;
++            int row = (lane % 8) + 8 * ((lane / 8) % 2) + mb * 16;
++            int base_col = lane / 16;
++            int swizzled_col = base_col ^ ((row >> 2) & 1);
++            ldsm4(frag_a, reinterpret_cast<int4*>(
++                sh_a + stage * tile_m * FAT_TILE_K) + row * 2 + swizzled_col);
++            ptx_mma_m16n8k16(frag_a, frag_b0, frag_c[mb][0]);
++            ptx_mma_m16n8k16(frag_a, frag_b1, frag_c[mb][1]);
++        }
++    }
++    cp_async_wait<0>();
++    __syncthreads();
++
++    #pragma unroll
++    for (int mb = 0; mb < tile_m_blocks; ++mb)
++    {
++        int rows = min(16, size_m - (m_base + mb * 16));
++        if (rows <= 0) break;
++        int row0 = lane / 4;
++        int row1 = row0 + 8;
++        int col = (lane % 4) * 2;
++        int n0 = warp * 16;
++        if (row0 < rows)
++        {
++            float* dst0 = sh_c + row0 * FAT_TILE_N + n0 + col;
++            dst0[0] = frag_c[mb][0][0];
++            dst0[1] = frag_c[mb][0][1];
++            dst0[8] = frag_c[mb][1][0];
++            dst0[9] = frag_c[mb][1][1];
++        }
++        if (row1 < rows)
++        {
++            float* dst1 = sh_c + row1 * FAT_TILE_N + n0 + col;
++            dst1[0] = frag_c[mb][0][2];
++            dst1[1] = frag_c[mb][0][3];
++            dst1[8] = frag_c[mb][1][2];
++            dst1[9] = frag_c[mb][1][3];
++        }
++        __syncthreads();
++
++        for (int row = warp; row < rows; row += 8)
++        {
++            fat_had_ff_128(
++                sh_c + row * FAT_TILE_N,
++                sh_c + row * FAT_TILE_N,
++                svh + n_base);
++        }
++        __syncthreads();
++
++        for (int i = t; i < rows * FAT_TILE_N; i += FAT_THREADS)
++        {
++            int row = i / FAT_TILE_N;
++            int col_out = i % FAT_TILE_N;
++            int source_row = m_base + mb * 16 + row;
++            float value = sh_c[i];
++            if constexpr (scatter)
++            {
++                int64_t destination = token_idx[source_row];
++                value *= __half2float(route_weight[source_row]);
++                float* destination_ptr =
++                    out + destination * out_stride_n + out_n_base + col_out;
++                if constexpr (atomic_scatter)
++                    atomicAdd(destination_ptr, value);
++                else
++                    *destination_ptr += value;
++            }
++            else
++            {
++                out[source_row * out_stride_n + out_n_base + col_out] = value;
++            }
++        }
++        __syncthreads();
++    }
++}
++
++__device__ __forceinline__ void grouped_swiglu_had_128(
++    const float* __restrict__ gate_up,
++    half* __restrict__ out,
++    const half* __restrict__ down_suh,
++    int row,
++    int segment,
++    float limit)
++{
++    int lane = threadIdx.x & 31;
++    int col = segment * 128 + lane * 4;
++    int input_row = row * 2 * 1024;
++    float4 gate = reinterpret_cast<const float4*>(gate_up + input_row + col)[0];
++    float4 up = reinterpret_cast<const float4*>(
++        gate_up + input_row + 1024 + col)[0];
++
++    gate.x = fminf(gate.x, limit);
++    gate.y = fminf(gate.y, limit);
++    gate.z = fminf(gate.z, limit);
++    gate.w = fminf(gate.w, limit);
++    up.x = fminf(fmaxf(up.x, -limit), limit);
++    up.y = fminf(fmaxf(up.y, -limit), limit);
++    up.z = fminf(fmaxf(up.z, -limit), limit);
++    up.w = fminf(fmaxf(up.w, -limit), limit);
++
++    gate.x = rounded_swiglu(gate.x, up.x);
++    gate.y = rounded_swiglu(gate.y, up.y);
++    gate.z = rounded_swiglu(gate.z, up.z);
++    gate.w = rounded_swiglu(gate.w, up.w);
++
++    half4 value;
++    value.x = __floats2half2_rn(gate.x, gate.y);
++    value.y = __floats2half2_rn(gate.z, gate.w);
++    half4 scale = reinterpret_cast<const half4*>(down_suh + col)[0];
++    value.x = __hmul2(value.x, scale.x);
++    value.y = __hmul2(value.y, scale.y);
++
++    float v0 = __half2float(__low2half(value.x));
++    float v1 = __half2float(__high2half(value.x));
++    float v2 = __half2float(__low2half(value.y));
++    float v3 = __half2float(__high2half(value.y));
++    float s0 = v0 + v1;
++    float d0 = v0 - v1;
++    float s1 = v2 + v3;
++    float d1 = v2 - v3;
++    float h0 = s0 + s1;
++    float h1 = d0 + d1;
++    float h2 = s0 - s1;
++    float h3 = d0 - d1;
++    shuffle_had_f4x32(h0, h1, h2, h3, lane);
++    value.x = __floats2half2_rn(h0 * HAD_SCALE, h1 * HAD_SCALE);
++    value.y = __floats2half2_rn(h2 * HAD_SCALE, h3 * HAD_SCALE);
++    reinterpret_cast<half4*>(out + row * 1024 + col)[0] = value;
++}
++
++// Build a compact M64 task list without exposing routing counts to the host.
++// One thread is intentional: 288 scalar entries are cheaper than a scan setup,
++// and this launch is asynchronous with respect to Python.
++__global__ void exl3_fat_plan_kernel(
++    const int64_t* __restrict__ offsets,
++    int32_t* __restrict__ tasks,
++    int32_t* __restrict__ task_count,
++    int experts,
++    int cap,
++    int task_capacity)
++{
++    if (blockIdx.x || threadIdx.x) return;
++    int next = 0;
++    int scratch_base = 0;
++    for (int expert = 0; expert < experts; ++expert)
++    {
++        int start = static_cast<int>(offsets[expert]);
++        int count = static_cast<int>(offsets[expert + 1] - offsets[expert]);
++        if (count <= cap) continue;
++        for (int row = 0; row < count; row += FAT_TILE_M_SMALL)
++        {
++            if (next >= task_capacity) return;
++            int32_t* task = tasks + 4 * next++;
++            task[0] = expert;
++            task[1] = start + row;
++            task[2] = min(FAT_TILE_M_SMALL, count - row);
++            task[3] = scratch_base + row;
++        }
++        scratch_base += count;
++    }
++    *task_count = next;
++}
++
++__global__ __launch_bounds__(FAT_THREADS)
++void exl3_fat_grouped_gather_kernel(
++    const half* __restrict__ x,
++    const int64_t* __restrict__ token_sorted,
++    half* __restrict__ h13,
++    const int64_t* __restrict__ gate_suh,
++    const int32_t* __restrict__ tasks,
++    const int32_t* __restrict__ task_count,
++    int task_capacity)
++{
++    int warp_global = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
++    int warps_grid = (gridDim.x * blockDim.x) / 32;
++    constexpr int segments = 4096 / 128;
++    constexpr int items_per_task = FAT_TILE_M_SMALL * segments;
++    for (int item = warp_global; item < task_capacity * items_per_task;
++         item += warps_grid)
++    {
++        int task_id = item / items_per_task;
++        if (task_id >= *task_count) continue;
++        int rem = item % items_per_task;
++        int row = rem / segments;
++        int seg = rem % segments;
++        const int32_t* task = tasks + 4 * task_id;
++        if (row >= task[2]) continue;
++        int expert = task[0];
++        int route = task[1] + row;
++        int scratch_row = task[3] + row;
++        int token = static_cast<int>(token_sorted[route]);
++        const half* suh = reinterpret_cast<const half*>(gate_suh[expert]);
++        had_hf_r_128_inner<true, false>(
++            x + token * 4096 + seg * 128,
++            h13 + scratch_row * 4096 + seg * 128,
++            suh + seg * 128,
++            HAD_SCALE);
++    }
++}
++
++__global__ __launch_bounds__(FAT_THREADS)
++void exl3_fat_grouped_gate_kernel(
++    const half* __restrict__ h13,
++    float* __restrict__ gate_up,
++    const int64_t* __restrict__ gate_trellis,
++    const int64_t* __restrict__ gate_svh,
++    const int64_t* __restrict__ up_trellis,
++    const int64_t* __restrict__ up_svh,
++    const int32_t* __restrict__ tasks,
++    const int32_t* __restrict__ task_count,
++    int task_capacity)
++{
++    extern __shared__ unsigned char shared_raw[];
++    constexpr int FAT_STAGES = 3;
++    half* sh_a = reinterpret_cast<half*>(shared_raw);
++    uint16_t* sh_b = reinterpret_cast<uint16_t*>(
++        sh_a + FAT_STAGES * FAT_TILE_M_SMALL * FAT_TILE_K);
++    float* sh_c = reinterpret_cast<float*>(
++        sh_b + FAT_STAGES * FAT_N_BLOCKS * FAT_PACKED_WORDS);
++    constexpr int groups = 2 * 1024 / FAT_TILE_N;
++    for (int item = blockIdx.x; item < task_capacity * groups; item += gridDim.x)
++    {
++        int task_id = item / groups;
++        if (task_id >= *task_count) continue;
++        int group_pair = item % groups;
++        int which = group_pair / (1024 / FAT_TILE_N);
++        int group = group_pair % (1024 / FAT_TILE_N);
++        const int32_t* task = tasks + 4 * task_id;
++        int expert = task[0];
++        int rows = task[2];
++        int scratch_row = task[3];
++        const int64_t* tp = which ? up_trellis : gate_trellis;
++        const int64_t* vp = which ? up_svh : gate_svh;
++        grouped_fat_m64_tile<false>(
++            h13 + static_cast<size_t>(scratch_row) * 4096,
++            reinterpret_cast<const uint16_t*>(tp[expert]),
++            gate_up + static_cast<size_t>(scratch_row) * 2048,
++            reinterpret_cast<const half*>(vp[expert]),
++            nullptr,
++            nullptr,
++            rows,
++            4096,
++            1024,
++            2048,
++            0,
++            group * FAT_TILE_N,
++            which * 1024 + group * FAT_TILE_N,
++            sh_a,
++            sh_b,
++            sh_c);
++    }
++}
++
++__global__ __launch_bounds__(FAT_THREADS)
++void exl3_fat_grouped_activation_kernel(
++    const float* __restrict__ gate_up,
++    half* __restrict__ h2,
++    const int64_t* __restrict__ down_suh,
++    const int32_t* __restrict__ tasks,
++    const int32_t* __restrict__ task_count,
++    int task_capacity,
++    float limit)
++{
++    int warp_global = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
++    int warps_grid = (gridDim.x * blockDim.x) / 32;
++    constexpr int segments = 1024 / 128;
++    constexpr int items_per_task = FAT_TILE_M_SMALL * segments;
++    for (int item = warp_global; item < task_capacity * items_per_task;
++         item += warps_grid)
++    {
++        int task_id = item / items_per_task;
++        if (task_id >= *task_count) continue;
++        int rem = item % items_per_task;
++        int row = rem / segments;
++        int seg = rem % segments;
++        const int32_t* task = tasks + 4 * task_id;
++        if (row >= task[2]) continue;
++        int expert = task[0];
++        int scratch_row = task[3] + row;
++        grouped_swiglu_had_128(
++            gate_up + static_cast<size_t>(scratch_row) * 2048,
++            h2 + static_cast<size_t>(scratch_row) * 1024,
++            reinterpret_cast<const half*>(down_suh[expert]),
++            0,
++            seg,
++            limit);
++    }
++}
++
++__global__ __launch_bounds__(FAT_THREADS)
++void exl3_fat_grouped_down_kernel(
++    const half* __restrict__ h2,
++    float* __restrict__ out,
++    const int64_t* __restrict__ token_sorted,
++    const half* __restrict__ weight_sorted,
++    const int64_t* __restrict__ down_trellis,
++    const int64_t* __restrict__ down_svh,
++    const int32_t* __restrict__ tasks,
++    const int32_t* __restrict__ task_count,
++    int task_capacity)
++{
++    extern __shared__ unsigned char shared_raw[];
++    constexpr int FAT_STAGES = 3;
++    half* sh_a = reinterpret_cast<half*>(shared_raw);
++    uint16_t* sh_b = reinterpret_cast<uint16_t*>(
++        sh_a + FAT_STAGES * FAT_TILE_M_SMALL * FAT_TILE_K);
++    float* sh_c = reinterpret_cast<float*>(
++        sh_b + FAT_STAGES * FAT_N_BLOCKS * FAT_PACKED_WORDS);
++    constexpr int groups = 4096 / FAT_TILE_N;
++    for (int item = blockIdx.x; item < task_capacity * groups; item += gridDim.x)
++    {
++        int task_id = item / groups;
++        if (task_id >= *task_count) continue;
++        int group = item % groups;
++        const int32_t* task = tasks + 4 * task_id;
++        int expert = task[0];
++        int route = task[1];
++        int rows = task[2];
++        int scratch_row = task[3];
++        grouped_fat_m64_tile<true, true>(
++            h2 + static_cast<size_t>(scratch_row) * 1024,
++            reinterpret_cast<const uint16_t*>(down_trellis[expert]),
++            out,
++            reinterpret_cast<const half*>(down_svh[expert]),
++            token_sorted + route,
++            weight_sorted + route,
++            rows,
++            1024,
++            4096,
++            4096,
++            0,
++            group * FAT_TILE_N,
++            group * FAT_TILE_N,
++            sh_a,
++            sh_b,
++            sh_c);
++    }
++}
++
+ void check_common(
+     const at::Tensor& a,
+     const at::Tensor& packed,
+@@ -558,3 +996,140 @@ void exl3_fat_gemm_scatter_m64(
+     launch<FAT_TILE_M_SMALL, true>(
+         a, packed, out, svh, token_idx, route_weight);
+ }
++
++void exl3_grouped_prefill_k4(
++    const at::Tensor& hidden_state,
++    const at::Tensor& output_state,
++    const at::Tensor& expert_offsets,
++    const at::Tensor& token_sorted,
++    const at::Tensor& weight_sorted,
++    const at::Tensor& had_input,
++    const at::Tensor& gate_up,
++    const at::Tensor& had_down,
++    const at::Tensor& tasks,
++    const at::Tensor& task_count,
++    const at::Tensor& gate_trellis,
++    const at::Tensor& gate_suh,
++    const at::Tensor& gate_svh,
++    const at::Tensor& up_trellis,
++    const at::Tensor& up_svh,
++    const at::Tensor& down_trellis,
++    const at::Tensor& down_suh,
++    const at::Tensor& down_svh,
++    int64_t cap,
++    double act_limit)
++{
++    const at::cuda::OptionalCUDAGuard guard(hidden_state.device());
++    auto check = [&](const at::Tensor& t, at::ScalarType dtype, const char* name)
++    {
++        TORCH_CHECK(t.is_cuda(), name, " must be CUDA");
++        TORCH_CHECK(t.scalar_type() == dtype, name, " has wrong dtype");
++        TORCH_CHECK(t.is_contiguous(), name, " must be contiguous");
++        TORCH_CHECK(t.device() == hidden_state.device(), name, " is on the wrong device");
++    };
++    check(hidden_state, at::kHalf, "hidden_state");
++    check(output_state, at::kFloat, "output_state");
++    check(expert_offsets, at::kLong, "expert_offsets");
++    check(token_sorted, at::kLong, "token_sorted");
++    check(weight_sorted, at::kHalf, "weight_sorted");
++    check(had_input, at::kHalf, "had_input");
++    check(gate_up, at::kFloat, "gate_up");
++    check(had_down, at::kHalf, "had_down");
++    check(tasks, at::kInt, "tasks");
++    check(task_count, at::kInt, "task_count");
++    check(gate_trellis, at::kLong, "gate_trellis");
++    check(gate_suh, at::kLong, "gate_suh");
++    check(gate_svh, at::kLong, "gate_svh");
++    check(up_trellis, at::kLong, "up_trellis");
++    check(up_svh, at::kLong, "up_svh");
++    check(down_trellis, at::kLong, "down_trellis");
++    check(down_suh, at::kLong, "down_suh");
++    check(down_svh, at::kLong, "down_svh");
++
++    TORCH_CHECK(hidden_state.dim() == 2 && hidden_state.size(1) == 4096,
++                "grouped prefill requires hidden_state [tokens,4096]");
++    TORCH_CHECK(output_state.sizes() == hidden_state.sizes(),
++                "output_state shape mismatch");
++    TORCH_CHECK(expert_offsets.dim() == 1 && expert_offsets.numel() >= 2,
++                "expert_offsets must be [experts+1]");
++    int experts = static_cast<int>(expert_offsets.numel() - 1);
++    int tokens = static_cast<int>(hidden_state.size(0));
++    TORCH_CHECK(token_sorted.numel() == weight_sorted.numel(),
++                "routing tensors disagree");
++    int routes = static_cast<int>(token_sorted.numel());
++    TORCH_CHECK(had_input.dim() == 2 && had_input.size(0) >= routes
++                && had_input.size(1) == 4096,
++                "had_input scratch must be at least [routes,4096]");
++    TORCH_CHECK(gate_up.dim() == 2 && gate_up.size(0) >= routes
++                && gate_up.size(1) == 2048,
++                "gate_up scratch must be at least [routes,2048]");
++    TORCH_CHECK(had_down.dim() == 2 && had_down.size(0) >= routes
++                && had_down.size(1) == 1024,
++                "had_down scratch must be at least [routes,1024]");
++    TORCH_CHECK(tasks.dim() == 2 && tasks.size(1) == 4 && tasks.size(0) >= experts,
++                "tasks must be [capacity,4]");
++    TORCH_CHECK(task_count.numel() == 1, "task_count must contain one int32");
++    for (const at::Tensor* table : {
++             &gate_trellis, &gate_suh, &gate_svh, &up_trellis,
++             &up_svh, &down_trellis, &down_suh, &down_svh})
++    {
++        TORCH_CHECK(table->numel() == experts,
++                    "expert pointer table length mismatch");
++    }
++    TORCH_CHECK(cap >= 1 && cap < tokens, "cap must be in [1,tokens)");
++
++    int device = 0;
++    int sms = 0;
++    int resident = 0;
++    cudaGetDevice(&device);
++    cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, device);
++    constexpr int FAT_STAGES = 3;
++    constexpr size_t shared =
++        FAT_STAGES * FAT_TILE_M_SMALL * FAT_TILE_K * sizeof(half)
++        + FAT_STAGES * FAT_N_BLOCKS * FAT_PACKED_WORDS * sizeof(uint16_t)
++        + 16 * FAT_TILE_N * sizeof(float);
++    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
++        &resident, exl3_fat_grouped_gate_kernel, FAT_THREADS, shared);
++    TORCH_CHECK(resident > 0 && sms > 0,
++                "grouped prefill kernel has zero occupancy");
++    int grid_size = resident * sms;
++    cudaStream_t stream = at::cuda::getCurrentCUDAStream().stream();
++
++    const half* x = reinterpret_cast<const half*>(hidden_state.data_ptr<c10::Half>());
++    float* out = output_state.data_ptr<float>();
++    const int64_t* offsets = expert_offsets.data_ptr<int64_t>();
++    const int64_t* sorted_tokens = token_sorted.data_ptr<int64_t>();
++    const half* sorted_weights = reinterpret_cast<const half*>(
++        weight_sorted.data_ptr<c10::Half>());
++    half* hi = reinterpret_cast<half*>(had_input.data_ptr<c10::Half>());
++    float* go = gate_up.data_ptr<float>();
++    half* hd = reinterpret_cast<half*>(had_down.data_ptr<c10::Half>());
++    int32_t* task_data = tasks.data_ptr<int32_t>();
++    int32_t* task_count_data = task_count.data_ptr<int32_t>();
++    const int64_t* gt = gate_trellis.data_ptr<int64_t>();
++    const int64_t* gu = gate_suh.data_ptr<int64_t>();
++    const int64_t* gv = gate_svh.data_ptr<int64_t>();
++    const int64_t* ut = up_trellis.data_ptr<int64_t>();
++    const int64_t* uv = up_svh.data_ptr<int64_t>();
++    const int64_t* dt = down_trellis.data_ptr<int64_t>();
++    const int64_t* du = down_suh.data_ptr<int64_t>();
++    const int64_t* dv = down_svh.data_ptr<int64_t>();
++    int launch_experts = experts;
++    int launch_cap = static_cast<int>(cap);
++    int task_capacity = static_cast<int>(tasks.size(0));
++    float limit = static_cast<float>(act_limit);
++
++    exl3_fat_plan_kernel<<<1, 1, 0, stream>>>(
++        offsets, task_data, task_count_data, launch_experts, launch_cap,
++        task_capacity);
++    exl3_fat_grouped_gather_kernel<<<grid_size, FAT_THREADS, 0, stream>>>(
++        x, sorted_tokens, hi, gu, task_data, task_count_data, task_capacity);
++    exl3_fat_grouped_gate_kernel<<<grid_size, FAT_THREADS, shared, stream>>>(
++        hi, go, gt, gv, ut, uv, task_data, task_count_data, task_capacity);
++    exl3_fat_grouped_activation_kernel<<<grid_size, FAT_THREADS, 0, stream>>>(
++        go, hd, du, task_data, task_count_data, task_capacity, limit);
++    exl3_fat_grouped_down_kernel<<<grid_size, FAT_THREADS, shared, stream>>>(
++        hd, out, sorted_tokens, sorted_weights, dt, dv,
++        task_data, task_count_data, task_capacity);
++    C10_CUDA_KERNEL_LAUNCH_CHECK();
++}
+diff --git a/overlay/exl3_fat_gemm.cuh b/overlay/exl3_fat_gemm.cuh
+index f61603e..769733c 100644
+--- a/overlay/exl3_fat_gemm.cuh
++++ b/overlay/exl3_fat_gemm.cuh
+@@ -69,3 +69,25 @@ void exl3_fat_gemm_scatter_m64(
+     int64_t K,
+     bool mcg,
+     bool mul1);
++
++void exl3_grouped_prefill_k4(
++    const at::Tensor& hidden_state,
++    const at::Tensor& output_state,
++    const at::Tensor& expert_offsets,
++    const at::Tensor& token_sorted,
++    const at::Tensor& weight_sorted,
++    const at::Tensor& had_input,
++    const at::Tensor& gate_up,
++    const at::Tensor& had_down,
++    const at::Tensor& tasks,
++    const at::Tensor& task_count,
++    const at::Tensor& gate_trellis,
++    const at::Tensor& gate_suh,
++    const at::Tensor& gate_svh,
++    const at::Tensor& up_trellis,
++    const at::Tensor& up_svh,
++    const at::Tensor& down_trellis,
++    const at::Tensor& down_suh,
++    const at::Tensor& down_svh,
++    int64_t cap,
++    double act_limit);
+diff --git a/overlay/patch_exl3_fat_kernel.py b/overlay/patch_exl3_fat_kernel.py
+index da632f8..be205a0 100755
+--- a/overlay/patch_exl3_fat_kernel.py
++++ b/overlay/patch_exl3_fat_kernel.py
+@@ -53,6 +53,7 @@ def main() -> int:
+         '    m.def("exl3_fat_swiglu_had", &exl3_fat_swiglu_had, "exl3_fat_swiglu_had");\n'
+         '    m.def("exl3_fat_gemm_scatter", &exl3_fat_gemm_scatter, "exl3_fat_gemm_scatter");\n'
+         '    m.def("exl3_fat_gemm_scatter_m64", &exl3_fat_gemm_scatter_m64, "exl3_fat_gemm_scatter_m64");\n'
++        '    m.def("exl3_grouped_prefill_k4", &exl3_grouped_prefill_k4, "exl3_grouped_prefill_k4");\n'
+         '    m.def("exl3_decode_moe_k4", &exl3_decode_moe_k4, "exl3_decode_moe_k4");',
+     )
+     bindings.write_text(text)
+diff --git a/scripts/tinyglm-gate.sh b/scripts/tinyglm-gate.sh
+index 030c417..1d66128 100755
+--- a/scripts/tinyglm-gate.sh
++++ b/scripts/tinyglm-gate.sh
+@@ -14,8 +14,10 @@ static_gate() {
+         overlay/exl3.py \
+         scripts/make_tinyglm.py \
+         benchmarks/exl3_decode_moe_ab.py \
++        benchmarks/exl3_grouped_prefill_ab.py \
+         benchmarks/tinyglm_smoke.py \
+-        benchmarks/tinyglm_gate.py
++        benchmarks/tinyglm_gate.py \
++        benchmarks/tinyglm_prefill_gate.py
+     bash -n start.sh scripts/tinyglm.sh scripts/tinyglm-gate.sh
+     git diff --check
+     echo "tinyGLM static gate: PASS"
+diff --git a/start.sh b/start.sh
+index bf84075..c4f2e9d 100755
+--- a/start.sh
++++ b/start.sh
+@@ -70,6 +70,7 @@ _cli_fat_kernel="${EXL3_FAT_KERNEL-}"
+ _cli_fat_tile_m="${EXL3_FAT_TILE_M-}"
+ _cli_fat_pair="${EXL3_FAT_PAIR-}"
+ _cli_fat_fused_act="${EXL3_FAT_FUSED_ACT-}"
++_cli_grouped_prefill="${EXL3_GROUPED_PREFILL_K4-}"
+ _cli_mnbt="${MAX_NUM_BATCHED_TOKENS-}"
+ _cli_image="${IMAGE-}"
+ _cli_model="${MODEL-}"
+@@ -116,6 +117,7 @@ set +a
+ [ -n "${_cli_fat_tile_m}" ] && EXL3_FAT_TILE_M="$_cli_fat_tile_m"
+ [ -n "${_cli_fat_pair}" ] && EXL3_FAT_PAIR="$_cli_fat_pair"
+ [ -n "${_cli_fat_fused_act}" ] && EXL3_FAT_FUSED_ACT="$_cli_fat_fused_act"
++[ -n "${_cli_grouped_prefill}" ] && EXL3_GROUPED_PREFILL_K4="$_cli_grouped_prefill"
+ [ -n "${_cli_mnbt}" ] && MAX_NUM_BATCHED_TOKENS="$_cli_mnbt"
+ [ -n "${_cli_image}" ] && IMAGE="$_cli_image"
+ [ -n "${_cli_model}" ] && MODEL="$_cli_model"
+@@ -268,6 +270,9 @@ EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"
+ EXL3_FAT_TILE_M="${EXL3_FAT_TILE_M:-64}"
+ EXL3_FAT_PAIR="${EXL3_FAT_PAIR:-1}"
+ EXL3_FAT_FUSED_ACT="${EXL3_FAT_FUSED_ACT:-1}"
++# Keep counts and the complete fat-expert pipeline on GPU. Promoted after the
++# paired 16K C1/C2 full-model gate; set 0 for immediate rollback.
++EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-1}"
+ 
+ # --- abliteration (ablit/) --------------------------------------------------
+ # Load-time o_proj orthogonalization (overlay/ablit_runtime.py). Published
+@@ -1301,7 +1306,7 @@ launch_cluster() {
+              KV_CACHE_DTYPE MTP_TOKENS SPEC_METHOD DFLASH_TOKENS DFLASH_MODEL_DIR \
+              DFLASH_DRAFT_TP \
+              LANGUAGE_MODEL_ONLY SKIP_MM_PROFILING \
+-             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL EXL3_FAT_TILE_M EXL3_FAT_PAIR EXL3_FAT_FUSED_ACT EXL3_DECODE_COOP_K4 EXL3_DECODE_COOP_MAX_TOKENS MODEL_DIR EXTRA_ARGS \
++             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL EXL3_FAT_TILE_M EXL3_FAT_PAIR EXL3_FAT_FUSED_ACT EXL3_GROUPED_PREFILL_K4 EXL3_DECODE_COOP_K4 EXL3_DECODE_COOP_MAX_TOKENS MODEL_DIR EXTRA_ARGS \
+              SPARKGLM_TINY_DUMMY \
+              ABLIT ABLIT_METHOD ABLIT_DIRECTION ABLIT_LAYERS ABLIT_ALPHA ABLIT_INCLUDE_MTP; do
+         serve_env+=" -e $v='${!v:-}'"
+@@ -1400,6 +1405,7 @@ launch_cluster() {
+         -e EXL3_FAT_TILE_M="$EXL3_FAT_TILE_M" \
+         -e EXL3_FAT_PAIR="$EXL3_FAT_PAIR" \
+         -e EXL3_FAT_FUSED_ACT="$EXL3_FAT_FUSED_ACT" \
++        -e EXL3_GROUPED_PREFILL_K4="$EXL3_GROUPED_PREFILL_K4" \
+         -e EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}" \
+         -e EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}" \
+         -e SPARKGLM_TINY_DUMMY="$SPARKGLM_TINY_DUMMY" \
+diff --git a/tests/test_exl3_overlay.py b/tests/test_exl3_overlay.py
+index c6ca5ff..7a8615e 100644
+--- a/tests/test_exl3_overlay.py
++++ b/tests/test_exl3_overlay.py
+@@ -107,6 +107,7 @@ def _check_ext_arch() -> None:
+ 
+     assert hasattr(exllamav3_ext, "exl3_moe"), dir(exllamav3_ext)
+     assert hasattr(exllamav3_ext, "exl3_moe_max_concurrency")
++    assert hasattr(exllamav3_ext, "exl3_grouped_prefill_k4")
+     print("exllamav3_ext.exl3_moe present", flush=True)
+     so = exllamav3_ext.__file__
+     dump = subprocess.check_output(["cuobjdump", "-lelf", so], text=True, stderr=subprocess.STDOUT)
+diff --git a/tests/test_start_overrides.py b/tests/test_start_overrides.py
+index db68458..b77b7eb 100644
+--- a/tests/test_start_overrides.py
++++ b/tests/test_start_overrides.py
+@@ -124,12 +124,13 @@ def test_mixed_prefill_caller_override_wins() -> None:
+ 
+ def test_fat_kernel_subfeature_overrides_win() -> None:
+     probe = (
+-        '\nprintf "TILE=%s PAIR=%s ACT=%s\\n" '
++        '\nprintf "TILE=%s PAIR=%s ACT=%s GROUPED=%s\\n" '
+         '"${EXL3_FAT_TILE_M-UNSET}" "${EXL3_FAT_PAIR-UNSET}" '
+-        '"${EXL3_FAT_FUSED_ACT-UNSET}"\n'
++        '"${EXL3_FAT_FUSED_ACT-UNSET}" "${EXL3_GROUPED_PREFILL_K4-UNSET}"\n'
+     )
+     env_file = (
+         "EXL3_FAT_TILE_M=128\nEXL3_FAT_PAIR=0\nEXL3_FAT_FUSED_ACT=1\n"
++        "EXL3_GROUPED_PREFILL_K4=0\n"
+     )
+     assert _run_preamble(
+         env_file,
+@@ -137,9 +138,10 @@ def test_fat_kernel_subfeature_overrides_win() -> None:
+             "EXL3_FAT_TILE_M": "64",
+             "EXL3_FAT_PAIR": "1",
+             "EXL3_FAT_FUSED_ACT": "0",
++            "EXL3_GROUPED_PREFILL_K4": "1",
+         },
+         probe,
+-    ) == "TILE=64 PAIR=1 ACT=0"
++    ) == "TILE=64 PAIR=1 ACT=0 GROUPED=1"
+ 
+ 
+ def test_tiny_model_identity_overrides_win() -> None:

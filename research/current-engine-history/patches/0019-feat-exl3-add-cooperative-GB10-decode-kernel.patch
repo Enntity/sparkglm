@@ -1,0 +1,1020 @@
+From 616fda8a5a819d3a102b8bc7acf46b2654da1113 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 16:01:22 -0700
+Subject: [PATCH 19/21] feat(exl3): add cooperative GB10 decode kernel
+
+Provenance:
+- turboderp-org/exllamav3@c5d9c657966ffeeaa9353f0cc899f18629da4a13: adapted EXL3 K4 trellis decode, Hadamard helpers, and tensor-core MMA arrangement.
+- vcruz305/vllm-exl3@67dc742: cooperative-grid approach inspired the small-batch decode direction; its wrapper/kernel was not directly ported.
+
+Original work:
+- Implement the TP2-local GLM-5.3 H4096/I1024/top-8 whole-layer launch, expert-sorted multi-row tiling, persistent scratch, exact clamp/SwiGLU, FP32 routed accumulation, graph-safe dispatch, and tinyGLM gate.
+
+Verification:
+- SM121 builds and CUDA graph capture passed on both DGX Sparks.
+- 100-sample direct A/B preserved numerical parity and improved C1 kernel latency 13.9%.
+- 15-run warmed tinyGLM A/B preserved token IDs and improved C1 5.5% and staggered C4 2.9%; long C2 was -0.2%.
+---
+ AGENTS.md                        |   9 +
+ Dockerfile.exl3-derivative       |   5 +-
+ benchmarks/exl3_decode_moe_ab.py | 117 ++++++++
+ docs/PROVENANCE.md               |  43 +++
+ docs/vllm-exl3-vcruz305-audit.md |  38 ++-
+ overlay/exl3.py                  | 104 +++++++
+ overlay/exl3_decode_moe.cu       | 454 +++++++++++++++++++++++++++++++
+ overlay/exl3_decode_moe.cuh      |  29 ++
+ overlay/patch_exl3_fat_kernel.py |  14 +-
+ scripts/tinyglm-gate.sh          |   1 +
+ start.sh                         |   6 +-
+ 11 files changed, 814 insertions(+), 6 deletions(-)
+ create mode 100644 AGENTS.md
+ create mode 100644 benchmarks/exl3_decode_moe_ab.py
+ create mode 100644 docs/PROVENANCE.md
+ create mode 100644 overlay/exl3_decode_moe.cu
+ create mode 100644 overlay/exl3_decode_moe.cuh
+
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..c590944
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,9 @@
++# SparkGLM repository instructions
++
++## Provenance
++
++For every optimization commit, follow `docs/PROVENANCE.md`. The commit message
++must distinguish copied, adapted, inspired, and original work; name upstream
++URLs and exact revisions when known; and record verification. Preserve all
++applicable upstream copyright and license notices in source files.
++
+diff --git a/Dockerfile.exl3-derivative b/Dockerfile.exl3-derivative
+index f9ddd00..103aa29 100644
+--- a/Dockerfile.exl3-derivative
++++ b/Dockerfile.exl3-derivative
+@@ -7,6 +7,8 @@ COPY overlay/patch_exl3_ext_aarch64.py /opt/glm53/pair/patch_exl3_ext_aarch64.py
+ COPY overlay/patch_exl3_fat_kernel.py /opt/glm53/pair/patch_exl3_fat_kernel.py
+ COPY overlay/exl3_fat_gemm.cu /opt/glm53/pair/exl3_fat_gemm.cu
+ COPY overlay/exl3_fat_gemm.cuh /opt/glm53/pair/exl3_fat_gemm.cuh
++COPY overlay/exl3_decode_moe.cu /opt/glm53/pair/exl3_decode_moe.cu
++COPY overlay/exl3_decode_moe.cuh /opt/glm53/pair/exl3_decode_moe.cuh
+ 
+ ENV TORCH_CUDA_ARCH_LIST=12.1a
+ ENV CUDA_HOME=/usr/local/cuda
+@@ -27,7 +29,7 @@ RUN set -eux; \
+     cd /tmp/exllamav3; \
+     TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=8 \
+       pip install --no-deps --no-build-isolation --no-cache-dir .; \
+-    python3 -c "import exllamav3_ext; assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_swiglu_had'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_scatter_m64'), dir(exllamav3_ext); print(exllamav3_ext.__file__)"; \
++    python3 -c "import exllamav3_ext; assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_swiglu_had'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_pair_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_fat_gemm_scatter_m64'), dir(exllamav3_ext); assert hasattr(exllamav3_ext, 'exl3_decode_moe_k4'), dir(exllamav3_ext); print(exllamav3_ext.__file__)"; \
+     rm -rf /tmp/exllamav3 /root/.cache/pip
+ 
+ COPY overlay/exl3.py /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
+@@ -35,3 +37,4 @@ COPY tests/test_exl3_overlay.py /opt/glm53/test_exl3_overlay.py
+ 
+ LABEL ai.enntity.sparkglm.exl3-fat-pair="1"
+ LABEL ai.enntity.sparkglm.exl3-fat-fused-act="1"
++LABEL ai.enntity.sparkglm.exl3-decode-coop-k4="experimental"
+diff --git a/benchmarks/exl3_decode_moe_ab.py b/benchmarks/exl3_decode_moe_ab.py
+new file mode 100644
+index 0000000..2e6c545
+--- /dev/null
++++ b/benchmarks/exl3_decode_moe_ab.py
+@@ -0,0 +1,117 @@
++#!/usr/bin/env python3
++"""Numerical and latency A/B for the exact GLM-5.3 TP2 EXL3 decode shape."""
++
++from __future__ import annotations
++
++import argparse
++import os
++import statistics
++import types
++
++import torch
++
++
++def make_layer(device: torch.device):
++    from vllm.model_executor.layers.quantization.exl3 import (
++        Exl3Config,
++        Exl3MoEMethod,
++    )
++
++    os.environ["SPARKGLM_TINY_DUMMY"] = "1"
++    os.environ["EXL3_DECODE_COOP_K4"] = "1"
++    os.environ["EXL3_DECODE_COOP_MAX_TOKENS"] = "16"
++    moe = types.SimpleNamespace(swiglu_limit=75.0)
++    method = Exl3MoEMethod(moe, Exl3Config())
++    layer = torch.nn.Module()
++    method.create_weights(
++        layer,
++        num_experts=16,
++        hidden_size=4096,
++        intermediate_size_per_partition=1024,
++        params_dtype=torch.float16,
++    )
++    layer = layer.to(device)
++    method.process_weights_after_loading(layer)
++    if layer._exl3_decode_coop_scratch is None:
++        raise RuntimeError("cooperative K4 scratch was not created")
++    return layer
++
++
++def one_call(layer, x, ids, weights, *, candidate: bool):
++    from vllm.model_executor.layers.quantization.exl3 import apply_exl3_experts
++
++    scratch = layer._exl3_decode_coop_scratch
++    if not candidate:
++        layer._exl3_decode_coop_scratch = None
++    try:
++        return apply_exl3_experts(x, ids, weights, layer, fused=True)
++    finally:
++        layer._exl3_decode_coop_scratch = scratch
++
++
++def time_ms(layer, x, ids, weights, *, candidate: bool, repeats: int) -> list[float]:
++    values = []
++    for _ in range(5):
++        one_call(layer, x, ids, weights, candidate=candidate)
++    torch.cuda.synchronize()
++    for _ in range(repeats):
++        begin = torch.cuda.Event(enable_timing=True)
++        end = torch.cuda.Event(enable_timing=True)
++        begin.record()
++        one_call(layer, x, ids, weights, candidate=candidate)
++        end.record()
++        end.synchronize()
++        values.append(begin.elapsed_time(end))
++    return values
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--repeats", type=int, default=25)
++    args = parser.parse_args()
++    if not torch.cuda.is_available():
++        raise SystemExit("CUDA is required")
++    torch.manual_seed(7)
++    device = torch.device("cuda:0")
++    layer = make_layer(device)
++    failed = False
++    print("tokens baseline_ms candidate_ms speedup max_abs mean_abs cosine", flush=True)
++    for tokens in (1, 2, 4, 8, 16, 32):
++        x = torch.randn(tokens, 4096, dtype=torch.float16, device=device)
++        row = torch.arange(tokens, device=device)[:, None]
++        slot = torch.arange(8, device=device)[None, :]
++        ids = ((row * 5 + slot * 3) % 16).to(torch.long)
++        raw = torch.rand(tokens, 8, dtype=torch.float32, device=device)
++        weights = torch.softmax(raw, dim=-1).half()
++        baseline = one_call(layer, x, ids, weights, candidate=False)
++        candidate = one_call(layer, x, ids, weights, candidate=True)
++        torch.cuda.synchronize()
++        diff = (baseline.float() - candidate.float()).abs()
++        max_abs = float(diff.max())
++        mean_abs = float(diff.mean())
++        cosine = float(torch.nn.functional.cosine_similarity(
++            baseline.float().flatten(), candidate.float().flatten(), dim=0
++        ))
++        scale = float(baseline.float().abs().max().clamp_min(1.0))
++        bound = max(0.15, 0.08 * scale)
++        if not torch.isfinite(candidate).all() or max_abs >= bound or cosine < 0.995:
++            failed = True
++        baseline_ms = statistics.median(time_ms(
++            layer, x, ids, weights, candidate=False, repeats=args.repeats
++        ))
++        candidate_ms = statistics.median(time_ms(
++            layer, x, ids, weights, candidate=True, repeats=args.repeats
++        ))
++        print(
++            f"{tokens:6d} {baseline_ms:11.4f} {candidate_ms:12.4f} "
++            f"{baseline_ms / candidate_ms:7.3f} {max_abs:7.4f} "
++            f"{mean_abs:8.5f} {cosine:7.5f}",
++            flush=True,
++        )
++    if failed:
++        raise SystemExit("EXL3 cooperative decode A/B: FAIL")
++    print("EXL3 cooperative decode A/B: PASS", flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/docs/PROVENANCE.md b/docs/PROVENANCE.md
+new file mode 100644
+index 0000000..0eeb3c7
+--- /dev/null
++++ b/docs/PROVENANCE.md
+@@ -0,0 +1,43 @@
++# Optimization provenance policy
++
++Every commit that ports, adapts, or is materially inspired by external work
++must make the lineage visible in the commit message. Source comments and design
++documents are useful, but they do not replace commit-level attribution.
++
++Use this body structure:
++
++```text
++Provenance:
++- <project URL and exact revision>: <what was reused or inspired the work>
++
++Original work:
++- <what this commit designed or implemented specifically for this repository>
++
++Verification:
++- <tests and measured result>
++```
++
++Rules:
++
++- Name the upstream project, URL, and exact commit whenever one is known.
++- Say whether code was copied, adapted, ported, or merely inspired by it.
++- Preserve upstream copyright and license notices in copied or derived files.
++- Do not use `Co-authored-by` unless that person actually authored part of the
++  commit; provenance belongs in explicit attribution instead.
++- If the implementation is original but uses standard primitives or published
++  ideas, identify those foundations and state the original boundary precisely.
++- If there is no external lineage, write `Provenance: original implementation`
++  rather than leaving the question ambiguous.
++
++## Current EXL3 cooperative-decode lineage
++
++- `turboderp-org/exllamav3` at
++  `c5d9c657966ffeeaa9353f0cc899f18629da4a13`: EXL3 K4 trellis decoding,
++  Hadamard helpers, and tensor-core MMA arrangement.
++- `vcruz305/vllm-exl3` at `67dc742`: inspiration for applying a cooperative
++  CUDA grid to small-batch EXL3 MoE decode.
++- This repository: the TP2-local GLM-5.3 shape, whole-layer launch contract,
++  expert-sorted multi-row tiling, persistent scratch, GLM clamp/SwiGLU
++  semantics, FP32 routed accumulation, graph-safe integration, bounded
++  dispatch, and the tinyGLM A/B gate.
++
+diff --git a/docs/vllm-exl3-vcruz305-audit.md b/docs/vllm-exl3-vcruz305-audit.md
+index 49afa21..ab1a7b3 100644
+--- a/docs/vllm-exl3-vcruz305-audit.md
++++ b/docs/vllm-exl3-vcruz305-audit.md
+@@ -110,9 +110,45 @@ was not restarted and its health endpoint remained healthy.
+   synchronization.
+ - Separate commit only after the measured target is met.
+ 
++## Implemented experiment and tinyGLM result
++
++The first item above is now implemented as an opt-in candidate rather than a
++port of the upstream wrapper. `exl3_decode_moe_k4` is fixed to the appliance's
++SM121 / TP2-local K4 shape (H=4096, I=1024, top-8). It uses one cooperative
++launch for the routed layer, expert-sorted tiles of up to eight rows, persistent
++caller-owned scratch, exact GLM clamp/SwiGLU semantics, FP32 routed
++accumulation, and CUDA-graph capture/replay. The dispatch remains off unless
++`EXL3_DECODE_COOP_K4=1`; its measured useful range is 1-16 tokens, so 16 is the
++default cutoff and wider batches use the prior kernel.
++
++On 2026-09-03 the exact-shape direct A/B passed numerical parity over 100 timed
++samples per shape. Median old-to-new kernel latency was:
++
++| tokens | old ms | new ms | improvement |
++|---:|---:|---:|---:|
++| 1 | 0.4107 | 0.3607 | 13.9% |
++| 2 | 0.5974 | 0.5449 | 8.8% |
++| 4 | 0.6051 | 0.5719 | 5.5% |
++| 8 | 0.6138 | 0.5757 | 6.2% |
++| 16 | 0.6247 | 0.5862 | 6.2% |
++| 32 | 0.6521 | 0.6518 | fallback parity |
++
++A reverse-order, 15-repetition, fully warmed two-Spark tinyGLM endpoint A/B
++used the same image with only the dispatch switch changed:
++
++| case | baseline tok/s | candidate tok/s | delta | token IDs |
++|---|---:|---:|---:|---|
++| decode C1 (128 in / 256 out) | 276.4 | 291.6 | +5.5% | exact |
++| staggered C4 (4096 in / 128 out) | 412.0 | 423.9 | +2.9% | exact |
++| long C2 (16384 in / 32 out) | 86.7 | 86.5 | -0.2% | exact |
++
++This clears the tinyGLM gate and demonstrates a decode-loop gain. It does not
++yet clear the real-checkpoint acceptance gate: the full 45-layer model must
++still prove exact endpoint quality, rank behavior, C1/C2 decode throughput, and
++16K-32K staggered TTFT before this switch becomes a production default.
++
+ ## Sources
+ 
+ - <https://github.com/vcruz305/vllm-exl3>
+ - <https://github.com/vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe>
+ - <https://huggingface.co/vcruz305/GLM-5.3-Flash-EXL3-K2-spark-vllm>
+-
+diff --git a/overlay/exl3.py b/overlay/exl3.py
+index dac387f..41520fd 100644
+--- a/overlay/exl3.py
++++ b/overlay/exl3.py
+@@ -55,6 +55,7 @@ TEMP_ROWS_FUSED = 128
+ MOE_ACT_SILU = 0
+ # Shared fused scratch: decode is sequential across layers.
+ _FUSED_TEMP_CACHE: dict[tuple, tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] = {}
++_DECODE_COOP_SCRATCH_CACHE: dict[tuple, dict[str, torch.Tensor]] = {}
+ _FAT_SCRATCH_CACHE: dict[tuple, dict[str, torch.Tensor]] = {}
+ _FAT_COUNT_CACHE: dict[tuple, tuple[torch.Tensor, torch.cuda.Stream]] = {}
+ _FAT_BUCKET_EDGES = (16, 32, 64, 128, 256, 512, 1024, 2048)
+@@ -195,6 +196,18 @@ _EXL3_FAT_DIAG: dict[str, Any] = {
+ }
+ _FAT_SCRATCH_BYTES: dict[tuple, int] = {}
+ _exl3_fat_tier_logged = False
++_exl3_decode_coop_logged = False
++
++
++def decode_coop_enabled() -> bool:
++    """Experimental exact-shape cooperative K4 decode kernel."""
++    return os.environ.get("EXL3_DECODE_COOP_K4", "0") != "0"
++
++
++def decode_coop_max_tokens() -> int:
++    """Largest captured target batch supported by the cooperative scratch."""
++    raw = os.environ.get("EXL3_DECODE_COOP_MAX_TOKENS", "16").strip()
++    return max(1, min(32, int(raw)))
+ 
+ 
+ def fused_moe_row_tile_enabled() -> bool:
+@@ -1165,6 +1178,59 @@ def build_exl3_fused_state(layer: torch.nn.Module, inners: list[dict[str, Any]])
+     layer._exl3_fused_concurrency = concurrency
+     layer._exl3_k = int(layer._exl3_bits)
+ 
++    # All MoE layers execute serially, so a single persistent arena per device
++    # and shape is sufficient. Keeping allocation out of apply is required for
++    # CUDA graph capture and makes the candidate's memory cost explicit.
++    layer._exl3_decode_coop_scratch = None
++    if (
++        decode_coop_enabled()
++        and int(layer._exl3_bits) == 4
++        and hidden == 4096
++        and intermediate == 1024
++        and hasattr(exllamav3_ext, "exl3_decode_moe_k4")
++    ):
++        max_tokens = decode_coop_max_tokens()
++        max_routes = max_tokens * 8
++        coop_key = (str(device), hidden, intermediate, max_routes)
++        scratch = _DECODE_COOP_SCRATCH_CACHE.get(coop_key)
++        if scratch is None:
++            scratch = {
++                "had_gate": torch.empty(
++                    (max_routes, hidden), dtype=torch.float16, device=device
++                ),
++                "had_up": torch.empty(
++                    (max_routes, hidden), dtype=torch.float16, device=device
++                ),
++                "gate": torch.empty(
++                    (max_routes, intermediate), dtype=torch.float16, device=device
++                ),
++                "up": torch.empty(
++                    (max_routes, intermediate), dtype=torch.float16, device=device
++                ),
++                "had_down": torch.empty(
++                    (max_routes, intermediate), dtype=torch.float16, device=device
++                ),
++                "down": torch.empty(
++                    (max_routes, hidden), dtype=torch.float16, device=device
++                ),
++            }
++            _DECODE_COOP_SCRATCH_CACHE[coop_key] = scratch
++        layer._exl3_decode_coop_scratch = scratch
++
++        global _exl3_decode_coop_logged
++        if not _exl3_decode_coop_logged:
++            scratch_mib = sum(
++                tensor.numel() * tensor.element_size()
++                for tensor in scratch.values()
++            ) / (1024 * 1024)
++            logger.warning(
++                "EXL3 cooperative decode candidate enabled: K4 H4096 I1024 "
++                "max_tokens=%d scratch=%.2f MiB",
++                max_tokens,
++                scratch_mib,
++            )
++            _exl3_decode_coop_logged = True
++
+ 
+ def _exl3_moe_launch(
+     fn: Any,
+@@ -1325,6 +1391,44 @@ def apply_exl3_fused_moe(
+     layer._exl3_last_fat_reason = "no_fat_experts"
+ 
+     if tokens <= cap:
++        coop_scratch = getattr(layer, "_exl3_decode_coop_scratch", None)
++        if (
++            coop_scratch is not None
++            and tokens <= decode_coop_max_tokens()
++            and k == 4
++            and hidden == 4096
++            and int(temps[2].shape[2]) == 1024
++        ):
++            # expert_count is [count(e0), ..., count(eN-1), sentinel=0].
++            # Exclusive offsets need no host read: cumsum(count)-count.
++            expert_offsets = torch.cumsum(expert_count, dim=0).sub(expert_count)
++            expert_sorted = local[order].to(dtype=torch.int32).contiguous()
++            exllamav3_ext.exl3_decode_moe_k4(
++                xh,
++                out,
++                expert_offsets,
++                expert_sorted,
++                token_sorted,
++                weight_sorted,
++                coop_scratch["had_gate"],
++                coop_scratch["had_up"],
++                coop_scratch["gate"],
++                coop_scratch["up"],
++                coop_scratch["had_down"],
++                coop_scratch["down"],
++                ptrs["gate_trellis"],
++                ptrs["gate_suh"],
++                ptrs["gate_svh"],
++                ptrs["up_trellis"],
++                ptrs["up_suh"],
++                ptrs["up_svh"],
++                ptrs["down_trellis"],
++                ptrs["down_suh"],
++                ptrs["down_svh"],
++                float(limit),
++            )
++            layer._exl3_last_apply = "decode_coop_k4"
++            return out
+         _exl3_moe_launch(
+             fn, xh, out, expert_count, token_sorted, weight_sorted,
+             temps, ptrs, k, limit, n_active_host,
+diff --git a/overlay/exl3_decode_moe.cu b/overlay/exl3_decode_moe.cu
+new file mode 100644
+index 0000000..f09fbbf
+--- /dev/null
++++ b/overlay/exl3_decode_moe.cu
+@@ -0,0 +1,454 @@
++// SPDX-License-Identifier: Apache-2.0
++//
++// Cooperative GLM-5.3 EXL3 decode experiment for the exact two-Spark shape:
++// hidden=4096, rank-local expert intermediate=1024, K4 MCG, top-8.
++//
++// The register-streaming trellis decode and MMA arrangement are derived from
++// ExLlamaV3 and the cooperative p2b prototype in vcruz305/vllm-exl3. This
++// implementation changes the execution contract substantially: expert-sorted
++// multi-row tiles, persistent caller-owned scratch, FP32 routed accumulation,
++// GLM clamp semantics, and one CUDA-graph-safe launch for the whole layer.
++
++#include <algorithm>
++#include <cstdint>
++
++#include <ATen/cuda/CUDAContext.h>
++#include <c10/cuda/CUDAGuard.h>
++#include <cooperative_groups.h>
++#include <cuda_fp16.h>
++#include <torch/extension.h>
++
++#include "exl3_decode_moe.cuh"
++#include "../util.h"
++#include "../util.cuh"
++#include "../ptx.cuh"
++#include "exl3_dq.cuh"
++#include "hadamard_inner.cuh"
++
++namespace cg = cooperative_groups;
++
++namespace {
++
++constexpr int kHidden = 4096;
++constexpr int kIntermediate = 1024;
++constexpr int kRowsPerTile = 8;
++constexpr int kThreads = 512;
++constexpr int kWarps = 16;
++constexpr int kCols = 32;
++constexpr int kBits = 4;
++constexpr float kHadScale = 0.088388347648f;
++
++// The following three helpers retain ExLlamaV3's half-accumulating K4 decode
++// math. Keeping the bit extraction and MMA arrangement unchanged makes the
++// experiment about scheduling rather than a new quantization implementation.
++__device__ __forceinline__ void mma_ab_h(
++    const FragB& a01, const FragB& a23, const FragB& b, FragC_h& c) {
++    const uint32_t* a0 = reinterpret_cast<const uint32_t*>(&a01);
++    const uint32_t* a1 = reinterpret_cast<const uint32_t*>(&a23);
++    const uint32_t* bb = reinterpret_cast<const uint32_t*>(&b);
++    uint32_t* cc = reinterpret_cast<uint32_t*>(&c);
++    asm(
++        "mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 "
++        "{%0,%1}, {%2,%3,%4,%5}, {%6,%7}, {%0,%1};\n"
++        : "+r"(cc[0]), "+r"(cc[1])
++        : "r"(a0[0]), "r"(a0[1]), "r"(a1[0]), "r"(a1[1]),
++          "r"(bb[0]), "r"(bb[1]));
++}
++
++__device__ __forceinline__ void decode8_mcg(
++    uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3,
++    uint32_t w4, uint32_t w5, uint32_t w6, uint32_t w7,
++    FragB& f0, FragB& f1) {
++    f0[0] = decode_3inst_2<1>(w0, w1);
++    f0[1] = decode_3inst_2<1>(w2, w3);
++    f1[0] = decode_3inst_2<1>(w4, w5);
++    f1[1] = decode_3inst_2<1>(w6, w7);
++}
++
++__device__ __forceinline__ void dq8_k4_mcg(
++    uint32_t a, uint32_t b, FragB& f0, FragB& f1) {
++    uint32_t s, w0, w1, w2, w3, w4, w5, w6, w7;
++    FSHF_IMM(s, b, a, 20);
++    w7 = b & 0xffff;
++    BFE16_IMM(w6, b, 4);
++    BFE16_IMM(w5, b, 8);
++    BFE16_IMM(w4, b, 12);
++    BFE16_IMM(w3, b, 16);
++    w2 = s & 0xffff;
++    BFE16_IMM(w1, s, 4);
++    BFE16_IMM(w0, s, 8);
++    decode8_mcg(w0, w1, w2, w3, w4, w5, w6, w7, f0, f1);
++}
++
++// One block computes 32 output columns for as many as eight rows of one
++// expert. Sixteen warps split K; weights are fetched once per warp and reused
++// across all live rows in the tile.
++__device__ __forceinline__ void run_k4_tile(
++    const uint16_t* __restrict__ trellis,
++    const half* __restrict__ input,
++    half* __restrict__ output,
++    int rows,
++    int size_k,
++    int size_n,
++    int group,
++    float (*sh_red)[kRowsPerTile][kCols]) {
++    constexpr int kNtilesPerWarp = 2;
++    constexpr int kPrefetch = 4;
++    constexpr int kFold = 4;
++    constexpr int kWords = 8 * kBits;
++
++    const int warp = threadIdx.x / 32;
++    const int lane = threadIdx.x & 31;
++    const int ntiles = size_n / 16;
++    const int kslices = size_k / 16;
++    const int chunk = (kslices + kWarps - 1) / kWarps;
++    const int ks0 = warp * chunk;
++    const int myn = max(0, min(chunk, kslices - ks0));
++    const size_t slice_stride = static_cast<size_t>(ntiles) * kWords;
++    const uint32_t* b32 = reinterpret_cast<const uint32_t*>(trellis);
++    const uint32_t* bp = b32 + static_cast<size_t>(ks0) * slice_stride
++        + group * kNtilesPerWarp * kWords + lane;
++    const half2* a2 = reinterpret_cast<const half2*>(input);
++    const half2 hzero = __half2half2(__ushort_as_half(0));
++
++    const int row = lane >> 2;
++    const bool row_ok = row < rows;
++    const size_t a_row = static_cast<size_t>(row) * (size_k / 2);
++
++    auto load_b = [&](int i, int n) -> uint32_t {
++        return __ldcs(bp + static_cast<size_t>(i) * slice_stride + n * 32);
++    };
++
++    uint32_t pref[kPrefetch][kNtilesPerWarp] = {};
++#pragma unroll
++    for (int d = 0; d < kPrefetch; ++d) {
++        if (d < myn) {
++#pragma unroll
++            for (int n = 0; n < kNtilesPerWarp; ++n) pref[d][n] = load_b(d, n);
++        }
++    }
++
++    FragC_h frag[kNtilesPerWarp][2] = {};
++    float2 accum[kNtilesPerWarp][2] = {};
++    for (int ib = 0; ib < myn; ib += kPrefetch) {
++#pragma unroll
++        for (int d = 0; d < kPrefetch; ++d) {
++            const int i = ib + d;
++            if (i >= myn) break;
++            uint32_t words[kNtilesPerWarp];
++#pragma unroll
++            for (int n = 0; n < kNtilesPerWarp; ++n) words[n] = pref[d][n];
++            if (i + kPrefetch < myn) {
++#pragma unroll
++                for (int n = 0; n < kNtilesPerWarp; ++n)
++                    pref[d][n] = load_b(i + kPrefetch, n);
++            }
++
++            const size_t a_col = static_cast<size_t>(ks0 + i) * 8 + (lane & 3);
++            FragB a01, a23;
++            a01[0] = row_ok ? a2[a_row + a_col] : hzero;
++            a23[0] = row_ok ? a2[a_row + a_col + 4] : hzero;
++            a01[1] = hzero;
++            a23[1] = hzero;
++#pragma unroll
++            for (int n = 0; n < kNtilesPerWarp; ++n) {
++                FragB f0, f1;
++                const uint32_t aw = __shfl_sync(
++                    0xffffffffu, words[n], (lane + 31) & 31);
++                dq8_k4_mcg(aw, words[n], f0, f1);
++                mma_ab_h(a01, a23, f0, frag[n][0]);
++                mma_ab_h(a01, a23, f1, frag[n][1]);
++            }
++            if ((d + 1) % kFold == 0 || i + 1 == myn) {
++#pragma unroll
++                for (int n = 0; n < kNtilesPerWarp; ++n) {
++#pragma unroll
++                    for (int f = 0; f < 2; ++f) {
++                        accum[n][f].x += __low2float(frag[n][f][0]);
++                        accum[n][f].y += __high2float(frag[n][f][0]);
++                        frag[n][f][0] = hzero;
++                    }
++                }
++            }
++        }
++    }
++
++    if (row_ok) {
++        const int c0 = 2 * (lane & 3);
++#pragma unroll
++        for (int n = 0; n < kNtilesPerWarp; ++n) {
++#pragma unroll
++            for (int f = 0; f < 2; ++f) {
++                const int col = n * 16 + f * 8 + c0;
++                sh_red[warp][row][col] = accum[n][f].x;
++                sh_red[warp][row][col + 1] = accum[n][f].y;
++            }
++        }
++    }
++    __syncthreads();
++
++    for (int idx = threadIdx.x; idx < rows * kCols; idx += kThreads) {
++        const int r = idx / kCols;
++        const int col_local = idx % kCols;
++        float sum = 0.0f;
++#pragma unroll
++        for (int w = 0; w < kWarps; ++w) sum += sh_red[w][r][col_local];
++        output[static_cast<size_t>(r) * size_n + group * kCols + col_local]
++            = __float2half_rn(sum);
++    }
++    __syncthreads();
++}
++
++__global__ __launch_bounds__(kThreads)
++void decode_moe_k4_kernel(
++    const half* __restrict__ x,
++    float* __restrict__ output,
++    const int64_t* __restrict__ offsets,
++    const int32_t* __restrict__ expert_sorted,
++    const int64_t* __restrict__ token_sorted,
++    const half* __restrict__ weight_sorted,
++    half* __restrict__ had_gate,
++    half* __restrict__ had_up,
++    half* __restrict__ gate,
++    half* __restrict__ up,
++    half* __restrict__ had_down,
++    half* __restrict__ down,
++    const int64_t* __restrict__ gt,
++    const int64_t* __restrict__ gu,
++    const int64_t* __restrict__ gv,
++    const int64_t* __restrict__ ut,
++    const int64_t* __restrict__ uu,
++    const int64_t* __restrict__ uv,
++    const int64_t* __restrict__ dt,
++    const int64_t* __restrict__ du,
++    const int64_t* __restrict__ dv,
++    int tokens,
++    int routes,
++    int experts,
++    float act_limit) {
++    cg::grid_group grid = cg::this_grid();
++    const int tid = blockIdx.x * blockDim.x + threadIdx.x;
++    const int threads = gridDim.x * blockDim.x;
++    const int warp_global = tid / 32;
++    const int warps_grid = threads / 32;
++    const int lane = threadIdx.x & 31;
++    __shared__ float sh_red[kWarps][kRowsPerTile][kCols];
++
++    for (int i = tid; i < tokens * kHidden; i += threads) output[i] = 0.0f;
++    grid.sync();
++
++    // Input Hadamard and per-expert input scales for every sorted route.
++    for (int item = warp_global; item < routes * (kHidden / 128);
++         item += warps_grid) {
++        const int route = item / (kHidden / 128);
++        const int seg = item % (kHidden / 128);
++        const int expert = expert_sorted[route];
++        const int token = static_cast<int>(token_sorted[route]);
++        const half* gsu = reinterpret_cast<const half*>(gu[expert]);
++        const half* usu = reinterpret_cast<const half*>(uu[expert]);
++        had_hf_r_128_inner<true, false>(
++            x + token * kHidden + seg * 128,
++            had_gate + route * kHidden + seg * 128,
++            gsu + seg * 128, kHadScale);
++        had_hf_r_128_inner<true, false>(
++            x + token * kHidden + seg * 128,
++            had_up + route * kHidden + seg * 128,
++            usu + seg * 128, kHadScale);
++    }
++    grid.sync();
++
++    const int row_tiles = (tokens + kRowsPerTile - 1) / kRowsPerTile;
++    const int gu_groups = kIntermediate / kCols;
++    const int gu_items = experts * row_tiles * 2 * gu_groups;
++    for (int item = blockIdx.x; item < gu_items; item += gridDim.x) {
++        int q = item;
++        const int group = q % gu_groups; q /= gu_groups;
++        const int which = q & 1; q >>= 1;
++        const int tile = q % row_tiles;
++        const int expert = q / row_tiles;
++        const int start = static_cast<int>(offsets[expert]);
++        const int count = static_cast<int>(offsets[expert + 1] - offsets[expert]);
++        const int tile_start = tile * kRowsPerTile;
++        const int rows = min(kRowsPerTile, count - tile_start);
++        if (rows > 0) {
++            const int route = start + tile_start;
++            const int64_t* tp = which ? ut : gt;
++            run_k4_tile(
++                reinterpret_cast<const uint16_t*>(tp[expert]),
++                (which ? had_up : had_gate) + route * kHidden,
++                (which ? up : gate) + route * kIntermediate,
++                rows, kHidden, kIntermediate, group, sh_red);
++        }
++    }
++    grid.sync();
++
++    // Fused output Hadamards, exact GLM clamp/SwiGLU, and down-input Hadamard.
++    for (int item = warp_global; item < routes * (kIntermediate / 128);
++         item += warps_grid) {
++        const int route = item / (kIntermediate / 128);
++        const int seg = item % (kIntermediate / 128);
++        const int expert = expert_sorted[route];
++        const half* gsv = reinterpret_cast<const half*>(gv[expert]);
++        const half* usv = reinterpret_cast<const half*>(uv[expert]);
++        const half* dsu = reinterpret_cast<const half*>(du[expert]);
++        had_hf_r_128_guad_inner(
++            gate + route * kIntermediate + seg * 128,
++            up + route * kIntermediate + seg * 128,
++            had_down + route * kIntermediate + seg * 128,
++            gsv + seg * 128, usv + seg * 128, dsu + seg * 128,
++            kHadScale, act_limit, 0);
++    }
++    grid.sync();
++
++    const int down_groups = kHidden / kCols;
++    const int down_items = experts * row_tiles * down_groups;
++    for (int item = blockIdx.x; item < down_items; item += gridDim.x) {
++        int q = item;
++        const int group = q % down_groups; q /= down_groups;
++        const int tile = q % row_tiles;
++        const int expert = q / row_tiles;
++        const int start = static_cast<int>(offsets[expert]);
++        const int count = static_cast<int>(offsets[expert + 1] - offsets[expert]);
++        const int tile_start = tile * kRowsPerTile;
++        const int rows = min(kRowsPerTile, count - tile_start);
++        if (rows > 0) {
++            const int route = start + tile_start;
++            run_k4_tile(
++                reinterpret_cast<const uint16_t*>(dt[expert]),
++                had_down + route * kIntermediate,
++                down + route * kHidden,
++                rows, kIntermediate, kHidden, group, sh_red);
++        }
++    }
++    grid.sync();
++
++    // Output Hadamard, routing weight and FP32 atomic combination. This is the
++    // same accumulation precision as the production ExLlamaV3 path.
++    for (int item = warp_global; item < routes * (kHidden / 128);
++         item += warps_grid) {
++        const int route = item / (kHidden / 128);
++        const int seg = item % (kHidden / 128);
++        const int expert = expert_sorted[route];
++        const int token = static_cast<int>(token_sorted[route]);
++        const half* dsv = reinterpret_cast<const half*>(dv[expert]);
++        const float route_scale = kHadScale * __half2float(weight_sorted[route]);
++        had_hf_r_128_d_inner(
++            down + route * kHidden + seg * 128,
++            output + token * kHidden + seg * 128,
++            dsv + seg * 128, route_scale);
++    }
++}
++
++void check_cuda(const at::Tensor& t, at::ScalarType dtype, const char* name) {
++    TORCH_CHECK(t.is_cuda(), name, " must be CUDA");
++    TORCH_CHECK(t.scalar_type() == dtype, name, " has wrong dtype");
++    TORCH_CHECK(t.is_contiguous(), name, " must be contiguous");
++}
++
++}  // namespace
++
++void exl3_decode_moe_k4(
++    const at::Tensor& hidden_state,
++    const at::Tensor& output_state,
++    const at::Tensor& expert_offsets,
++    const at::Tensor& expert_sorted,
++    const at::Tensor& token_sorted,
++    const at::Tensor& weight_sorted,
++    const at::Tensor& had_gate,
++    const at::Tensor& had_up,
++    const at::Tensor& gate,
++    const at::Tensor& up,
++    const at::Tensor& had_down,
++    const at::Tensor& down,
++    const at::Tensor& gate_trellis,
++    const at::Tensor& gate_suh,
++    const at::Tensor& gate_svh,
++    const at::Tensor& up_trellis,
++    const at::Tensor& up_suh,
++    const at::Tensor& up_svh,
++    const at::Tensor& down_trellis,
++    const at::Tensor& down_suh,
++    const at::Tensor& down_svh,
++    double act_limit) {
++    const at::cuda::OptionalCUDAGuard guard(hidden_state.device());
++    check_cuda(hidden_state, at::kHalf, "hidden_state");
++    check_cuda(output_state, at::kFloat, "output_state");
++    check_cuda(expert_offsets, at::kLong, "expert_offsets");
++    check_cuda(expert_sorted, at::kInt, "expert_sorted");
++    check_cuda(token_sorted, at::kLong, "token_sorted");
++    check_cuda(weight_sorted, at::kHalf, "weight_sorted");
++    check_cuda(had_gate, at::kHalf, "had_gate");
++    check_cuda(had_up, at::kHalf, "had_up");
++    check_cuda(gate, at::kHalf, "gate");
++    check_cuda(up, at::kHalf, "up");
++    check_cuda(had_down, at::kHalf, "had_down");
++    check_cuda(down, at::kHalf, "down");
++    TORCH_CHECK(hidden_state.dim() == 2 && hidden_state.size(1) == kHidden,
++                "decode kernel requires [tokens,4096]");
++    TORCH_CHECK(output_state.sizes() == hidden_state.sizes(),
++                "output shape mismatch");
++    const int tokens = static_cast<int>(hidden_state.size(0));
++    const int routes = static_cast<int>(token_sorted.numel());
++    const int experts = static_cast<int>(expert_offsets.numel() - 1);
++    TORCH_CHECK(tokens >= 1 && tokens <= 32, "decode kernel supports 1..32 tokens");
++    TORCH_CHECK(routes == expert_sorted.numel() && routes == weight_sorted.numel(),
++                "sorted routing tensors disagree");
++    TORCH_CHECK(routes <= had_gate.size(0) && routes <= had_up.size(0)
++                && routes <= gate.size(0) && routes <= up.size(0)
++                && routes <= had_down.size(0) && routes <= down.size(0),
++                "persistent scratch capacity is too small");
++    TORCH_CHECK(had_gate.size(1) == kHidden && had_up.size(1) == kHidden
++                && down.size(1) == kHidden, "hidden scratch shape mismatch");
++    TORCH_CHECK(gate.size(1) == kIntermediate && up.size(1) == kIntermediate
++                && had_down.size(1) == kIntermediate,
++                "intermediate scratch shape mismatch");
++
++    int device = 0;
++    int sms = 0;
++    int resident = 0;
++    cudaGetDevice(&device);
++    cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, device);
++    constexpr int dynamic_smem = kWarps * 128 * sizeof(float);
++    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
++        &resident, decode_moe_k4_kernel, kThreads, dynamic_smem);
++    TORCH_CHECK(resident > 0 && sms > 0, "cooperative decode kernel has zero occupancy");
++    const int grid_size = resident * sms;
++    auto stream = at::cuda::getCurrentCUDAStream().stream();
++
++    const half* x = reinterpret_cast<const half*>(hidden_state.data_ptr<c10::Half>());
++    float* out = output_state.data_ptr<float>();
++    const int64_t* offsets = expert_offsets.data_ptr<int64_t>();
++    const int32_t* experts_sorted = expert_sorted.data_ptr<int32_t>();
++    const int64_t* tokens_sorted = token_sorted.data_ptr<int64_t>();
++    const half* weights = reinterpret_cast<const half*>(weight_sorted.data_ptr<c10::Half>());
++    half* hg = reinterpret_cast<half*>(had_gate.data_ptr<c10::Half>());
++    half* hu = reinterpret_cast<half*>(had_up.data_ptr<c10::Half>());
++    half* g = reinterpret_cast<half*>(gate.data_ptr<c10::Half>());
++    half* u = reinterpret_cast<half*>(up.data_ptr<c10::Half>());
++    half* hd = reinterpret_cast<half*>(had_down.data_ptr<c10::Half>());
++    half* d = reinterpret_cast<half*>(down.data_ptr<c10::Half>());
++    const int64_t* gt = gate_trellis.data_ptr<int64_t>();
++    const int64_t* gu = gate_suh.data_ptr<int64_t>();
++    const int64_t* gv = gate_svh.data_ptr<int64_t>();
++    const int64_t* ut = up_trellis.data_ptr<int64_t>();
++    const int64_t* uu = up_suh.data_ptr<int64_t>();
++    const int64_t* uv = up_svh.data_ptr<int64_t>();
++    const int64_t* dt = down_trellis.data_ptr<int64_t>();
++    const int64_t* du = down_suh.data_ptr<int64_t>();
++    const int64_t* dv = down_svh.data_ptr<int64_t>();
++    int launch_tokens = tokens;
++    int launch_routes = routes;
++    int launch_experts = experts;
++    float limit = static_cast<float>(act_limit);
++
++    void* args[] = {
++        &x, &out, &offsets, &experts_sorted, &tokens_sorted, &weights,
++        &hg, &hu, &g, &u, &hd, &d,
++        &gt, &gu, &gv, &ut, &uu, &uv, &dt, &du, &dv,
++        &launch_tokens, &launch_routes, &launch_experts, &limit,
++    };
++    cuda_check(cudaLaunchCooperativeKernel(
++        reinterpret_cast<void*>(decode_moe_k4_kernel), dim3(grid_size),
++        dim3(kThreads), args, dynamic_smem, stream));
++    C10_CUDA_KERNEL_LAUNCH_CHECK();
++}
+diff --git a/overlay/exl3_decode_moe.cuh b/overlay/exl3_decode_moe.cuh
+new file mode 100644
+index 0000000..745c448
+--- /dev/null
++++ b/overlay/exl3_decode_moe.cuh
+@@ -0,0 +1,29 @@
++#pragma once
++
++#include <torch/extension.h>
++
++// K4-only, TP2-local GLM-5.3 decode experiment. The output tensor is written
++// in-place so the Python caller can retain its existing FP32 MoE contract.
++void exl3_decode_moe_k4(
++    const at::Tensor& hidden_state,
++    const at::Tensor& output_state,
++    const at::Tensor& expert_offsets,
++    const at::Tensor& expert_sorted,
++    const at::Tensor& token_sorted,
++    const at::Tensor& weight_sorted,
++    const at::Tensor& had_gate,
++    const at::Tensor& had_up,
++    const at::Tensor& gate,
++    const at::Tensor& up,
++    const at::Tensor& had_down,
++    const at::Tensor& down,
++    const at::Tensor& gate_trellis,
++    const at::Tensor& gate_suh,
++    const at::Tensor& gate_svh,
++    const at::Tensor& up_trellis,
++    const at::Tensor& up_suh,
++    const at::Tensor& up_svh,
++    const at::Tensor& down_trellis,
++    const at::Tensor& down_suh,
++    const at::Tensor& down_svh,
++    double act_limit);
+diff --git a/overlay/patch_exl3_fat_kernel.py b/overlay/patch_exl3_fat_kernel.py
+index 00a8bf4..da632f8 100755
+--- a/overlay/patch_exl3_fat_kernel.py
++++ b/overlay/patch_exl3_fat_kernel.py
+@@ -23,7 +23,12 @@ def main() -> int:
+     if not quant.is_dir() or not bindings.is_file():
+         raise RuntimeError(f"invalid extension root: {ext_root}")
+ 
+-    for name in ("exl3_fat_gemm.cu", "exl3_fat_gemm.cuh"):
++    for name in (
++        "exl3_fat_gemm.cu",
++        "exl3_fat_gemm.cuh",
++        "exl3_decode_moe.cu",
++        "exl3_decode_moe.cuh",
++    ):
+         source = source_dir / name
+         if not source.is_file():
+             raise RuntimeError(f"missing additive source: {source}")
+@@ -33,7 +38,9 @@ def main() -> int:
+     text = replace_once(
+         text,
+         '#include "quant/exl3_moe.cuh"',
+-        '#include "quant/exl3_moe.cuh"\n#include "quant/exl3_fat_gemm.cuh"',
++        '#include "quant/exl3_moe.cuh"\n'
++        '#include "quant/exl3_fat_gemm.cuh"\n'
++        '#include "quant/exl3_decode_moe.cuh"',
+     )
+     text = replace_once(
+         text,
+@@ -45,7 +52,8 @@ def main() -> int:
+         '    m.def("exl3_fat_gemm_pair_m64", &exl3_fat_gemm_pair_m64, "exl3_fat_gemm_pair_m64");\n'
+         '    m.def("exl3_fat_swiglu_had", &exl3_fat_swiglu_had, "exl3_fat_swiglu_had");\n'
+         '    m.def("exl3_fat_gemm_scatter", &exl3_fat_gemm_scatter, "exl3_fat_gemm_scatter");\n'
+-        '    m.def("exl3_fat_gemm_scatter_m64", &exl3_fat_gemm_scatter_m64, "exl3_fat_gemm_scatter_m64");',
++        '    m.def("exl3_fat_gemm_scatter_m64", &exl3_fat_gemm_scatter_m64, "exl3_fat_gemm_scatter_m64");\n'
++        '    m.def("exl3_decode_moe_k4", &exl3_decode_moe_k4, "exl3_decode_moe_k4");',
+     )
+     bindings.write_text(text)
+     return 0
+diff --git a/scripts/tinyglm-gate.sh b/scripts/tinyglm-gate.sh
+index 59fb6bb..030c417 100755
+--- a/scripts/tinyglm-gate.sh
++++ b/scripts/tinyglm-gate.sh
+@@ -13,6 +13,7 @@ static_gate() {
+     python3 -m py_compile \
+         overlay/exl3.py \
+         scripts/make_tinyglm.py \
++        benchmarks/exl3_decode_moe_ab.py \
+         benchmarks/tinyglm_smoke.py \
+         benchmarks/tinyglm_gate.py
+     bash -n start.sh scripts/tinyglm.sh scripts/tinyglm-gate.sh
+diff --git a/start.sh b/start.sh
+index f03535f..bf84075 100755
+--- a/start.sh
++++ b/start.sh
+@@ -78,6 +78,7 @@ _cli_model_cache_name="${MODEL_CACHE_NAME-}"
+ _cli_model_fallback_cache_name="${MODEL_FALLBACK_CACHE_NAME-}"
+ _cli_model_revision="${MODEL_REVISION-}"
+ _cli_served_model_name="${SERVED_MODEL_NAME-}"
++_cli_max_model_len="${MAX_MODEL_LEN-}"
+ _cli_util="${GPU_MEM_UTIL-}"
+ _cli_lm="${LANGUAGE_MODEL_ONLY-}"
+ _cli_max_num_seqs="${MAX_NUM_SEQS-}"
+@@ -123,6 +124,7 @@ set +a
+ [ -n "${_cli_model_fallback_cache_name}" ] && MODEL_FALLBACK_CACHE_NAME="$_cli_model_fallback_cache_name"
+ [ -n "${_cli_model_revision}" ] && MODEL_REVISION="$_cli_model_revision"
+ [ -n "${_cli_served_model_name}" ] && SERVED_MODEL_NAME="$_cli_served_model_name"
++[ -n "${_cli_max_model_len}" ] && MAX_MODEL_LEN="$_cli_max_model_len"
+ [ -n "${_cli_util}" ] && GPU_MEM_UTIL="$_cli_util"
+ [ -n "${_cli_lm}" ] && LANGUAGE_MODEL_ONLY="$_cli_lm"
+ [ -n "${_cli_max_num_seqs}" ] && MAX_NUM_SEQS="$_cli_max_num_seqs"
+@@ -1299,7 +1301,7 @@ launch_cluster() {
+              KV_CACHE_DTYPE MTP_TOKENS SPEC_METHOD DFLASH_TOKENS DFLASH_MODEL_DIR \
+              DFLASH_DRAFT_TP \
+              LANGUAGE_MODEL_ONLY SKIP_MM_PROFILING \
+-             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL EXL3_FAT_TILE_M EXL3_FAT_PAIR EXL3_FAT_FUSED_ACT MODEL_DIR EXTRA_ARGS \
++             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL EXL3_FAT_TILE_M EXL3_FAT_PAIR EXL3_FAT_FUSED_ACT EXL3_DECODE_COOP_K4 EXL3_DECODE_COOP_MAX_TOKENS MODEL_DIR EXTRA_ARGS \
+              SPARKGLM_TINY_DUMMY \
+              ABLIT ABLIT_METHOD ABLIT_DIRECTION ABLIT_LAYERS ABLIT_ALPHA ABLIT_INCLUDE_MTP; do
+         serve_env+=" -e $v='${!v:-}'"
+@@ -1398,6 +1400,8 @@ launch_cluster() {
+         -e EXL3_FAT_TILE_M="$EXL3_FAT_TILE_M" \
+         -e EXL3_FAT_PAIR="$EXL3_FAT_PAIR" \
+         -e EXL3_FAT_FUSED_ACT="$EXL3_FAT_FUSED_ACT" \
++        -e EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}" \
++        -e EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}" \
+         -e SPARKGLM_TINY_DUMMY="$SPARKGLM_TINY_DUMMY" \
+         -e ABLIT="$ABLIT" \
+         -e ABLIT_METHOD="$ABLIT_METHOD" \

@@ -1,0 +1,53 @@
+# Fast qualification image: combine the untouched latest-Mia control with the
+# already qualified native artifacts, then apply only the accepted Python
+# deltas. The canonical source patches live under patches/vllm/.
+ARG CONTROL_IMAGE=lloom-glm53-mia-eb0469:exl3
+ARG ACCEPTED_IMAGE=sparkglm-vllm:exl3-m64-candidate-20260903a
+
+FROM ${ACCEPTED_IMAGE} AS accepted
+FROM ${CONTROL_IMAGE}
+
+COPY --from=accepted \
+  /usr/local/lib/python3.12/dist-packages/vllm/_C_stable_libtorch.abi3.so \
+  /usr/local/lib/python3.12/dist-packages/vllm/_C_stable_libtorch.abi3.so
+COPY --from=accepted \
+  /usr/local/lib/python3.12/dist-packages/vllm/third_party/deep_gemm/ \
+  /usr/local/lib/python3.12/dist-packages/vllm/third_party/deep_gemm/
+COPY --from=accepted \
+  /usr/local/lib/python3.12/dist-packages/exllamav3_ext.cpython-312-aarch64-linux-gnu.so \
+  /usr/local/lib/python3.12/dist-packages/exllamav3_ext.cpython-312-aarch64-linux-gnu.so
+
+COPY patches/runtime/ /opt/sparkglm/runtime-patches/
+RUN set -eux; \
+    cd /usr/local/lib/python3.12/dist-packages; \
+    patch -p1 < /opt/sparkglm/runtime-patches/packed-rmsnorm.patch; \
+    patch -p1 < /opt/sparkglm/runtime-patches/native-fp16-sparse-selector.patch
+
+COPY overlay/exl3.py \
+  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
+COPY tests/test_exl3_overlay.py /opt/glm53/test_exl3_overlay.py
+
+RUN python3 - <<'PY'
+import torch
+import exllamav3_ext as ext
+
+required = (
+    "exl3_fat_gemm_pair",
+    "exl3_fat_swiglu_had",
+    "exl3_fat_gemm_m64",
+    "exl3_fat_gemm_pair_m64",
+    "exl3_fat_gemm_scatter_m64",
+)
+missing = [name for name in required if not hasattr(ext, name)]
+assert not missing, missing
+print("SparkGLM accepted native artifacts present")
+PY
+
+ARG SPARKGLM_RECIPE_REVISION=unknown
+LABEL ai.enntity.sparkglm.mia-base="eb0469fbb2b49fd7c025f594a3339a121e58f7a9" \
+      ai.enntity.sparkglm.recipe-revision="${SPARKGLM_RECIPE_REVISION}" \
+      ai.enntity.sparkglm.artifact-source="accepted-source-build" \
+      ai.enntity.sparkglm.fp16-selector="1" \
+      ai.enntity.sparkglm.exl3-fat-pair="1" \
+      ai.enntity.sparkglm.exl3-fat-fused-act="1" \
+      ai.enntity.sparkglm.exl3-fat-tile-m="64"

@@ -1,0 +1,355 @@
+From e9c172ed191dadd18957f77d419950d937b330cf Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:44:35 -0700
+Subject: [PATCH 08/21] fix(glm): enforce real C4 serving capacity
+
+Reject undersized manual KV pools and require a staggered 16K residency check before declaring the four-stream appliance ready.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .env.example                  |   3 +
+ scripts/c4-capacity-warmup.sh | 131 ++++++++++++++++++++++++++++++++++
+ start.sh                      |  48 +++++++++++++
+ tests/test_image_recipe.py    |  12 ++++
+ tests/test_numeric_config.py  |  37 ++++++++++
+ 5 files changed, 231 insertions(+)
+ create mode 100755 scripts/c4-capacity-warmup.sh
+
+diff --git a/.env.example b/.env.example
+index 1b9dabb..68a689a 100644
+--- a/.env.example
++++ b/.env.example
+@@ -150,6 +150,9 @@ ABLIT_INCLUDE_MTP=1
+ # After /health, burn DFlash2 BLOCK / sampler / kpool shapes so TP=2 does
+ # not JIT mid-collective. 0 = skip (nonfatal either way).
+ GLM53_BOOT_SHAPE_WARMUP=1
++# Warm and prove the actual four-stream 16K appliance shape. Unlike the short
++# shape sweep, this is fatal when fewer than four requests become resident.
++GLM53_BOOT_LONG_C4=1
+ # GLM53_WARMUP_REQ_TIMEOUT=240
+ # Suppress client stop strings until </think> (thinking-on default). 0 = off.
+ GLM53_SUPPRESS_STOPS_IN_REASONING=1
+diff --git a/scripts/c4-capacity-warmup.sh b/scripts/c4-capacity-warmup.sh
+new file mode 100755
+index 0000000..ff2c7c3
+--- /dev/null
++++ b/scripts/c4-capacity-warmup.sh
+@@ -0,0 +1,131 @@
++#!/usr/bin/env bash
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++# Exercise the real 16K staggered C4 shape and prove that four requests can be
++# resident together. A short-shape warmup cannot detect an undersized hybrid
++# KDA/MLA state pool.
++set -u
++
++BASE="${1:-http://127.0.0.1:8888}"
++MODEL="${2:-GLM-5.3-Flash-EXL3}"
++CURL_BIN="${WARMUP_CURL:-curl}"
++REQ_TIMEOUT="${GLM53_WARMUP_REQ_TIMEOUT:-240}"
++FACTS="${GLM53_C4_WARMUP_FACTS:-1333}"
++NONCE="$$-$(date +%s)"
++
++AUTH_ARGS=()
++if [ -n "${GLM53_WARMUP_BEARER:-}" ]; then
++    AUTH_ARGS=(-H "Authorization: Bearer ${GLM53_WARMUP_BEARER}")
++elif [ -n "${VLLM_API_KEY:-}" ]; then
++    AUTH_ARGS=(-H "Authorization: Bearer ${VLLM_API_KEY}")
++fi
++
++tmpdir="$(mktemp -d)"
++trap 'rm -rf "$tmpdir"' EXIT
++
++make_prompt() {
++    local lane="$1" fact
++    printf 'Capacity warmup %s lane %s. Read the unique reference context.\\n' \
++        "$NONCE" "$lane"
++    for ((fact = 0; fact < FACTS; fact++)); do
++        printf 'context-%s-%s: alpha beta gamma delta\\n' "$lane" "$fact"
++    done
++    printf 'Reply with numbered concise systems facts.'
++}
++
++make_payload() {
++    local lane="$1"
++    {
++        printf '{"model":"%s","messages":[{"role":"user","content":"' "$MODEL"
++        make_prompt "$lane"
++        printf '"}],"stream":true,"max_tokens":400,"temperature":0,'
++        printf '"top_p":1,"ignore_eos":true,'
++        printf '"chat_template_kwargs":{"enable_thinking":false}}'
++    } >"$tmpdir/payload-$lane.json"
++}
++
++fire() {
++    local lane="$1"
++    sleep "$((lane - 1))"
++    if "$CURL_BIN" -fsS -N --max-time "$REQ_TIMEOUT" "${AUTH_ARGS[@]}" \
++        "$BASE/v1/chat/completions" -H "Content-Type: application/json" \
++        --data-binary "@$tmpdir/payload-$lane.json" >/dev/null \
++        2>>"$tmpdir/errors"; then
++        printf 'ok\n' >"$tmpdir/result-$lane"
++    else
++        printf 'fail\n' >"$tmpdir/result-$lane"
++    fi
++}
++
++for lane in 1 2 3 4; do
++    make_payload "$lane"
++done
++
++tokenize_payload="$(make_prompt 1)"
++tokenize_response=$("$CURL_BIN" -fsS --max-time 30 "${AUTH_ARGS[@]}" \
++    "$BASE/tokenize" -H "Content-Type: application/json" \
++    -d '{"model":"'"$MODEL"'","prompt":"'"$tokenize_payload"'"}' \
++    2>>"$tmpdir/errors") || {
++    echo "c4-capacity-warmup: tokenize failed" >&2
++    exit 1
++}
++prompt_tokens=$(printf '%s\n' "$tokenize_response" \
++    | grep -o '"count"[[:space:]]*:[[:space:]]*[0-9]*' \
++    | head -n 1 | grep -o '[0-9]*$')
++if [ -z "$prompt_tokens" ] || [ "$prompt_tokens" -lt 15000 ] \
++    || [ "$prompt_tokens" -gt 17000 ]; then
++    echo "c4-capacity-warmup: expected a 15K-17K prompt, got ${prompt_tokens:-unknown}" >&2
++    exit 1
++fi
++
++pids=()
++for lane in 1 2 3 4; do
++    fire "$lane" &
++    pids+=("$!")
++done
++
++started=$(date +%s)
++max_running=0
++max_waiting=0
++max_kv=0
++while :; do
++    alive=0
++    for pid in "${pids[@]}"; do
++        kill -0 "$pid" 2>/dev/null && alive=$((alive + 1))
++    done
++    metrics=$("$CURL_BIN" -fsS --max-time 5 "${AUTH_ARGS[@]}" "$BASE/metrics" \
++        2>>"$tmpdir/errors" || true)
++    running=$(printf '%s\n' "$metrics" \
++        | awk '/^vllm:num_requests_running[{]/{print int($2); exit}')
++    waiting=$(printf '%s\n' "$metrics" \
++        | awk '/^vllm:num_requests_waiting[{]/{print int($2); exit}')
++    kv=$(printf '%s\n' "$metrics" \
++        | awk '/^vllm:kv_cache_usage_perc[{]/{print $2; exit}')
++    running="${running:-0}"
++    waiting="${waiting:-0}"
++    kv="${kv:-0}"
++    [ "$running" -gt "$max_running" ] && max_running="$running"
++    [ "$waiting" -gt "$max_waiting" ] && max_waiting="$waiting"
++    max_kv=$(awk -v old="$max_kv" -v new="$kv" \
++        'BEGIN { print (new > old) ? new : old }')
++    [ "$alive" -eq 0 ] && break
++    sleep 1
++done
++
++failed=0
++for pid in "${pids[@]}"; do
++    wait "$pid" || failed=$((failed + 1))
++done
++elapsed=$(($(date +%s) - started))
++
++echo "c4-capacity-warmup: prompt=${prompt_tokens} tokens/stream max_running=${max_running} max_waiting=${max_waiting} peak_kv=${max_kv} wall=${elapsed}s"
++if [ "$failed" -ne 0 ]; then
++    echo "c4-capacity-warmup: ${failed}/4 requests failed" >&2
++    sed -n '1,5p' "$tmpdir/errors" >&2 2>/dev/null || true
++    exit 1
++fi
++if [ "$max_running" -lt 4 ]; then
++    echo "c4-capacity-warmup: C4 admission FAILED; configured max-num-seqs=4 but only ${max_running} requests became resident" >&2
++    exit 1
++fi
+diff --git a/start.sh b/start.sh
+index a15c054..6ef0978 100755
+--- a/start.sh
++++ b/start.sh
+@@ -75,6 +75,9 @@ _cli_image="${IMAGE-}"
+ _cli_util="${GPU_MEM_UTIL-}"
+ _cli_lm="${LANGUAGE_MODEL_ONLY-}"
+ _cli_max_num_seqs="${MAX_NUM_SEQS-}"
++_cli_boot_long_c4="${GLM53_BOOT_LONG_C4-}"
++_cli_extra_args_set="${EXTRA_ARGS+1}"
++_cli_extra_args="${EXTRA_ARGS-}"
+ _cli_ablit="${ABLIT-}"
+ _cli_ablit_method="${ABLIT_METHOD-}"
+ _cli_ablit_direction="${ABLIT_DIRECTION-}"
+@@ -108,6 +111,8 @@ set +a
+ [ -n "${_cli_util}" ] && GPU_MEM_UTIL="$_cli_util"
+ [ -n "${_cli_lm}" ] && LANGUAGE_MODEL_ONLY="$_cli_lm"
+ [ -n "${_cli_max_num_seqs}" ] && MAX_NUM_SEQS="$_cli_max_num_seqs"
++[ -n "${_cli_boot_long_c4}" ] && GLM53_BOOT_LONG_C4="$_cli_boot_long_c4"
++[ -n "${_cli_extra_args_set}" ] && EXTRA_ARGS="$_cli_extra_args"
+ [ -n "${_cli_ablit}" ] && ABLIT="$_cli_ablit"
+ [ -n "${_cli_ablit_method}" ] && ABLIT_METHOD="$_cli_ablit_method"
+ [ -n "${_cli_ablit_direction}" ] && ABLIT_DIRECTION="$_cli_ablit_direction"
+@@ -277,6 +282,8 @@ GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-16}"
+ VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS="${VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS:-1800}"
+ # 1 = after /health, burn DFlash2 BLOCK / sampler / kpool shapes. Nonfatal.
+ GLM53_BOOT_SHAPE_WARMUP="${GLM53_BOOT_SHAPE_WARMUP:-1}"
++# 1 = additionally prove four resident staggered 16K requests. Fatal.
++GLM53_BOOT_LONG_C4="${GLM53_BOOT_LONG_C4:-1}"
+ GLM53_WARMUP_REQ_TIMEOUT="${GLM53_WARMUP_REQ_TIMEOUT:-240}"
+ 
+ # OpenAI-compatible API bearer token. Read the native VLLM_API_KEY env var
+@@ -363,6 +370,28 @@ _glm53_validate_spinwait_ms() {
+         GLM53_SPINWAIT_MS "$GLM53_SPINWAIT_MS" 1000
+ }
+ 
++_glm53_validate_manual_kv_budget() {
++    # shellcheck disable=SC2206
++    local args=(${EXTRA_ARGS:-}) arg value="" index
++    for ((index = 0; index < ${#args[@]}; index++)); do
++        arg="${args[$index]}"
++        case "$arg" in
++            --kv-cache-memory-bytes=*) value="${arg#*=}" ;;
++            --kv-cache-memory-bytes)
++                index=$((index + 1))
++                value="${args[$index]-}"
++                ;;
++        esac
++    done
++    [ -z "$value" ] && return 0
++    _glm53_canonical_positive_int KV_CACHE_MEMORY_BYTES "$value" 1099511627776 \
++        || return
++    if [ "$MAX_NUM_SEQS" -ge 4 ] && [ "$value" -lt 19327352832 ]; then
++        echo "--kv-cache-memory-bytes=${value} cannot support the C4 appliance; use at least 19327352832 bytes or omit the override for GPU_MEM_UTIL=${GPU_MEM_UTIL}" >&2
++        return 2
++    fi
++}
++
+ validate_numeric_config() {
+     if ! [[ "$GPU_MEM_UTIL" =~ ^(0([.][0-9]+)?|[.][0-9]+|1([.]0+)?)$ ]] \
+        || ! awk -v u="$GPU_MEM_UTIL" 'BEGIN { exit !(u > 0 && u <= 1) }'; then
+@@ -375,6 +404,9 @@ validate_numeric_config() {
+     _glm53_validate_enum GLM53_INDEXER_WORKSPACE "${GLM53_INDEXER_WORKSPACE-stock}" \
+         stock rightsize || return
+     _glm53_validate_spinwait_ms || return
++    _glm53_validate_manual_kv_budget || return
++    _glm53_validate_enum GLM53_BOOT_LONG_C4 "${GLM53_BOOT_LONG_C4-1}" 0 1 \
++        || return
+ }
+ # GLM53 numeric config guard (end)
+ 
+@@ -1409,6 +1441,21 @@ post_ready_warmup() {
+         || warn "boot shape warmup incomplete — uncovered shapes may JIT mid-serve on TP=2"
+ }
+ 
++post_ready_c4_capacity_warmup() {
++    if [ "${GLM53_BOOT_LONG_C4:-1}" = "0" ] || [ "$MAX_NUM_SEQS" -lt 4 ]; then
++        log "long C4 capacity warmup skipped"
++        return 0
++    fi
++    [ -f "$SCRIPT_DIR/scripts/c4-capacity-warmup.sh" ] \
++        || die "scripts/c4-capacity-warmup.sh is missing"
++    log "long C4 capacity warmup (fatal; proves four resident 16K streams) ..."
++    GLM53_WARMUP_REQ_TIMEOUT="$GLM53_WARMUP_REQ_TIMEOUT" \
++    GLM53_WARMUP_BEARER="${VLLM_API_KEY:-}" \
++        bash "$SCRIPT_DIR/scripts/c4-capacity-warmup.sh" \
++            "http://127.0.0.1:${PORT}" "$SERVED_MODEL_NAME" \
++        || die "long C4 capacity warmup failed"
++}
++
+ collect_failure_logs() {
+     mkdir -p "$LOGDIR"
+     docker logs "$CONTAINER_HEAD" >"$LOGDIR/head.log" 2>&1 || true
+@@ -1472,6 +1519,7 @@ start() {
+     launch_cluster
+     if wait_for_health; then
+         post_ready_warmup
++        post_ready_c4_capacity_warmup
+         on_ready
+         return
+     fi
+diff --git a/tests/test_image_recipe.py b/tests/test_image_recipe.py
+index ba31143..38c26aa 100644
+--- a/tests/test_image_recipe.py
++++ b/tests/test_image_recipe.py
+@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
+ START = ROOT / "start.sh"
+ DOCKERFILE = ROOT / "Dockerfile"
+ ENV_EXAMPLE = ROOT / ".env.example"
++C4_CAPACITY_WARMUP = ROOT / "scripts" / "c4-capacity-warmup.sh"
+ 
+ 
+ def test_documented_defaults() -> None:
+@@ -50,8 +51,19 @@ def test_overlay_recipe_hash_runs() -> None:
+     assert re.fullmatch(r"[0-9a-f]{64}", digest), digest
+ 
+ 
++def test_long_c4_capacity_warmup_is_fatal_and_checks_residency() -> None:
++    start = START.read_text()
++    warmup = C4_CAPACITY_WARMUP.read_text()
++    assert 'GLM53_BOOT_LONG_C4="${GLM53_BOOT_LONG_C4:-1}"' in start
++    assert "post_ready_c4_capacity_warmup" in start
++    assert '|| die "long C4 capacity warmup failed"' in start
++    assert 'if [ "$max_running" -lt 4 ]' in warmup
++    subprocess.run(["bash", "-n", C4_CAPACITY_WARMUP], check=True)
++
++
+ if __name__ == "__main__":
+     test_documented_defaults()
+     test_recipe_stamp_wiring()
+     test_overlay_recipe_hash_runs()
++    test_long_c4_capacity_warmup_is_fatal_and_checks_residency()
+     print("image recipe tests: PASS")
+diff --git a/tests/test_numeric_config.py b/tests/test_numeric_config.py
+index 67179fb..fb5c926 100644
+--- a/tests/test_numeric_config.py
++++ b/tests/test_numeric_config.py
+@@ -129,6 +129,42 @@ def test_spinwait_numeric_contract() -> None:
+         assert "GLM53_SPINWAIT_MS must" in result.stderr, bad
+ 
+ 
++def validate_manual_kv(extra_args: str) -> subprocess.CompletedProcess[str]:
++    script = (
++        guard_source()
++        + "\nGPU_MEM_UTIL=0.87; MAX_MODEL_LEN=1000000; MAX_NUM_SEQS=4; "
++        + "MAX_NUM_BATCHED_TOKENS=7168; GLM53_INDEXER_WORKSPACE=rightsize; "
++        + 'GLM53_SPINWAIT_MS=16; EXTRA_ARGS="$1"\n'
++        + "validate_numeric_config\n"
++    )
++    return subprocess.run(
++        ["bash", "-c", script, "test", extra_args],
++        text=True,
++        capture_output=True,
++        check=False,
++        env={**os.environ, "LC_ALL": "C"},
++    )
++
++
++def test_manual_kv_budget_cannot_silently_reduce_c4_to_c2() -> None:
++    for good in (
++        "",
++        "--cudagraph-capture-sizes 1 2 4 8 16 24 32",
++        "--kv-cache-memory-bytes 19327352832",
++        "--kv-cache-memory-bytes=20000000000",
++    ):
++        result = validate_manual_kv(good)
++        assert result.returncode == 0, (good, result.stderr)
++
++    for bad in (
++        "--kv-cache-memory-bytes 10737418240",
++        "--kv-cache-memory-bytes=10200547328",
++        "--kv-cache-memory-bytes nope",
++    ):
++        result = validate_manual_kv(bad)
++        assert result.returncode == 2, (bad, result.stderr)
++
++
+ def test_restart_validates_before_stop() -> None:
+     source = START.read_text()
+     main = source.index("main() {")
+@@ -142,5 +178,6 @@ if __name__ == "__main__":
+     test_decimal_normalization()
+     test_indexer_workspace_enum()
+     test_spinwait_numeric_contract()
++    test_manual_kv_budget_cannot_silently_reduce_c4_to_c2()
+     test_restart_validates_before_stop()
+     print("numeric config tests: PASS")

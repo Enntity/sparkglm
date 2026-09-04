@@ -1,0 +1,9 @@
+ARG BASE_IMAGE=sparkglm-vllm:exl3-grouped-prefill-candidate-20260903d
+FROM ${BASE_IMAGE}
+
+COPY overlay/exl3.py \
+  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
+
+ENV EXL3_ROUTE_PROFILE=1
+
+LABEL ai.enntity.sparkglm.experiment="route-profile-only"

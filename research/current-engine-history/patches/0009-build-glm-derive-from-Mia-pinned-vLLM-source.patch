@@ -1,0 +1,85 @@
+From cec34b0ca60a2423b6ca6b7ed0ba53a3d0166cb1 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:46:38 -0700
+Subject: [PATCH 09/21] build(glm): derive from Mia pinned vLLM source
+
+Apply only the accepted vLLM-core patches to the exact 487ecf187d source base before building the recipe image.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ SPARKGLM.md                            | 26 +++++++++++++++++++++
+ scripts/apply-sparkglm-vllm-patches.sh | 32 ++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)
+ create mode 100644 SPARKGLM.md
+ create mode 100755 scripts/apply-sparkglm-vllm-patches.sh
+
+diff --git a/SPARKGLM.md b/SPARKGLM.md
+new file mode 100644
+index 0000000..c48979e
+--- /dev/null
++++ b/SPARKGLM.md
+@@ -0,0 +1,26 @@
++# SparkGLM derivation
++
++`main` is an untouched mirror of MiaAI-Lab's recipe at
++`eb0469fbb2b49fd7c025f594a3339a121e58f7a9`. The
++`sparkglm/gb10-optimized` branch adds only accepted two-GB10 changes, with one
++logical change per commit and explicit upstream attribution in commit trailers.
++
++The EXL3 changes build through this repository's normal `Dockerfile`. The two
++vLLM-core changes are stored as patches against the exact vLLM source revision
++used by Mia, `487ecf187d3dfe74d2cf6119a92881dba403c219`. Apply them before building
++the base `vllm-openai` image:
++
++```bash
++git clone https://github.com/vllm-project/vllm.git /path/to/vllm
++git -C /path/to/vllm checkout 487ecf187d3dfe74d2cf6119a92881dba403c219
++./scripts/apply-sparkglm-vllm-patches.sh /path/to/vllm
++```
++
++Build that checkout's `vllm-openai` target, then pass its image tag as
++`--build-arg BASE=...` when building this recipe. This order intentionally
++reuses Mia's compatibility overlay on top of the patched vLLM base.
++
++For a fair endpoint comparison, the untouched and optimized images must use
++the same model revision, DFlash revision and topology, KV/cache budget,
++scheduler settings, warmup workload, prompts, arrival offsets, output length,
++and alternating run order. A ready banner alone is not equivalent warm state.
+diff --git a/scripts/apply-sparkglm-vllm-patches.sh b/scripts/apply-sparkglm-vllm-patches.sh
+new file mode 100755
+index 0000000..2c09f94
+--- /dev/null
++++ b/scripts/apply-sparkglm-vllm-patches.sh
+@@ -0,0 +1,32 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
++REPO_ROOT="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
++VLLM_SOURCE="${1:?usage: $0 /path/to/vllm-source}"
++VLLM_BASE="487ecf187d3dfe74d2cf6119a92881dba403c219"
++
++git -C "$VLLM_SOURCE" rev-parse --git-dir >/dev/null 2>&1 || {
++    echo "not a vLLM git checkout: $VLLM_SOURCE" >&2
++    exit 2
++}
++
++actual="$(git -C "$VLLM_SOURCE" rev-parse HEAD)"
++[ "$actual" = "$VLLM_BASE" ] || {
++    echo "vLLM source must be exactly $VLLM_BASE (got $actual)" >&2
++    exit 2
++}
++
++[ -z "$(git -C "$VLLM_SOURCE" status --porcelain)" ] || {
++    echo "vLLM source checkout is dirty; refusing to blend patches" >&2
++    exit 2
++}
++
++for patch in \
++    "$REPO_ROOT/patches/vllm/packed-rmsnorm.patch" \
++    "$REPO_ROOT/patches/vllm/native-fp16-sparse-selector.patch"; do
++    git -C "$VLLM_SOURCE" apply --check "$patch"
++    git -C "$VLLM_SOURCE" apply "$patch"
++done
++
++echo "SparkGLM vLLM patches applied to $VLLM_SOURCE"

@@ -1,0 +1,44 @@
+From 0df1707481a5d0aac98e2733724f8a9b208cfded Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 13:34:31 -0700
+Subject: [PATCH 05/37] bench(glm): salt long-context video prompts
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/sparkglm/four_stream_video.py | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/benchmarks/sparkglm/four_stream_video.py b/benchmarks/sparkglm/four_stream_video.py
+index 04cf7ec877..cbbed2e92e 100644
+--- a/benchmarks/sparkglm/four_stream_video.py
++++ b/benchmarks/sparkglm/four_stream_video.py
+@@ -56,7 +56,8 @@ def _stream_one(
+             f"context-{index}-{fact}: alpha beta gamma delta"
+             for fact in range(max(1, args.prompt_tokens // 12))
+         )
+-        prompt = (
++        salt = f"Benchmark salt: {args.prompt_salt}\n" if args.prompt_salt else ""
++        prompt = salt + (
+             "Read the unique reference context below before answering the final request.\n"
+             f"{facts}\n\nFinal request:\n{prompt}"
+         )
+@@ -206,6 +207,7 @@ def capture(args: argparse.Namespace) -> None:
+         "streams": args.streams,
+         "max_tokens": args.max_tokens,
+         "prompt_style": args.prompt_style,
++        "prompt_salt": args.prompt_salt,
+         "prompt_tokens_target": args.prompt_tokens,
+         "stagger_ms": args.stagger_ms,
+         "recipe_label": args.recipe_label,
+@@ -499,6 +501,11 @@ def parser() -> argparse.ArgumentParser:
+         default=0,
+         help="Approximate unique context tokens prepended to each stream.",
+     )
++    capture_parser.add_argument(
++        "--prompt-salt",
++        default="",
++        help="Unique prefix salt that prevents cross-run prefix-cache hits.",
++    )
+     capture_parser.add_argument(
+         "--stagger-ms",
+         type=int,

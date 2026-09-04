@@ -1,0 +1,44 @@
+From 94e5a2fb9e46a2008f1e2c522b05cd776b9aa27d Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:02:33 -0700
+Subject: [PATCH 03/37] docs(glm): record optimization gate results
+
+---
+ docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md | 27 +++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+diff --git a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+index 49035d4d9f..37b8e15227 100644
+--- a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
++++ b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+@@ -350,3 +350,30 @@ Nsight Systems/Compute trace of the current accepted engine is still required
+ to assign exact current wall-time percentages to sparse selection, sparse
+ attention, KDA, MoE and collectives. Until then, expected endpoint gains from
+ new kernels are hypotheses, not measured claims.
++
++## Optimization execution log
++
++### Accepted: native FP16 sparse scores and selector
++
++Commit `50d5b77fdb` keeps the materialized indexer score matrix in FP16 and
++selects it with native FP16 top-k. On the paired five-second-stagger workload,
++medium C2 wall time improved 4.85% and large C2 improved 3.18%. The 2,048-row
++selector kernel itself improved 37.0% at 4,096 pool columns and 43.5% at 8,192
++pool columns. The full receipt is
++`benchmarks/sparkglm/results/2026-09-02-fp16-sparse-selector.md`.
++
++This halves the score tensor but does not remove it. Scorer-plus-selector
++fusion remains optimization 1's principal target.
++
++### Rejected as a no-op: remove 16-to-32 indexer-head padding
++
++Source comments suggested that GLM-5.3 used 16 indexer heads and was padded to
++32 for DeepGEMM. An isolated SM121 test showed native 16-head scoring was
++bitwise equal and 1.20-1.55x faster than zero-padded 32-head scoring. The actual
++deployed EXL3 checkpoint config was then checked directly: it declares
++`index_n_heads=32`, `index_head_dim=128`, `index_kpool=4`, and
++`index_topk=2048`. The padding branch is never entered on this appliance.
++
++A whole-engine candidate with an intentionally strict 16-head assertion failed
++during its profile run, proving that the tempting kernel result addressed the
++wrong shape. The source change was reverted without an optimization commit.

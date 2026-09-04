@@ -1,0 +1,74 @@
+From 6c4bd355c69b403b89842b4eaf494f9c81c7bddc Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:46:57 -0700
+Subject: [PATCH 08/37] bench(glm): reject speculative slot padding
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../2026-09-02-spec-slot-budget-rejected.md   | 38 +++++++++++++++++++
+ docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md     | 10 +++++
+ 2 files changed, 48 insertions(+)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md b/benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md
+new file mode 100644
+index 0000000000..19cd9b23cf
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md
+@@ -0,0 +1,38 @@
++# Speculative slot-budget separation rejected — 2026-09-02
++
++## Verdict
++
++Reject `max_num_batched_tokens=7196` with
++`max_num_scheduled_tokens=7168`. The extra worker allocation recovered the 28
++input positions reserved by four DFlash2 K7 requests, but the changed maximum
++shape cost more than those positions saved. Restore MNBT 7,168 with its default
++scheduled ceiling.
++
++## Byte-equivalent C4 gate
++
++The control was the accepted 16 ms spinwait service. The candidate retained the
++same image, vLLM build, mixed scheduler, DFlash2 K7/TP2, FP8 target KV, and four
++33K requests arriving at 0/1/2/3 seconds. Both runs used the same prompt salt
++across a restart and reported prompt-token counts
++32,999 / 33,002 / 33,002 / 33,001. Every request completed 400 output tokens
++without errors.
++
++| Metric | 7,168 control | 7,196 buffer / 7,168 scheduled | Change |
++| --- | ---: | ---: | ---: |
++| Wall time | **154.041 s** | 158.265 s | **+2.74%** |
++| Delivered throughput | **10.387 tok/s** | 10.110 tok/s | **-2.67%** |
++| Aggregate decode | **13.990 tok/s** | 13.472 tok/s | **-3.70%** |
++| TTFT lane 1 | 39.954 s | **39.792 s** | -0.40% |
++| TTFT lane 2 | **65.624 s** | 69.483 s | +5.88% |
++| TTFT lane 3 | **91.766 s** | 92.803 s | +1.13% |
++| TTFT lane 4 | **112.775 s** | 113.417 s | +0.57% |
++
++The candidate also changed the E2 allocation/profile maximum from 7,168 to
++7,196 rows. The endpoint result shows that reclaiming at most 0.39% more input
++work per full C4 slab does not amortize that shape change on GB10. Do not add a
++separate scheduled-token knob for this profile.
++
++Artifacts:
++
++- `sparkglm-artifacts/spinwait16-candidate-23dd3b9676.json`
++- `sparkglm-artifacts/spec-slot-budget-candidate-4b46eadc06.json`
+diff --git a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+index 37b8e15227..8527672e3f 100644
+--- a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
++++ b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+@@ -377,3 +377,13 @@ deployed EXL3 checkpoint config was then checked directly: it declares
+ A whole-engine candidate with an intentionally strict 16-head assertion failed
+ during its profile run, proving that the tempting kernel result addressed the
+ wrong shape. The source change was reverted without an optimization commit.
++
++### Rejected: separate DFlash lookahead buffer from scheduled work
++
++A C4 candidate raised `max_num_batched_tokens` from 7,168 to 7,196 while
++holding `max_num_scheduled_tokens` at 7,168. This exactly supplied four requests
++with seven DFlash2 lookahead slots each, but changed the worker and E2 maximum
++shape to recover at most 0.39% more input work per full slab. On the identical
++four-stream 33K gate it regressed delivered throughput 2.67%, aggregate decode
++3.70%, and wall time 2.74%. It was reverted. The receipt is
++`benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md`.

@@ -1,0 +1,655 @@
+From 9964472b8c68d1f98370e2021f95fcd1eb4068fa Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 15:13:43 -0700
+Subject: [PATCH 18/21] test(glm): gate candidates with deterministic tinyGLM
+
+---
+ .gitignore                  |   1 +
+ benchmarks/tinyglm_gate.py  | 204 ++++++++++++++++++++++++++++++++++++
+ benchmarks/tinyglm_smoke.py |  64 ++++++++---
+ docs/tinyglm.md             |  34 ++++++
+ overlay/exl3.py             |  32 ++++--
+ scripts/tinyglm-gate.sh     |  51 +++++++++
+ tests/test_exl3_overlay.py  |  17 +--
+ tests/test_tinyglm_gate.py  |  96 +++++++++++++++++
+ 8 files changed, 466 insertions(+), 33 deletions(-)
+ create mode 100755 benchmarks/tinyglm_gate.py
+ create mode 100755 scripts/tinyglm-gate.sh
+ create mode 100755 tests/test_tinyglm_gate.py
+
+diff --git a/.gitignore b/.gitignore
+index da2785b..b9623f2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -17,3 +17,4 @@ __pycache__/
+ # bench artifacts (prefix-cache runs write here)
+ results/
+ artifacts/
++.tinyglm-gates/
+diff --git a/benchmarks/tinyglm_gate.py b/benchmarks/tinyglm_gate.py
+new file mode 100755
+index 0000000..74be0ed
+--- /dev/null
++++ b/benchmarks/tinyglm_gate.py
+@@ -0,0 +1,204 @@
++#!/usr/bin/env python3
++"""Repeatable tinyGLM promotion gate with correctness and latency checks."""
++
++from __future__ import annotations
++
++import argparse
++import datetime as dt
++import importlib.util
++import json
++import statistics
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++SMOKE = ROOT / "benchmarks" / "tinyglm_smoke.py"
++CASES = (
++    {"name": "decode_c1", "concurrency": 1, "prompt_tokens": 128,
++     "output_tokens": 256, "stagger_ms": 0},
++    {"name": "mixed_c4", "concurrency": 4, "prompt_tokens": 4096,
++     "output_tokens": 128, "stagger_ms": 250},
++    {"name": "long_c2", "concurrency": 2, "prompt_tokens": 16384,
++     "output_tokens": 32, "stagger_ms": 500},
++)
++
++
++def _smoke_module():
++    spec = importlib.util.spec_from_file_location("tinyglm_smoke", SMOKE)
++    assert spec and spec.loader
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++def summarize(runs: list[dict]) -> dict:
++    signatures: list[list[str]] = []
++    for run in runs:
++        signatures.append(
++            [item["token_ids_sha256"] for item in run["streams"]]
++        )
++    return {
++        "aggregate_tok_s_median": statistics.median(
++            run["aggregate_tok_s"] for run in runs
++        ),
++        "wall_s_median": statistics.median(run["wall_s"] for run in runs),
++        "ttft_s_median": statistics.median(
++            item["ttft_s"] for run in runs for item in run["streams"]
++        ),
++        "signatures": signatures,
++        "deterministic": all(value == signatures[0] for value in signatures),
++    }
++
++
++def run_gate(endpoint: str, model: str, repetitions: int, timeout: float) -> dict:
++    smoke = _smoke_module()
++    cases = []
++    for case in CASES:
++        runs = [
++            smoke.benchmark(
++                endpoint=endpoint,
++                model=model,
++                concurrency=case["concurrency"],
++                prompt_tokens=case["prompt_tokens"],
++                output_tokens=case["output_tokens"],
++                stagger_ms=case["stagger_ms"],
++                timeout=timeout,
++            )
++            for _ in range(repetitions)
++        ]
++        cases.append({**case, "runs": runs, "summary": summarize(runs)})
++    return {
++        "schema": 1,
++        "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
++        "endpoint": endpoint,
++        "model": model,
++        "repetitions": repetitions,
++        "cases": cases,
++    }
++
++
++def _case_map(report: dict) -> dict[str, dict]:
++    return {case["name"]: case for case in report["cases"]}
++
++
++def validate_report(report: dict) -> list[str]:
++    failures: list[str] = []
++    for case in report["cases"]:
++        name = case["name"]
++        if not case["summary"]["deterministic"]:
++            failures.append(f"{name}: output is nondeterministic across repetitions")
++        for run_index, run in enumerate(case["runs"]):
++            if len(run["streams"]) != case["concurrency"]:
++                failures.append(f"{name} run {run_index}: stream count differs")
++            for stream in run["streams"]:
++                if stream["completion_tokens"] != case["output_tokens"]:
++                    failures.append(
++                        f"{name} run {run_index} stream {stream['stream']}: "
++                        "completion token count differs"
++                    )
++                if stream["token_ids_count"] != case["output_tokens"]:
++                    failures.append(
++                        f"{name} run {run_index} stream {stream['stream']}: "
++                        "token IDs missing from response"
++                    )
++    return failures
++
++
++def compare_reports(
++    baseline: dict, candidate: dict, max_regression_pct: float
++) -> list[str]:
++    failures: list[str] = []
++    if baseline.get("schema") != candidate.get("schema"):
++        failures.append("report schema differs")
++        return failures
++    allowed = max_regression_pct / 100.0
++    base_cases = _case_map(baseline)
++    cand_cases = _case_map(candidate)
++    if set(base_cases) != set(cand_cases):
++        failures.append("case set differs")
++        return failures
++
++    for name, base in base_cases.items():
++        cand = cand_cases[name]
++        b = base["summary"]
++        c = cand["summary"]
++        if not c["deterministic"]:
++            failures.append(f"{name}: candidate output is nondeterministic")
++        if b["signatures"][0] != c["signatures"][0]:
++            failures.append(f"{name}: generated token IDs changed")
++        floor = b["aggregate_tok_s_median"] * (1.0 - allowed)
++        if c["aggregate_tok_s_median"] < floor:
++            failures.append(
++                f"{name}: throughput {c['aggregate_tok_s_median']:.3f} "
++                f"is below {floor:.3f} ({max_regression_pct:.1f}% gate)"
++            )
++        wall_ceiling = b["wall_s_median"] * (1.0 + allowed) + 0.050
++        if c["wall_s_median"] > wall_ceiling:
++            failures.append(
++                f"{name}: wall {c['wall_s_median']:.3f}s exceeds "
++                f"{wall_ceiling:.3f}s"
++            )
++        ttft_ceiling = b["ttft_s_median"] * (1.0 + allowed) + 0.050
++        if c["ttft_s_median"] > ttft_ceiling:
++            failures.append(
++                f"{name}: TTFT {c['ttft_s_median']:.3f}s exceeds "
++                f"{ttft_ceiling:.3f}s"
++            )
++    return failures
++
++
++def _print_summary(report: dict) -> None:
++    for case in report["cases"]:
++        summary = case["summary"]
++        print(
++            f"{case['name']:10s} aggregate="
++            f"{summary['aggregate_tok_s_median']:.1f} tok/s "
++            f"TTFT={summary['ttft_s_median']:.3f}s "
++            f"wall={summary['wall_s_median']:.3f}s "
++            f"deterministic={summary['deterministic']}"
++        )
++
++
++def parse_args() -> argparse.Namespace:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--endpoint", default="http://127.0.0.1:8888")
++    parser.add_argument("--model", default="tinyGLM-5.3-EXL3")
++    parser.add_argument("--repetitions", type=int, default=3)
++    parser.add_argument("--timeout", type=float, default=180.0)
++    parser.add_argument("--output", type=Path, required=True)
++    parser.add_argument("--baseline", type=Path)
++    parser.add_argument("--max-regression-pct", type=float, default=5.0)
++    return parser.parse_args()
++
++
++def main() -> None:
++    args = parse_args()
++    if args.repetitions < 2:
++        raise SystemExit("--repetitions must be at least 2")
++    report = run_gate(args.endpoint, args.model, args.repetitions, args.timeout)
++    args.output.parent.mkdir(parents=True, exist_ok=True)
++    args.output.write_text(json.dumps(report, indent=2) + "\n")
++    _print_summary(report)
++
++    report_failures = validate_report(report)
++    if report_failures:
++        print("tinyGLM gate: FAIL")
++        for failure in report_failures:
++            print(f"  - {failure}")
++        raise SystemExit(1)
++
++    if args.baseline is None:
++        print(f"tinyGLM baseline recorded: {args.output}")
++        return
++    baseline = json.loads(args.baseline.read_text())
++    failures = compare_reports(baseline, report, args.max_regression_pct)
++    if failures:
++        print("tinyGLM gate: FAIL")
++        for failure in failures:
++            print(f"  - {failure}")
++        raise SystemExit(1)
++    print("tinyGLM gate: PASS")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/tinyglm_smoke.py b/benchmarks/tinyglm_smoke.py
+index ef04b18..2b921d2 100755
+--- a/benchmarks/tinyglm_smoke.py
++++ b/benchmarks/tinyglm_smoke.py
+@@ -5,6 +5,7 @@ from __future__ import annotations
+ 
+ import argparse
+ import concurrent.futures
++import hashlib
+ import json
+ import time
+ import urllib.request
+@@ -36,6 +37,7 @@ def run_stream(
+             "ignore_eos": True,
+             "stream": True,
+             "stream_options": {"include_usage": True},
++            "return_token_ids": True,
+         }
+     ).encode()
+     request = urllib.request.Request(
+@@ -47,6 +49,7 @@ def run_stream(
+     first = None
+     completion_tokens = 0
+     chunks = 0
++    token_ids: list[int] = []
+     with urllib.request.urlopen(request, timeout=timeout) as response:
+         for raw in response:
+             line = raw.decode("utf-8", errors="replace").strip()
+@@ -58,6 +61,7 @@ def run_stream(
+                 chunks += 1
+                 if first is None:
+                     first = time.perf_counter()
++                token_ids.extend(int(token) for token in choices[0].get("token_ids") or [])
+             usage = event.get("usage") or {}
+             completion_tokens = max(
+                 completion_tokens, int(usage.get("completion_tokens") or 0)
+@@ -66,7 +70,7 @@ def run_stream(
+     if first is None:
+         first = ended
+     if completion_tokens == 0:
+-        completion_tokens = chunks
++        completion_tokens = len(token_ids) or chunks
+     return {
+         "stream": stream,
+         "prompt_tokens": prompt_tokens,
+@@ -74,6 +78,10 @@ def run_stream(
+         "ttft_s": first - sent,
+         "wall_s": ended - sent,
+         "decode_tok_s": completion_tokens / max(ended - first, 1e-9),
++        "token_ids_count": len(token_ids),
++        "token_ids_sha256": hashlib.sha256(
++            json.dumps(token_ids, separators=(",", ":")).encode()
++        ).hexdigest(),
+     }
+ 
+ 
+@@ -90,42 +98,66 @@ def parse_args() -> argparse.Namespace:
+     return parser.parse_args()
+ 
+ 
+-def main() -> None:
+-    args = parse_args()
++def benchmark(
++    *,
++    endpoint: str,
++    model: str,
++    concurrency: int,
++    prompt_tokens: int,
++    output_tokens: int,
++    stagger_ms: int,
++    timeout: float,
++) -> dict:
+     started = time.perf_counter()
+     with concurrent.futures.ThreadPoolExecutor(
+-        max_workers=args.concurrency
++        max_workers=concurrency
+     ) as executor:
+         futures = [
+             executor.submit(
+                 run_stream,
+-                args.endpoint,
+-                args.model,
+-                args.prompt_tokens,
+-                args.output_tokens,
++                endpoint,
++                model,
++                prompt_tokens,
++                output_tokens,
+                 stream,
+-                args.stagger_ms,
+-                args.timeout,
++                stagger_ms,
++                timeout,
+             )
+-            for stream in range(args.concurrency)
++            for stream in range(concurrency)
+         ]
+         streams = [future.result() for future in futures]
+     wall = time.perf_counter() - started
+     total = sum(item["completion_tokens"] for item in streams)
+-    result = {
+-        "model": args.model,
+-        "concurrency": args.concurrency,
+-        "stagger_ms": args.stagger_ms,
++    return {
++        "model": model,
++        "concurrency": concurrency,
++        "prompt_tokens": prompt_tokens,
++        "output_tokens": output_tokens,
++        "stagger_ms": stagger_ms,
+         "wall_s": wall,
+         "aggregate_tok_s": total / wall,
+         "streams": sorted(streams, key=lambda item: item["stream"]),
+     }
++
++
++def main() -> None:
++    args = parse_args()
++    result = benchmark(
++        endpoint=args.endpoint,
++        model=args.model,
++        concurrency=args.concurrency,
++        prompt_tokens=args.prompt_tokens,
++        output_tokens=args.output_tokens,
++        stagger_ms=args.stagger_ms,
++        timeout=args.timeout,
++    )
+     if args.json:
+         print(json.dumps(result, indent=2))
+         return
+     print(
+         f"tinyGLM C{args.concurrency} stagger={args.stagger_ms}ms "
+-        f"aggregate={result['aggregate_tok_s']:.1f} tok/s wall={wall:.3f}s"
++        f"aggregate={result['aggregate_tok_s']:.1f} tok/s "
++        f"wall={result['wall_s']:.3f}s"
+     )
+     for item in result["streams"]:
+         print(
+diff --git a/docs/tinyglm.md b/docs/tinyglm.md
+index c799388..b31f94d 100644
+--- a/docs/tinyglm.md
++++ b/docs/tinyglm.md
+@@ -74,3 +74,37 @@ Restore the real model with the normal recipe:
+ ```bash
+ ./start.sh restart
+ ```
++
++## Candidate promotion gate
++
++The default development ladder is now:
++
++1. Static tinyGLM/config validation before building an image.
++2. A deterministic tinyGLM baseline on the current image.
++3. Rebuild/restart tinyGLM with the candidate and compare three repeated cases.
++4. Load the full checkpoint only after tinyGLM passes.
++5. Promote only after the full warmed workload and quality gates pass.
++
++```bash
++# Before any GPU build
++scripts/tinyglm-gate.sh static
++
++# Current tinyGLM image
++scripts/tinyglm-gate.sh record .tinyglm-gates/baseline.json
++
++# Candidate tinyGLM image
++scripts/tinyglm-gate.sh compare \
++  .tinyglm-gates/baseline.json .tinyglm-gates/candidate.json
++```
++
++The TP2 gate runs three repeated shapes:
++
++- C1 decode: 128-token prompt, 256 generated tokens;
++- staggered C4 mixed work: 4096-token prompts and 128 generated tokens;
++- staggered C2 long prefill: 16K-token prompts and 32 generated tokens.
++
++It fails on changed generated token IDs, nondeterministic output, more than 5%
++median throughput regression, or corresponding wall/TTFT regressions (with a
++small absolute jitter allowance). Passing tinyGLM never replaces the final
++full-model gate because depth, 288-way routing, memory bandwidth, DFlash2, and
++real weight distributions are intentionally absent or reduced.
+diff --git a/overlay/exl3.py b/overlay/exl3.py
+index 6400daa..dac387f 100644
+--- a/overlay/exl3.py
++++ b/overlay/exl3.py
+@@ -82,15 +82,29 @@ def _initialize_tiny_dummy_exl3(layer: torch.nn.Module) -> None:
+         return
+ 
+     with torch.no_grad():
+-        # Zero is a valid deterministic trellis bit-pattern. The floating scales
+-        # are kept small so a randomly initialized, intentionally useless model
+-        # remains finite through repeated layers.
+-        layer.w13_trellis.zero_()
+-        layer.w2_trellis.zero_()
+-        layer.w13_suh.fill_(1.0 / 64.0)
+-        layer.w13_svh.fill_(1.0 / 64.0)
+-        layer.w2_suh.fill_(1.0 / 64.0)
+-        layer.w2_svh.fill_(1.0 / 64.0)
++        # Give each expert and projection a distinct valid trellis pattern so
++        # routing/expert-ID mistakes alter output tokens instead of hiding behind
++        # identical dummy experts. Small scales keep the useless model finite.
++        experts = int(layer.w13_trellis.shape[0])
++        device = layer.w13_trellis.device
++        expert = torch.arange(experts, dtype=torch.int32, device=device)
++        w13_code = (expert[:, None] * 257 + torch.tensor(
++            [17, 113], dtype=torch.int32, device=device
++        )[None, :]) % 32767
++        w2_code = (expert * 521 + 29) % 32767
++        layer.w13_trellis.copy_(
++            w13_code.to(torch.int16).reshape(experts, 2, 1, 1, 1)
++        )
++        layer.w2_trellis.copy_(
++            w2_code.to(torch.int16).reshape(experts, 1, 1, 1)
++        )
++        scale = (1.0 + expert.to(torch.float32) / max(experts, 1)) / 128.0
++        # Gate/up SUH remains shared, matching the production checkpoint and
++        # keeping the paired fat-expert path eligible.
++        layer.w13_suh.copy_(scale[:, None, None])
++        layer.w13_svh.copy_((scale * 0.75)[:, None, None])
++        layer.w2_suh.copy_((scale * 0.5)[:, None])
++        layer.w2_svh.copy_((scale * 0.625)[:, None])
+         layer.w13_mcg.fill_(MCG_MARKER_SIGNED_INT32)
+         layer.w2_mcg.fill_(MCG_MARKER_SIGNED_INT32)
+ 
+diff --git a/scripts/tinyglm-gate.sh b/scripts/tinyglm-gate.sh
+new file mode 100755
+index 0000000..59fb6bb
+--- /dev/null
++++ b/scripts/tinyglm-gate.sh
+@@ -0,0 +1,51 @@
++#!/usr/bin/env bash
++# Promotion gate for GLM kernel, scheduler, graph, and TP2 experiments.
++set -euo pipefail
++
++ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
++cd "$ROOT"
++
++static_gate() {
++    python3 tests/test_tinyglm.py
++    python3 tests/test_numeric_config.py
++    python3 tests/test_start_overrides.py
++    python3 tests/test_tinyglm_gate.py
++    python3 -m py_compile \
++        overlay/exl3.py \
++        scripts/make_tinyglm.py \
++        benchmarks/tinyglm_smoke.py \
++        benchmarks/tinyglm_gate.py
++    bash -n start.sh scripts/tinyglm.sh scripts/tinyglm-gate.sh
++    git diff --check
++    echo "tinyGLM static gate: PASS"
++}
++
++command="${1:-static}"
++case "$command" in
++    static)
++        static_gate
++        ;;
++    record)
++        output="${2:-.tinyglm-gates/baseline.json}"
++        static_gate
++        python3 benchmarks/tinyglm_gate.py \
++            --endpoint "${TINYGLM_ENDPOINT:-http://127.0.0.1:8888}" \
++            --repetitions "${TINYGLM_GATE_REPETITIONS:-3}" \
++            --output "$output"
++        ;;
++    compare)
++        baseline="${2:?usage: scripts/tinyglm-gate.sh compare BASELINE [OUTPUT]}"
++        output="${3:-.tinyglm-gates/candidate.json}"
++        static_gate
++        python3 benchmarks/tinyglm_gate.py \
++            --endpoint "${TINYGLM_ENDPOINT:-http://127.0.0.1:8888}" \
++            --repetitions "${TINYGLM_GATE_REPETITIONS:-3}" \
++            --max-regression-pct "${TINYGLM_MAX_REGRESSION_PCT:-5}" \
++            --baseline "$baseline" \
++            --output "$output"
++        ;;
++    *)
++        echo "usage: scripts/tinyglm-gate.sh [static|record [OUT]|compare BASELINE [OUT]]" >&2
++        exit 2
++        ;;
++esac
+diff --git a/tests/test_exl3_overlay.py b/tests/test_exl3_overlay.py
+index 8592eb7..c6ca5ff 100644
+--- a/tests/test_exl3_overlay.py
++++ b/tests/test_exl3_overlay.py
+@@ -70,8 +70,8 @@ def _check_tiny_dummy_initialization() -> None:
+     )
+ 
+     layer = SimpleNamespace(
+-        w13_trellis=torch.full((2, 2, 2), 7, dtype=torch.int16),
+-        w2_trellis=torch.full((2, 2), 7, dtype=torch.int16),
++        w13_trellis=torch.full((2, 2, 1, 1, 1), 7, dtype=torch.int16),
++        w2_trellis=torch.full((2, 1, 1, 1), 7, dtype=torch.int16),
+         w13_suh=torch.zeros((2, 2, 4), dtype=torch.float16),
+         w13_svh=torch.zeros((2, 2, 4), dtype=torch.float16),
+         w2_suh=torch.zeros((2, 4), dtype=torch.float16),
+@@ -85,12 +85,13 @@ def _check_tiny_dummy_initialization() -> None:
+         assert torch.all(layer.w13_trellis == 7), "disabled mode rewrote weights"
+         os.environ["SPARKGLM_TINY_DUMMY"] = "1"
+         _initialize_tiny_dummy_exl3(layer)
+-        assert torch.count_nonzero(layer.w13_trellis) == 0
+-        assert torch.count_nonzero(layer.w2_trellis) == 0
+-        assert torch.all(layer.w13_suh == 1.0 / 64.0)
+-        assert torch.all(layer.w13_svh == 1.0 / 64.0)
+-        assert torch.all(layer.w2_suh == 1.0 / 64.0)
+-        assert torch.all(layer.w2_svh == 1.0 / 64.0)
++        assert torch.all(layer.w13_trellis[0] != layer.w13_trellis[1])
++        assert torch.all(layer.w2_trellis[0] != layer.w2_trellis[1])
++        assert torch.equal(layer.w13_suh[:, 0], layer.w13_suh[:, 1])
++        assert not torch.equal(layer.w13_suh[0], layer.w13_suh[1])
++        assert not torch.equal(layer.w13_svh[0], layer.w13_svh[1])
++        assert not torch.equal(layer.w2_suh[0], layer.w2_suh[1])
++        assert not torch.equal(layer.w2_svh[0], layer.w2_svh[1])
+         assert torch.all(layer.w13_mcg == MCG_MARKER_SIGNED_INT32)
+         assert torch.all(layer.w2_mcg == MCG_MARKER_SIGNED_INT32)
+     finally:
+diff --git a/tests/test_tinyglm_gate.py b/tests/test_tinyglm_gate.py
+new file mode 100755
+index 0000000..0fecaa0
+--- /dev/null
++++ b/tests/test_tinyglm_gate.py
+@@ -0,0 +1,96 @@
++#!/usr/bin/env python3
++"""CPU-only comparison tests for the tinyGLM promotion gate."""
++
++from __future__ import annotations
++
++import importlib.util
++from copy import deepcopy
++from pathlib import Path
++
++
++ROOT = Path(__file__).resolve().parents[1]
++
++
++def _module():
++    path = ROOT / "benchmarks" / "tinyglm_gate.py"
++    spec = importlib.util.spec_from_file_location("tinyglm_gate", path)
++    assert spec and spec.loader
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++def _report() -> dict:
++    cases = []
++    for name in ("decode_c1", "mixed_c4", "long_c2"):
++        cases.append(
++            {
++                "name": name,
++                "concurrency": 1,
++                "output_tokens": 32,
++                "runs": [
++                    {
++                        "streams": [
++                            {
++                                "stream": 0,
++                                "completion_tokens": 32,
++                                "token_ids_count": 32,
++                            }
++                        ]
++                    },
++                    {
++                        "streams": [
++                            {
++                                "stream": 0,
++                                "completion_tokens": 32,
++                                "token_ids_count": 32,
++                            }
++                        ]
++                    },
++                ],
++                "summary": {
++                    "aggregate_tok_s_median": 100.0,
++                    "wall_s_median": 1.0,
++                    "ttft_s_median": 0.2,
++                    "signatures": [[f"{name}-s0"], [f"{name}-s0"]],
++                    "deterministic": True,
++                },
++            }
++        )
++    return {"schema": 1, "cases": cases}
++
++
++def test_equal_report_passes() -> None:
++    module = _module()
++    report = _report()
++    assert module.compare_reports(report, deepcopy(report), 5.0) == []
++
++
++def test_correctness_and_performance_regressions_fail() -> None:
++    module = _module()
++    baseline = _report()
++    candidate = deepcopy(baseline)
++    candidate["cases"][0]["summary"]["signatures"][0] = ["changed"]
++    candidate["cases"][1]["summary"]["aggregate_tok_s_median"] = 90.0
++    candidate["cases"][2]["summary"]["ttft_s_median"] = 0.5
++    failures = module.compare_reports(baseline, candidate, 5.0)
++    assert any("token IDs changed" in failure for failure in failures)
++    assert any("throughput" in failure for failure in failures)
++    assert any("TTFT" in failure for failure in failures)
++
++
++def test_incomplete_or_nondeterministic_report_fails() -> None:
++    module = _module()
++    report = _report()
++    report["cases"][0]["summary"]["deterministic"] = False
++    report["cases"][1]["runs"][0]["streams"][0]["token_ids_count"] = 0
++    failures = module.validate_report(report)
++    assert any("nondeterministic" in failure for failure in failures)
++    assert any("token IDs missing" in failure for failure in failures)
++
++
++if __name__ == "__main__":
++    test_equal_report_passes()
++    test_correctness_and_performance_regressions_fail()
++    test_incomplete_or_nondeterministic_report_fails()
++    print("tinyGLM comparison gate tests OK")

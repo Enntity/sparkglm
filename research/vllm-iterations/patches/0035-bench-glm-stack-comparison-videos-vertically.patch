@@ -1,0 +1,121 @@
+From 32491e7a7eab9d9384e838076c4720d7c3ccfd1d Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 10:23:02 -0700
+Subject: [PATCH 35/37] bench(glm): stack comparison videos vertically
+
+Add a top-bottom compositor that normalizes both panels and holds the earlier-finishing replay for a complete visual comparison.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/sparkglm/four_stream_video.py | 91 ++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)
+
+diff --git a/benchmarks/sparkglm/four_stream_video.py b/benchmarks/sparkglm/four_stream_video.py
+index 285aa5d4c8..5c1ed5ee08 100644
+--- a/benchmarks/sparkglm/four_stream_video.py
++++ b/benchmarks/sparkglm/four_stream_video.py
+@@ -514,6 +514,86 @@ def render(args: argparse.Namespace) -> None:
+     )
+ 
+ 
++def _video_duration(path: str, ffprobe: str) -> float:
++    result = subprocess.run(
++        [
++            ffprobe,
++            "-v",
++            "error",
++            "-show_entries",
++            "format=duration",
++            "-of",
++            "default=noprint_wrappers=1:nokey=1",
++            path,
++        ],
++        check=True,
++        capture_output=True,
++        text=True,
++    )
++    return float(result.stdout.strip())
++
++
++def stack(args: argparse.Namespace) -> None:
++    """Stack two benchmark replays vertically and hold the earlier finish."""
++    top_duration = _video_duration(args.top, args.ffprobe)
++    bottom_duration = _video_duration(args.bottom, args.ffprobe)
++    duration = max(top_duration, bottom_duration)
++    top_pad = max(duration - top_duration, 0.0)
++    bottom_pad = max(duration - bottom_duration, 0.0)
++    panel = (
++        f"scale={args.panel_width}:{args.panel_height}:"
++        "force_original_aspect_ratio=decrease,"
++        f"pad={args.panel_width}:{args.panel_height}:(ow-iw)/2:(oh-ih)/2:color=black"
++    )
++    filters = (
++        f"[0:v]{panel},setpts=PTS-STARTPTS,"
++        f"tpad=stop_mode=clone:stop_duration={top_pad:.6f}[top];"
++        f"[1:v]{panel},setpts=PTS-STARTPTS,"
++        f"tpad=stop_mode=clone:stop_duration={bottom_pad:.6f}[bottom];"
++        "[top][bottom]vstack=inputs=2[out]"
++    )
++    subprocess.run(
++        [
++            args.ffmpeg,
++            "-y",
++            "-i",
++            args.top,
++            "-i",
++            args.bottom,
++            "-filter_complex",
++            filters,
++            "-map",
++            "[out]",
++            "-an",
++            "-r",
++            str(args.fps),
++            "-c:v",
++            "libx264",
++            "-preset",
++            "medium",
++            "-crf",
++            "18",
++            "-pix_fmt",
++            "yuv420p",
++            "-movflags",
++            "+faststart",
++            args.output,
++        ],
++        check=True,
++    )
++    print(
++        json.dumps(
++            {
++                "output": args.output,
++                "layout": "top-bottom",
++                "duration_s": round(duration, 3),
++                "top": args.top,
++                "bottom": args.bottom,
++            }
++        )
++    )
++
++
+ def parser() -> argparse.ArgumentParser:
+     root = argparse.ArgumentParser(description=__doc__)
+     commands = root.add_subparsers(dest="command", required=True)
+@@ -560,6 +640,17 @@ def parser() -> argparse.ArgumentParser:
+     render_parser.add_argument("--hold-s", type=float, default=2.0)
+     render_parser.add_argument("--ffmpeg", default="ffmpeg")
+     render_parser.set_defaults(func=render)
++
++    stack_parser = commands.add_parser("stack")
++    stack_parser.add_argument("--top", required=True)
++    stack_parser.add_argument("--bottom", required=True)
++    stack_parser.add_argument("--output", required=True)
++    stack_parser.add_argument("--panel-width", type=int, default=1600)
++    stack_parser.add_argument("--panel-height", type=int, default=900)
++    stack_parser.add_argument("--fps", type=int, default=12)
++    stack_parser.add_argument("--ffmpeg", default="ffmpeg")
++    stack_parser.add_argument("--ffprobe", default="ffprobe")
++    stack_parser.set_defaults(func=stack)
+     return root
+ 
+ 

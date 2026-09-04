@@ -1,0 +1,24 @@
+From 27cb29aa7584e12a2a25d16be945ad1f0cacfb92 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 03:50:03 -0700
+Subject: [PATCH 19/37] bench(glm): load torch before EXL3 extension
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/kernels/benchmark_exl3_fat_tile.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/benchmarks/kernels/benchmark_exl3_fat_tile.py b/benchmarks/kernels/benchmark_exl3_fat_tile.py
+index f5e9028da5..f7871b59db 100644
+--- a/benchmarks/kernels/benchmark_exl3_fat_tile.py
++++ b/benchmarks/kernels/benchmark_exl3_fat_tile.py
+@@ -10,8 +10,8 @@ import argparse
+ import json
+ import statistics
+ 
+-import exllamav3_ext
+ import torch
++import exllamav3_ext
+ 
+ 
+ def parse_args() -> argparse.Namespace:

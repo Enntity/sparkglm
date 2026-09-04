@@ -1,0 +1,120 @@
+From 4b46eadc06adb468c328bd9a1dbc8d8ea3b544f0 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:32:49 -0700
+Subject: [PATCH 07/37] perf(glm): use 16 ms TP2 spinwait
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../results/2026-09-02-spinwait-16ms.md       | 38 +++++++++++++++++++
+ recipes/mia/.env.example                      |  2 +-
+ recipes/mia/README.md                         |  2 +-
+ recipes/mia/start.sh                          |  2 +-
+ recipes/mia/tests/test_spinwait_patch.py      |  4 +-
+ 5 files changed, 43 insertions(+), 5 deletions(-)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-02-spinwait-16ms.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-02-spinwait-16ms.md b/benchmarks/sparkglm/results/2026-09-02-spinwait-16ms.md
+new file mode 100644
+index 0000000000..112388169f
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-02-spinwait-16ms.md
+@@ -0,0 +1,38 @@
++# Spinwait 16 ms acceptance — 2026-09-02
++
++## Verdict
++
++Keep `GLM53_SPINWAIT_MS=16` as the opinionated TP2 default. It improved the
++primary delivered-throughput metric on the real four-stream 33K staggered
++workload and had already won the frozen decode sweep.
++
++## Byte-equivalent C4 gate
++
++Both runs used image digest
++`sha256:107d899515629f168fdd5f7bac3e967bc3d0fe768124bafd9322c7a3a8c4adc4`,
++vLLM `0.1.dev47+g6a49e49e7`, mixed scheduling, MNBT 7,168, DFlash2 K7/TP2,
++FP8 target KV, FP16 sparse-indexer scores, four requests arriving at
++0/1/2/3 seconds, about 33K prompt tokens each, and exactly 400 output tokens
++per request. The candidate changed only the shared-memory reader spin window.
++A restart between runs cleared prefix cache state; both captures used the same
++prompt salt and reported prompt-token counts 32,999 / 33,002 / 33,002 / 33,001.
++
++| Metric | Stock 1 s | 16 ms | Change |
++| --- | ---: | ---: | ---: |
++| Wall time | 158.071 s | **154.041 s** | **-2.55%** |
++| Delivered throughput | 10.122 tok/s | **10.387 tok/s** | **+2.62%** |
++| Aggregate decode | 13.188 tok/s | **13.990 tok/s** | **+6.08%** |
++| TTFT lane 1 | **37.048 s** | 39.954 s | +7.84% |
++| TTFT lane 2 | **62.939 s** | 65.624 s | +4.27% |
++| TTFT lane 3 | **91.078 s** | 91.766 s | +0.76% |
++| TTFT lane 4 | **112.572 s** | 112.775 s | +0.18% |
++
++All requests completed without errors. This is accepted as a throughput and
++host-efficiency improvement, not a TTFT improvement. Earlier frozen TP2 decode
++testing measured +0.95% median decode throughput and 85.3% less active
++EngineCore CPU versus stock; 2, 32, and 64 ms candidates lost.
++
++Artifacts:
++
++- `sparkglm-artifacts/spinwait-stock-control-23dd3b9676.json`
++- `sparkglm-artifacts/spinwait16-candidate-23dd3b9676.json`
+diff --git a/recipes/mia/.env.example b/recipes/mia/.env.example
+index 0766fb3920..e4d1b76d0a 100644
+--- a/recipes/mia/.env.example
++++ b/recipes/mia/.env.example
+@@ -168,7 +168,7 @@ GLM53_PHASE_PREFILL_TOKENS=2048
+ GLM53_INDEXER_WORKSPACE=rightsize
+ # SpinCondition reader busy-loop window: stock keeps vLLM's 1 s default;
+ # 1..1000 selects milliseconds. This deployment's frozen sweep selected 16.
+-GLM53_SPINWAIT_MS=stock
++GLM53_SPINWAIT_MS=16
+ # EngineCore execute timeout (seconds). Stock 300 is short for a cold JIT.
+ # VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=1800
+ 
+diff --git a/recipes/mia/README.md b/recipes/mia/README.md
+index 44430440d4..d04c08946a 100644
+--- a/recipes/mia/README.md
++++ b/recipes/mia/README.md
+@@ -512,7 +512,7 @@ that are now documented/enforced:
+ | `GLM53_PHASE_PREFILL_TOKENS` | `2048` | maximum tokens in each prefill-only slab; the live scheduler budget may impose a lower cap |
+ | `GLM53_SUPPRESS_STOPS_IN_REASONING` | `1` | ignore client `stop` strings until `</think>` (thinking-on default) |
+ | `GLM53_INDEXER_WORKSPACE` | `rightsize` | sparse-indexer prefill gather workspace sized to the legal per-step maximum. `stock` reserves `max_model_len * 40` entries (**5036.40 MB** at 1M); right-size reclaimed ~4.9 GiB/rank in the C4 parity run |
+-| `GLM53_SPINWAIT_MS` | `stock` | SpinCondition reader busy-loop window. `stock` preserves vLLM's 1 s default; `1..1000` selects milliseconds. A frozen TP=2 sweep selected `16` (+0.95% median decode vs stock, 85.3% less active EngineCore CPU) |
++| `GLM53_SPINWAIT_MS` | `16` | SpinCondition reader busy-loop window. `stock` preserves vLLM's 1 s default; `1..1000` selects milliseconds. A frozen TP=2 sweep selected `16` (+0.95% median decode vs stock, 85.3% less active EngineCore CPU); the mixed C4 33K gate improved delivered throughput 2.62% |
+ | `GLM53_BOOT_SHAPE_WARMUP` | `1` | after `/health`, burn DFlash2 BLOCK / sampler / kpool shapes (nonfatal) |
+ | `TRITON_HOST_CACHE` / `TILELANG_HOST_CACHE` | `$CACHE_ROOT/triton` / `tilelang` | persist JIT caches across container recreate |
+ | `LANGUAGE_MODEL_ONLY` | `0` | load vision tower (image + video) |
+diff --git a/recipes/mia/start.sh b/recipes/mia/start.sh
+index 06fa4df0cf..63a7f8d842 100755
+--- a/recipes/mia/start.sh
++++ b/recipes/mia/start.sh
+@@ -286,7 +286,7 @@ GLM53_PHASE_PREFILL_TOKENS="${GLM53_PHASE_PREFILL_TOKENS:-2048}"
+ GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-rightsize}"
+ # SpinCondition reader busy-loop window. "stock" preserves vLLM's 1 s default;
+ # 1..1000 selects milliseconds. The frozen TP=2 sweep selected 16 ms.
+-GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-stock}"
++GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-16}"
+ # EngineCore stock timeout is 300s; mid-serve Triton/TileLang JIT on TP=2 can
+ # exceed that without being a true hang. NCCL watchdog is still 600s.
+ VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS="${VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS:-1800}"
+diff --git a/recipes/mia/tests/test_spinwait_patch.py b/recipes/mia/tests/test_spinwait_patch.py
+index 64754c2bd5..ff441bffd4 100755
+--- a/recipes/mia/tests/test_spinwait_patch.py
++++ b/recipes/mia/tests/test_spinwait_patch.py
+@@ -157,7 +157,7 @@ def test_recipe_wiring() -> None:
+     env_example = (ROOT / ".env.example").read_text()
+     required_start = (
+         'SPINWAIT_PATCH_HOST="${SPINWAIT_PATCH_HOST:-$SCRIPT_DIR/overlay/patch_spinwait.py}"',
+-        'GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-stock}"',
++        'GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-16}"',
+         "_glm53_validate_spinwait_ms",
+         'python3 /opt/glm53/patch_spinwait.py',
+         '"GLM53_SPINWAIT_MS=$GLM53_SPINWAIT_MS"',
+@@ -169,7 +169,7 @@ def test_recipe_wiring() -> None:
+     assert start.count("/opt/glm53/patch_spinwait.py:ro") == 2
+     assert "COPY overlay/patch_spinwait.py /opt/glm53/patch_spinwait.py" in dockerfile
+     assert "tests/test_spinwait_patch.py" in dockerfile
+-    assert "GLM53_SPINWAIT_MS=stock" in env_example
++    assert "GLM53_SPINWAIT_MS=16" in env_example
+     assert "GLM53_SPINWAIT_2MS" not in start + dockerfile + env_example
+ 
+ 

@@ -1,0 +1,234 @@
+From 23dd3b96760883b22478e124e2eb18c102568afc Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 13:43:51 -0700
+Subject: [PATCH 06/37] perf(glm): promote mixed C4 parity profile
+
+Use the work-conserving 7168-token mixed scheduler envelope with draft TP2 and right-sized indexer workspace. Preserve the q8/p2048 exclusive phase scheduler as an opt-in decode-protection mode.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../results/2026-09-02-mixed-parity-c4.md     | 64 +++++++++++++++++++
+ recipes/mia/.env.example                      | 17 +++--
+ recipes/mia/README.md                         |  8 +--
+ recipes/mia/start.sh                          | 25 ++++----
+ recipes/mia/tests/test_image_recipe.py        |  4 +-
+ recipes/mia/tests/test_indexer_workspace.py   |  5 +-
+ 6 files changed, 96 insertions(+), 27 deletions(-)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-02-mixed-parity-c4.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-02-mixed-parity-c4.md b/benchmarks/sparkglm/results/2026-09-02-mixed-parity-c4.md
+new file mode 100644
+index 0000000000..1749b62d17
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-02-mixed-parity-c4.md
+@@ -0,0 +1,64 @@
++# Mixed-scheduler parity profile — 2026-09-02
++
++This receipt promotes the work-conserving mixed scheduler profile for the
++opinionated 2x DGX Spark GLM-5.3-Flash appliance. It compares four requests
++arriving at 0/1/2/3 seconds. Every request completed exactly 400 output tokens.
++
++## Change
++
++The candidate retained the accepted FP16 sparse-indexer selector image and
++changed only the serving envelope from the earlier exclusive-phase profile:
++
++| Setting | Earlier phase profile | Mixed parity profile |
++| --- | --- | --- |
++| `GLM53_MIXED_PREFILL_CHUNK` | `skip` | `0` |
++| `GLM53_PHASE_INTERLEAVE` | `1` | `0` |
++| `MAX_NUM_BATCHED_TOKENS` | 2,048 | 7,168 |
++| `DFLASH_DRAFT_TP` | 1 | 2 |
++| `GLM53_INDEXER_WORKSPACE` | `stock` | `rightsize` |
++| `GPU_MEM_UTIL` | 0.79 | 0.87 |
++| `MAX_MODEL_LEN` | 307,200 | 1,000,000 |
++
++Both candidate ranks used image digest
++`sha256:107d899515629f168fdd5f7bac3e967bc3d0fe768124bafd9322c7a3a8c4adc4`
++and vLLM `0.1.dev47+g6a49e49e7`. Startup reported the E2 direct kernel for all
++42 fat-expert layers, 19.51 GiB KV cache per rank, and 1,343,205 tokens of KV
++capacity. The right-sized indexer workspace reclaimed about 4.9 GiB per rank
++at the 1M context limit.
++
++## Results
++
++`Delivery tok/s` is total completed tokens divided by wall time from the first
++scheduled request through the final completion. It is the primary appliance
++metric here. `Aggregate decode tok/s` starts its denominator at the earliest
++first token, so an earlier first response can lower that number even when total
++wall time improves.
++
++| Shape and engine | Wall (s) | Delivery tok/s | Aggregate decode tok/s | TTFT by arrival (s) |
++| --- | ---: | ---: | ---: | --- |
++| 54-57 prompt tokens, Mia mixed | 44.678 | 35.812 | 36.440 | 0.879 / 0.564 / 0.607 / 0.824 |
++| 54-57, earlier phase profile | 43.630 | 36.672 | 36.845 | 0.313 / 1.634 / 0.636 / 2.254 |
++| 54-57, mixed parity candidate | **40.298** | **39.704** | **40.020** | 0.417 / 0.502 / 0.742 / 0.755 |
++| ~32,990, Mia mixed | 162.414 | 9.851 | 13.610 | 45.142 / 75.900 / 98.502 / 120.207 |
++| ~32,990, earlier phase profile | 199.947 | 8.002 | 9.704 | 35.470 / 80.971 / 129.263 / 174.140 |
++| ~33,002, mixed parity warm | 164.726 | 9.713 | 13.542 | 46.872 / 72.876 / 99.616 / 121.117 |
++| ~33,002, mixed parity recorded | **159.581** | **10.026** | 12.939 | **36.233 / 64.376 / 92.662 / 115.661** |
++
++The long candidate warm and recorded runs used different salts at the start of
++the synthetic context. Prefix caching therefore could not turn the repeat into
++a cache-hit benchmark. All prompt counts above are the server-reported token
++counts, not byte or word estimates.
++
++## Decision
++
++The mixed parity profile passes this C4 gate. Against the earlier phase profile,
++the recorded 33K run lowers wall time 20.2% and raises delivered-token throughput
++25.3%. Against Mia mixed, it lowers wall time 1.7% and raises delivery 1.8%; this
++single comparison establishes parity, not a durable kernel lead.
++
++The earlier q8/p2048 phase policy remains an opt-in C2/decode-protection mode.
++Its global 2,048-token budget let the oldest prefill consume each exclusive slab,
++which serialized the later C4 prefills. A future scheduler improvement should be
++benchmarked against this mixed profile and must beat its wall time and TTFT while
++recovering incumbent decode smoothness.
++
+diff --git a/recipes/mia/.env.example b/recipes/mia/.env.example
+index 78be2fdbf2..0766fb3920 100644
+--- a/recipes/mia/.env.example
++++ b/recipes/mia/.env.example
+@@ -150,23 +150,22 @@ GLM53_BOOT_SHAPE_WARMUP=1
+ # GLM53_WARMUP_REQ_TIMEOUT=240
+ # Suppress client stop strings until </think> (thinking-on default). 0 = off.
+ GLM53_SUPPRESS_STOPS_IN_REASONING=1
+-# When a decode seq is running, do not mix a peer prefill into that step
+-# (issue #6). skip = decode-only steps; N>0 = cap mixed prefill tokens; 0 = off.
+-GLM53_MIXED_PREFILL_CHUNK=skip
++# Work-conserving C4 default. skip protects an incumbent decode but starves
++# staggered prefills; N>0 caps mixed prefill tokens.
++GLM53_MIXED_PREFILL_CHUNK=0
+ # 0 preserves strict skip (reference parity). A positive value allows a
+ # waiting long prefill to enter after this many ms, at a decode-throughput cost.
+ GLM53_MIXED_PREFILL_MAX_WAIT_MS=0
+-# Exclusive phase scheduler: after N decode-only engine steps, run one
+-# prefill-only slab. The 8/2048 defaults passed the 16K/32K staggered C2 gate;
+-# set GLM53_PHASE_INTERLEAVE=0 for exact strict-skip rollback.
+-GLM53_PHASE_INTERLEAVE=1
++# Optional exclusive phase scheduler. The 8/2048 policy passed the staggered
++# C2 gate but serialized C4 long prefills; leave disabled for appliance use.
++GLM53_PHASE_INTERLEAVE=0
+ GLM53_PHASE_DECODE_STEPS=8
+ GLM53_PHASE_PREFILL_TOKENS=2048
+ # Sparse-indexer prefill gather workspace sizing.
+ #   stock     = max_model_len * 40 entries (5036.40 MB locked at 1M, measured)
+-#   rightsize = the legal per-step maximum, ~+26% KV cache. Opt-in.
++#   rightsize = the legal per-step maximum, ~+26% KV cache. Default.
+ # See docs/DESIGN-indexer-workspace.md. Anything else is rejected at launch.
+-GLM53_INDEXER_WORKSPACE=stock
++GLM53_INDEXER_WORKSPACE=rightsize
+ # SpinCondition reader busy-loop window: stock keeps vLLM's 1 s default;
+ # 1..1000 selects milliseconds. This deployment's frozen sweep selected 16.
+ GLM53_SPINWAIT_MS=stock
+diff --git a/recipes/mia/README.md b/recipes/mia/README.md
+index 4b8997b8c2..44430440d4 100644
+--- a/recipes/mia/README.md
++++ b/recipes/mia/README.md
+@@ -505,13 +505,13 @@ that are now documented/enforced:
+ | `MAX_MODEL_LEN` | `1000000` | default context. 1M allocates on the 1.75M padded-slot-share pool. Do not drop to 256k to “free” KV — logged tokens ≈ concurrency × this cap; hybrid block-id overhead then shrinks the pool |
+ | `MAX_NUM_SEQS` | `4` | decode batch; MTP adds k+1 tokens/seq |
+ | `MAX_NUM_BATCHED_TOKENS` | `7168` | prefill chunk (E2 keep 2026-09-01). 2048/3548 were similar or slower; 8192 oversubscribes GB10 indexer topk |
+-| `GLM53_MIXED_PREFILL_CHUNK` | `skip` | do not mix a peer prefill into a decode step (issue #6). `N>0` = cap tokens; `0` = off. Solo prefill stays MNBT (7168) |
+-| `GLM53_MIXED_PREFILL_MAX_WAIT_MS` | `0` | keep strict reference-compatible `skip`; `N>0` opts into late admission of a waiting prefill after N ms, which can reduce active-decode throughput on GB10 MoE |
+-| `GLM53_PHASE_INTERLEAVE` | `1` | exclusive decode/prefill phase scheduler; gives a waiting long prefill a full slab without putting it in the same forward as decode. `0` restores exact strict skip |
++| `GLM53_MIXED_PREFILL_CHUNK` | `0` | work-conserving mixed scheduling for staggered C4. `skip` protects an incumbent decode but causes head-of-line blocking; `N>0` caps mixed prefill tokens |
++| `GLM53_MIXED_PREFILL_MAX_WAIT_MS` | `0` | inactive while mixed policy is `0`; with `skip`, `N>0` opts into late admission at an active-decode throughput cost |
++| `GLM53_PHASE_INTERLEAVE` | `0` | optional exclusive decode/prefill scheduler. q8/p2048 improved C2 but serialized C4 long prefills; set `1` only for decode-protected operation |
+ | `GLM53_PHASE_DECODE_STEPS` | `8` | productive decode-only engine steps between contended prefill slabs |
+ | `GLM53_PHASE_PREFILL_TOKENS` | `2048` | maximum tokens in each prefill-only slab; the live scheduler budget may impose a lower cap |
+ | `GLM53_SUPPRESS_STOPS_IN_REASONING` | `1` | ignore client `stop` strings until `</think>` (thinking-on default) |
+-| `GLM53_INDEXER_WORKSPACE` | `stock` | sparse-indexer prefill gather workspace. `stock` = `max_model_len * 40` entries (**5036.40 MB** locked at 1M — measured, `VLLM_DEBUG_WORKSPACE=1`). `rightsize` = the legal per-step maximum `min(MAX_NUM_SEQS, MNBT) * cdiv(MAX_MODEL_LEN + k, index_kpool)` = 126 MB at `MAX_NUM_SEQS=4` / 504 MB at 16, so **~+26–28% KV**. Opt-in; see [docs/DESIGN-indexer-workspace.md](docs/DESIGN-indexer-workspace.md) |
++| `GLM53_INDEXER_WORKSPACE` | `rightsize` | sparse-indexer prefill gather workspace sized to the legal per-step maximum. `stock` reserves `max_model_len * 40` entries (**5036.40 MB** at 1M); right-size reclaimed ~4.9 GiB/rank in the C4 parity run |
+ | `GLM53_SPINWAIT_MS` | `stock` | SpinCondition reader busy-loop window. `stock` preserves vLLM's 1 s default; `1..1000` selects milliseconds. A frozen TP=2 sweep selected `16` (+0.95% median decode vs stock, 85.3% less active EngineCore CPU) |
+ | `GLM53_BOOT_SHAPE_WARMUP` | `1` | after `/health`, burn DFlash2 BLOCK / sampler / kpool shapes (nonfatal) |
+ | `TRITON_HOST_CACHE` / `TILELANG_HOST_CACHE` | `$CACHE_ROOT/triton` / `tilelang` | persist JIT caches across container recreate |
+diff --git a/recipes/mia/start.sh b/recipes/mia/start.sh
+index 9de412c33b..06fa4df0cf 100755
+--- a/recipes/mia/start.sh
++++ b/recipes/mia/start.sh
+@@ -265,16 +265,17 @@ READY_TIMEOUT="${READY_TIMEOUT:-3600}"
+ # 1 = suppress client stop strings until </think> (DSpark #42 class).
+ GLM53_SUPPRESS_STOPS_IN_REASONING="${GLM53_SUPPRESS_STOPS_IN_REASONING:-1}"
+ # Mixed-step prefill policy when a peer is already decoding (issue #6).
+-# skip = do not mix; N>0 = cap tokens; 0 = off.
+-GLM53_MIXED_PREFILL_CHUNK="${GLM53_MIXED_PREFILL_CHUNK:-skip}"
+-# Preserve the published reference's strict skip behavior by default. A
+-# positive value opts into the experimental late-admission gate, which trades
+-# active-decode throughput for bounded service of a waiting long prefill.
++# 0 = work-conserving mixed scheduling; skip = strict decode protection;
++# N>0 = cap tokens. C4 staggered 33K parity selected 0 with MNBT=7168.
++GLM53_MIXED_PREFILL_CHUNK="${GLM53_MIXED_PREFILL_CHUNK:-0}"
++# A positive value activates the experimental late-admission gate when the
++# mixed policy is skip. It trades active-decode throughput for bounded service
++# of a waiting long prefill; zero leaves either serving policy unmodified.
+ GLM53_MIXED_PREFILL_MAX_WAIT_MS="${GLM53_MIXED_PREFILL_MAX_WAIT_MS:-0}"
+-# Exclusive phase scheduler. A contended long prefill receives one full slab
+-# after N decode-only engine steps. It never combines prefill and decode in one
+-# model forward. Set to 0 for exact strict-skip rollback.
+-GLM53_PHASE_INTERLEAVE="${GLM53_PHASE_INTERLEAVE:-1}"
++# Exclusive phase scheduler. The q8/p2048 policy remains available for
++# decode-protected C2 operation, but serialized C4 prefills; mixed scheduling
++# is the appliance default. Set to 1 to opt into exclusive phases.
++GLM53_PHASE_INTERLEAVE="${GLM53_PHASE_INTERLEAVE:-0}"
+ GLM53_PHASE_DECODE_STEPS="${GLM53_PHASE_DECODE_STEPS:-8}"
+ GLM53_PHASE_PREFILL_TOKENS="${GLM53_PHASE_PREFILL_TOKENS:-2048}"
+ # Sparse-indexer prefill gather workspace (overlay/patch_indexer_workspace.py).
+@@ -282,7 +283,7 @@ GLM53_PHASE_PREFILL_TOKENS="${GLM53_PHASE_PREFILL_TOKENS:-2048}"
+ # rightsize = the legal per-step maximum, ~+26% KV. Default applies only
+ # when UNSET: an explicitly empty value is an operator error and
+ # validate_numeric_config rejects it rather than guessing a serving mode.
+-GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-stock}"
++GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-rightsize}"
+ # SpinCondition reader busy-loop window. "stock" preserves vLLM's 1 s default;
+ # 1..1000 selects milliseconds. The frozen TP=2 sweep selected 16 ms.
+ GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-stock}"
+@@ -394,12 +395,12 @@ validate_numeric_config() {
+     _glm53_canonical_positive_int MAX_NUM_SEQS "$MAX_NUM_SEQS" 4096 || return
+     _glm53_canonical_positive_int MAX_NUM_BATCHED_TOKENS "$MAX_NUM_BATCHED_TOKENS" 8388608 || return
+     _glm53_validate_enum GLM53_PHASE_INTERLEAVE \
+-        "${GLM53_PHASE_INTERLEAVE-1}" 0 1 || return
++        "${GLM53_PHASE_INTERLEAVE-0}" 0 1 || return
+     _glm53_canonical_positive_int GLM53_PHASE_DECODE_STEPS \
+         "${GLM53_PHASE_DECODE_STEPS-8}" 256 || return
+     _glm53_canonical_positive_int GLM53_PHASE_PREFILL_TOKENS \
+         "${GLM53_PHASE_PREFILL_TOKENS-2048}" 8192 || return
+-    _glm53_validate_enum GLM53_INDEXER_WORKSPACE "${GLM53_INDEXER_WORKSPACE-stock}" \
++    _glm53_validate_enum GLM53_INDEXER_WORKSPACE "${GLM53_INDEXER_WORKSPACE-rightsize}" \
+         stock rightsize || return
+     _glm53_validate_spinwait_ms || return
+ }
+diff --git a/recipes/mia/tests/test_image_recipe.py b/recipes/mia/tests/test_image_recipe.py
+index d7b16a5d07..cb8d09bde2 100644
+--- a/recipes/mia/tests/test_image_recipe.py
++++ b/recipes/mia/tests/test_image_recipe.py
+@@ -22,9 +22,11 @@ def test_documented_defaults() -> None:
+     assert 'EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"' in start
+     assert "MAX_NUM_BATCHED_TOKENS=7168" in example
+     assert re.search(r"^EXL3_FAT_KERNEL=1$", example, re.M)
+-    assert re.search(r"^GLM53_PHASE_INTERLEAVE=1$", example, re.M)
++    assert re.search(r"^GLM53_MIXED_PREFILL_CHUNK=0$", example, re.M)
++    assert re.search(r"^GLM53_PHASE_INTERLEAVE=0$", example, re.M)
+     assert re.search(r"^GLM53_PHASE_DECODE_STEPS=8$", example, re.M)
+     assert re.search(r"^GLM53_PHASE_PREFILL_TOKENS=2048$", example, re.M)
++    assert re.search(r"^GLM53_INDEXER_WORKSPACE=rightsize$", example, re.M)
+ 
+ 
+ def test_recipe_stamp_wiring() -> None:
+diff --git a/recipes/mia/tests/test_indexer_workspace.py b/recipes/mia/tests/test_indexer_workspace.py
+index 499b422738..81b13f7e90 100644
+--- a/recipes/mia/tests/test_indexer_workspace.py
++++ b/recipes/mia/tests/test_indexer_workspace.py
+@@ -785,7 +785,10 @@ def test_recipe_wiring_if_present() -> None:
+         return
+     launcher = start.read_text()
+     image = dockerfile.read_text()
+-    assert 'GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-stock}"' in launcher
++    assert (
++        'GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-rightsize}"'
++        in launcher
++    )
+     assert '_cli_indexer_workspace="${GLM53_INDEXER_WORKSPACE-}"' in launcher
+     # Setness-aware capture: an explicitly empty caller value must survive the
+     # .env source and reach the enum guard, not be swallowed by a .env value.

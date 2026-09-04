@@ -1,0 +1,279 @@
+From 495f27d9469ee3a4ba59617a3d808781326ac96f Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 08:18:03 -0700
+Subject: [PATCH 31/37] bench(glm): reject K4 codebook lookup cache
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/kernels/benchmark_exl3_k4_lut.py   | 198 ++++++++++++++++++
+ ...026-09-03-exl3-k4-codebook-lut-rejected.md |  56 +++++
+ 2 files changed, 254 insertions(+)
+ create mode 100644 benchmarks/kernels/benchmark_exl3_k4_lut.py
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-exl3-k4-codebook-lut-rejected.md
+
+diff --git a/benchmarks/kernels/benchmark_exl3_k4_lut.py b/benchmarks/kernels/benchmark_exl3_k4_lut.py
+new file mode 100644
+index 0000000000..0ed0c8de1f
+--- /dev/null
++++ b/benchmarks/kernels/benchmark_exl3_k4_lut.py
+@@ -0,0 +1,198 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Test an exact 128-KiB K4 codebook LUT against procedural EXL3 decode.
++
++Both implementations live in the same extension and retain the accepted M64
++geometry, packing, FP32 accumulation, transforms, routing and scatter.  The
++only changed operation is the procedural reconstruction of each 16-bit MCG
++window versus a read-only lookup of the bit-identical FP16 result.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import statistics
++from collections.abc import Callable
++
++import exllamav3_ext
++import torch
++
++
++def parse_args() -> argparse.Namespace:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument(
++        "--rows",
++        nargs="+",
++        type=int,
++        default=(129, 192, 320, 512, 768, 1024, 2048, 4096, 6528),
++    )
++    parser.add_argument("--hidden", type=int, default=4096)
++    parser.add_argument("--intermediate", type=int, default=1024)
++    parser.add_argument("--warmup", type=int, default=20)
++    parser.add_argument("--iterations", type=int, default=80)
++    parser.add_argument("--repeats", type=int, default=7)
++    parser.add_argument("--seed", type=int, default=23)
++    return parser.parse_args()
++
++
++def alternating_medians(
++    control: Callable[[], None],
++    candidate: Callable[[], None],
++    warmup: int,
++    iterations: int,
++    repeats: int,
++) -> tuple[float, float, list[float], list[float]]:
++    for _ in range(warmup):
++        control()
++        candidate()
++    torch.cuda.synchronize()
++    control_samples: list[float] = []
++    candidate_samples: list[float] = []
++    for repeat in range(repeats):
++        order = ((control, control_samples), (candidate, candidate_samples))
++        if repeat & 1:
++            order = tuple(reversed(order))
++        for operation, samples in order:
++            start = torch.cuda.Event(enable_timing=True)
++            end = torch.cuda.Event(enable_timing=True)
++            start.record()
++            for _ in range(iterations):
++                operation()
++            end.record()
++            end.synchronize()
++            samples.append(start.elapsed_time(end) / iterations)
++    return (
++        statistics.median(control_samples),
++        statistics.median(candidate_samples),
++        control_samples,
++        candidate_samples,
++    )
++
++
++@torch.inference_mode()
++def benchmark(args: argparse.Namespace, rows: int) -> dict[str, object]:
++    torch.manual_seed(args.seed)
++    device = torch.device("cuda:0")
++    hidden = args.hidden
++    intermediate = args.intermediate
++    gu_shape = (hidden // 16, intermediate // 16, 64)
++    down_shape = (intermediate // 16, hidden // 16, 64)
++
++    xh = torch.randn(rows, hidden, dtype=torch.float16, device=device)
++    gate = torch.randint(-32768, 32767, gu_shape, dtype=torch.int16, device=device)
++    up = torch.randint(-32768, 32767, gu_shape, dtype=torch.int16, device=device)
++    down = torch.randint(-32768, 32767, down_shape, dtype=torch.int16, device=device)
++    gate_svh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    up_svh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    down_suh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    down_svh = torch.randn(hidden, dtype=torch.float16, device=device)
++    token_idx = torch.arange(rows, dtype=torch.int64, device=device)
++    route_weight = torch.rand(rows, dtype=torch.float16, device=device)
++
++    control_gu = torch.empty(rows, 2 * intermediate, dtype=torch.float32, device=device)
++    candidate_gu = torch.empty_like(control_gu)
++    control_h2 = torch.empty(rows, intermediate, dtype=torch.float16, device=device)
++    candidate_h2 = torch.empty_like(control_h2)
++    control_out = torch.empty(rows, hidden, dtype=torch.float32, device=device)
++    candidate_out = torch.empty_like(control_out)
++
++    exllamav3_ext.exl3_fat_init_k4_cb1_lut(xh)
++
++    def control_pair() -> None:
++        exllamav3_ext.exl3_fat_gemm_pair_m64(
++            xh, gate, up, control_gu, gate_svh, up_svh, 4, True, False
++        )
++
++    def candidate_pair() -> None:
++        exllamav3_ext.exl3_fat_gemm_pair_m64_lut(
++            xh, gate, up, candidate_gu, gate_svh, up_svh, 4, True, False
++        )
++
++    def control_scatter() -> None:
++        control_out.zero_()
++        exllamav3_ext.exl3_fat_gemm_scatter_m64(
++            control_h2,
++            down,
++            control_out,
++            down_svh,
++            token_idx,
++            route_weight,
++            4,
++            True,
++            False,
++        )
++
++    def candidate_scatter() -> None:
++        candidate_out.zero_()
++        exllamav3_ext.exl3_fat_gemm_scatter_m64_lut(
++            candidate_h2,
++            down,
++            candidate_out,
++            down_svh,
++            token_idx,
++            route_weight,
++            4,
++            True,
++            False,
++        )
++
++    def control_full() -> None:
++        control_pair()
++        exllamav3_ext.exl3_fat_swiglu_had(control_gu, control_h2, down_suh, 10.0)
++        control_scatter()
++
++    def candidate_full() -> None:
++        candidate_pair()
++        exllamav3_ext.exl3_fat_swiglu_had(
++            candidate_gu, candidate_h2, down_suh, 10.0
++        )
++        candidate_scatter()
++
++    control_full()
++    candidate_full()
++    torch.cuda.synchronize()
++    delta = control_out - candidate_out
++    reference_rms = control_out.square().mean().sqrt()
++
++    timings: dict[str, object] = {}
++    for name, control, candidate in (
++        ("pair", control_pair, candidate_pair),
++        ("scatter", control_scatter, candidate_scatter),
++        ("full", control_full, candidate_full),
++    ):
++        control_ms, candidate_ms, control_samples, candidate_samples = (
++            alternating_medians(
++                control,
++                candidate,
++                args.warmup,
++                args.iterations,
++                args.repeats,
++            )
++        )
++        timings[name] = {
++            "control_ms": control_ms,
++            "candidate_ms": candidate_ms,
++            "speedup": control_ms / candidate_ms,
++            "control_samples_ms": control_samples,
++            "candidate_samples_ms": candidate_samples,
++        }
++
++    return {
++        "rows": rows,
++        "hidden": hidden,
++        "intermediate": intermediate,
++        "relative_rmse": float(delta.square().mean().sqrt() / (reference_rms + 1e-8)),
++        "max_abs": float(delta.abs().max()),
++        "timings": timings,
++    }
++
++
++def main() -> None:
++    args = parse_args()
++    for rows in args.rows:
++        print(json.dumps(benchmark(args, rows), sort_keys=True), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/sparkglm/results/2026-09-03-exl3-k4-codebook-lut-rejected.md b/benchmarks/sparkglm/results/2026-09-03-exl3-k4-codebook-lut-rejected.md
+new file mode 100644
+index 0000000000..98ff21f904
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-exl3-k4-codebook-lut-rejected.md
+@@ -0,0 +1,56 @@
++# EXL3 K4 codebook LUT: rejected
++
++Date: 2026-09-03
++
++## Verdict
++
++Reject before model integration. Replacing the K4/MCG procedural codebook
++reconstruction with an exact 65,536-entry FP16 table is about **9.8-10.9x
++slower** for the complete routed-expert body on one GB10. The table is only
++128 KiB and the result is bit-identical, but divergent per-lane lookup traffic
++serializes far more severely than the integer reconstruction dependency chain.
++
++The experimental extension entry points were removed after the result. The
++benchmark harness is retained as `benchmarks/kernels/benchmark_exl3_k4_lut.py`
++and documents the rejected interface and complete test boundary.
++
++## Isolated change
++
++Both implementations lived in one extension binary and used the accepted
++M64/K16/N128 geometry, three-stage `cp.async` pipeline, packed K4 weights,
++FP32 accumulation, exact rounded SwiGLU, Hadamard/scales, route weighting and
++scatter. The candidate changed only `decode_3inst<1>`:
++
++- control: eight procedural reconstructions per lane from the exact sliding
++  16-bit windows;
++- candidate: the same windows indexing a device-resident 128-KiB FP16 table
++  initialized by `decode_3inst<1>` itself.
++
++No model weights were loaded. Random packed tensors used the GLM TP-local
++hidden/intermediate dimensions of 4,096 and 1,024. Timings used 10 warmups, 40
++iterations and five alternating-order repeats.
++
++## Complete expert-body result
++
++| Expert rows | Procedural M64 | LUT M64 | LUT slowdown |
++| ---: | ---: | ---: | ---: |
++| 129 | 0.1131 ms | 1.1150 ms | 9.86x |
++| 320 | 0.1875 ms | 1.9434 ms | 10.36x |
++| 512 | 0.2819 ms | 3.0667 ms | 10.88x |
++| 1,024 | 0.5613 ms | 6.0894 ms | 10.85x |
++| 2,048 | 1.1896 ms | 11.8013 ms | 9.92x |
++| 4,096 | 2.3462 ms | 23.7435 ms | 10.12x |
++| 6,528 | 3.8615 ms | 37.8326 ms | 9.80x |
++
++The paired gate/up LUT kernel alone was 10.99-15.96x slower. The down/scatter
++LUT kernel was 6.55-8.93x slower. Every final output had `max_abs=0` and
++relative RMSE 0.
++
++## Consequence
++
++The EXL3 procedural codebook is not replaceable by ordinary cached lookup on
++SM121, even when the complete table is tiny relative to L2. Preserve its
++compact arithmetic and target overlap instead: decode a future packed-weight
++fragment while tensor-core work consumes the current fragment. A useful next
++candidate must change instruction scheduling or producer/consumer dataflow,
++not add decoded-weight memory traffic.

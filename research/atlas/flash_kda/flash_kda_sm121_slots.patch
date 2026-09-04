@@ -1,0 +1,134 @@
+diff --git a/csrc/flash_kda.cpp b/csrc/flash_kda.cpp
+index 81f5483..3982bec 100644
+--- a/csrc/flash_kda.cpp
++++ b/csrc/flash_kda.cpp
+@@ -187,7 +187,7 @@ void fwd(
+             initial_state_raw, scale_f, final_state_raw, out_ptr, \
+             workspace_ptr, total_tiles, \
+             int(T_total), int(H), int(N_val), cu_seqlens_dev, \
+-            A_log_ptr, dt_bias_ptr, gate_scale, stream)
++            A_log_ptr, dt_bias_ptr, gate_scale, nullptr, int(N_val), stream)
+ 
+     #define DISPATCH_STATE(VL) \
+         if (!has_state_in && !has_state_out) { \
+diff --git a/csrc/fwd.h b/csrc/fwd.h
+index deb82b6..fa739cb 100644
+--- a/csrc/fwd.h
++++ b/csrc/fwd.h
+@@ -23,5 +23,7 @@ void launch_fwd(
+     float const* A_log_ptr,
+     float const* dt_bias_ptr,
+     float gate_scale,
++    int const* state_slot_ids,
++    int state_capacity,
+     cudaStream_t stream
+ );
+diff --git a/csrc/smxx/fwd_kernel2.cuh b/csrc/smxx/fwd_kernel2.cuh
+index 26f73fe..ca7eea5 100644
+--- a/csrc/smxx/fwd_kernel2.cuh
++++ b/csrc/smxx/fwd_kernel2.cuh
+@@ -147,7 +147,9 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+     int H,
+     int N,
+     int64_t const* cu_seqlens,
+-    int total_tiles
++    int total_tiles,
++    int const* state_slot_ids,
++    int state_capacity
+ ) {
+     using BF16 = cutlass::bfloat16_t;
+     using FP16 = cutlass::half_t;
+@@ -234,6 +236,7 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+     }
+     int seq_len  = int(eos - bos);
+     int t_tiles  = (seq_len + CHUNK - 1) / CHUNK;
++    int state_seq_idx = state_slot_ids == nullptr ? seq_idx : state_slot_ids[seq_idx];
+     bool lane_predicate = cute::elect_one_sync();
+ 
+     // --- Load initial state
+@@ -248,8 +251,8 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+             cutlass::arch::fence_barrier_init();  // generic init -> visible to async proxy (TMA complete-tx)
+             shared_storage.state_acc_tma_barrier.arrive_and_expect_tx(kStateTransactionBytes);
+ 
+-            Tensor g_init = tma_load_initial_state.get_tma_tensor(make_shape(N * H, D, D));
+-            auto init_off = g_init.layout()(seq_idx * H + head_idx, 0, 0);
++            Tensor g_init = tma_load_initial_state.get_tma_tensor(make_shape(state_capacity * H, D, D));
++            auto init_off = g_init.layout()(state_seq_idx * H + head_idx, 0, 0);
+             Tensor g_init_tile = make_tensor(g_init.data() + init_off,
+                 make_layout(make_shape(Int<1>{}, Int<D>{}, Int<D>{}), stride(g_init.layout())));
+             Tensor s_state = make_tensor(make_smem_ptr(shared_storage.state_acc.begin()), TMAStateSmemLayout{});
+@@ -277,8 +280,8 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+             cutlass::arch::fence_barrier_init();  // generic init -> visible to async proxy (TMA complete-tx)
+             shared_storage.state_acc_tma_barrier.arrive_and_expect_tx(kFP32StateTransactionBytes);
+ 
+-            Tensor g_init = tma_load_initial_state.get_tma_tensor(make_shape(N * H, D, D));
+-            auto init_off = g_init.layout()(seq_idx * H + head_idx, 0, 0);
++            Tensor g_init = tma_load_initial_state.get_tma_tensor(make_shape(state_capacity * H, D, D));
++            auto init_off = g_init.layout()(state_seq_idx * H + head_idx, 0, 0);
+             Tensor g_init_tile = make_tensor(g_init.data() + init_off,
+                 make_layout(make_shape(Int<1>{}, Int<D>{}, Int<D>{}), stride(g_init.layout())));
+             Tensor s_fp32 = make_tensor(
+@@ -785,8 +788,8 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+ 
+         if constexpr (HasStateOut && !StateFP32) {
+             // BF16 state: TMA store directly from state_acc
+-            Tensor g_final = tma_store_final_state.get_tma_tensor(make_shape(N * H, D, D));
+-            auto state_off = g_final.layout()(seq_idx * H + head_idx, 0, 0);
++            Tensor g_final = tma_store_final_state.get_tma_tensor(make_shape(state_capacity * H, D, D));
++            auto state_off = g_final.layout()(state_seq_idx * H + head_idx, 0, 0);
+             Tensor g_final_tile = make_tensor(g_final.data() + state_off,
+                 make_layout(make_shape(Int<1>{}, Int<D>{}, Int<D>{}), stride(g_final.layout())));
+             Tensor s_state = make_tensor(make_smem_ptr(shared_storage.state_acc.begin()), TMAStateSmemLayout{});
+@@ -816,8 +819,8 @@ __global__ void __launch_bounds__(NumThreads) _flash_kda_fwd_recurrence(
+         __syncthreads();  // conversion complete
+ 
+         if (warp_role == WarpRole::STORE && lane_predicate) {
+-            Tensor g_final = tma_store_final_state.get_tma_tensor(make_shape(N * H, D, D));
+-            auto state_off = g_final.layout()(seq_idx * H + head_idx, 0, 0);
++            Tensor g_final = tma_store_final_state.get_tma_tensor(make_shape(state_capacity * H, D, D));
++            auto state_off = g_final.layout()(state_seq_idx * H + head_idx, 0, 0);
+             Tensor g_final_tile = make_tensor(g_final.data() + state_off,
+                 make_layout(make_shape(Int<1>{}, Int<D>{}, Int<D>{}), stride(g_final.layout())));
+             Tensor s_fp32 = make_tensor(
+diff --git a/csrc/smxx/fwd_launch.cu b/csrc/smxx/fwd_launch.cu
+index 91a67a7..15a1b81 100644
+--- a/csrc/smxx/fwd_launch.cu
++++ b/csrc/smxx/fwd_launch.cu
+@@ -23,6 +23,8 @@ void launch_fwd(
+     float const* A_log_ptr,
+     float const* dt_bias_ptr,
+     float gate_scale,
++    int const* state_slot_ids,
++    int state_capacity,
+     cudaStream_t stream
+ ) {
+     using BF16 = cutlass::bfloat16_t;
+@@ -50,7 +52,7 @@ void launch_fwd(
+     auto gmem_layout = make_layout(make_shape(H, T_total, D), make_stride(D, D * H, 1));
+     // 1D beta layout: [H*T] contiguous
+     auto beta_gmem_layout = make_layout(make_shape(H * T_total));
+-    auto state_gmem_layout = make_layout(make_shape(N * H, D, D), LayoutRight{});
++    auto state_gmem_layout = make_layout(make_shape(state_capacity * H, D, D), LayoutRight{});
+ 
+     Tensor m_q   = make_tensor(make_gmem_ptr(q_ptr), gmem_layout);
+     Tensor m_k   = make_tensor(make_gmem_ptr(k_ptr), gmem_layout);
+@@ -210,7 +212,8 @@ void launch_fwd(
+             tma_load_initial_state,
+             tma_store_final_state,
+             tma_store_out,
+-            out_ptr, T_total, H, N, cu_seqlens_ptr, total_tiles
++            out_ptr, T_total, H, N, cu_seqlens_ptr, total_tiles,
++            state_slot_ids, state_capacity
+         );
+     }
+ #endif
+@@ -223,7 +226,8 @@ void launch_fwd(
+         cutlass::bfloat16_t const*, cutlass::bfloat16_t const*, \
+         cutlass::bfloat16_t const*, void const*, float, void*, \
+         cutlass::bfloat16_t*, void*, int, int, int, int, \
+-        int64_t const*, float const*, float const*, float, cudaStream_t);
++        int64_t const*, float const*, float const*, float, \
++        int const*, int, cudaStream_t);
+ 
+ #define INSTANTIATE_STATE_VARIANTS(VL) \
+     INSTANTIATE_LAUNCH_FWD(128, true,  true,  false, VL) \

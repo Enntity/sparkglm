@@ -1,0 +1,18 @@
+diff --git a/vllm/models/common/ops/fused_qk_rmsnorm.py b/vllm/models/common/ops/fused_qk_rmsnorm.py
+index ac7d0dfd4a..9bc73dd7bf 100644
+--- a/vllm/models/common/ops/fused_qk_rmsnorm.py
++++ b/vllm/models/common/ops/fused_qk_rmsnorm.py
+@@ -77,8 +77,11 @@ def fused_q_kv_rmsnorm(
+     q_size = qr.shape[1]
+     kv_size = kv.shape[1]
+     num_tokens = qr.shape[0]
+-    qr_out = torch.empty_like(qr)
+-    kv_out = torch.empty_like(kv)
++    # qr/kv are usually column slices of one fused projection. For a one-token
++    # decode, empty_like preserves the parent row stride and can disqualify the
++    # packed-input fast path in the following projection.
++    qr_out = torch.empty(qr.shape, dtype=qr.dtype, device=qr.device)
++    kv_out = torch.empty(kv.shape, dtype=kv.dtype, device=kv.device)
+     if num_tokens == 0:
+         return qr_out, kv_out
+ 

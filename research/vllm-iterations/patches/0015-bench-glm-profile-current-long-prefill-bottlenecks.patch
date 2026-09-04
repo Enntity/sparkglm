@@ -1,0 +1,217 @@
+From 7d0c1814eca73077af569d1bca7da0b15f12710a Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 02:25:34 -0700
+Subject: [PATCH 15/37] bench(glm): profile current long-prefill bottlenecks
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ ...2026-09-03-current-long-prefill-profile.md | 109 ++++++++++++++++++
+ docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md     |  72 ++++++++----
+ 2 files changed, 157 insertions(+), 24 deletions(-)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md b/benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md
+new file mode 100644
+index 0000000000..ad2e6ee38f
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md
+@@ -0,0 +1,109 @@
++# Current accepted long-prefill profile
++
++Date: 2026-09-03
++
++## Verdict
++
++The current accepted paired/fused E2 build is still dominated by routed EXL3
++MoE compute during long prefill. This synchronized profile supersedes the old
++pre-E2 attribution used to order the remaining work.
++
++The next large-lever experiment must optimize the expert compute itself. More
++MoE dispatch rearrangement and fused sparse score/top-k work are not justified
++by this profile.
++
++## Exact artifact and workload
++
++- Source commit: `eba60e7048` (`perf(glm): fuse exact EXL3 fat expert pipeline`)
++- Live image label revision: `6a49e49e7e6a3226197a2ceefcf217cdf55f751e`
++- Live `exl3.py` SHA-256:
++  `edf9a35071c6c20980b4aa41af6275b3b985400abbab4db8592f9b7395ff3083`
++- TP2 over the two GB10s, EXL3 K4 MCG target, DFlash2 K7/TP2, FP8 KV
++- `max_num_batched_tokens=7168`, `max_num_seqs=4`
++- One 32,176-token C1 isolation prompt
++- Torch profiler enabled on both ranks with no stacks, no shape recording and
++  no memory recording
++- Three short requests calibrated the 12-worker-step delay. The accepted
++  profile contains four `execute_context_1(7104)` scopes and two complete
++  long-prefill target forwards (84 MoE calls, 68 KDA calls and 22 sparse-MLA
++  calls).
++
++The profiled request completed 8/8 requested output tokens without an API
++error. Profiling overhead raised TTFT to 35.16 seconds, so its endpoint timing
++is not a throughput result.
++
++## Unprofiled anchor
++
++The same restored service was measured immediately before the profiler-only
++restart.
++
++| Case | Aggregate prefill | Aggregate decode | Wall | Correctness |
++| --- | ---: | ---: | ---: | --- |
++| Warm medium C2 | 1,332.65 tok/s | 29.05 tok/s | 29.60 s | 2/2 complete; markers isolated |
++| Large C2 | 1,313.91 tok/s | 11.22 tok/s | 54.44 s | 2/2 complete; markers isolated |
++
++The large row reproduces the accepted change receipt's 1,313.9 tok/s result.
++
++## Rank-symmetric CUDA attribution
++
++PyTorch's table duplicates CUDA time into enclosing CPU scopes, so percentages
++below use either a named leaf kernel or a named operation boundary against each
++rank's 10.22-10.24 seconds of leaf CUDA time. Enclosing totals must not be
++summed with their child kernels.
++
++| Operation | Rank 0 | Rank 1 | Meaning |
++| --- | ---: | ---: | --- |
++| `vllm::moe_forward_shared` CUDA total | 5.037 s | 4.909 s | 49.3% / 48.0% of the captured CUDA time |
++| Fat gate/up direct trellis kernel | 1.448 s | 1.397 s | 14.2% / 13.7% |
++| Fat down/scatter direct trellis kernel | 1.142 s | 1.139 s | 11.2% / 11.1% |
++| Base `exl3_moe_kernel` | 1.145 s | 1.125 s | 11.2% / 11.0% |
++| TP all-reduce kernel | 1.041 s | 1.224 s | 10.2% / 12.0% |
++| mHC fused post/pre boundary | 0.888 s | 0.898 s | 8.7% / 8.8% |
++| Sparse MLA attention boundary | 0.906 s | 0.878 s | 8.9% / 8.6% |
++| Sparse MLA compute kernel | 0.583 s | 0.563 s | 5.7% / 5.5% |
++| Full sparse indexer boundary | 0.056 s | 0.055 s | 0.55% / 0.54% |
++| FP8 sparse scorer kernel | 0.0156 s | 0.0152 s | about 0.15% |
++| Exact FP16 top-512 kernel | 0.0061 s | 0.0062 s | about 0.06% |
++| MoE grouped router top-k | 0.0061 s | 0.0061 s | about 0.06% |
++
++The fat path issued 6,589 gate/up kernels, 6,589 down/scatter kernels and
++6,589 fused SwiGLU/Hadamard kernels in the captured rank-0 interval. The E2
++diagnostics were identical on both ranks and showed no batched, sorted or
++legacy fallback.
++
++KDA remains material in aggregate because 34 layers each run the multi-stage
++chunk pipeline. Its individually named stages include roughly 0.15 seconds
++each for output formation and recomputation, 0.12 seconds each for the main
++chunk kernel and short convolution, and additional triangular/intermediate
++kernels. It is secondary to MoE but remains a legitimate later fusion target.
++
++## Consequences
++
++1. Optimize the direct EXL3 expert kernels first. The paired gate/up and
++   down/scatter kernels alone are about one quarter of total CUDA time, and the
++   complete MoE boundary is about one half.
++2. Profile and optimize exact TP2 reductions second. They are already a
++   double-digit share and differ noticeably by rank.
++3. KDA fusion remains third.
++4. Optimize the sparse MLA attention kernel/layout, not the scorer/top-k. The
++   full indexer is under one percent in the measured current engine; even a
++   free selector cannot create a meaningful endpoint win.
++5. Do not revisit host-dispatch grouping without new evidence. The accepted
++   path's production-shape microbench already showed the grouped E2 design was
++   neutral to negative.
++
++## Raw artifact identity
++
++The full traces remain outside git because each is about 116 MiB. Their
++temporary analysis location is
++`/private/tmp/sparkglm-profile-accepted-eba60e7048-20260903a/`.
++
++- rank-0 trace SHA-256:
++  `3180b36177f902455b691f6e9fa07bf0106e20a3690a62e195fe1929c3b53542`
++- rank-1 trace SHA-256:
++  `fc27896d4f82ce9144fbdceed1e73685bae763df0ccbd1eef55597b4490b4fe0`
++- rank-0 table SHA-256:
++  `1b76e4bd8a4e91adfee54750645739ccdd9c3723509340887d1f249dec359320`
++- rank-1 table SHA-256:
++  `f12e3b0dba92e6965f85511a4192c526cc7538b83e753f35d482f543b4608a34`
++
+diff --git a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+index 8527672e3f..6b880e4e87 100644
+--- a/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
++++ b/docs/sparkglm/GLM53_EXECUTION_ANALYSIS.md
+@@ -278,7 +278,49 @@ Every change must preserve exact selection, request isolation, output quality,
+ rank agreement, and speculative acceptance. A faster incorrect result is a
+ failed result.
+ 
+-### 1. Exact fused sparse-prefill pipeline
++The synchronized current-build profile in
++`benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md`
++supersedes the pre-E2 ordering below. On two genuine long-prefill target
++forwards, the complete routed-MoE boundary consumed about 48-49% of CUDA time,
++TP all-reduce 10-12%, mHC about 9%, and sparse MLA about 9%. The complete
++sparse indexer consumed only about 0.55%; its scorer and top-k kernels together
++were about 0.21%.
++
++### 1. Exact SM121 EXL3 expert compute
++
++Keep the accepted E2 routing and fat-expert dispatch. Optimize the compute
++inside the engaged kernels:
++
++1. tune the direct trellis fat GEMM geometry against the measured live row
++   distribution, not a uniform or one-expert shape;
++2. replace the inherited Ampere-style `mma.sync` inner loop with a genuinely
++   SM121-native implementation where it wins;
++3. reduce the fat path's gather, input Hadamard, SwiGLU/Hadamard and scatter
++   traffic without changing the K4 MCG arithmetic contract;
++4. evaluate a persistent hot-expert BF16 cache only after measuring per-layer
++   expert stability and including its memory cost.
++
++The paired gate/up and down/scatter direct kernels alone consumed about 25% of
++captured CUDA time. The complete MoE boundary is the only current term large
++enough for a single kernel project to produce a double-digit endpoint gain.
++
++### 2. Exact two-rank CX-7 communication schedule
++
++Fuse or overlap row-parallel reductions with residual/norm and subsequent
++work. Treat prefill bandwidth and decode latency as different schedules. Do
++not assume a same-node custom-all-reduce result applies to the cross-node
++appliance. The current profile measured TP all-reduce at 10-12% of CUDA time,
++with a material rank asymmetry.
++
++### 3. KDA prefill fusion
++
++Reduce global-memory intermediates and launches across gate cumulative sum,
++chunk QK/triangular solve, recurrent-state advance, output, and final-state
++scatter. Preserve FP32 state semantics. Existing BF16 projection GEMMs were
++already close to their weight-read bandwidth; focus on fewer bytes and fused
++state movement rather than another GEMM heuristic search.
++
++### 4. Exact sparse-MLA prefill pipeline
+ 
+ Target the fixed appliance shape: 2,048 query rows, kpool=4, exact top-512 pools
+ expanded to top-2,048 tokens, 32 local attention heads, NoPE width 512, TP2.
+@@ -295,29 +337,11 @@ Progressively remove these boundaries:
+ 7. evaluate intentional duplicate selection against a compact, overlapped TP2
+    exchange--never repeat the losing full-index all-gather.
+ 
+-This is the largest structural prefill lever. Implement it progressively so
+-each eliminated boundary has a correctness oracle and endpoint receipt.
+-
+-### 2. KDA prefill fusion
+-
+-Reduce global-memory intermediates and launches across gate cumulative sum,
+-chunk QK/triangular solve, recurrent-state advance, output, and final-state
+-scatter. Preserve FP32 state semantics. Existing BF16 projection GEMMs were
+-already close to their weight-read bandwidth; focus on fewer bytes and fused
+-state movement rather than another GEMM heuristic search.
+-
+-### 3. Exact two-rank CX-7 communication schedule
+-
+-Profile the production graph, then fuse or overlap row-parallel reductions with
+-residual/norm and subsequent work. Treat prefill bandwidth and decode latency as
+-different schedules. Do not assume a same-node custom-all-reduce result applies
+-to the cross-node appliance.
+-
+-### 4. MoE routing and fat-expert dispatch
+-
+-Keep the accepted E2 expert kernels. Remove the fat-path device-to-host count
+-synchronization, specialize the 288-way/top-8 router, and fuse routing/sort
+-metadata only when endpoint acceptance and quality remain stable.
++The current profile changes the emphasis. Sparse MLA attention is material at
++about 9% of CUDA time, but the complete score/top-k indexer is only about
++0.55%. Optimize the 512-wide NoPE attention geometry and its data movement
++before attempting another online selector. Implement every eliminated
++boundary with a correctness oracle and endpoint receipt.
+ 
+ ### 5. Decode selector and DFlash path
+ 

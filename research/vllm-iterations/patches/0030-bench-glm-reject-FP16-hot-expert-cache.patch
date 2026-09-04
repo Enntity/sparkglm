@@ -1,0 +1,258 @@
+From 4875d98c365a9e3a4bb4c96a592525c57bfe9e6e Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 08:07:55 -0700
+Subject: [PATCH 30/37] bench(glm): reject FP16 hot-expert cache
+
+Benchmark pre-dequantized expert weights against the accepted M64 K4 pipeline across production row counts. Exact cached outputs are 26-85% slower, so retain compact on-the-fly EXL3 execution.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../kernels/benchmark_exl3_hot_expert.py      | 176 ++++++++++++++++++
+ ...26-09-03-exl3-hot-expert-cache-rejected.md |  55 ++++++
+ 2 files changed, 231 insertions(+)
+ create mode 100644 benchmarks/kernels/benchmark_exl3_hot_expert.py
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-exl3-hot-expert-cache-rejected.md
+
+diff --git a/benchmarks/kernels/benchmark_exl3_hot_expert.py b/benchmarks/kernels/benchmark_exl3_hot_expert.py
+new file mode 100644
+index 0000000000..84ea7efde7
+--- /dev/null
++++ b/benchmarks/kernels/benchmark_exl3_hot_expert.py
+@@ -0,0 +1,176 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Measure a pre-dequantized hot expert against the accepted M64 EXL3 path.
++
++The cached path reconstructs gate/up/down weights once, outside every timed
++interval. Timings include the complete expert body after input gather and
++input Hadamard: gate/up GEMM and output transform, SwiGLU/down-input Hadamard,
++down GEMM and output transform, route weighting, and scatter.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import statistics
++from collections.abc import Callable
++
++import exllamav3_ext
++import torch
++
++
++def parse_args() -> argparse.Namespace:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument(
++        "--rows",
++        nargs="+",
++        type=int,
++        default=(129, 192, 320, 512, 768, 1024, 2048, 4096, 6528),
++    )
++    parser.add_argument("--hidden", type=int, default=4096)
++    parser.add_argument("--intermediate", type=int, default=1024)
++    parser.add_argument("--warmup", type=int, default=20)
++    parser.add_argument("--iterations", type=int, default=100)
++    parser.add_argument("--repeats", type=int, default=7)
++    parser.add_argument("--seed", type=int, default=17)
++    return parser.parse_args()
++
++
++def median_ms(
++    operation: Callable[[], None], warmup: int, iterations: int, repeats: int
++) -> tuple[float, list[float]]:
++    for _ in range(warmup):
++        operation()
++    torch.cuda.synchronize()
++    samples: list[float] = []
++    for _ in range(repeats):
++        start = torch.cuda.Event(enable_timing=True)
++        end = torch.cuda.Event(enable_timing=True)
++        start.record()
++        for _ in range(iterations):
++            operation()
++        end.record()
++        end.synchronize()
++        samples.append(start.elapsed_time(end) / iterations)
++    return statistics.median(samples), samples
++
++
++@torch.inference_mode()
++def benchmark(args: argparse.Namespace, rows: int) -> dict[str, object]:
++    torch.manual_seed(args.seed)
++    device = torch.device("cuda:0")
++    hidden = args.hidden
++    intermediate = args.intermediate
++    gu_shape = (hidden // 16, intermediate // 16, 64)
++    down_shape = (intermediate // 16, hidden // 16, 64)
++
++    xh = torch.randn(rows, hidden, dtype=torch.float16, device=device)
++    gate = torch.randint(-32768, 32767, gu_shape, dtype=torch.int16, device=device)
++    up = torch.randint(-32768, 32767, gu_shape, dtype=torch.int16, device=device)
++    down = torch.randint(-32768, 32767, down_shape, dtype=torch.int16, device=device)
++    gate_svh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    up_svh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    down_suh = torch.randn(intermediate, dtype=torch.float16, device=device)
++    down_svh = torch.randn(hidden, dtype=torch.float16, device=device)
++    token_idx = torch.arange(rows, dtype=torch.int64, device=device)
++    route_weight = torch.rand(rows, dtype=torch.float16, device=device)
++
++    gate_up_direct = torch.empty(
++        rows, 2 * intermediate, dtype=torch.float32, device=device
++    )
++    gate_up_cached = torch.empty_like(gate_up_direct)
++    h2_direct = torch.empty(rows, intermediate, dtype=torch.float16, device=device)
++    h2_cached = torch.empty_like(h2_direct)
++    direct_out = torch.empty(rows, hidden, dtype=torch.float32, device=device)
++    cached_out = torch.empty_like(direct_out)
++    cached_down = torch.empty_like(cached_out)
++
++    packed13 = torch.cat((gate, up), dim=1).contiguous()
++    svh13 = torch.cat((gate_svh, up_svh)).contiguous()
++    w13 = torch.empty(
++        hidden, 2 * intermediate, dtype=torch.float16, device=device
++    )
++    w2 = torch.empty(intermediate, hidden, dtype=torch.float16, device=device)
++    exllamav3_ext.reconstruct(w13, packed13, 4, True, False)
++    exllamav3_ext.reconstruct(w2, down, 4, True, False)
++    torch.cuda.synchronize()
++
++    def direct() -> None:
++        exllamav3_ext.exl3_fat_gemm_pair_m64(
++            xh,
++            gate,
++            up,
++            gate_up_direct,
++            gate_svh,
++            up_svh,
++            4,
++            True,
++            False,
++        )
++        exllamav3_ext.exl3_fat_swiglu_had(
++            gate_up_direct, h2_direct, down_suh, 10.0
++        )
++        direct_out.zero_()
++        exllamav3_ext.exl3_fat_gemm_scatter_m64(
++            h2_direct,
++            down,
++            direct_out,
++            down_svh,
++            token_idx,
++            route_weight,
++            4,
++            True,
++            False,
++        )
++
++    def cached() -> None:
++        exllamav3_ext.hgemm(xh, w13, gate_up_cached)
++        exllamav3_ext.had_r_128(
++            gate_up_cached, gate_up_cached, None, svh13, 1.0
++        )
++        exllamav3_ext.exl3_fat_swiglu_had(
++            gate_up_cached, h2_cached, down_suh, 10.0
++        )
++        exllamav3_ext.hgemm(h2_cached, w2, cached_down)
++        exllamav3_ext.had_r_128(cached_down, cached_down, None, down_svh, 1.0)
++        cached_down.mul_(route_weight.unsqueeze(1))
++        cached_out.zero_()
++        cached_out.index_add_(0, token_idx, cached_down)
++
++    direct()
++    cached()
++    torch.cuda.synchronize()
++    difference = direct_out - cached_out
++    reference_rms = direct_out.square().mean().sqrt()
++    relative_rmse = float(difference.square().mean().sqrt() / (reference_rms + 1e-8))
++    max_abs = float(difference.abs().max())
++
++    direct_ms, direct_samples = median_ms(
++        direct, args.warmup, args.iterations, args.repeats
++    )
++    cached_ms, cached_samples = median_ms(
++        cached, args.warmup, args.iterations, args.repeats
++    )
++    return {
++        "rows": rows,
++        "hidden": hidden,
++        "intermediate": intermediate,
++        "direct_m64_ms": direct_ms,
++        "cached_fp16_ms": cached_ms,
++        "speedup": direct_ms / cached_ms,
++        "direct_samples_ms": direct_samples,
++        "cached_samples_ms": cached_samples,
++        "relative_rmse": relative_rmse,
++        "max_abs": max_abs,
++        "cached_weight_mib": (w13.numel() + w2.numel()) * 2 / 2**20,
++    }
++
++
++def main() -> None:
++    args = parse_args()
++    for rows in args.rows:
++        print(json.dumps(benchmark(args, rows), sort_keys=True), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/sparkglm/results/2026-09-03-exl3-hot-expert-cache-rejected.md b/benchmarks/sparkglm/results/2026-09-03-exl3-hot-expert-cache-rejected.md
+new file mode 100644
+index 0000000000..874232fc8c
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-exl3-hot-expert-cache-rejected.md
+@@ -0,0 +1,55 @@
++# EXL3 pre-dequantized hot-expert cache: rejected
++
++Date: 2026-09-03
++
++## Verdict
++
++Reject before model integration. Pre-dequantizing selected layer-experts once
++into persistent FP16 weights produces exact outputs, but the complete cached
++expert body is 26-85% slower than the accepted M64 K4 trellis path across the
++production row range. Do not spend appliance memory or a model load on this
++design.
++
++## Hypothesis and gate
++
++One TP-local routed expert occupies 24 MiB when its gate, up and down matrices
++are reconstructed to FP16. A bounded cache of repeatedly selected experts could
++fit in the remaining unified memory and use the native dense GEMM path while
++the rest of the model stays EXL3.
++
++`benchmark_exl3_hot_expert.py` tests the crossover without loading model
++weights. Reconstruction occurs once and is excluded from timing. Both paths
++include gate/up, output Hadamard/scales, exact rounded SwiGLU plus down-input
++Hadamard, down projection, output Hadamard/scales, route weighting and scatter.
++The accepted control uses the M64 paired gate/up and M64 down/scatter K4
++kernels. The cached path uses ExLlamaV3's FP16 `hgemm` and existing transforms.
++
++## Result
++
++One idle GB10, hidden 4,096, TP-local intermediate 1,024, 10 warmups, 40 timed
++iterations and five repeats:
++
++| Expert rows | M64 K4 | Cached FP16 | M64 / cached |
++| ---: | ---: | ---: | ---: |
++| 129 | 0.1131 ms | 0.1654 ms | 0.684x |
++| 192 | 0.1210 ms | 0.2037 ms | 0.594x |
++| 320 | 0.1875 ms | 0.2741 ms | 0.684x |
++| 512 | 0.2934 ms | 0.3687 ms | 0.796x |
++| 768 | 0.4096 ms | 0.5861 ms | 0.699x |
++| 1,024 | 0.5473 ms | 0.8470 ms | 0.646x |
++| 2,048 | 1.1745 ms | 2.0521 ms | 0.572x |
++| 4,096 | 2.3538 ms | 4.3654 ms | 0.539x |
++| 6,528 | 3.7828 ms | 6.8793 ms | 0.550x |
++
++Every final output was bit-identical (`max_abs=0`, relative RMSE 0). This is
++not an arithmetic-quality tradeoff or reconstruction-cost artifact.
++
++## Consequence
++
++The accepted K4 pipeline's lower weight traffic is more valuable than routing
++these shapes through generic dense FP16 GEMM. A hot cache also consumes four
++times the packed-weight footprint and adds residency policy complexity, so it
++has no compensating appliance benefit.
++
++Continue with an on-the-fly K4 design that changes packed-codebook decode,
++tensor-core issue/dataflow or overlap while retaining the compact weights.

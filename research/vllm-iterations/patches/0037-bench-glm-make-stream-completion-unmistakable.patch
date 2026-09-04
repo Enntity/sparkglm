@@ -1,0 +1,140 @@
+From 772c605675d4ec9cea9faafc76b7f9678954697b Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 10:38:01 -0700
+Subject: [PATCH 37/37] bench(glm): make stream completion unmistakable
+
+Latch completed panes into a high-contrast green state with a brief flash, bold border, full-width header, and persistent DONE label.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/sparkglm/four_stream_video.py | 71 +++++++++++++++++++++---
+ 1 file changed, 64 insertions(+), 7 deletions(-)
+
+diff --git a/benchmarks/sparkglm/four_stream_video.py b/benchmarks/sparkglm/four_stream_video.py
+index 5c1ed5ee08..8c7a43dbb1 100644
+--- a/benchmarks/sparkglm/four_stream_video.py
++++ b/benchmarks/sparkglm/four_stream_video.py
+@@ -283,6 +283,17 @@ def _wrapped_lines(text: str, width: int) -> list[str]:
+     return lines
+ 
+ 
++def _mix_color(start: str, end: str, amount: float) -> str:
++    """Blend two RGB hex colors for a brief completion flash."""
++    amount = min(max(amount, 0.0), 1.0)
++    start_rgb = tuple(int(start[index : index + 2], 16) for index in (1, 3, 5))
++    end_rgb = tuple(int(end[index : index + 2], 16) for index in (1, 3, 5))
++    mixed = tuple(
++        round(left + (right - left) * amount) for left, right in zip(start_rgb, end_rgb)
++    )
++    return "#" + "".join(f"{channel:02x}" for channel in mixed)
++
++
+ def render(args: argparse.Namespace) -> None:
+     from PIL import Image, ImageDraw
+ 
+@@ -308,12 +319,15 @@ def render(args: argparse.Namespace) -> None:
+     metric_font = _font(mono_path, 16)
+     body_font = _font(mono_path, 17)
+     footer_font = _font(mono_path, 19)
++    done_font = _font(sans_path, 25)
+ 
+     bg = "#07090d"
+     panel = "#10151d"
+     border = "#263140"
+     text_color = "#dbe5f1"
+     muted = "#7f91a8"
++    done_green = "#38e8a3"
++    done_panel = "#10291f"
+     colors = ("#65d6ad", "#68a7ff", "#ffb454", "#d68cff")
+ 
+     margin = 32
+@@ -385,13 +399,40 @@ def render(args: argparse.Namespace) -> None:
+             for lane_index, lane in enumerate(lanes):
+                 x, y = positions[lane_index]
+                 color = colors[lane_index]
++                ended = float(lane["ended_s"])
++                done = now >= ended
++                done_age = max(now - ended, 0.0)
++                flash = max(1.0 - done_age / 0.9, 0.0) if done else 0.0
++                pane_fill = (
++                    _mix_color(done_panel, done_green, 0.18 * flash) if done else panel
++                )
++                pane_border = (
++                    _mix_color(done_green, "#e2fff4", flash) if done else border
++                )
+                 draw.rounded_rectangle(
+                     (x, y, x + pane_w, y + pane_h),
+                     radius=14,
+-                    fill=panel,
+-                    outline=border,
+-                    width=2,
++                    fill=pane_fill,
++                    outline=pane_border,
++                    width=6 if done else 2,
+                 )
++                if done:
++                    # Completion should read as a state change from across the
++                    # room, not as another small metric. Turn the entire header
++                    # green and keep it latched for the rest of the replay.
++                    draw.rounded_rectangle(
++                        (x + 3, y + 3, x + pane_w - 3, y + 68),
++                        radius=11,
++                        fill=pane_border,
++                    )
++                    draw.rectangle(
++                        (x + 3, y + 43, x + pane_w - 3, y + 68),
++                        fill=pane_border,
++                    )
++                    draw.rectangle(
++                        (x + 3, y + pane_h - 10, x + pane_w - 3, y + pane_h - 3),
++                        fill=pane_border,
++                    )
+                 events = [event for event in lane["events"] if float(event["t"]) <= now]
+                 stream_text = "".join(event["text"] for event in events)
+                 live_tokens = sum(int(event["tokens"]) for event in events)
+@@ -399,11 +440,10 @@ def render(args: argparse.Namespace) -> None:
+                 first = lane["first_token_s"]
+                 if first is not None and now >= first:
+                     active_firsts.append(float(first))
+-                done = now >= float(lane["ended_s"])
+                 if lane["error"]:
+                     status = "ERROR"
+                 elif done:
+-                    status = "DONE"
++                    status = "COMPLETE"
+                 elif events:
+                     status = "STREAMING"
+                 elif now < float(lane["scheduled_s"]):
+@@ -426,13 +466,30 @@ def render(args: argparse.Namespace) -> None:
+                         f"  •  +{float(lane['scheduled_s']):.1f}s"
+                     ),
+                     font=pane_title_font,
+-                    fill=color,
++                    fill=bg if done else color,
+                 )
+                 metric = (
+                     f"{status:<9} {live_tokens:>3}/"
+                     f"{lane['completion_tokens']} tok  {rate:>5.1f} tok/s"
+                 )
+-                draw.text((x + 17, y + 43), metric, font=metric_font, fill=muted)
++                draw.text(
++                    (x + 17, y + 43),
++                    metric,
++                    font=metric_font,
++                    fill="#123229" if done else muted,
++                )
++                if done:
++                    done_text = "DONE"
++                    done_box = draw.textbbox((0, 0), done_text, font=done_font)
++                    done_width = done_box[2] - done_box[0]
++                    done_x = x + pane_w - done_width - 24
++                    done_y = y + 16
++                    draw.text(
++                        (done_x, done_y),
++                        done_text,
++                        font=done_font,
++                        fill=bg,
++                    )
+                 lines = _wrapped_lines(stream_text, wrap_width)[-visible_lines:]
+                 for line_index, line in enumerate(lines):
+                     draw.text(

@@ -1,0 +1,69 @@
+From 73572c0087da5a2aea51c13fa877bb5f8766d84f Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:41:26 -0700
+Subject: [PATCH 04/21] perf(glm): carry packed fused RMSNorm outputs
+
+Port vLLM #53109 (515c2470db4b) for the GLM q_b projection path.
+
+Co-authored-by: yasong.wang <yasong.wang@inferact.ai>
+---
+ patches/vllm/packed-rmsnorm.patch | 50 +++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+ create mode 100644 patches/vllm/packed-rmsnorm.patch
+
+diff --git a/patches/vllm/packed-rmsnorm.patch b/patches/vllm/packed-rmsnorm.patch
+new file mode 100644
+index 0000000..2760906
+--- /dev/null
++++ b/patches/vllm/packed-rmsnorm.patch
+@@ -0,0 +1,50 @@
++diff --git a/tests/kernels/core/test_fused_q_kv_rmsnorm.py b/tests/kernels/core/test_fused_q_kv_rmsnorm.py
++index e5f2c878ff..786ab8eff9 100644
++--- a/tests/kernels/core/test_fused_q_kv_rmsnorm.py
+++++ b/tests/kernels/core/test_fused_q_kv_rmsnorm.py
++@@ -51,6 +51,27 @@ def test_fused_q_kv_rmsnorm_correctness(num_tokens: int, dtype: torch.dtype):
++     torch.testing.assert_close(kv_out, kv_ref, **tol)
++ 
++ 
+++@pytest.mark.parametrize("num_tokens", [1, 16])
+++def test_fused_q_kv_rmsnorm_outputs_are_packed(num_tokens: int):
+++    """Outputs stay packed when inputs are slices of a fused projection."""
+++    device = "cuda"
+++    dtype = torch.bfloat16
+++    q_size, kv_size = 192, 576
+++    fused = torch.randn(num_tokens, q_size + kv_size, dtype=dtype, device=device)
+++    qr, kv = fused.split([q_size, kv_size], dim=-1)
+++    qw = torch.randn(q_size, dtype=dtype, device=device)
+++    kvw = torch.randn(kv_size, dtype=dtype, device=device)
+++
+++    qr_out, kv_out = fused_q_kv_rmsnorm(qr, kv, qw, kvw, 1e-6)
+++
+++    assert qr_out.stride() == (q_size, 1)
+++    assert kv_out.stride() == (kv_size, 1)
+++    torch.testing.assert_close(qr_out, _ref_rmsnorm(qr, qw, 1e-6), rtol=1e-2, atol=1e-2)
+++    torch.testing.assert_close(
+++        kv_out, _ref_rmsnorm(kv, kvw, 1e-6), rtol=1e-2, atol=1e-2
+++    )
+++
+++
++ @pytest.mark.parametrize("num_tokens", [65535, 65536, 131072])
++ def test_fused_q_kv_rmsnorm_launches_past_grid_y_cap(num_tokens: int):
++     """Regression guard: grid used to be (2, num_tokens), hitting CUDA's
++diff --git a/vllm/models/common/ops/fused_qk_rmsnorm.py b/vllm/models/common/ops/fused_qk_rmsnorm.py
++index ac7d0dfd4a..9bc73dd7bf 100644
++--- a/vllm/models/common/ops/fused_qk_rmsnorm.py
+++++ b/vllm/models/common/ops/fused_qk_rmsnorm.py
++@@ -77,8 +77,11 @@ def fused_q_kv_rmsnorm(
++     q_size = qr.shape[1]
++     kv_size = kv.shape[1]
++     num_tokens = qr.shape[0]
++-    qr_out = torch.empty_like(qr)
++-    kv_out = torch.empty_like(kv)
+++    # qr/kv are usually column slices of one fused projection. For a one-token
+++    # decode, empty_like preserves the parent row stride and can disqualify the
+++    # packed-input fast path in the following projection.
+++    qr_out = torch.empty(qr.shape, dtype=qr.dtype, device=qr.device)
+++    kv_out = torch.empty(kv.shape, dtype=kv.dtype, device=kv.device)
++     if num_tokens == 0:
++         return qr_out, kv_out
++ 

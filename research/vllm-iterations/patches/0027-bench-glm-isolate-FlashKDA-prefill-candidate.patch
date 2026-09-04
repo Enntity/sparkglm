@@ -1,0 +1,304 @@
+From 7aef4abe127aad415ae76b67d227fe8f14da25f7 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 06:20:28 -0700
+Subject: [PATCH 27/37] bench(glm): isolate FlashKDA prefill candidate
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/kernels/benchmark_glm_flashkda.py  | 221 ++++++++++++++++++
+ .../results/2026-09-03-flashkda-candidate.md  |  58 +++++
+ 2 files changed, 279 insertions(+)
+ create mode 100644 benchmarks/kernels/benchmark_glm_flashkda.py
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-flashkda-candidate.md
+
+diff --git a/benchmarks/kernels/benchmark_glm_flashkda.py b/benchmarks/kernels/benchmark_glm_flashkda.py
+new file mode 100644
+index 0000000000..96db86fdc9
+--- /dev/null
++++ b/benchmarks/kernels/benchmark_glm_flashkda.py
+@@ -0,0 +1,221 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Compare GLM-5.3's Triton chunk KDA with FlashKDA on SM121.
++
++Run in a CUDA vLLM image that contains ``vllm._flashkda_C``. The benchmark
++uses the exact TP-local GLM-5.3 dimensions and bounded-gate arithmetic but does
++not load model weights.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import statistics
++from collections.abc import Callable
++
++import torch
++
++from vllm.third_party.flash_linear_attention.ops.kda import (
++    chunk_kda_with_fused_gate,
++)
++
++
++def parse_args() -> argparse.Namespace:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--tokens", nargs="+", type=int, default=(2048, 7168))
++    parser.add_argument("--sequences", type=int, default=2)
++    parser.add_argument("--heads", type=int, default=32)
++    parser.add_argument("--head-dim", type=int, default=128)
++    parser.add_argument("--lower-bound", type=float, default=-5.0)
++    parser.add_argument("--warmup", type=int, default=3)
++    parser.add_argument("--iterations", type=int, default=10)
++    parser.add_argument("--repeats", type=int, default=5)
++    parser.add_argument("--seed", type=int, default=11)
++    return parser.parse_args()
++
++
++def timed_ms(
++    operation: Callable[[], None],
++    warmup: int,
++    iterations: int,
++) -> float:
++    for _ in range(warmup):
++        operation()
++    torch.cuda.synchronize()
++    start = torch.cuda.Event(enable_timing=True)
++    end = torch.cuda.Event(enable_timing=True)
++    start.record()
++    for _ in range(iterations):
++        operation()
++    end.record()
++    end.synchronize()
++    return start.elapsed_time(end) / iterations
++
++
++def relative_rmse(reference: torch.Tensor, candidate: torch.Tensor) -> float:
++    difference = reference.float() - candidate.float()
++    rmse_difference = difference.square().mean().sqrt()
++    rmse_reference = reference.float().square().mean().sqrt()
++    return float(rmse_difference / (rmse_reference + 1e-8))
++
++
++@torch.inference_mode()
++def benchmark(args: argparse.Namespace, tokens: int) -> dict:
++    import vllm._flashkda_C  # noqa: F401
++
++    if tokens % args.sequences:
++        raise ValueError("tokens must divide evenly across sequences")
++
++    torch.manual_seed(args.seed)
++    device = torch.device("cuda:0")
++    shape = (1, tokens, args.heads, args.head_dim)
++    q, k, v, raw_g = [
++        torch.randn(shape, dtype=torch.bfloat16, device=device) for _ in range(4)
++    ]
++    beta_raw = torch.randn(
++        1, tokens, args.heads, dtype=torch.bfloat16, device=device
++    )
++    beta = beta_raw.float().sigmoid()
++    a_log = torch.randn(args.heads, dtype=torch.float32, device=device) * 0.5
++    dt_bias = (
++        torch.randn(
++            args.heads, args.head_dim, dtype=torch.float32, device=device
++        )
++        * 0.1
++    )
++    initial_state = torch.randn(
++        args.sequences,
++        args.heads,
++        args.head_dim,
++        args.head_dim,
++        dtype=torch.float32,
++        device=device,
++    )
++    step = tokens // args.sequences
++    cu_seqlens = torch.arange(
++        0,
++        tokens + 1,
++        step,
++        dtype=torch.int32,
++        device=device,
++    )
++
++    flash_out = torch.empty_like(v)
++    flash_state = torch.empty_like(initial_state)
++    workspace_size = torch.ops._flashkda_C.get_workspace_size(
++        tokens, args.heads, args.sequences
++    )
++    workspace = torch.empty(workspace_size, dtype=torch.uint8, device=device)
++
++    def run_triton() -> tuple[torch.Tensor, torch.Tensor]:
++        return chunk_kda_with_fused_gate(
++            q=q,
++            k=k,
++            v=v,
++            raw_g=raw_g,
++            beta=beta,
++            A_log=a_log,
++            g_bias=dt_bias,
++            initial_state=initial_state,
++            output_final_state=True,
++            use_qk_l2norm_in_kernel=True,
++            cu_seqlens=cu_seqlens,
++            safe_gate=True,
++            lower_bound=args.lower_bound,
++        )
++
++    def run_flash() -> tuple[torch.Tensor, torch.Tensor]:
++        torch.ops._flashkda_C.fwd(
++            q,
++            k,
++            v,
++            raw_g,
++            beta_raw,
++            args.head_dim**-0.5,
++            flash_out,
++            workspace,
++            a_log,
++            dt_bias,
++            args.lower_bound,
++            initial_state,
++            flash_state,
++            cu_seqlens,
++        )
++        return flash_out, flash_state
++
++    triton_out, triton_state = run_triton()
++    candidate_out, candidate_state = run_flash()
++    torch.cuda.synchronize()
++    output_delta = (triton_out.float() - candidate_out.float()).abs()
++    state_delta = (triton_state.float() - candidate_state.float()).abs()
++    transposed_state = candidate_state.transpose(-1, -2)
++    transposed_state_delta = (
++        triton_state.float() - transposed_state.float()
++    ).abs()
++
++    timings: dict[str, list[float]] = {"triton": [], "flashkda": []}
++    operations = {"triton": run_triton, "flashkda": run_flash}
++    for repeat in range(args.repeats):
++        order = tuple(operations) if repeat % 2 == 0 else tuple(reversed(operations))
++        for name in order:
++            timings[name].append(
++                timed_ms(operations[name], args.warmup, args.iterations)
++            )
++
++    triton_ms = statistics.median(timings["triton"])
++    flash_ms = statistics.median(timings["flashkda"])
++    return {
++        "tokens": tokens,
++        "sequences": args.sequences,
++        "heads": args.heads,
++        "head_dim": args.head_dim,
++        "lower_bound": args.lower_bound,
++        "workspace_mib": workspace_size / 1024**2,
++        "triton_ms": triton_ms,
++        "flashkda_ms": flash_ms,
++        "speedup": triton_ms / flash_ms,
++        "output_max_abs": float(output_delta.max()),
++        "output_mean_abs": float(output_delta.mean()),
++        "output_relative_rmse": relative_rmse(triton_out, candidate_out),
++        "state_max_abs": float(state_delta.max()),
++        "state_mean_abs": float(state_delta.mean()),
++        "state_relative_rmse": relative_rmse(triton_state, candidate_state),
++        "triton_state_rms": float(triton_state.float().square().mean().sqrt()),
++        "flashkda_state_rms": float(
++            candidate_state.float().square().mean().sqrt()
++        ),
++        "transposed_state_max_abs": float(transposed_state_delta.max()),
++        "transposed_state_mean_abs": float(transposed_state_delta.mean()),
++        "transposed_state_relative_rmse": relative_rmse(
++            triton_state, transposed_state
++        ),
++        "output_close_1e_2": bool(
++            torch.allclose(triton_out, candidate_out, atol=0.01, rtol=0.01)
++        ),
++        "state_close_1e_2": bool(
++            torch.allclose(triton_state, candidate_state, atol=0.01, rtol=0.01)
++        ),
++        "transposed_state_close_1e_2": bool(
++            torch.allclose(
++                triton_state,
++                transposed_state,
++                atol=0.01,
++                rtol=0.01,
++            )
++        ),
++        "triton_samples_ms": timings["triton"],
++        "flashkda_samples_ms": timings["flashkda"],
++    }
++
++
++def main() -> None:
++    args = parse_args()
++    if torch.cuda.get_device_capability() != (12, 1):
++        raise RuntimeError("this appliance benchmark requires SM121")
++    for tokens in args.tokens:
++        print(json.dumps(benchmark(args, tokens), sort_keys=True), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/sparkglm/results/2026-09-03-flashkda-candidate.md b/benchmarks/sparkglm/results/2026-09-03-flashkda-candidate.md
+new file mode 100644
+index 0000000000..bb426ab00c
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-flashkda-candidate.md
+@@ -0,0 +1,58 @@
++# FlashKDA prefill candidate
++
++Date: 2026-09-03
++
++## Verdict
++
++FlashKDA is a large operator-level candidate for GLM-5.3 KDA prefill, but the
++revision currently pinned by vLLM is not correct on SM121 when an FP32 final
++recurrent state is requested. Do not integrate or deploy it until the upstream
++async-proxy fence fix is built and the state, continuation, and endpoint gates
++pass.
++
++## Exact comparison
++
++`benchmark_glm_flashkda.py` compares the current GLM Triton
++`chunk_kda_with_fused_gate` path with `torch.ops._flashkda_C.fwd`. It uses the
++deployed TP-local geometry: 32 heads, head dimension 128, BF16 inputs, FP32
++state, gate lower bound -5.0, and two variable-length sequences. It does not
++load model weights.
++
++| Total tokens | Triton | FlashKDA | Operator speedup |
++| ---: | ---: | ---: | ---: |
++| 2,048 | 3.402 ms | 1.112 ms | 3.06x |
++| 7,168 | 11.725 ms | 3.610 ms | 3.25x |
++
++At 7,168 tokens, output relative RMSE was 0.00466 and output allclose passed at
++1% absolute/relative tolerance. The FP32 final state was effectively unwritten:
++its RMS was 0.0 versus 0.0481 for Triton. Therefore output agreement is not
++sufficient evidence for serving correctness.
++
++## Root cause of the state failure
++
++The vLLM source pins FlashKDA commit `b5d11010`. In that revision the generic
++BF16-to-FP32 shared-memory conversion is followed by an FP32 TMA final-state
++store without `cutlass::arch::fence_view_async_shared()`. FlashKDA upstream
++added the missing async-proxy fence in master commit `5fdc7b2` and dev commit
++`f084e66` immediately after the pinned revision.
++
++This exactly fits the observed failure: the main output is numerically close,
++while the separately exported FP32 recurrent state sees stale shared memory.
++
++## Endpoint opportunity
++
++The synchronized accepted-engine profile contains 68 KDA calls across two
++long-prefill forwards. Applying the measured per-call delta across 34 KDA
++layers implies roughly 0.55 seconds saved inside about 10.2 seconds of captured
++leaf CUDA time, or approximately 5-6% endpoint upside before integration
++overhead. This is an Amdahl estimate, not an endpoint result.
++
++## Acceptance gates
++
++1. Build FlashKDA with the upstream async-proxy fence fix.
++2. Pass the upstream naive recurrent oracle at SM121 and the exact GLM shape.
++3. Pass two-chunk continuation using the first chunk's exported state.
++4. Integrate raw beta logits and the exact GLM recurrent-cache layout.
++5. Re-run 16K/32K staggered C1-C2, output hashes, rank agreement, prefix-cache,
++   speculative rollback, cancellation, tools, and structured-output checks.
++

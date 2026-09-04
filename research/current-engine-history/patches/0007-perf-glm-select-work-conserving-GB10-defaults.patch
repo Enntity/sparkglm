@@ -1,0 +1,68 @@
+From e60b156dee17a19e833f7cb6d164c290eeba63af Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:43:34 -0700
+Subject: [PATCH 07/21] perf(glm): select work-conserving GB10 defaults
+
+Use mixed scheduling, the right-sized indexer workspace, and the measured 16 ms TP2 spin window. All mechanisms remain the upstream Mia implementations; this commit records the SparkGLM-selected defaults.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .env.example | 11 +++++------
+ start.sh     | 10 +++++-----
+ 2 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/.env.example b/.env.example
+index 2aece6a..1b9dabb 100644
+--- a/.env.example
++++ b/.env.example
+@@ -153,17 +153,16 @@ GLM53_BOOT_SHAPE_WARMUP=1
+ # GLM53_WARMUP_REQ_TIMEOUT=240
+ # Suppress client stop strings until </think> (thinking-on default). 0 = off.
+ GLM53_SUPPRESS_STOPS_IN_REASONING=1
+-# When a decode seq is running, do not mix a peer prefill into that step
+-# (issue #6). skip = decode-only steps; N>0 = cap mixed prefill tokens; 0 = off.
+-GLM53_MIXED_PREFILL_CHUNK=skip
++# Work-conserving C4 default. "skip" remains the decode-protection control.
++GLM53_MIXED_PREFILL_CHUNK=0
+ # Sparse-indexer prefill gather workspace sizing.
+ #   stock     = max_model_len * 40 entries (5036.40 MB locked at 1M, measured)
+-#   rightsize = the legal per-step maximum, ~+26% KV cache. Opt-in.
++#   rightsize = the legal per-step maximum, ~+26% KV cache. Default.
+ # See docs/DESIGN-indexer-workspace.md. Anything else is rejected at launch.
+-GLM53_INDEXER_WORKSPACE=stock
++GLM53_INDEXER_WORKSPACE=rightsize
+ # SpinCondition reader busy-loop window: stock keeps vLLM's 1 s default;
+ # 1..1000 selects milliseconds. This deployment's frozen sweep selected 16.
+-GLM53_SPINWAIT_MS=stock
++GLM53_SPINWAIT_MS=16
+ # EngineCore execute timeout (seconds). Stock 300 is short for a cold JIT.
+ # VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=1800
+ 
+diff --git a/start.sh b/start.sh
+index bf3733b..a15c054 100755
+--- a/start.sh
++++ b/start.sh
+@@ -260,18 +260,18 @@ ABLIT_INCLUDE_MTP="${ABLIT_INCLUDE_MTP:-1}"
+ READY_TIMEOUT="${READY_TIMEOUT:-3600}"
+ # 1 = suppress client stop strings until </think> (DSpark #42 class).
+ GLM53_SUPPRESS_STOPS_IN_REASONING="${GLM53_SUPPRESS_STOPS_IN_REASONING:-1}"
+-# Mixed-step prefill policy when a peer is already decoding (issue #6).
+-# skip = do not mix; N>0 = cap tokens; 0 = off.
+-GLM53_MIXED_PREFILL_CHUNK="${GLM53_MIXED_PREFILL_CHUNK:-skip}"
++# Work-conserving mixed scheduling is the measured four-stream appliance
++# profile. "skip" remains available as the decode-protection control.
++GLM53_MIXED_PREFILL_CHUNK="${GLM53_MIXED_PREFILL_CHUNK:-0}"
+ # Sparse-indexer prefill gather workspace (overlay/patch_indexer_workspace.py).
+ # stock = max_model_len * 40 entries (5036.40 MB locked at 1M, measured);
+ # rightsize = the legal per-step maximum, ~+26% KV. Default applies only
+ # when UNSET: an explicitly empty value is an operator error and
+ # validate_numeric_config rejects it rather than guessing a serving mode.
+-GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-stock}"
++GLM53_INDEXER_WORKSPACE="${GLM53_INDEXER_WORKSPACE-rightsize}"
+ # SpinCondition reader busy-loop window. "stock" preserves vLLM's 1 s default;
+ # 1..1000 selects milliseconds. The frozen TP=2 sweep selected 16 ms.
+-GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-stock}"
++GLM53_SPINWAIT_MS="${GLM53_SPINWAIT_MS-16}"
+ # EngineCore stock timeout is 300s; mid-serve Triton/TileLang JIT on TP=2 can
+ # exceed that without being a true hang. NCCL watchdog is still 600s.
+ VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS="${VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS:-1800}"

@@ -1,0 +1,1204 @@
+From a173770a33c86aa58d746cbc09519af8d988c4ce Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:51:57 -0700
+Subject: [PATCH 11/21] bench(glm): add reproducible staggered endpoint
+ harnesses
+
+Carry the exact JSON and video timing harnesses used for four-stream 16K comparisons.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/four_stream_video.py | 720 ++++++++++++++++++++++++++++++++
+ benchmarks/staggered_openai.py  | 456 ++++++++++++++++++++
+ 2 files changed, 1176 insertions(+)
+ create mode 100755 benchmarks/four_stream_video.py
+ create mode 100755 benchmarks/staggered_openai.py
+
+diff --git a/benchmarks/four_stream_video.py b/benchmarks/four_stream_video.py
+new file mode 100755
+index 0000000..8c7a43d
+--- /dev/null
++++ b/benchmarks/four_stream_video.py
+@@ -0,0 +1,720 @@
++#!/usr/bin/env python3
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++
++"""Capture four real OpenAI streams and render their timing as an MP4 grid."""
++
++from __future__ import annotations
++
++import argparse
++import json
++import math
++import subprocess
++import textwrap
++import threading
++import time
++import urllib.request
++from pathlib import Path
++from typing import Any
++
++TOPICS = (
++    ("SYSTEMS", "distributed systems engineering"),
++    ("SPACE", "surprising facts about the solar system"),
++    ("OCEAN", "deep-ocean science and exploration"),
++    ("ROBOTICS", "practical robotics and embodied AI"),
++)
++
++COUNTING_STREAMS = (
++    (
++        "STREAM 01",
++        "Output integers starting at 1 and increasing by 1, separated only "
++        "by spaces. Continue without stopping.",
++    ),
++    (
++        "STREAM 02",
++        "Output integers starting at 1001 and increasing by 1, separated only "
++        "by spaces. Continue without stopping.",
++    ),
++    (
++        "STREAM 03",
++        "Output integers starting at 2001 and increasing by 1, separated only "
++        "by spaces. Continue without stopping.",
++    ),
++    (
++        "STREAM 04",
++        "Output integers starting at 3001 and increasing by 1, separated only "
++        "by spaces. Continue without stopping.",
++    ),
++)
++
++
++def _stream_one(
++    index: int,
++    topic: tuple[str, str],
++    barrier: threading.Barrier,
++    zero: float,
++    args: argparse.Namespace,
++    results: list[dict[str, Any] | None],
++) -> None:
++    label, subject = topic
++    if args.prompt_style == "counting":
++        label, prompt = COUNTING_STREAMS[index]
++        subject = "structured counting decode"
++    else:
++        prompt = (
++            "Write a dense numbered field guide containing concise facts about "
++            f"{subject}. Start immediately with item 1. Use one short item per line, "
++            "no introduction, "
++            "no conclusion, and continue until the response limit."
++        )
++    if args.prompt_tokens:
++        # The numbered/punctuated context line tokenizes to roughly 12 GLM
++        # tokens. The API usage record below remains the authoritative count.
++        facts = "\n".join(
++            f"context-{index}-{fact}: alpha beta gamma delta"
++            for fact in range(max(1, args.prompt_tokens // 12))
++        )
++        salt = f"Benchmark salt: {args.prompt_salt}\n" if args.prompt_salt else ""
++        prompt = salt + (
++            "Read the unique reference context below before answering the final "
++            "request.\n"
++            f"{facts}\n\nFinal request:\n{prompt}"
++        )
++    body = {
++        "model": args.model,
++        "messages": [{"role": "user", "content": prompt}],
++        "stream": True,
++        "stream_options": {"include_usage": True},
++        "max_tokens": args.max_tokens,
++        "temperature": 0,
++        "top_p": 1,
++        "ignore_eos": True,
++        "chat_template_kwargs": {"enable_thinking": False},
++    }
++    if args.logprobs:
++        body["logprobs"] = True
++        body["top_logprobs"] = 0
++    headers = {"Content-Type": "application/json"}
++    if args.api_key:
++        headers["Authorization"] = f"Bearer {args.api_key}"
++    request = urllib.request.Request(
++        args.base_url.rstrip("/") + "/v1/chat/completions",
++        data=json.dumps(body).encode(),
++        headers=headers,
++        method="POST",
++    )
++
++    events: list[dict[str, Any]] = []
++    usage: dict[str, Any] = {}
++    error: str | None = None
++    barrier.wait()
++    target = zero + index * args.stagger_ms / 1000
++    delay = target - time.monotonic()
++    if delay > 0:
++        time.sleep(delay)
++    scheduled = time.monotonic() - zero
++    try:
++        with urllib.request.urlopen(request, timeout=args.timeout_s) as response:
++            for raw in response:
++                line = raw.decode("utf-8", "replace").strip()
++                if not line.startswith("data: "):
++                    continue
++                payload = line[6:]
++                if payload == "[DONE]":
++                    break
++                item = json.loads(payload)
++                if item.get("usage"):
++                    usage = item["usage"]
++                choices = item.get("choices") or []
++                if not choices:
++                    continue
++                choice = choices[0]
++                delta = choice.get("delta") or {}
++                text = (delta.get("reasoning_content") or "") + (
++                    delta.get("content") or ""
++                )
++                logprob_content = (choice.get("logprobs") or {}).get("content") or []
++                if text or logprob_content:
++                    events.append(
++                        {
++                            "t": round(time.monotonic() - zero, 6),
++                            "text": text,
++                            "tokens": len(logprob_content),
++                        }
++                    )
++    except Exception as exc:  # capture the failure in the replay artifact
++        error = f"{type(exc).__name__}: {exc}"
++
++    ended = time.monotonic() - zero
++    completion_tokens = int(usage.get("completion_tokens") or 0)
++    counted_tokens = sum(int(event["tokens"]) for event in events)
++    token_count_method = "stream_logprobs"
++    if completion_tokens and events and counted_tokens == 0:
++        # Logprobs materially slow this speculative-decode path. Preserve the
++        # exact SSE timestamps and exact final usage, and apportion the live
++        # counter over real deltas according to their emitted character share.
++        token_count_method = "final_usage_weighted_by_delta_chars"
++        weights = [max(len(event["text"].encode("utf-8")), 1) for event in events]
++        total_weight = sum(weights)
++        assigned = 0
++        cumulative_weight = 0
++        for event, weight in zip(events, weights):
++            cumulative_weight += weight
++            target = round(completion_tokens * cumulative_weight / total_weight)
++            event["tokens"] = target - assigned
++            assigned = target
++    elif completion_tokens and events and counted_tokens != completion_tokens:
++        events[-1]["tokens"] += completion_tokens - counted_tokens
++    first = events[0]["t"] if events else None
++    decode_s = max(ended - first, 1e-9) if first is not None else None
++    results[index] = {
++        "index": index,
++        "label": label,
++        "subject": subject,
++        "scheduled_s": round(scheduled, 6),
++        "first_token_s": first,
++        "ttft_s": round(first - scheduled, 6) if first is not None else None,
++        "ended_s": round(ended, 6),
++        "completion_tokens": completion_tokens,
++        "prompt_tokens": int(usage.get("prompt_tokens") or 0),
++        "decode_tok_s": (
++            round(max(completion_tokens - 1, 0) / decode_s, 6)
++            if decode_s is not None
++            else None
++        ),
++        "token_count_method": token_count_method,
++        "events": events,
++        "error": error,
++    }
++
++
++def capture(args: argparse.Namespace) -> None:
++    if args.streams != 4:
++        raise SystemExit("this visualizer currently requires --streams 4")
++    zero = time.monotonic()
++    barrier = threading.Barrier(args.streams)
++    results: list[dict[str, Any] | None] = [None] * args.streams
++    threads = [
++        threading.Thread(
++            target=_stream_one,
++            args=(index, TOPICS[index], barrier, zero, args, results),
++            daemon=True,
++        )
++        for index in range(args.streams)
++    ]
++    for thread in threads:
++        thread.start()
++    for thread in threads:
++        thread.join()
++
++    lanes = [lane for lane in results if lane is not None]
++    first = min(
++        (lane["first_token_s"] for lane in lanes if lane["first_token_s"] is not None),
++        default=None,
++    )
++    ended = max((lane["ended_s"] for lane in lanes), default=0.0)
++    total = sum(int(lane["completion_tokens"]) for lane in lanes)
++    aggregate = (
++        sum(max(int(lane["completion_tokens"]) - 1, 0) for lane in lanes)
++        / max(ended - first, 1e-9)
++        if first is not None
++        else 0.0
++    )
++    artifact = {
++        "schema": 1,
++        "model": args.model,
++        "streams": args.streams,
++        "max_tokens": args.max_tokens,
++        "prompt_style": args.prompt_style,
++        "prompt_salt": args.prompt_salt,
++        "prompt_tokens_target": args.prompt_tokens,
++        "stagger_ms": args.stagger_ms,
++        "recipe_label": args.recipe_label,
++        "engine_commit": args.engine_commit,
++        "wall_s": round(ended, 6),
++        "total_completion_tokens": total,
++        "aggregate_decode_tok_s": round(aggregate, 6),
++        "requests": lanes,
++    }
++    destination = Path(args.output)
++    destination.parent.mkdir(parents=True, exist_ok=True)
++    destination.write_text(json.dumps(artifact, indent=2) + "\n")
++    print(
++        json.dumps(
++            {
++                "output": str(destination),
++                "wall_s": artifact["wall_s"],
++                "total_completion_tokens": total,
++                "aggregate_decode_tok_s": artifact["aggregate_decode_tok_s"],
++                "lanes": [
++                    {
++                        "label": lane["label"],
++                        "ttft_s": lane["ttft_s"],
++                        "decode_tok_s": lane["decode_tok_s"],
++                        "completion_tokens": lane["completion_tokens"],
++                        "error": lane["error"],
++                    }
++                    for lane in lanes
++                ],
++            }
++        )
++    )
++
++
++def _font(path: str, size: int):
++    from PIL import ImageFont
++
++    return ImageFont.truetype(path, size=size)
++
++
++def _wrapped_lines(text: str, width: int) -> list[str]:
++    clean = "".join(char if char >= " " or char == "\n" else " " for char in text)
++    lines: list[str] = []
++    for paragraph in clean.splitlines() or [""]:
++        lines.extend(
++            textwrap.wrap(
++                paragraph,
++                width=width,
++                replace_whitespace=False,
++                drop_whitespace=True,
++            )
++            or [""]
++        )
++    return lines
++
++
++def _mix_color(start: str, end: str, amount: float) -> str:
++    """Blend two RGB hex colors for a brief completion flash."""
++    amount = min(max(amount, 0.0), 1.0)
++    start_rgb = tuple(int(start[index : index + 2], 16) for index in (1, 3, 5))
++    end_rgb = tuple(int(end[index : index + 2], 16) for index in (1, 3, 5))
++    mixed = tuple(
++        round(left + (right - left) * amount) for left, right in zip(start_rgb, end_rgb)
++    )
++    return "#" + "".join(f"{channel:02x}" for channel in mixed)
++
++
++def render(args: argparse.Namespace) -> None:
++    from PIL import Image, ImageDraw
++
++    artifact = json.loads(Path(args.input).read_text())
++    lanes = artifact["requests"]
++    actual_prompt_tokens = [int(lane.get("prompt_tokens") or 0) for lane in lanes]
++    actual_prompt_tokens = [tokens for tokens in actual_prompt_tokens if tokens]
++    prompt_tokens_per_stream = (
++        round(sum(actual_prompt_tokens) / len(actual_prompt_tokens))
++        if actual_prompt_tokens
++        else 0
++    )
++    width, height = args.width, args.height
++    fps = args.fps
++    duration = max(float(lane["ended_s"]) for lane in lanes) + args.hold_s
++    frame_count = math.ceil(duration * fps)
++
++    mono_path = "/System/Library/Fonts/SFNSMono.ttf"
++    sans_path = "/System/Library/Fonts/SFNS.ttf"
++    title_font = _font(sans_path, 36)
++    subtitle_font = _font(sans_path, 19)
++    pane_title_font = _font(mono_path, 22)
++    metric_font = _font(mono_path, 16)
++    body_font = _font(mono_path, 17)
++    footer_font = _font(mono_path, 19)
++    done_font = _font(sans_path, 25)
++
++    bg = "#07090d"
++    panel = "#10151d"
++    border = "#263140"
++    text_color = "#dbe5f1"
++    muted = "#7f91a8"
++    done_green = "#38e8a3"
++    done_panel = "#10291f"
++    colors = ("#65d6ad", "#68a7ff", "#ffb454", "#d68cff")
++
++    margin = 32
++    top = 102
++    bottom = 92
++    gap = 18
++    pane_w = (width - margin * 2 - gap) // 2
++    pane_h = (height - top - bottom - gap) // 2
++    positions = (
++        (margin, top),
++        (margin + pane_w + gap, top),
++        (margin, top + pane_h + gap),
++        (margin + pane_w + gap, top + pane_h + gap),
++    )
++    line_h = 23
++    body_top_offset = 72
++    visible_lines = max((pane_h - body_top_offset - 16) // line_h, 1)
++    # SF Mono is roughly 10.5 px at this size. Keep extra room so punctuation
++    # and wide glyphs cannot visually bleed into the neighboring pane.
++    wrap_width = max((pane_w - 34) // 12, 20)
++
++    command = [
++        args.ffmpeg,
++        "-y",
++        "-f",
++        "rawvideo",
++        "-pixel_format",
++        "rgb24",
++        "-video_size",
++        f"{width}x{height}",
++        "-framerate",
++        str(fps),
++        "-i",
++        "-",
++        "-an",
++        "-c:v",
++        "libx264",
++        "-preset",
++        "medium",
++        "-crf",
++        "18",
++        "-pix_fmt",
++        "yuv420p",
++        "-movflags",
++        "+faststart",
++        args.output,
++    ]
++    process = subprocess.Popen(command, stdin=subprocess.PIPE)
++    assert process.stdin is not None
++    try:
++        for frame_index in range(frame_count):
++            now = frame_index / fps
++            image = Image.new("RGB", (width, height), bg)
++            draw = ImageDraw.Draw(image)
++            draw.text((margin, 24), "GLM-5.3 FLASH", font=title_font, fill="#f4f7fb")
++            draw.text(
++                (margin + 315, 34),
++                (
++                    "4 STAGGERED STREAMS  •  2× DGX SPARK"
++                    if artifact.get("stagger_ms", 0)
++                    else "4 LIVE STREAMS  •  2× DGX SPARK"
++                ),
++                font=subtitle_font,
++                fill=muted,
++            )
++
++            total_live_tokens = 0
++            active_firsts: list[float] = []
++            for lane_index, lane in enumerate(lanes):
++                x, y = positions[lane_index]
++                color = colors[lane_index]
++                ended = float(lane["ended_s"])
++                done = now >= ended
++                done_age = max(now - ended, 0.0)
++                flash = max(1.0 - done_age / 0.9, 0.0) if done else 0.0
++                pane_fill = (
++                    _mix_color(done_panel, done_green, 0.18 * flash) if done else panel
++                )
++                pane_border = (
++                    _mix_color(done_green, "#e2fff4", flash) if done else border
++                )
++                draw.rounded_rectangle(
++                    (x, y, x + pane_w, y + pane_h),
++                    radius=14,
++                    fill=pane_fill,
++                    outline=pane_border,
++                    width=6 if done else 2,
++                )
++                if done:
++                    # Completion should read as a state change from across the
++                    # room, not as another small metric. Turn the entire header
++                    # green and keep it latched for the rest of the replay.
++                    draw.rounded_rectangle(
++                        (x + 3, y + 3, x + pane_w - 3, y + 68),
++                        radius=11,
++                        fill=pane_border,
++                    )
++                    draw.rectangle(
++                        (x + 3, y + 43, x + pane_w - 3, y + 68),
++                        fill=pane_border,
++                    )
++                    draw.rectangle(
++                        (x + 3, y + pane_h - 10, x + pane_w - 3, y + pane_h - 3),
++                        fill=pane_border,
++                    )
++                events = [event for event in lane["events"] if float(event["t"]) <= now]
++                stream_text = "".join(event["text"] for event in events)
++                live_tokens = sum(int(event["tokens"]) for event in events)
++                total_live_tokens += live_tokens
++                first = lane["first_token_s"]
++                if first is not None and now >= first:
++                    active_firsts.append(float(first))
++                if lane["error"]:
++                    status = "ERROR"
++                elif done:
++                    status = "COMPLETE"
++                elif events:
++                    status = "STREAMING"
++                elif now < float(lane["scheduled_s"]):
++                    status = "NOT SENT"
++                else:
++                    spinner_index = int((now - float(lane["scheduled_s"])) * 8) % 4
++                    spinner = "|/-\\"[spinner_index]
++                    status = f"WAITING {spinner}"
++                if first is not None and now > first:
++                    rate = max(live_tokens - 1, 0) / max(now - float(first), 0.001)
++                    if done:
++                        rate = float(lane["decode_tok_s"] or 0.0)
++                else:
++                    rate = 0.0
++
++                draw.text(
++                    (x + 17, y + 13),
++                    (
++                        f"0{lane_index + 1}  {lane['label']}"
++                        f"  •  +{float(lane['scheduled_s']):.1f}s"
++                    ),
++                    font=pane_title_font,
++                    fill=bg if done else color,
++                )
++                metric = (
++                    f"{status:<9} {live_tokens:>3}/"
++                    f"{lane['completion_tokens']} tok  {rate:>5.1f} tok/s"
++                )
++                draw.text(
++                    (x + 17, y + 43),
++                    metric,
++                    font=metric_font,
++                    fill="#123229" if done else muted,
++                )
++                if done:
++                    done_text = "DONE"
++                    done_box = draw.textbbox((0, 0), done_text, font=done_font)
++                    done_width = done_box[2] - done_box[0]
++                    done_x = x + pane_w - done_width - 24
++                    done_y = y + 16
++                    draw.text(
++                        (done_x, done_y),
++                        done_text,
++                        font=done_font,
++                        fill=bg,
++                    )
++                lines = _wrapped_lines(stream_text, wrap_width)[-visible_lines:]
++                for line_index, line in enumerate(lines):
++                    draw.text(
++                        (x + 17, y + body_top_offset + line_index * line_h),
++                        line,
++                        font=body_font,
++                        fill=text_color,
++                    )
++
++            if active_firsts:
++                aggregate_live = max(total_live_tokens - len(active_firsts), 0) / max(
++                    now - min(active_firsts), 0.001
++                )
++            else:
++                aggregate_live = 0.0
++            if now >= max(float(lane["ended_s"]) for lane in lanes):
++                aggregate_live = float(artifact["aggregate_decode_tok_s"])
++
++            footer_y = height - 62
++            identity = "  •  ".join(
++                part
++                for part in (
++                    artifact.get("recipe_label", ""),
++                    (
++                        f"commit {artifact['engine_commit']}"
++                        if artifact.get("engine_commit")
++                        else ""
++                    ),
++                )
++                if part
++            )
++            if identity:
++                draw.text(
++                    (margin, footer_y - 27),
++                    identity,
++                    font=metric_font,
++                    fill="#65d6ad",
++                )
++            draw.text(
++                (margin, footer_y),
++                (
++                    "EXL3 4bpw  •  TP2  •  DFlash2 k7  •  "
++                    + (
++                        f"~{prompt_tokens_per_stream / 1024:.1f}K actual "
++                        "prompt/stream  •  "
++                        if prompt_tokens_per_stream
++                        else ""
++                    )
++                    + "measured SSE replay"
++                ),
++                font=footer_font,
++                fill=muted,
++            )
++            right = (
++                f"{now:05.1f}s   {total_live_tokens:>4} tok   "
++                f"AGG {aggregate_live:>6.1f} tok/s"
++            )
++            right_box = draw.textbbox((0, 0), right, font=footer_font)
++            draw.text(
++                (width - margin - (right_box[2] - right_box[0]), footer_y),
++                right,
++                font=footer_font,
++                fill="#f4f7fb",
++            )
++            process.stdin.write(image.tobytes())
++    finally:
++        process.stdin.close()
++    if process.wait() != 0:
++        raise SystemExit("ffmpeg failed")
++    print(
++        json.dumps(
++            {
++                "output": args.output,
++                "duration_s": round(duration, 3),
++                "frames": frame_count,
++                "aggregate_decode_tok_s": artifact["aggregate_decode_tok_s"],
++            }
++        )
++    )
++
++
++def _video_duration(path: str, ffprobe: str) -> float:
++    result = subprocess.run(
++        [
++            ffprobe,
++            "-v",
++            "error",
++            "-show_entries",
++            "format=duration",
++            "-of",
++            "default=noprint_wrappers=1:nokey=1",
++            path,
++        ],
++        check=True,
++        capture_output=True,
++        text=True,
++    )
++    return float(result.stdout.strip())
++
++
++def stack(args: argparse.Namespace) -> None:
++    """Stack two benchmark replays vertically and hold the earlier finish."""
++    top_duration = _video_duration(args.top, args.ffprobe)
++    bottom_duration = _video_duration(args.bottom, args.ffprobe)
++    duration = max(top_duration, bottom_duration)
++    top_pad = max(duration - top_duration, 0.0)
++    bottom_pad = max(duration - bottom_duration, 0.0)
++    panel = (
++        f"scale={args.panel_width}:{args.panel_height}:"
++        "force_original_aspect_ratio=decrease,"
++        f"pad={args.panel_width}:{args.panel_height}:(ow-iw)/2:(oh-ih)/2:color=black"
++    )
++    filters = (
++        f"[0:v]{panel},setpts=PTS-STARTPTS,"
++        f"tpad=stop_mode=clone:stop_duration={top_pad:.6f}[top];"
++        f"[1:v]{panel},setpts=PTS-STARTPTS,"
++        f"tpad=stop_mode=clone:stop_duration={bottom_pad:.6f}[bottom];"
++        "[top][bottom]vstack=inputs=2[out]"
++    )
++    subprocess.run(
++        [
++            args.ffmpeg,
++            "-y",
++            "-i",
++            args.top,
++            "-i",
++            args.bottom,
++            "-filter_complex",
++            filters,
++            "-map",
++            "[out]",
++            "-an",
++            "-r",
++            str(args.fps),
++            "-c:v",
++            "libx264",
++            "-preset",
++            "medium",
++            "-crf",
++            "18",
++            "-pix_fmt",
++            "yuv420p",
++            "-movflags",
++            "+faststart",
++            args.output,
++        ],
++        check=True,
++    )
++    print(
++        json.dumps(
++            {
++                "output": args.output,
++                "layout": "top-bottom",
++                "duration_s": round(duration, 3),
++                "top": args.top,
++                "bottom": args.bottom,
++            }
++        )
++    )
++
++
++def parser() -> argparse.ArgumentParser:
++    root = argparse.ArgumentParser(description=__doc__)
++    commands = root.add_subparsers(dest="command", required=True)
++
++    capture_parser = commands.add_parser("capture")
++    capture_parser.add_argument("--base-url", required=True)
++    capture_parser.add_argument("--model", required=True)
++    capture_parser.add_argument("--api-key", default="")
++    capture_parser.add_argument("--streams", type=int, default=4)
++    capture_parser.add_argument("--max-tokens", type=int, default=400)
++    capture_parser.add_argument(
++        "--prompt-tokens",
++        type=int,
++        default=0,
++        help="Approximate unique context tokens prepended to each stream.",
++    )
++    capture_parser.add_argument(
++        "--prompt-salt",
++        default="",
++        help="Unique prefix salt that prevents cross-run prefix-cache hits.",
++    )
++    capture_parser.add_argument(
++        "--stagger-ms",
++        type=int,
++        default=0,
++        help="Delay each successive request by this many milliseconds.",
++    )
++    capture_parser.add_argument(
++        "--prompt-style", choices=("counting", "field-guide"), default="counting"
++    )
++    capture_parser.add_argument("--recipe-label", default="")
++    capture_parser.add_argument("--engine-commit", default="")
++    capture_parser.add_argument("--timeout-s", type=float, default=600)
++    capture_parser.add_argument("--logprobs", action="store_true")
++    capture_parser.add_argument("--output", required=True)
++    capture_parser.set_defaults(func=capture)
++
++    render_parser = commands.add_parser("render")
++    render_parser.add_argument("--input", required=True)
++    render_parser.add_argument("--output", required=True)
++    render_parser.add_argument("--width", type=int, default=1920)
++    render_parser.add_argument("--height", type=int, default=1080)
++    render_parser.add_argument("--fps", type=int, default=20)
++    render_parser.add_argument("--hold-s", type=float, default=2.0)
++    render_parser.add_argument("--ffmpeg", default="ffmpeg")
++    render_parser.set_defaults(func=render)
++
++    stack_parser = commands.add_parser("stack")
++    stack_parser.add_argument("--top", required=True)
++    stack_parser.add_argument("--bottom", required=True)
++    stack_parser.add_argument("--output", required=True)
++    stack_parser.add_argument("--panel-width", type=int, default=1600)
++    stack_parser.add_argument("--panel-height", type=int, default=900)
++    stack_parser.add_argument("--fps", type=int, default=12)
++    stack_parser.add_argument("--ffmpeg", default="ffmpeg")
++    stack_parser.add_argument("--ffprobe", default="ffprobe")
++    stack_parser.set_defaults(func=stack)
++    return root
++
++
++def main() -> None:
++    args = parser().parse_args()
++    args.func(args)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/staggered_openai.py b/benchmarks/staggered_openai.py
+new file mode 100755
+index 0000000..f3dd3d9
+--- /dev/null
++++ b/benchmarks/staggered_openai.py
+@@ -0,0 +1,456 @@
++#!/usr/bin/env python3
++# SPDX-License-Identifier: AGPL-3.0-only
++
++"""Dependency-free staggered-load probe for an OpenAI-compatible endpoint.
++
++The probe measures the user-visible symptom phase interleaving is meant to
++fix: request B arrives while request A is decoding or prefilling. It records
++TTFT and completion rate per request and emits one machine-readable JSON row.
++"""
++
++from __future__ import annotations
++
++import argparse
++import concurrent.futures
++import hashlib
++import json
++import math
++import statistics
++import sys
++import threading
++import time
++import urllib.error
++import urllib.request
++from dataclasses import asdict, dataclass
++
++
++@dataclass
++class Result:
++    request_id: int
++    scheduled_s: float
++    started_s: float
++    ttft_s: float | None
++    elapsed_s: float
++    completion_tokens: int
++    requested_completion_tokens: int
++    reached_requested_completion_tokens: bool
++    prompt_tokens: int
++    prompt_sha256: str
++    accepted_prediction_tokens: int
++    rejected_prediction_tokens: int
++    output_chars: int
++    output_sha256: str
++    output_preview: str
++    own_request_marker: bool
++    foreign_request_markers: list[int]
++    visible_events: int
++    inter_token_gap_p95_s: float | None
++    max_inter_token_gap_s: float | None
++    finish_reason: str | None
++    error: str | None
++
++    @property
++    def decode_tok_s(self) -> float | None:
++        if self.ttft_s is None or self.completion_tokens <= 1:
++            return None
++        decode_s = self.elapsed_s - self.ttft_s
++        return (self.completion_tokens - 1) / decode_s if decode_s > 0 else None
++
++    @property
++    def effective_prefill_tok_s(self) -> float | None:
++        """Prompt tokens delivered per request TTFT.
++
++        This intentionally includes scheduler wait.  For a staggered request,
++        it answers the appliance-level question users care about: how quickly
++        did the request's full prompt reach its first visible token?
++        """
++        if self.ttft_s is None or self.prompt_tokens <= 0:
++            return None
++        return self.prompt_tokens / self.ttft_s if self.ttft_s > 0 else None
++
++
++def percentile(values: list[float], fraction: float) -> float | None:
++    if not values:
++        return None
++    ordered = sorted(values)
++    index = min(len(ordered) - 1, math.ceil(fraction * len(ordered)) - 1)
++    return ordered[index]
++
++
++def isolation_marker(request_id: int) -> str:
++    seed = f"atlas-glm53-isolation-v1:{request_id}".encode()
++    return "GLMISO-" + hashlib.sha256(seed).hexdigest()[:20].upper()
++
++
++def make_prompt(request_id: int, approximate_tokens: int, prompt_salt: str = "") -> str:
++    marker = isolation_marker(request_id)
++    salt_line = f"Benchmark case: {prompt_salt}\n" if prompt_salt else ""
++    prefix = (
++        salt_line
++        + f"Request {request_id}. Read the following numbered facts, then answer "
++        f"with a concise summary that repeats the isolation marker {marker} "
++        "exactly once and does not omit the final fact.\n"
++    )
++    # Whitespace-token count is deliberately approximate. The result records
++    # the requested size so comparisons use identical bytes across recipes.
++    facts = [f"fact-{request_id}-{i}: alpha beta gamma delta" for i in range(max(1, approximate_tokens // 6))]
++    return prefix + "\n".join(facts)
++
++
++def benchmark_prompt(
++    request_id: int,
++    prompt_style: str,
++    approximate_tokens: int,
++    prompt_salt: str,
++) -> str:
++    if prompt_style == "mia-structured":
++        return "Count from 1 to 200. Output only the numbers, separated by spaces. No other text."
++    if prompt_style == "mia-prose":
++        return (
++            "Write a detailed step-by-step explanation of how a hash map works, "
++            "including collision handling, resizing, and time complexity. Be thorough."
++        )
++    return make_prompt(request_id, approximate_tokens, prompt_salt)
++
++
++def stream_one(
++    request_id: int,
++    scheduled_s: float,
++    epoch: float,
++    args: argparse.Namespace,
++) -> Result:
++    delay = epoch + scheduled_s - time.monotonic()
++    if delay > 0:
++        time.sleep(delay)
++    started = time.monotonic()
++    prompt_tokens_target = args.prompt_tokens_by_request[request_id]
++    prompt_style_target = args.prompt_styles_by_request[request_id]
++    output_tokens_target = args.output_tokens_by_request[request_id]
++    min_output_tokens_target = args.min_output_tokens_by_request[request_id]
++    prompt = benchmark_prompt(
++        request_id,
++        prompt_style_target,
++        prompt_tokens_target,
++        args.prompt_salt,
++    )
++    payload = {
++        "model": args.model,
++        "messages": [
++            {
++                "role": "user",
++                "content": prompt,
++            }
++        ],
++        "max_tokens": output_tokens_target,
++        "temperature": 0,
++        "top_p": 1,
++        # Mia's template reads `thinking`; Atlas reads `enable_thinking`.
++        # Supplying both makes the rendered prompt contract identical.
++        "chat_template_kwargs": {
++            "thinking": args.enable_thinking,
++            "enable_thinking": args.enable_thinking,
++        },
++        "stream": True,
++        "stream_options": {"include_usage": True},
++    }
++    if min_output_tokens_target:
++        payload["min_tokens"] = min_output_tokens_target
++    if args.disable_loop_watchdog:
++        # Mia's vLLM benchmark has no Atlas content-loop watchdog.  Structured
++        # counting is intentionally repetitive, so outrank the production
++        # safeguard for only this request rather than restarting the service.
++        payload["repetition_detection"] = {
++            "min_pattern_size": 1,
++            "max_pattern_size": 64,
++            "min_count": 1_000_000,
++        }
++    headers = {"Content-Type": "application/json"}
++    if args.api_key:
++        headers["Authorization"] = f"Bearer {args.api_key}"
++    request = urllib.request.Request(
++        args.base_url.rstrip("/") + "/v1/chat/completions",
++        data=json.dumps(payload).encode(),
++        headers=headers,
++        method="POST",
++    )
++
++    first_token_at: float | None = None
++    completion_tokens = 0
++    prompt_tokens = 0
++    accepted_prediction_tokens = 0
++    rejected_prediction_tokens = 0
++    output_chars = 0
++    output_parts: list[str] = []
++    visible_event_times: list[float] = []
++    finish_reason: str | None = None
++    error: str | None = None
++    try:
++        with urllib.request.urlopen(request, timeout=args.timeout_s) as response:
++            for raw in response:
++                line = raw.decode("utf-8", errors="replace").strip()
++                if not line.startswith("data:"):
++                    continue
++                data = line[5:].strip()
++                if data == "[DONE]":
++                    break
++                event = json.loads(data)
++                usage = event.get("usage") or {}
++                prompt_tokens = max(prompt_tokens, int(usage.get("prompt_tokens") or 0))
++                completion_tokens = max(completion_tokens, int(usage.get("completion_tokens") or 0))
++                details = usage.get("completion_tokens_details") or {}
++                accepted_prediction_tokens = max(
++                    accepted_prediction_tokens,
++                    int(details.get("accepted_prediction_tokens") or 0),
++                )
++                rejected_prediction_tokens = max(
++                    rejected_prediction_tokens,
++                    int(details.get("rejected_prediction_tokens") or 0),
++                )
++                choices = event.get("choices") or []
++                if not choices:
++                    continue
++                finish_reason = choices[0].get("finish_reason") or finish_reason
++                delta = choices[0].get("delta") or {}
++                content = delta.get("content") or ""
++                reasoning = delta.get("reasoning_content") or delta.get("reasoning") or ""
++                visible = content + reasoning
++                if visible:
++                    now = time.monotonic()
++                    first_token_at = first_token_at or now
++                    visible_event_times.append(now)
++                    output_chars += len(visible)
++                    output_parts.append(visible)
++    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
++        error = f"{type(exc).__name__}: {exc}"
++    ended = time.monotonic()
++    output_text = "".join(output_parts)
++    isolation_enabled = prompt_style_target == "isolation"
++    own_marker = isolation_marker(request_id)
++    foreign_markers = (
++        [
++            candidate
++            for candidate in range(args.concurrency)
++            if candidate != request_id and isolation_marker(candidate) in output_text
++        ]
++        if isolation_enabled
++        else []
++    )
++    gaps = [
++        right - left
++        for left, right in zip(visible_event_times, visible_event_times[1:])
++    ]
++    return Result(
++        request_id=request_id,
++        scheduled_s=scheduled_s,
++        started_s=started - epoch,
++        ttft_s=None if first_token_at is None else first_token_at - started,
++        elapsed_s=ended - started,
++        completion_tokens=completion_tokens,
++        requested_completion_tokens=output_tokens_target,
++        reached_requested_completion_tokens=completion_tokens == output_tokens_target,
++        prompt_tokens=prompt_tokens,
++        prompt_sha256=hashlib.sha256(prompt.encode()).hexdigest(),
++        accepted_prediction_tokens=accepted_prediction_tokens,
++        rejected_prediction_tokens=rejected_prediction_tokens,
++        output_chars=output_chars,
++        output_sha256=hashlib.sha256(output_text.encode()).hexdigest(),
++        output_preview=output_text[:160],
++        own_request_marker=not isolation_enabled or own_marker in output_text,
++        foreign_request_markers=foreign_markers,
++        visible_events=len(visible_event_times),
++        inter_token_gap_p95_s=percentile(gaps, 0.95),
++        max_inter_token_gap_s=max(gaps) if gaps else None,
++        finish_reason=finish_reason,
++        error=error,
++    )
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--base-url", default="http://127.0.0.1:8000")
++    parser.add_argument("--model", required=True)
++    parser.add_argument("--api-key", default="")
++    parser.add_argument("--concurrency", type=int, default=4)
++    parser.add_argument("--stagger-ms", type=int, default=500)
++    parser.add_argument("--prompt-tokens", type=int, default=8192)
++    parser.add_argument(
++        "--prompt-salt",
++        default="",
++        help="stable case label placed at the start of isolation prompts to prevent cross-case prefix hits",
++    )
++    parser.add_argument(
++        "--prompt-token-list",
++        default="",
++        help="comma-separated per-request prompt sizes; length must equal concurrency",
++    )
++    parser.add_argument(
++        "--prompt-style",
++        choices=("isolation", "mia-structured", "mia-prose"),
++        default="isolation",
++        help="use the isolation fixture or MiaAI-Lab's published decode prompts",
++    )
++    parser.add_argument(
++        "--prompt-style-list",
++        default="",
++        help="comma-separated per-request prompt styles; length must equal concurrency",
++    )
++    parser.add_argument("--output-tokens", type=int, default=128)
++    parser.add_argument(
++        "--output-token-list",
++        default="",
++        help="comma-separated per-request output limits; length must equal concurrency",
++    )
++    parser.add_argument(
++        "--min-output-tokens",
++        type=int,
++        default=0,
++        help="ignore EOS until this many tokens; useful for decode/prefill overlap",
++    )
++    parser.add_argument(
++        "--min-output-token-list",
++        default="",
++        help="comma-separated per-request forced output lengths; length must equal concurrency",
++    )
++    parser.add_argument(
++        "--enable-thinking",
++        action="store_true",
++        help="enable GLM reasoning; direct-answer mode is the benchmark default",
++    )
++    parser.add_argument(
++        "--disable-loop-watchdog",
++        action="store_true",
++        help="disable Atlas repetition detection for intentionally repetitive benchmark prompts",
++    )
++    parser.add_argument("--timeout-s", type=float, default=600)
++    args = parser.parse_args()
++    if min(args.concurrency, args.prompt_tokens, args.output_tokens) <= 0 or args.stagger_ms < 0:
++        parser.error("concurrency and token counts must be positive; stagger must be non-negative")
++    if not 0 <= args.min_output_tokens <= args.output_tokens:
++        parser.error("min-output-tokens must be between 0 and output-tokens")
++
++    def parse_request_values(raw: str, fallback: int, name: str) -> list[int]:
++        if not raw:
++            return [fallback] * args.concurrency
++        try:
++            values = [int(value.strip()) for value in raw.split(",")]
++        except ValueError:
++            parser.error(f"{name} must contain only comma-separated integers")
++        if len(values) != args.concurrency:
++            parser.error(f"{name} must contain exactly {args.concurrency} values")
++        return values
++
++    args.prompt_tokens_by_request = parse_request_values(
++        args.prompt_token_list, args.prompt_tokens, "prompt-token-list"
++    )
++    args.prompt_styles_by_request = (
++        [args.prompt_style] * args.concurrency
++        if not args.prompt_style_list
++        else [value.strip() for value in args.prompt_style_list.split(",")]
++    )
++    if len(args.prompt_styles_by_request) != args.concurrency:
++        parser.error(f"prompt-style-list must contain exactly {args.concurrency} values")
++    allowed_prompt_styles = {"isolation", "mia-structured", "mia-prose"}
++    if any(style not in allowed_prompt_styles for style in args.prompt_styles_by_request):
++        parser.error("prompt-style-list contains an unsupported prompt style")
++    args.output_tokens_by_request = parse_request_values(
++        args.output_token_list, args.output_tokens, "output-token-list"
++    )
++    args.min_output_tokens_by_request = parse_request_values(
++        args.min_output_token_list,
++        args.min_output_tokens,
++        "min-output-token-list",
++    )
++    if min(args.prompt_tokens_by_request + args.output_tokens_by_request) <= 0:
++        parser.error("per-request prompt and output token counts must be positive")
++    if any(
++        minimum < 0 or minimum > maximum
++        for minimum, maximum in zip(
++            args.min_output_tokens_by_request,
++            args.output_tokens_by_request,
++        )
++    ):
++        parser.error("every per-request min output must be between 0 and its output limit")
++
++    epoch = time.monotonic() + 0.25
++    barrier = threading.Barrier(args.concurrency)
++
++    def run(request_id: int) -> Result:
++        barrier.wait()
++        return stream_one(request_id, request_id * args.stagger_ms / 1000.0, epoch, args)
++
++    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
++        results = list(executor.map(run, range(args.concurrency)))
++
++    ttfts = [r.ttft_s for r in results if r.ttft_s is not None]
++    prefill_rates = [
++        r.effective_prefill_tok_s
++        for r in results
++        if r.effective_prefill_tok_s is not None
++    ]
++    rates = [r.decode_tok_s for r in results if r.decode_tok_s is not None]
++    first_visible = [r.started_s + r.ttft_s for r in results if r.ttft_s is not None]
++    start_times = [r.started_s for r in results]
++    end_times = [r.started_s + r.elapsed_s for r in results]
++    prompt_tokens = sum(r.prompt_tokens for r in results)
++    prefill_window_s = (
++        max(first_visible) - min(start_times) if first_visible and start_times else None
++    )
++    aggregate_prefill_rate = (
++        prompt_tokens / prefill_window_s
++        if prefill_window_s and prefill_window_s > 0
++        else None
++    )
++    decode_tokens = sum(max(r.completion_tokens - 1, 0) for r in results)
++    decode_window_s = max(end_times) - min(first_visible) if first_visible else None
++    aggregate_window_rate = (
++        decode_tokens / decode_window_s if decode_window_s and decode_window_s > 0 else None
++    )
++    summary = {
++        "config": {
++            "concurrency": args.concurrency,
++            "stagger_ms": args.stagger_ms,
++            "approximate_prompt_tokens": args.prompt_tokens,
++            "approximate_prompt_tokens_by_request": args.prompt_tokens_by_request,
++            "prompt_salt": args.prompt_salt,
++            "prompt_style": args.prompt_style,
++            "prompt_styles_by_request": args.prompt_styles_by_request,
++            "max_output_tokens": args.output_tokens,
++            "max_output_tokens_by_request": args.output_tokens_by_request,
++            "min_output_tokens": args.min_output_tokens,
++            "min_output_tokens_by_request": args.min_output_tokens_by_request,
++            "enable_thinking": args.enable_thinking,
++            "disable_loop_watchdog": args.disable_loop_watchdog,
++        },
++        "requests": [
++            {
++                **asdict(r),
++                "effective_prefill_tok_s": r.effective_prefill_tok_s,
++                "decode_tok_s": r.decode_tok_s,
++            }
++            for r in results
++        ],
++        "summary": {
++            "successful": sum(r.error is None and r.ttft_s is not None for r in results),
++            "ttft_p50_s": statistics.median(ttfts) if ttfts else None,
++            "ttft_p95_s": percentile(ttfts, 0.95),
++            "effective_prefill_tok_s_p50": (
++                statistics.median(prefill_rates) if prefill_rates else None
++            ),
++            "aggregate_effective_prefill_tok_s": aggregate_prefill_rate,
++            "decode_tok_s_p50": statistics.median(rates) if rates else None,
++            # Sum of each request's active decode rate.  This excludes time a
++            # request is waiting for its first token.
++            "decode_tok_s_sum": sum(rates) if rates else None,
++            # All decoded tokens divided by the interval from the first
++            # visible token to the final request completing.  This includes
++            # mixed-workload stalls and is the honest appliance delivery rate.
++            "aggregate_decode_tok_s": aggregate_window_rate,
++            "wall_s": time.monotonic() - epoch,
++        },
++    }
++    print(json.dumps(summary, sort_keys=True))
++    return 0 if summary["summary"]["successful"] == args.concurrency else 2
++
++
++if __name__ == "__main__":
++    sys.exit(main())

@@ -1,0 +1,239 @@
+From 06b1f16f9e394020bcc8ed1d623ac93adf3746ba Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 01:41:30 -0700
+Subject: [PATCH 13/37] bench(glm): reject persistent stock-kernel fat tiles
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .../kernels/benchmark_exl3_fat_dispatch.py    | 158 ++++++++++++++++++
+ ...9-03-device-resident-fat-tiles-rejected.md |  56 +++++++
+ 2 files changed, 214 insertions(+)
+ create mode 100644 benchmarks/kernels/benchmark_exl3_fat_dispatch.py
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-device-resident-fat-tiles-rejected.md
+
+diff --git a/benchmarks/kernels/benchmark_exl3_fat_dispatch.py b/benchmarks/kernels/benchmark_exl3_fat_dispatch.py
+new file mode 100644
+index 0000000000..c2ea2752f8
+--- /dev/null
++++ b/benchmarks/kernels/benchmark_exl3_fat_dispatch.py
+@@ -0,0 +1,158 @@
++# SPDX-License-Identifier: Apache-2.0
++"""Compare host-dispatched E2 fat experts with persistent GPU fat tiles.
++
++This measures the complete routed-expert apply boundary: mapping, sorting,
++count construction, thin experts, oversized experts, activation, weighted
++scatter, and every host synchronization/launch gap.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import os
++import time
++import types
++
++import torch
++
++from vllm.model_executor.layers.quantization.exl3 import (
++    MCG_MARKER_SIGNED_INT32,
++    Exl3Config,
++    Exl3MoEMethod,
++    apply_exl3_experts,
++)
++
++
++def parse_args() -> argparse.Namespace:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--tokens", nargs="+", type=int, default=(512, 2048, 7168))
++    parser.add_argument("--experts", type=int, default=288)
++    parser.add_argument("--topk", type=int, default=8)
++    parser.add_argument("--hidden", type=int, default=4096)
++    parser.add_argument("--intermediate", type=int, default=1024)
++    parser.add_argument("--warmup", type=int, default=2)
++    parser.add_argument("--iterations", type=int, default=5)
++    parser.add_argument("--seed", type=int, default=53)
++    parser.add_argument("--zipf", type=float, default=1.0)
++    return parser.parse_args()
++
++
++def make_layer(args: argparse.Namespace, device: torch.device) -> torch.nn.Module:
++    moe = types.SimpleNamespace(swiglu_limit=10.0)
++    method = Exl3MoEMethod(moe, Exl3Config())
++    layer = torch.nn.Module()
++    method.create_weights(
++        layer,
++        num_experts=args.experts,
++        hidden_size=args.hidden,
++        intermediate_size_per_partition=args.intermediate,
++        params_dtype=torch.float16,
++    )
++    generator = torch.Generator(device="cpu")
++    generator.manual_seed(args.seed)
++    with torch.no_grad():
++        layer.w13_trellis.random_(-30000, 30000, generator=generator)
++        layer.w2_trellis.random_(-30000, 30000, generator=generator)
++        layer.w13_suh.normal_(generator=generator)
++        layer.w13_svh.normal_(generator=generator)
++        layer.w2_suh.normal_(generator=generator)
++        layer.w2_svh.normal_(generator=generator)
++        # The appliance checkpoint shares gate/up input SUH, which is required
++        # by the accepted paired E2 path.
++        layer.w13_suh[:, 1].copy_(layer.w13_suh[:, 0])
++        layer.w13_mcg.fill_(MCG_MARKER_SIGNED_INT32)
++        layer.w2_mcg.fill_(MCG_MARKER_SIGNED_INT32)
++    layer = layer.to(device)
++    method.process_weights_after_loading(layer)
++    return layer
++
++
++def make_routes(
++    args: argparse.Namespace, tokens: int, device: torch.device
++) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
++    generator = torch.Generator(device="cpu")
++    generator.manual_seed(args.seed + tokens)
++    rank = torch.arange(1, args.experts + 1, dtype=torch.float64)
++    probs = rank.pow(-args.zipf)
++    probs /= probs.sum()
++    ids = torch.multinomial(
++        probs.expand(tokens, -1),
++        args.topk,
++        replacement=False,
++        generator=generator,
++    )
++    logits = torch.randn(tokens, args.topk, generator=generator)
++    weights = logits.softmax(-1).half()
++    x = torch.randn(tokens, args.hidden, dtype=torch.float16, generator=generator)
++    counts = torch.bincount(ids.reshape(-1), minlength=args.experts)
++    return x.to(device), ids.to(device), weights.to(device), counts
++
++
++def run_mode(
++    layer: torch.nn.Module,
++    x: torch.Tensor,
++    ids: torch.Tensor,
++    weights: torch.Tensor,
++    enabled: bool,
++    warmup: int,
++    iterations: int,
++) -> tuple[torch.Tensor, float]:
++    os.environ["EXL3_FAT_DEVICE_TILES"] = "1" if enabled else "0"
++    os.environ["EXL3_MOE_ROW_TILE"] = "0"
++    os.environ["EXL3_FAT_KERNEL"] = "1"
++    os.environ["EXL3_FAT_PAIR"] = "1"
++    os.environ["EXL3_FAT_FUSED_ACT"] = "1"
++    os.environ["EXL3_FAT_EXPERT_LOG"] = "0"
++    for _ in range(warmup):
++        output = apply_exl3_experts(x, ids, weights, layer, fused=True)
++    torch.cuda.synchronize()
++    started = time.perf_counter()
++    for _ in range(iterations):
++        output = apply_exl3_experts(x, ids, weights, layer, fused=True)
++    torch.cuda.synchronize()
++    elapsed_ms = 1000.0 * (time.perf_counter() - started) / iterations
++    return output, elapsed_ms
++
++
++def main() -> None:
++    args = parse_args()
++    if not torch.cuda.is_available():
++        raise RuntimeError("CUDA is required")
++    import exllamav3_ext
++
++    assert exllamav3_ext.exl3_moe_fat_tiles_version() == 1
++    device = torch.device("cuda:0")
++    torch.manual_seed(args.seed)
++    layer = make_layer(args, device)
++    cap = int(layer._exl3_fused_temps[0].shape[1])
++    for tokens in args.tokens:
++        x, ids, weights, counts = make_routes(args, tokens, device)
++        accepted, accepted_ms = run_mode(
++            layer, x, ids, weights, False, args.warmup, args.iterations
++        )
++        candidate, candidate_ms = run_mode(
++            layer, x, ids, weights, True, args.warmup, args.iterations
++        )
++        diff = (candidate.float() - accepted.float()).abs()
++        reference = accepted.float().abs()
++        result = {
++            "tokens": tokens,
++            "experts": args.experts,
++            "topk": args.topk,
++            "cap": cap,
++            "fat_experts": int((counts > cap).sum()),
++            "max_expert_rows": int(counts.max()),
++            "accepted_ms": accepted_ms,
++            "device_tiles_ms": candidate_ms,
++            "speedup": accepted_ms / candidate_ms,
++            "max_abs": float(diff.max()),
++            "mean_abs": float(diff.mean()),
++            "relative_max": float(diff.max() / reference.max().clamp_min(1e-6)),
++            "finite": bool(torch.isfinite(candidate).all()),
++        }
++        print(json.dumps(result, sort_keys=True), flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmarks/sparkglm/results/2026-09-03-device-resident-fat-tiles-rejected.md b/benchmarks/sparkglm/results/2026-09-03-device-resident-fat-tiles-rejected.md
+new file mode 100644
+index 0000000000..0f0774c29b
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-device-resident-fat-tiles-rejected.md
+@@ -0,0 +1,56 @@
++# Persistent stock-kernel fat tiles: rejected operator prototype
++
++Date: 2026-09-03
++
++## Verdict
++
++Reject before full model load. The prototype removed the routing-count D2H
++synchronization and Python per-expert dispatch, but it reused ExLlamaV3's
++small-row persistent MoE microkernel for oversized experts. At production
++hidden/intermediate dimensions it was 35-49% slower than the accepted E2 path.
++
++The runtime feature and kernel patch were removed. The complete-layer
++microbenchmark remains as the gate for the next device-resident dispatcher.
++
++## Candidate
++
++The stock `exl3_moe` kernel normally skips experts with more than 128 routed
++rows. An additive fat-only mode made each persistent expert group consume an
++oversized expert in bounded 128-row slices. Python launched the ordinary thin
++mode once and the fat-only mode once, without reading expert counts on the CPU.
++
++This preserved bounded scratch and passed the full synthetic GPU overlay suite,
++including all-fat routing, mixed thin/fat composition, expert-map behavior,
++CUDA graph capture, and finite output checks. Relative maximum output deviation
++from the accepted E2 path was approximately 0.1% on the production-shape
++microbenchmark, consistent with different accumulation ordering.
++
++## Complete-layer result
++
++Command shape: 64 K4 MCG experts, top-8 routing, hidden width 4,096, TP-local
++intermediate width 1,024, Zipf-skewed distinct experts per token. Timings include
++mapping, sorting, count construction, thin experts, fat experts, activation,
++weighted scatter, host synchronization, and Python launch gaps.
++
++| Tokens | Fat experts | Maximum expert rows | Accepted E2 (ms) | Persistent tiles (ms) | Candidate / accepted |
++| ---: | ---: | ---: | ---: | ---: | ---: |
++| 512 | 7 | 450 | 6.459 | 9.903 | 0.652x |
++| 2,048 | 35 | 1,803 | 16.964 | 33.120 | 0.512x |
++
++Both rows were measured after one warmup with two timed iterations on one idle
++GB10. The loss is large enough that a 288-expert or endpoint run cannot reverse
++the decision and would only spend a full model reload.
++
++## Cause and next design constraint
++
++The persistent ExLlamaV3 kernel assigns eight SMs to an expert and advances its
++GEMMs in 16-row chunks. That is effective for thin/decode experts but leaves
++large-row work less parallel than the accepted E2 kernel, whose 128x128 tiles
++can occupy the whole GB10. Eliminating host dispatch does not compensate for
++moving fat-expert arithmetic back onto the small-M kernel.
++
++The next implementation must therefore retain the accepted paired/fused E2
++microkernels and replace only their scheduler: build compact `(expert, row
++tile, output tile)` jobs on the GPU and let persistent CTAs consume those jobs.
++It must first beat `benchmark_exl3_fat_dispatch.py` at 512, 2,048, and 7,168
++rows before earning a model load.

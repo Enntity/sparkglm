@@ -1,0 +1,80 @@
+From a6b1ca86c536ca1ed0adba8b058802072cb7e40f Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 01:56:29 -0700
+Subject: [PATCH 14/37] bench(glm): reject grouped E2 device dispatch
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ ...-03-grouped-e2-device-dispatch-rejected.md | 63 +++++++++++++++++++
+ 1 file changed, 63 insertions(+)
+ create mode 100644 benchmarks/sparkglm/results/2026-09-03-grouped-e2-device-dispatch-rejected.md
+
+diff --git a/benchmarks/sparkglm/results/2026-09-03-grouped-e2-device-dispatch-rejected.md b/benchmarks/sparkglm/results/2026-09-03-grouped-e2-device-dispatch-rejected.md
+new file mode 100644
+index 0000000000..a9fd21eff4
+--- /dev/null
++++ b/benchmarks/sparkglm/results/2026-09-03-grouped-e2-device-dispatch-rejected.md
+@@ -0,0 +1,63 @@
++# Grouped device-resident E2 dispatch: rejected operator prototype
++
++Date: 2026-09-03
++
++## Verdict
++
++Reject before full model load. A compact GPU job planner and persistent E2
++workers preserved the accepted large-row trellis math and removed the CPU count
++read plus Python expert loop. At the exact 288-expert GLM dimensions, however,
++the complete MoE layer was neutral at 2,048 rows and 1.6-1.7% slower at the
++other production shapes.
++
++The prototype runtime and extension code were removed. The accepted paired and
++fused per-expert E2 path remains the default.
++
++## Design
++
++One GPU planning block converted the 288 routing counts into compact
++`(expert, row tile, output tile)` jobs. The candidate then executed:
++
++1. compact gather plus input SUH/Hadamard for fat routes;
++2. persistent grouped paired gate/up E2 jobs;
++3. grouped bit-exact SwiGLU plus down-input SUH/Hadamard;
++4. persistent grouped down E2 jobs with atomic weighted scatter.
++
++Thin experts still ran through the unchanged stock persistent MoE kernel. Fat
++scratch was bounded by the number of routed assignments and reused between
++layers.
++
++The first build exposed an indexing error because ExLlamaV3's inherited
++Hadamard primitive uses `blockIdx.y` internally for scale addressing. Moving
++expert identity to grid-Z fixed it: single-route outputs then became bit-exact,
++and top-8 results differed only by atomic accumulation order.
++
++## Exact-shape result
++
++One idle GB10, K4 MCG, hidden width 4,096, TP-local intermediate width 1,024,
++288 experts, top-8 distinct Zipf-skewed routing, two warmups and three measured
++iterations. Timing covers the complete routed-expert apply boundary, including
++sorting, count creation, thin and fat execution, activation, scatter, host
++synchronization, and launch gaps.
++
++| Tokens | Fat experts | Maximum expert rows | Accepted E2 (ms) | Grouped E2 (ms) | Candidate / accepted |
++| ---: | ---: | ---: | ---: | ---: | ---: |
++| 512 | 5 | 403 | 11.873 | 12.071 | 0.984x |
++| 2,048 | 22 | 1,597 | 23.014 | 22.985 | 1.001x |
++| 7,168 | 82 | 5,524 | 59.420 | 60.472 | 0.983x |
++
++All outputs were finite. Maximum absolute difference was 4.0 in FP16-returned
++outputs whose maximum magnitude was about 20-23K, or 0.017-0.021% relative.
++Mean absolute difference was approximately 0.000014-0.000023.
++
++## Interpretation
++
++The accepted path already copies counts on a side stream while thin experts
++run. Consequently, the visible CPU synchronization and Python loop are not the
++dominant wall term once the paired/fused E2 kernels are active. The grouped
++candidate trades those costs for compact-route traffic, job planning, and
++atomic scatter, yielding no net production-shape gain.
++
++Do not spend another full-model iteration on MoE dispatch without a profile
++showing that this balance changed. The next large-lever work should move to the
++sparse prefill/KDA/TP2 terms and retain the accepted E2 pipeline.

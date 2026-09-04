@@ -1,0 +1,156 @@
+From 2dcb0b6da78690417ec414df8a753def0bdf57e3 Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 11:56:27 -0700
+Subject: [PATCH 04/37] bench(glm): visualize staggered stream admission
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ benchmarks/sparkglm/four_stream_video.py | 80 ++++++++++++++++++++++--
+ 1 file changed, 76 insertions(+), 4 deletions(-)
+
+diff --git a/benchmarks/sparkglm/four_stream_video.py b/benchmarks/sparkglm/four_stream_video.py
+index 5bcf7c0e74..04cf7ec877 100644
+--- a/benchmarks/sparkglm/four_stream_video.py
++++ b/benchmarks/sparkglm/four_stream_video.py
+@@ -49,6 +49,17 @@ def _stream_one(
+             "Start immediately with item 1. Use one short item per line, no introduction, "
+             "no conclusion, and continue until the response limit."
+         )
++    if args.prompt_tokens:
++        # The numbered/punctuated context line tokenizes to roughly 12 GLM
++        # tokens. The API usage record below remains the authoritative count.
++        facts = "\n".join(
++            f"context-{index}-{fact}: alpha beta gamma delta"
++            for fact in range(max(1, args.prompt_tokens // 12))
++        )
++        prompt = (
++            "Read the unique reference context below before answering the final request.\n"
++            f"{facts}\n\nFinal request:\n{prompt}"
++        )
+     body = {
+         "model": args.model,
+         "messages": [{"role": "user", "content": prompt}],
+@@ -77,6 +88,10 @@ def _stream_one(
+     usage: dict[str, Any] = {}
+     error: str | None = None
+     barrier.wait()
++    target = zero + index * args.stagger_ms / 1000
++    delay = target - time.monotonic()
++    if delay > 0:
++        time.sleep(delay)
+     scheduled = time.monotonic() - zero
+     try:
+         with urllib.request.urlopen(request, timeout=args.timeout_s) as response:
+@@ -191,6 +206,10 @@ def capture(args: argparse.Namespace) -> None:
+         "streams": args.streams,
+         "max_tokens": args.max_tokens,
+         "prompt_style": args.prompt_style,
++        "prompt_tokens_target": args.prompt_tokens,
++        "stagger_ms": args.stagger_ms,
++        "recipe_label": args.recipe_label,
++        "engine_commit": args.engine_commit,
+         "wall_s": round(ended, 6),
+         "total_completion_tokens": total,
+         "aggregate_decode_tok_s": round(aggregate, 6),
+@@ -324,7 +343,11 @@ def render(args: argparse.Namespace) -> None:
+             draw.text((margin, 24), "GLM-5.3 FLASH", font=title_font, fill="#f4f7fb")
+             draw.text(
+                 (margin + 315, 34),
+-                "4 LIVE STREAMS  •  2× DGX SPARK",
++                (
++                    "4 STAGGERED STREAMS  •  2× DGX SPARK"
++                    if artifact.get("stagger_ms", 0)
++                    else "4 LIVE STREAMS  •  2× DGX SPARK"
++                ),
+                 font=subtitle_font,
+                 fill=muted,
+             )
+@@ -355,8 +378,13 @@ def render(args: argparse.Namespace) -> None:
+                     status = "DONE"
+                 elif events:
+                     status = "STREAMING"
++                elif now < float(lane["scheduled_s"]):
++                    status = "NOT SENT"
+                 else:
+-                    status = "WAITING"
++                    spinner = "|/-\\"[
++                        int((now - float(lane["scheduled_s"])) * 8) % 4
++                    ]
++                    status = f"WAITING {spinner}"
+                 if first is not None and now > first:
+                     rate = max(live_tokens - 1, 0) / max(now - float(first), 0.001)
+                     if done:
+@@ -366,7 +394,10 @@ def render(args: argparse.Namespace) -> None:
+ 
+                 draw.text(
+                     (x + 17, y + 13),
+-                    f"0{lane_index + 1}  {lane['label']}",
++                    (
++                        f"0{lane_index + 1}  {lane['label']}"
++                        f"  •  +{float(lane['scheduled_s']):.1f}s"
++                    ),
+                     font=pane_title_font,
+                     fill=color,
+                 )
+@@ -391,9 +422,36 @@ def render(args: argparse.Namespace) -> None:
+                 aggregate_live = float(artifact["aggregate_decode_tok_s"])
+ 
+             footer_y = height - 62
++            identity = "  •  ".join(
++                part
++                for part in (
++                    artifact.get("recipe_label", ""),
++                    (
++                        f"commit {artifact['engine_commit']}"
++                        if artifact.get("engine_commit")
++                        else ""
++                    ),
++                )
++                if part
++            )
++            if identity:
++                draw.text(
++                    (margin, footer_y - 27),
++                    identity,
++                    font=metric_font,
++                    fill="#65d6ad",
++                )
+             draw.text(
+                 (margin, footer_y),
+-                "EXL3 4bpw  •  TP2  •  DFlash2 k7  •  measured SSE replay",
++                (
++                    "EXL3 4bpw  •  TP2  •  DFlash2 k7  •  "
++                    + (
++                        f"~{int(artifact['prompt_tokens_target']) // 1024}K prompt/stream  •  "
++                        if artifact.get("prompt_tokens_target")
++                        else ""
++                    )
++                    + "measured SSE replay"
++                ),
+                 font=footer_font,
+                 fill=muted,
+             )
+@@ -435,9 +493,23 @@ def parser() -> argparse.ArgumentParser:
+     capture_parser.add_argument("--api-key", default="")
+     capture_parser.add_argument("--streams", type=int, default=4)
+     capture_parser.add_argument("--max-tokens", type=int, default=400)
++    capture_parser.add_argument(
++        "--prompt-tokens",
++        type=int,
++        default=0,
++        help="Approximate unique context tokens prepended to each stream.",
++    )
++    capture_parser.add_argument(
++        "--stagger-ms",
++        type=int,
++        default=0,
++        help="Delay each successive request by this many milliseconds.",
++    )
+     capture_parser.add_argument(
+         "--prompt-style", choices=("counting", "field-guide"), default="counting"
+     )
++    capture_parser.add_argument("--recipe-label", default="")
++    capture_parser.add_argument("--engine-commit", default="")
+     capture_parser.add_argument("--timeout-s", type=float, default=600)
+     capture_parser.add_argument("--logprobs", action="store_true")
+     capture_parser.add_argument("--output", required=True)

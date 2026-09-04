@@ -1,0 +1,117 @@
+From ce9a8d1ac02188abfb642d56471f059ccafa93bf Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:43:10 -0700
+Subject: [PATCH 06/21] launch(glm): expose specialized EXL3 fat path
+
+Default the derived GB10 lane to the accepted M64 paired and fused-activation path while preserving explicit rollback knobs.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ .env.example                  |  3 +++
+ start.sh                      | 16 +++++++++++++++-
+ tests/test_start_overrides.py | 21 +++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/.env.example b/.env.example
+index 852fece..2aece6a 100644
+--- a/.env.example
++++ b/.env.example
+@@ -86,6 +86,9 @@ EXL3_FUSED_MOE=1
+ # Needs the patched extension — start.sh rebuilds when the overlay recipe drifts.
+ # EXL3_FAT_KERNEL=0 restores the legacy fat-expert path without a rebuild.
+ EXL3_FAT_KERNEL=1
++EXL3_FAT_TILE_M=64
++EXL3_FAT_PAIR=1
++EXL3_FAT_FUSED_ACT=1
+ SERVED_MODEL_NAME=GLM-5.3-Flash-EXL3
+ 
+ # Winner on this 2× GB10 kit with DFlash2: fused MoE + DFlash2 k=7.
+diff --git a/start.sh b/start.sh
+index e36284c..bf3733b 100755
+--- a/start.sh
++++ b/start.sh
+@@ -67,6 +67,9 @@ _cli_temp_rows="${EXL3_TEMP_ROWS_FUSED-}"
+ _cli_fat_sorted="${EXL3_FAT_SORTED-}"
+ _cli_fat_batched="${EXL3_FAT_BATCHED-}"
+ _cli_fat_kernel="${EXL3_FAT_KERNEL-}"
++_cli_fat_tile_m="${EXL3_FAT_TILE_M-}"
++_cli_fat_pair="${EXL3_FAT_PAIR-}"
++_cli_fat_fused_act="${EXL3_FAT_FUSED_ACT-}"
+ _cli_mnbt="${MAX_NUM_BATCHED_TOKENS-}"
+ _cli_image="${IMAGE-}"
+ _cli_util="${GPU_MEM_UTIL-}"
+@@ -97,6 +100,9 @@ set +a
+ [ -n "${_cli_fat_sorted}" ] && EXL3_FAT_SORTED="$_cli_fat_sorted"
+ [ -n "${_cli_fat_batched}" ] && EXL3_FAT_BATCHED="$_cli_fat_batched"
+ [ -n "${_cli_fat_kernel}" ] && EXL3_FAT_KERNEL="$_cli_fat_kernel"
++[ -n "${_cli_fat_tile_m}" ] && EXL3_FAT_TILE_M="$_cli_fat_tile_m"
++[ -n "${_cli_fat_pair}" ] && EXL3_FAT_PAIR="$_cli_fat_pair"
++[ -n "${_cli_fat_fused_act}" ] && EXL3_FAT_FUSED_ACT="$_cli_fat_fused_act"
+ [ -n "${_cli_mnbt}" ] && MAX_NUM_BATCHED_TOKENS="$_cli_mnbt"
+ [ -n "${_cli_image}" ] && IMAGE="$_cli_image"
+ [ -n "${_cli_util}" ] && GPU_MEM_UTIL="$_cli_util"
+@@ -233,6 +239,11 @@ EXL3_FAT_BATCHED="${EXL3_FAT_BATCHED:-0}"
+ # Needs the patched extension — start.sh rebuilds when the recipe stamp drifts.
+ # Set all three flags to 0 for the legacy fat-expert path.
+ EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"
++# GB10-specialized fat-expert path. M128 and the composed operator path remain
++# explicit bit-exact rollback controls.
++EXL3_FAT_TILE_M="${EXL3_FAT_TILE_M:-64}"
++EXL3_FAT_PAIR="${EXL3_FAT_PAIR:-1}"
++EXL3_FAT_FUSED_ACT="${EXL3_FAT_FUSED_ACT:-1}"
+ 
+ # --- abliteration (ablit/) --------------------------------------------------
+ # Load-time o_proj orthogonalization (overlay/ablit_runtime.py). Published
+@@ -1215,7 +1226,7 @@ launch_cluster() {
+              KV_CACHE_DTYPE MTP_TOKENS SPEC_METHOD DFLASH_TOKENS DFLASH_MODEL_DIR \
+              DFLASH_DRAFT_TP \
+              LANGUAGE_MODEL_ONLY SKIP_MM_PROFILING \
+-             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL MODEL_DIR EXTRA_ARGS \
++             LIMIT_MM CHAT_TEMPLATE ENFORCE_EAGER EXL3_FUSED_MOE EXL3_MOE_ROW_TILE EXL3_TEMP_ROWS_FUSED EXL3_FAT_SORTED EXL3_FAT_BATCHED EXL3_FAT_KERNEL EXL3_FAT_TILE_M EXL3_FAT_PAIR EXL3_FAT_FUSED_ACT MODEL_DIR EXTRA_ARGS \
+              ABLIT ABLIT_METHOD ABLIT_DIRECTION ABLIT_LAYERS ABLIT_ALPHA ABLIT_INCLUDE_MTP; do
+         serve_env+=" -e $v='${!v:-}'"
+     done
+@@ -1310,6 +1321,9 @@ launch_cluster() {
+         -e EXL3_FAT_SORTED="$EXL3_FAT_SORTED" \
+         -e EXL3_FAT_BATCHED="$EXL3_FAT_BATCHED" \
+         -e EXL3_FAT_KERNEL="$EXL3_FAT_KERNEL" \
++        -e EXL3_FAT_TILE_M="$EXL3_FAT_TILE_M" \
++        -e EXL3_FAT_PAIR="$EXL3_FAT_PAIR" \
++        -e EXL3_FAT_FUSED_ACT="$EXL3_FAT_FUSED_ACT" \
+         -e ABLIT="$ABLIT" \
+         -e ABLIT_METHOD="$ABLIT_METHOD" \
+         -e ABLIT_DIRECTION="$ABLIT_DIRECTION" \
+diff --git a/tests/test_start_overrides.py b/tests/test_start_overrides.py
+index d734597..6c599dd 100644
+--- a/tests/test_start_overrides.py
++++ b/tests/test_start_overrides.py
+@@ -104,8 +104,29 @@ def test_spinwait_caller_capture_is_setness_aware() -> None:
+     assert _run_preamble("", {}, probe) == "V=[UNSET]"
+ 
+ 
++def test_fat_kernel_subfeature_overrides_win() -> None:
++    probe = (
++        '\nprintf "TILE=%s PAIR=%s ACT=%s\\n" '
++        '"${EXL3_FAT_TILE_M-UNSET}" "${EXL3_FAT_PAIR-UNSET}" '
++        '"${EXL3_FAT_FUSED_ACT-UNSET}"\n'
++    )
++    env_file = (
++        "EXL3_FAT_TILE_M=128\nEXL3_FAT_PAIR=0\nEXL3_FAT_FUSED_ACT=1\n"
++    )
++    assert _run_preamble(
++        env_file,
++        {
++            "EXL3_FAT_TILE_M": "64",
++            "EXL3_FAT_PAIR": "1",
++            "EXL3_FAT_FUSED_ACT": "0",
++        },
++        probe,
++    ) == "TILE=64 PAIR=1 ACT=0"
++
++
+ if __name__ == "__main__":
+     test_max_num_seqs_inline_override_wins()
+     test_indexer_workspace_caller_capture_is_setness_aware()
+     test_spinwait_caller_capture_is_setness_aware()
++    test_fat_kernel_subfeature_overrides_win()
+     print("start.sh caller override regression OK")

@@ -1,0 +1,454 @@
+From f9553ea405a7bd9e453f162ba369808a5c3c259e Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 11:49:51 -0700
+Subject: [PATCH 10/21] build(glm): add latest-Mia binary qualification image
+
+Derive from the untouched eb0469f control and copy only the previously qualified native artifacts, then apply the accepted runtime Python deltas.
+
+Co-authored-by: OpenAI Codex <codex@openai.com>
+---
+ Dockerfile.sparkglm-binary                    |  53 +++
+ SPARKGLM.md                                   |   8 +
+ .../runtime/native-fp16-sparse-selector.patch | 331 ++++++++++++++++++
+ patches/runtime/packed-rmsnorm.patch          |  18 +
+ 4 files changed, 410 insertions(+)
+ create mode 100644 Dockerfile.sparkglm-binary
+ create mode 100644 patches/runtime/native-fp16-sparse-selector.patch
+ create mode 100644 patches/runtime/packed-rmsnorm.patch
+
+diff --git a/Dockerfile.sparkglm-binary b/Dockerfile.sparkglm-binary
+new file mode 100644
+index 0000000..ef17517
+--- /dev/null
++++ b/Dockerfile.sparkglm-binary
+@@ -0,0 +1,53 @@
++# Fast qualification image: combine the untouched latest-Mia control with the
++# already qualified native artifacts, then apply only the accepted Python
++# deltas. The canonical source patches live under patches/vllm/.
++ARG CONTROL_IMAGE=lloom-glm53-mia-eb0469:exl3
++ARG ACCEPTED_IMAGE=sparkglm-vllm:exl3-m64-candidate-20260903a
++
++FROM ${ACCEPTED_IMAGE} AS accepted
++FROM ${CONTROL_IMAGE}
++
++COPY --from=accepted \
++  /usr/local/lib/python3.12/dist-packages/vllm/_C_stable_libtorch.abi3.so \
++  /usr/local/lib/python3.12/dist-packages/vllm/_C_stable_libtorch.abi3.so
++COPY --from=accepted \
++  /usr/local/lib/python3.12/dist-packages/vllm/third_party/deep_gemm/ \
++  /usr/local/lib/python3.12/dist-packages/vllm/third_party/deep_gemm/
++COPY --from=accepted \
++  /usr/local/lib/python3.12/dist-packages/exllamav3_ext.cpython-312-aarch64-linux-gnu.so \
++  /usr/local/lib/python3.12/dist-packages/exllamav3_ext.cpython-312-aarch64-linux-gnu.so
++
++COPY patches/runtime/ /opt/sparkglm/runtime-patches/
++RUN set -eux; \
++    cd /usr/local/lib/python3.12/dist-packages; \
++    patch -p1 < /opt/sparkglm/runtime-patches/packed-rmsnorm.patch; \
++    patch -p1 < /opt/sparkglm/runtime-patches/native-fp16-sparse-selector.patch
++
++COPY overlay/exl3.py \
++  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/exl3.py
++COPY tests/test_exl3_overlay.py /opt/glm53/test_exl3_overlay.py
++
++RUN python3 - <<'PY'
++import torch
++import exllamav3_ext as ext
++
++required = (
++    "exl3_fat_gemm_pair",
++    "exl3_fat_swiglu_had",
++    "exl3_fat_gemm_m64",
++    "exl3_fat_gemm_pair_m64",
++    "exl3_fat_gemm_scatter_m64",
++)
++missing = [name for name in required if not hasattr(ext, name)]
++assert not missing, missing
++print("SparkGLM accepted native artifacts present")
++PY
++
++ARG SPARKGLM_RECIPE_REVISION=unknown
++LABEL ai.enntity.sparkglm.mia-base="eb0469fbb2b49fd7c025f594a3339a121e58f7a9" \
++      ai.enntity.sparkglm.recipe-revision="${SPARKGLM_RECIPE_REVISION}" \
++      ai.enntity.sparkglm.artifact-source="accepted-source-build" \
++      ai.enntity.sparkglm.fp16-selector="1" \
++      ai.enntity.sparkglm.exl3-fat-pair="1" \
++      ai.enntity.sparkglm.exl3-fat-fused-act="1" \
++      ai.enntity.sparkglm.exl3-fat-tile-m="64"
+diff --git a/SPARKGLM.md b/SPARKGLM.md
+index c48979e..d095b7c 100644
+--- a/SPARKGLM.md
++++ b/SPARKGLM.md
+@@ -24,3 +24,11 @@ For a fair endpoint comparison, the untouched and optimized images must use
+ the same model revision, DFlash revision and topology, KV/cache budget,
+ scheduler settings, warmup workload, prompts, arrival offsets, output length,
+ and alternating run order. A ready banner alone is not equivalent warm state.
++
++For fast qualification on the existing Sparks,
++`Dockerfile.sparkglm-binary` derives directly from the untouched Mia control
++image and copies native artifacts from the previously qualified source build.
++It then applies only the two runtime Python patches above. This avoids a second
++full vLLM compile while ensuring the final filesystem starts from latest Mia,
++not from the historical source-integrated image. It is a qualification path;
++the patch-based source build remains the canonical reproducible path.
+diff --git a/patches/runtime/native-fp16-sparse-selector.patch b/patches/runtime/native-fp16-sparse-selector.patch
+new file mode 100644
+index 0000000..9eb0a00
+--- /dev/null
++++ b/patches/runtime/native-fp16-sparse-selector.patch
+@@ -0,0 +1,331 @@
++diff --git a/vllm/config/attention.py b/vllm/config/attention.py
++index 994be05f54..5b56b22b0b 100644
++--- a/vllm/config/attention.py
+++++ b/vllm/config/attention.py
++@@ -11,6 +11,7 @@ from vllm.v1.attention.backends.mla.prefill.registry import MLAPrefillBackendEnu
++ from vllm.v1.attention.backends.registry import AttentionBackendEnum
++ 
++ IndexerKVDType = Literal["bf16", "fp8", "mxfp4", "nvfp4"]
+++IndexerLogitsDType = Literal["auto", "float16", "float32"]
++ MiniMaxM3MSADecodeBackend = Literal["triton", "cutlass"]
++ 
++ 
++@@ -72,6 +73,10 @@ class AttentionConfig:
++     """Data type for the sparse-attention indexer K cache. Quantized formats
++     (fp8, mxfp4, nvfp4) require indexer kernel support in the backend."""
++ 
+++    indexer_logits_dtype: IndexerLogitsDType = "auto"
+++    """Output data type for sparse-attention indexer logits. "auto" uses
+++    float16 on CUDA and float32 on other platforms."""
+++
++     use_non_causal: bool = False
++     """Whether to use non-causal (bidirectional) attention."""
++ 
++diff --git a/vllm/model_executor/layers/sparse_attn_indexer.py b/vllm/model_executor/layers/sparse_attn_indexer.py
++index d94b377dbe..f1607e3fed 100644
++--- a/vllm/model_executor/layers/sparse_attn_indexer.py
+++++ b/vllm/model_executor/layers/sparse_attn_indexer.py
++@@ -44,6 +44,35 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
++ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
++ MXFP4_BLOCK_SIZE = 32
++ 
+++_INDEXER_LOGITS_DTYPES = {
+++    "float16": torch.float16,
+++    "float32": torch.float32,
+++}
+++
+++
+++def _should_use_native_fp16_decode_topk(
+++    logits_dtype: torch.dtype, num_rows: int, max_seq_len: int
+++) -> bool:
+++    # FP16 crossovers measured on GB200 for #52696; retune on Hopper.
+++    if logits_dtype != torch.float16:
+++        return False
+++    if max_seq_len <= 32768:
+++        return False
+++    if max_seq_len <= 65536:
+++        return num_rows >= 768
+++    if max_seq_len <= 100000:
+++        return num_rows >= 512
+++    return max_seq_len <= 131072 and num_rows >= 1024
+++
+++
+++def _get_indexer_logits_dtype() -> torch.dtype:
+++    setting = get_current_vllm_config().attention_config.indexer_logits_dtype
+++    if setting != "auto":
+++        return _INDEXER_LOGITS_DTYPES[setting]
+++    if not current_platform.is_cuda():
+++        return torch.float32
+++    return torch.float16
+++
++ 
++ def _assert_cutedsl_dcp_merge_supported(
++     logits: torch.Tensor,
++@@ -60,10 +89,10 @@ def _assert_cutedsl_dcp_merge_supported(
++         )
++     if logits.device.type != "cuda":
++         raise RuntimeError("DCP sparse-indexer merge requires CUDA tensors.")
++-    if logits.dtype != torch.float32 or topk_indices.dtype != torch.int32:
++-        raise RuntimeError(
++-            "DCP sparse-indexer merge requires fp32 logits and int32 indices."
++-        )
+++    if logits.dtype not in (torch.float32, torch.float16):
+++        raise RuntimeError("DCP sparse-indexer merge requires fp32 or fp16 logits.")
+++    if topk_indices.dtype != torch.int32:
+++        raise RuntimeError("DCP sparse-indexer merge requires int32 indices.")
++     if k not in (512, 1024, 2048):
++         raise RuntimeError(
++             f"DCP sparse-indexer merge requires index_topk in (512, 1024, 2048); "
++@@ -316,6 +345,7 @@ def sparse_attn_indexer(
++     dcp_world_size: int = 1,
++     cp_kv_cache_interleave_size: int = 1,
++     skip_topk_buffer_clear: bool = False,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     # careful! this will be None in dummy run
++     forward_context = get_forward_context()
++@@ -485,7 +515,12 @@ def sparse_attn_indexer(
++                     q_slice_cast = q_slice
++                     k_quant_cast = k_quant
++                     k_scale_cast = k_scale.view(torch.float32).squeeze(-1)
+++                logits_dtype = torch.float16 if use_fp16_logits else torch.float32
++                 if current_platform.is_xpu():
+++                    if logits_dtype != torch.float32:
+++                        raise RuntimeError(
+++                            "Reduced-precision indexer logits are not supported on XPU"
+++                        )
++                     if q_scale_slice is not None:
++                         raise RuntimeError("XPU fp8_mqa_logits does not support FP4 Q")
++                     logits = torch.ops.vllm.xpu_fp8_mqa_logits(
++@@ -504,6 +539,7 @@ def sparse_attn_indexer(
++                         cu_seqlen_ks,
++                         cu_seqlen_ke,
++                         clean_logits=False,
+++                        logits_dtype=logits_dtype,
++                     )
++                 num_rows = logits.shape[0]
++                 ops.top_k_per_row_prefill(
++@@ -584,7 +620,12 @@ def sparse_attn_indexer(
++             if use_fp4_cache
++             else padded_q_quant_decode_tokens
++         )
+++        logits_dtype = torch.float16 if use_fp16_logits else torch.float32
++         if current_platform.is_xpu():
+++            if logits_dtype != torch.float32:
+++                raise RuntimeError(
+++                    "Reduced-precision indexer logits are not supported on XPU"
+++                )
++             if padded_q_scale is not None:
++                 raise RuntimeError("XPU fp8_paged_mqa_logits does not support FP4 Q")
++             seq_lens_xpu = (
++@@ -610,6 +651,7 @@ def sparse_attn_indexer(
++                 max_model_len=max_model_len,
++                 clean_logits=False,
++                 indices=decode_metadata.indices,
+++                logits_dtype=logits_dtype,
++             )
++         num_rows = logits.shape[0]
++         topk_indices = topk_indices_buffer[:num_padded_tokens, :topk_tokens]
++@@ -618,14 +660,20 @@ def sparse_attn_indexer(
++             current_platform.is_cuda()
++             and topk_tokens in (512, 1024, 2048)
++             and num_rows <= 32
++-            and logits.stride(0) % 4 == 0  # TMA 16-byte alignment
+++            and (
+++                # TMA requires 16-byte alignment.
+++                logits.stride(0) % (16 // logits.element_size()) == 0
+++            )
++             and current_platform.has_device_capability(90)
++             and not current_platform.is_device_capability_family(120)
++         )
++-        use_persistent_topk = current_platform.is_cuda() and topk_tokens in (
++-            512,
++-            1024,
++-            2048,
+++        use_native_fp16_decode_topk = _should_use_native_fp16_decode_topk(
+++            logits.dtype, num_rows, attn_metadata_narrowed.max_seq_len
+++        )
+++        use_persistent_topk = (
+++            current_platform.is_cuda()
+++            and topk_tokens in (512, 1024, 2048)
+++            and not use_native_fp16_decode_topk
++         )
++         if use_cooperative_topk:
++             workspace_manager = current_workspace_manager()
++@@ -712,6 +760,7 @@ def sparse_attn_indexer_fake(
++     dcp_world_size: int = 1,
++     cp_kv_cache_interleave_size: int = 1,
++     skip_topk_buffer_clear: bool = False,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     return topk_indices_buffer
++ 
++@@ -762,6 +811,7 @@ class SparseAttnIndexer(CustomOp):
++         self.topk_indices_buffer = topk_indices_buffer
++         self.skip_k_cache_insert = skip_k_cache_insert
++         self.use_fp4_cache = use_fp4_cache
+++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
++         self.dense_mha_metadata_layer_name = ""
++         # DCP scalars are constant for the run; resolve them here (config is set
++         # during model construction) and pass them into the custom op, rather
++@@ -829,6 +879,8 @@ class SparseAttnIndexer(CustomOp):
++             self.dcp_rank,
++             self.dcp_world_size,
++             self.cp_kv_cache_interleave_size,
+++            False,
+++            self.use_fp16_logits,
++         )
++ 
++     def forward_xpu(
++diff --git a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++index 6e475d9ce3..40d28e8a4b 100644
++--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++@@ -50,6 +50,24 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
++ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
++ MXFP4_BLOCK_SIZE = 32
++ 
+++_INDEXER_LOGITS_DTYPES = {
+++    "float16": torch.float16,
+++    "float32": torch.float32,
+++}
+++
+++
+++def _get_indexer_logits_dtype() -> torch.dtype:
+++    """Resolve score dtype before the custom op leaves config context."""
+++    cfg = get_current_vllm_config_or_none()
+++    setting = (
+++        cfg.attention_config.indexer_logits_dtype if cfg is not None else "auto"
+++    )
+++    if setting != "auto":
+++        return _INDEXER_LOGITS_DTYPES[setting]
+++    if not current_platform.is_cuda():
+++        return torch.float32
+++    return torch.float16
+++
++ # kpool write helper: form pools from the current token batch and compress them
++ # into the index K cache via the fused Triton kernel.
++ 
++@@ -269,6 +287,7 @@ def sparse_attn_indexer_kpool(
++     # path and when the tail cache is disabled.
++     tail_kv_cache: torch.Tensor | None = None,
++     tail_prefix: str | None = None,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     # careful! this will be None in dummy run
++     attn_metadata = get_forward_context().attn_metadata
++@@ -309,8 +328,10 @@ def sparse_attn_indexer_kpool(
++                 sched.max_num_seqs * (num_spec + 1),
++                 sched.max_num_batched_tokens,
++             )
++-        # float32 logits -> 4 bytes/element; uint8 sentinel so elems == bytes.
++-        decode_logits_elems = worst_decode_tokens * max_model_len * 4
+++        # The uint8 sentinel's element count is a byte count. Match the score
+++        # dtype so FP16 mode does not reserve the former FP32 peak.
+++        logits_bytes = 2 if use_fp16_logits else 4
+++        decode_logits_elems = worst_decode_tokens * max_model_len * logits_bytes
++         prefill_cap_elems = envs.VLLM_SPARSE_INDEXER_MAX_LOGITS_MB * 1024 * 1024
++         max_logits_elems = max(decode_logits_elems, prefill_cap_elems)
++         _ = torch.empty(
++@@ -527,6 +548,7 @@ def sparse_attn_indexer_kpool(
++                 chunk.cu_seqlen_ks,
++                 chunk.cu_seqlen_ke,
++                 clean_logits=False,
+++                logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
++             )
++             num_rows = logits.shape[0]
++ 
++@@ -794,6 +816,7 @@ def sparse_attn_indexer_kpool(
++             decode_metadata.schedule_metadata,
++             max_model_len=max_model_len,
++             clean_logits=False,
+++            logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
++         )
++         num_rows = logits.shape[0]
++         # kpool: logits are pool-granular -> select topk_tokens//kpool pools,
++@@ -910,6 +933,7 @@ def sparse_attn_indexer_kpool_fake(
++     positions: torch.Tensor | None = None,
++     tail_kv_cache: torch.Tensor | None = None,
++     tail_prefix: str | None = None,
+++    use_fp16_logits: bool = False,
++ ) -> torch.Tensor:
++     return topk_indices_buffer
++ 
++@@ -967,6 +991,7 @@ class SparseAttnIndexerKpool(CustomOp):
++         self.topk_indices_buffer = topk_indices_buffer
++         self.skip_k_cache_insert = skip_k_cache_insert
++         self.use_fp4_cache = use_fp4_cache
+++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
++         if current_platform.is_cuda() and not has_deep_gemm():
++             raise RuntimeError(
++                 "Sparse Attention Indexer CUDA op requires DeepGEMM to be installed."
++@@ -1044,6 +1069,7 @@ class SparseAttnIndexerKpool(CustomOp):
++             positions,
++             self.tail_cache.kv_cache if self.tail_cache is not None else None,
++             self.tail_cache.prefix if self.tail_cache is not None else None,
+++            self.use_fp16_logits,
++         )
++ 
++     def forward_hip(
++diff --git a/vllm/utils/deep_gemm.py b/vllm/utils/deep_gemm.py
++index 434a8d529d..55c6b0fef0 100644
++--- a/vllm/utils/deep_gemm.py
+++++ b/vllm/utils/deep_gemm.py
++@@ -519,6 +519,7 @@ def fp8_fp4_mqa_logits(
++     cu_seqlen_ks: torch.Tensor,
++     cu_seqlen_ke: torch.Tensor,
++     clean_logits: bool,
+++    logits_dtype: torch.dtype = torch.float32,
++ ) -> torch.Tensor:
++     """Compute MQA logits for a single sequence without KV paging.
++ 
++@@ -540,9 +541,10 @@ def fp8_fp4_mqa_logits(
++         cu_seqlen_ke: End indices (exclusive) for valid K per query
++             position, shape [M], dtype int32.
++         clean_logits: Whether to clean the unfilled logits into `-inf`.
+++        logits_dtype: Output dtype. Supports float32 and float16.
++ 
++     Returns:
++-        Logits tensor of shape [M, N], dtype `torch.float32`.
+++        Logits tensor of shape [M, N] with `logits_dtype`.
++     """
++     _lazy_init()
++     if _fp8_fp4_mqa_logits_impl is None:
++@@ -554,6 +556,7 @@ def fp8_fp4_mqa_logits(
++         cu_seqlen_ks,
++         cu_seqlen_ke,
++         clean_logits=clean_logits,
+++        logits_dtype=logits_dtype,
++     )
++ 
++ 
++@@ -595,6 +598,7 @@ def fp8_fp4_paged_mqa_logits(
++     max_model_len: int,
++     clean_logits: bool,
++     indices: torch.Tensor | None = None,
+++    logits_dtype: torch.dtype = torch.float32,
++ ) -> torch.Tensor:
++     """Compute MQA logits using a paged KV-cache.
++ 
++@@ -620,10 +624,11 @@ def fp8_fp4_paged_mqa_logits(
++         max_model_len: Maximum sequence length used to size the logits output.
++         clean_logits: Whether to clean the unfilled logits into `-inf`.
++         indices: Optional request index for each varlen row.
+++        logits_dtype: Output dtype. Supports float32 and float16.
++ 
++     Returns:
++-        Logits tensor of shape [B * next_n, max_model_len], dtype
++-        `torch.float32`.
+++        Logits tensor of shape [B * next_n, max_model_len] with
+++        `logits_dtype`.
++     """
++     _lazy_init()
++     if _fp8_fp4_paged_mqa_logits_impl is None:
++@@ -645,6 +650,7 @@ def fp8_fp4_paged_mqa_logits(
++         schedule_metadata,
++         max_model_len,
++         clean_logits=clean_logits,
+++        logits_dtype=logits_dtype,
++         **kwargs,
++     )
++ 
+diff --git a/patches/runtime/packed-rmsnorm.patch b/patches/runtime/packed-rmsnorm.patch
+new file mode 100644
+index 0000000..561c05c
+--- /dev/null
++++ b/patches/runtime/packed-rmsnorm.patch
+@@ -0,0 +1,18 @@
++diff --git a/vllm/models/common/ops/fused_qk_rmsnorm.py b/vllm/models/common/ops/fused_qk_rmsnorm.py
++index ac7d0dfd4a..9bc73dd7bf 100644
++--- a/vllm/models/common/ops/fused_qk_rmsnorm.py
+++++ b/vllm/models/common/ops/fused_qk_rmsnorm.py
++@@ -77,8 +77,11 @@ def fused_q_kv_rmsnorm(
++     q_size = qr.shape[1]
++     kv_size = kv.shape[1]
++     num_tokens = qr.shape[0]
++-    qr_out = torch.empty_like(qr)
++-    kv_out = torch.empty_like(kv)
+++    # qr/kv are usually column slices of one fused projection. For a one-token
+++    # decode, empty_like preserves the parent row stride and can disqualify the
+++    # packed-input fast path in the following projection.
+++    qr_out = torch.empty(qr.shape, dtype=qr.dtype, device=qr.device)
+++    kv_out = torch.empty(kv.shape, dtype=kv.dtype, device=kv.device)
++     if num_tokens == 0:
++         return qr_out, kv_out
++ 

@@ -1,0 +1,92 @@
+From c80531867e13085c356ae5b9bff4c3b98ee64e8b Mon Sep 17 00:00:00 2001
+From: Jason McCartney <jmacAJ@users.noreply.github.com>
+Date: Thu, 3 Sep 2026 17:58:31 -0700
+Subject: [PATCH 21/21] fix(launch): materialize cooperative decode limits
+
+Preserve caller overrides and set the cooperative decode defaults before constructing rank 1's environment. This prevents EXL3_DECODE_COOP_K4=1 with an omitted max-token override from sending an empty value to the worker and falling back to the graph-unsafe Python expert loop.
+
+Provenance: original implementation.
+
+Verification:
+- python3 tests/test_start_overrides.py: PASS.
+- bash -n start.sh: PASS.
+- The failure was reproduced on rank 1 as ValueError parsing an empty EXL3_DECODE_COOP_MAX_TOKENS; the paired full-model benchmark then passed graph capture when the intended value was present.
+---
+ start.sh                      |  8 ++++++++
+ tests/test_start_overrides.py | 24 ++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/start.sh b/start.sh
+index c4f2e9d..cb71611 100755
+--- a/start.sh
++++ b/start.sh
+@@ -71,6 +71,8 @@ _cli_fat_tile_m="${EXL3_FAT_TILE_M-}"
+ _cli_fat_pair="${EXL3_FAT_PAIR-}"
+ _cli_fat_fused_act="${EXL3_FAT_FUSED_ACT-}"
+ _cli_grouped_prefill="${EXL3_GROUPED_PREFILL_K4-}"
++_cli_decode_coop="${EXL3_DECODE_COOP_K4-}"
++_cli_decode_coop_max_tokens="${EXL3_DECODE_COOP_MAX_TOKENS-}"
+ _cli_mnbt="${MAX_NUM_BATCHED_TOKENS-}"
+ _cli_image="${IMAGE-}"
+ _cli_model="${MODEL-}"
+@@ -118,6 +120,8 @@ set +a
+ [ -n "${_cli_fat_pair}" ] && EXL3_FAT_PAIR="$_cli_fat_pair"
+ [ -n "${_cli_fat_fused_act}" ] && EXL3_FAT_FUSED_ACT="$_cli_fat_fused_act"
+ [ -n "${_cli_grouped_prefill}" ] && EXL3_GROUPED_PREFILL_K4="$_cli_grouped_prefill"
++[ -n "${_cli_decode_coop}" ] && EXL3_DECODE_COOP_K4="$_cli_decode_coop"
++[ -n "${_cli_decode_coop_max_tokens}" ] && EXL3_DECODE_COOP_MAX_TOKENS="$_cli_decode_coop_max_tokens"
+ [ -n "${_cli_mnbt}" ] && MAX_NUM_BATCHED_TOKENS="$_cli_mnbt"
+ [ -n "${_cli_image}" ] && IMAGE="$_cli_image"
+ [ -n "${_cli_model}" ] && MODEL="$_cli_model"
+@@ -273,6 +277,10 @@ EXL3_FAT_FUSED_ACT="${EXL3_FAT_FUSED_ACT:-1}"
+ # Keep counts and the complete fat-expert pipeline on GPU. Promoted after the
+ # paired 16K C1/C2 full-model gate; set 0 for immediate rollback.
+ EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-1}"
++# Cooperative decode remains opt-in. Materialize both defaults before building
++# rank-1's env list so an enabled worker never receives an empty max-token value.
++EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}"
++EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}"
+ 
+ # --- abliteration (ablit/) --------------------------------------------------
+ # Load-time o_proj orthogonalization (overlay/ablit_runtime.py). Published
+diff --git a/tests/test_start_overrides.py b/tests/test_start_overrides.py
+index b77b7eb..4e7e29b 100644
+--- a/tests/test_start_overrides.py
++++ b/tests/test_start_overrides.py
+@@ -144,6 +144,29 @@ def test_fat_kernel_subfeature_overrides_win() -> None:
+     ) == "TILE=64 PAIR=1 ACT=0 GROUPED=1"
+ 
+ 
++def test_decode_coop_overrides_win_and_defaults_are_materialized() -> None:
++    probe = (
++        '\nprintf "COOP=%s MAX=%s\\n" '
++        '"${EXL3_DECODE_COOP_K4-UNSET}" '
++        '"${EXL3_DECODE_COOP_MAX_TOKENS-UNSET}"\n'
++    )
++    env_file = "EXL3_DECODE_COOP_K4=0\nEXL3_DECODE_COOP_MAX_TOKENS=8\n"
++    assert _run_preamble(
++        env_file,
++        {
++            "EXL3_DECODE_COOP_K4": "1",
++            "EXL3_DECODE_COOP_MAX_TOKENS": "16",
++        },
++        probe,
++    ) == "COOP=1 MAX=16"
++    source = (ROOT / "start.sh").read_text()
++    assert 'EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}"' in source
++    assert (
++        'EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}"'
++        in source
++    )
++
++
+ def test_tiny_model_identity_overrides_win() -> None:
+     probe = (
+         '\nprintf "%s|%s|%s|%s|%s\\n" "$MODEL" "$MODEL_FALLBACK" '
+@@ -178,5 +201,6 @@ if __name__ == "__main__":
+     test_indexer_workspace_caller_capture_is_setness_aware()
+     test_spinwait_caller_capture_is_setness_aware()
+     test_fat_kernel_subfeature_overrides_win()
++    test_decode_coop_overrides_win_and_defaults_are_materialized()
+     test_tiny_model_identity_overrides_win()
+     print("start.sh caller override regression OK")
