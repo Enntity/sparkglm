@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT AND Apache-2.0
 //
 // Cooperative GLM-5.3 EXL3 decode experiment for the exact two-Spark shape:
 // hidden=4096, rank-local expert intermediate=1024, K4 MCG, top-8.

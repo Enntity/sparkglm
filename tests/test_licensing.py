@@ -18,7 +18,7 @@ MANIFEST = ROOT / "provenance" / "upstreams.json"
 ATTRIBUTION = ROOT / "docs" / "ATTRIBUTION.md"
 FULL_REVISION = re.compile(r"^[0-9a-f]{40}$")
 SPDX = re.compile(
-    r"(?m)^(?:#|//|<!--)\s*SPDX-License-Identifier:\s*([A-Za-z0-9.+-]+)"
+    r"(?m)^(?:#|//|<!--)\s*SPDX-License-Identifier:\s*([^\r\n]+?)\s*(?:-->)?$"
 )
 
 
@@ -90,7 +90,9 @@ def main() -> int:
         assert artifact["revision"] in attribution, artifact["id"]
         assert artifact["license"] in licensing, artifact["id"]
 
-    known_spdx = {"Apache-2.0", "MIT", "AGPL-3.0-only"}
+    known_spdx = {
+        "Apache-2.0", "MIT", "AGPL-3.0-only", "MIT AND Apache-2.0"
+    }
     spdx_files = 0
     for relative in files:
         path = ROOT / relative
@@ -104,7 +106,9 @@ def main() -> int:
         identifier = match.group(1)
         assert identifier in known_spdx, (relative, identifier)
         expression = resolved_expression(relative, manifest)
-        assert identifier in expression, (relative, identifier, expression)
+        assert identifier == expression or identifier in expression, (
+            relative, identifier, expression
+        )
 
     assert resolved_expression("files/chat_template.jinja", manifest) == "LicenseRef-GLM-5.3"
     assert resolved_expression("research/atlas/bench/native_nccl_bench.py", manifest) == "AGPL-3.0-only"

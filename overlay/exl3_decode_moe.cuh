@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT AND Apache-2.0
 #pragma once
 
 #include <torch/extension.h>

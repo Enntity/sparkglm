@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT AND Apache-2.0
 # GLM-5.3-Flash NoPE sparse MLA on SM121 (NVIDIA GB10 / DGX Spark).
 #
 # EXL3 weights, not NVFP4: this overlay is the MLA/KV geometry, not the GEMM.

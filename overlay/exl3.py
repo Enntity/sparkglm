@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT AND Apache-2.0
 """EXL3/MCG trellis quantization for GLM-5.3-Flash routed experts.
 
 Checkpoint ABI (brandonmusic/GLM-5.3-Flash-tr3-4bpw):

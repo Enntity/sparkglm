@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT AND Apache-2.0
 //
 // The direct K4 trellis decode, Hadamard helpers, and tensor-core MMA layout
 // are derived from ExLlamaV3.  The fat-GEMM cp.async pipeline was adapted from
