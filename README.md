@@ -47,6 +47,10 @@ kept as explicitly legacy evidence rather than retroactively certified.
 - **Run the current engine:** follow the build and two-node launch process in
   [SPARKGLM.md](SPARKGLM.md) and the detailed upstream recipe guide in
   [docs/upstream/MIA_RECIPE_README.md](docs/upstream/MIA_RECIPE_README.md).
+  Stop any resident full model before `BUILD=1`: native EXL3 compilation and a
+  loaded checkpoint compete for the GB10's unified memory. The launcher now
+  refuses a build below 32 GiB `MemAvailable` unless the operator deliberately
+  sets `BUILD_MIN_MEM_GIB=0`.
 - **Reproduce what we showed:** the fresh-checkout defaults and their exact
   historical evidence are mapped in
   [the published-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md).

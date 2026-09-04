@@ -112,6 +112,7 @@ _cli_indexer_workspace_set="${GLM53_INDEXER_WORKSPACE+1}"
 _cli_indexer_workspace="${GLM53_INDEXER_WORKSPACE-}"
 _cli_spinwait_ms_set="${GLM53_SPINWAIT_MS+1}"
 _cli_spinwait_ms="${GLM53_SPINWAIT_MS-}"
+_cli_build_min_mem="${BUILD_MIN_MEM_GIB-}"
 set -a
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/.env"
@@ -161,6 +162,7 @@ set +a
 [ -n "${_cli_ablit_mtp}" ] && ABLIT_INCLUDE_MTP="$_cli_ablit_mtp"
 [ -n "${_cli_indexer_workspace_set}" ] && GLM53_INDEXER_WORKSPACE="$_cli_indexer_workspace"
 [ -n "${_cli_spinwait_ms_set}" ] && GLM53_SPINWAIT_MS="$_cli_spinwait_ms"
+[ -n "${_cli_build_min_mem}" ] && BUILD_MIN_MEM_GIB="$_cli_build_min_mem"
 
 # ----------------------------- configuration -------------------------------
 MODEL="${MODEL:-Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw}"
@@ -172,6 +174,11 @@ MODEL_FALLBACK_CACHE_NAME="${MODEL_FALLBACK_CACHE_NAME:-models--${MODEL_FALLBACK
 MODEL_REVISION="${MODEL_REVISION:-25a44fdbf16862a46b7cc9921142c6c81350af2f}"
 MODEL_FALLBACK_REVISION="${MODEL_FALLBACK_REVISION:-5ab363a8dcf6405955fd5f99671e01a1c9fb124b}"
 IMAGE="${IMAGE:-sparkglm:local}"
+# Native EXL3 compilation is CPU/RAM intensive. A resident full checkpoint can
+# consume nearly all 128 GiB of unified memory and turn an otherwise short build
+# into swap thrash. Refuse before docker build while headroom is below this
+# threshold. Set 0 only as an explicit operator override.
+BUILD_MIN_MEM_GIB="${BUILD_MIN_MEM_GIB:-32}"
 SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-GLM-5.3-Flash-EXL3}"
 GHCR_USER="${GHCR_USER:-MiaAI-Lab}"
 
@@ -766,8 +773,35 @@ image_recipe_stamp() {
     esac
 }
 
+build_mem_available_kib() {
+    awk '/^MemAvailable:/ { print $2; exit }' \
+        "${SPARKGLM_MEMINFO_PATH:-/proc/meminfo}" 2>/dev/null
+}
+
+assert_build_headroom() {
+    local min_gib="${BUILD_MIN_MEM_GIB:-32}" available_kib required_kib running
+    if ! [[ "$min_gib" =~ ^[0-9]+$ ]] || [ "$min_gib" -gt 1024 ]; then
+        die "BUILD_MIN_MEM_GIB must be an integer from 0 to 1024 (got: ${min_gib})"
+    fi
+    [ "$min_gib" -eq 0 ] && return 0
+
+    available_kib="$(build_mem_available_kib)"
+    [ -n "$available_kib" ] \
+        || die "cannot read MemAvailable before image build; set BUILD_MIN_MEM_GIB=0 only to override deliberately"
+    required_kib=$((min_gib * 1024 * 1024))
+    [ "$available_kib" -ge "$required_kib" ] && return 0
+
+    running="$(docker ps --format '{{.Names}} ({{.Image}})' 2>/dev/null || true)"
+    if [ -n "$running" ]; then
+        warn "running containers on the build host:"
+        printf '%s\n' "$running" >&2
+    fi
+    die "refusing native image build with $((available_kib / 1024 / 1024)) GiB MemAvailable; stop resident models or free memory until at least ${min_gib} GiB is available (BUILD_MIN_MEM_GIB=0 is the explicit override)"
+}
+
 build_image() {
     local stamp source_revision
+    assert_build_headroom
     stamp="$(overlay_recipe_hash)"
     source_revision="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || printf unknown)"
     log "building ${IMAGE} from Dockerfile stamp=${stamp:0:12} (log: $LOGDIR/build-sm121.log) ..."

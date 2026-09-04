@@ -9,6 +9,8 @@ marker, HF CLI fallback, worker cache writability preflight).
 
 from __future__ import annotations
 
+import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,9 +52,53 @@ def test_worker_cache_writability_preflight_wired() -> None:
     assert 'WORKER_CACHE_DIR="${WORKER_CACHE_DIR:-$WORKER_HOME/.cache/huggingface}"' in src
 
 
+def _run_build_headroom(
+    mem_available_kib: int, minimum_gib: int
+) -> subprocess.CompletedProcess[str]:
+    src = _source()
+    begin = src.index("build_mem_available_kib() {")
+    end = src.index("\nbuild_image() {", begin)
+    functions = src[begin:end]
+    with tempfile.TemporaryDirectory() as tmp:
+        meminfo = Path(tmp) / "meminfo"
+        meminfo.write_text(
+            f"MemTotal: 131072000 kB\nMemAvailable: {mem_available_kib} kB\n"
+        )
+        script = (
+            "warn() { printf 'WARN: %s\\n' \"$*\" >&2; }\n"
+            "die() { printf 'ERROR: %s\\n' \"$*\" >&2; exit 1; }\n"
+            "docker() { :; }\n"
+            f"SPARKGLM_MEMINFO_PATH={str(meminfo)!r}\n"
+            f"BUILD_MIN_MEM_GIB={minimum_gib}\n"
+            + functions
+            + "\nassert_build_headroom\n"
+        )
+        return subprocess.run(
+            ["bash", "-c", script], capture_output=True, text=True
+        )
+
+
+def test_build_headroom_guard() -> None:
+    enough = _run_build_headroom(40 * 1024 * 1024, 32)
+    assert enough.returncode == 0, enough.stderr
+
+    low = _run_build_headroom(8 * 1024 * 1024, 32)
+    assert low.returncode != 0
+    assert "refusing native image build" in low.stderr
+
+    explicit_override = _run_build_headroom(1, 0)
+    assert explicit_override.returncode == 0, explicit_override.stderr
+
+    src = _source()
+    build = src[src.index("build_image() {") :]
+    assert "assert_build_headroom" in build
+    assert 'BUILD_MIN_MEM_GIB="${BUILD_MIN_MEM_GIB:-32}"' in src
+
+
 if __name__ == "__main__":
     test_worker_death_detection_wired()
     test_sync_revision_marker_wired()
     test_hf_cli_fallback_wired()
     test_worker_cache_writability_preflight_wired()
+    test_build_headroom_guard()
     print("start.sh bring-up robustness anchors OK")
