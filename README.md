@@ -105,6 +105,7 @@ upstreams:
 - Atlas-derived source and patches under `research/atlas/`: AGPL-3.0-only.
 - FlashKDA material under `research/atlas/flash_kda/`: MIT.
 - Other third-party material retains its file-level license and attribution.
+- The bundled Z.ai chat template is covered by the GLM-5.3 License.
 
 Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
 [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md) before redistribution.

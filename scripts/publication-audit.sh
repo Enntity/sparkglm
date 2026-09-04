@@ -23,6 +23,7 @@ require_file LICENSES/MIT-ExLlamaV3.txt
 require_file LICENSES/AGPL-3.0-only.txt
 require_file LICENSES/MIT-FlashKDA.txt
 require_file LICENSES/NOTICE-Reederey.txt
+require_file LICENSES/GLM-5.3.txt
 require_file docs/ATTRIBUTION.md
 require_file docs/PUBLICATION_REVIEW.md
 require_file research/atlas/atlas-glm53.patch
@@ -59,6 +60,9 @@ for pin in \
     775cb3655e29a3735f4f58faa540608f9427bf51; do
     grep -R -q "$pin" docs research SPARKGLM.md || fail "provenance pin not documented: $pin"
 done
+
+grep -R -q 'aca966e4e02791568aa6a4ced368624b3d897f42' \
+    docs NOTICE || fail "pinned Z.ai chat-template revision is undocumented"
 
 while IFS= read -r json_file; do
     python3 -m json.tool "$json_file" >/dev/null || fail "invalid JSON: $json_file"

@@ -18,6 +18,8 @@ The repository must remain private until a human completes this checklist.
 
 - [ ] Review every row in `docs/ATTRIBUTION.md` against the linked source.
 - [ ] Confirm `LICENSE`, `NOTICE`, and every file in `LICENSES/` are retained.
+- [ ] Confirm the Z.AI chat-template notice and `LICENSES/GLM-5.3.txt` remain
+      present with the pinned template provenance.
 - [ ] Confirm Atlas-derived material remains confined to `research/atlas/` and
       labeled AGPL-3.0-only.
 - [ ] Confirm Mia's MIT notice is preserved and prominent.

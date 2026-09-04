@@ -57,7 +57,8 @@ def render_generation_prompt(**kwargs: object) -> str:
 
 def render_conversation(**kwargs: object) -> str:
     template = _environment().from_string(TEMPLATE.read_text())
-    return template.render(add_generation_prompt=True, **kwargs)
+    kwargs.setdefault("add_generation_prompt", True)
+    return template.render(**kwargs)
 
 
 class ChatTemplateTests(unittest.TestCase):
@@ -85,6 +86,50 @@ class ChatTemplateTests(unittest.TestCase):
         )
         self.assertIn("<|system|>Reasoning Effort: Low", rendered)
         self.assertTrue(rendered.endswith("<|assistant|><think>"), rendered)
+
+    def test_none_content_is_empty_not_literal_none(self) -> None:
+        rendered = render_conversation(
+            messages=[{"role": "user", "content": None}],
+            tools=None,
+            add_generation_prompt=False,
+        )
+        self.assertEqual(rendered, "[gMASK]<sop><|system|>Reasoning Effort: Max<|user|>")
+
+    def test_tool_results_follow_declared_call_order(self) -> None:
+        messages = [
+            {"role": "user", "content": "run both"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "call-b",
+                        "function": {"name": "second", "arguments": {}},
+                    },
+                    {
+                        "id": "call-a",
+                        "function": {"name": "first", "arguments": {}},
+                    },
+                ],
+            },
+            {"role": "tool", "tool_call_id": "call-a", "content": "A-result"},
+            {"role": "tool", "tool_call_id": "call-b", "content": "B-result"},
+        ]
+        rendered = render_conversation(
+            messages=messages,
+            tools=TOOLS,
+            add_generation_prompt=False,
+        )
+        self.assertLess(rendered.index("B-result"), rendered.index("A-result"))
+
+    def test_zai_early_exit_guards_are_retained(self) -> None:
+        source = TEMPLATE.read_text()
+        guard = "{%- if not ns_chk.can_sort -%}{%- break -%}{%- endif -%}"
+        self.assertEqual(source.count(guard), 3)
+        self.assertIn(
+            "{%- set ns_chk.can_sort = false -%}\n                    {%- break -%}",
+            source,
+        )
 
 
 class PrefixStabilityTests(unittest.TestCase):

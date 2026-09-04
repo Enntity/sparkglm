@@ -73,7 +73,7 @@ For each function call, output the function name and arguments within the follow
                 {{- emit_audio() -}}
             {%- endif -%}
         {%- endfor -%}
-    {%- else -%}
+    {%- elif content is not none -%}
         {{- content }}
     {%- endif -%}
 {%- endmacro -%}
@@ -188,9 +188,11 @@ For each function call, output the function name and arguments within the follow
         {%- set ns_chk.can_sort = false -%}
     {%- else -%}
         {%- for k in range(block_start, ns_blk.end + 1) -%}
+            {%- if not ns_chk.can_sort -%}{%- break -%}{%- endif -%}
             {%- set m = messages[k] -%}
             {%- if is_list_of_outputs(m) -%}
                 {%- for entry in m.content -%}
+                    {%- if not ns_chk.can_sort -%}{%- break -%}{%- endif -%}
                     {%- set eid = id_of(entry) -%}
                     {%- if not eid -%}
                         {%- set ns_chk.can_sort = false -%}
@@ -212,6 +214,7 @@ For each function call, output the function name and arguments within the follow
             {%- endif -%}
         {%- endfor -%}
         {%- for i in range(ns_a.tool_calls | length) -%}
+            {%- if not ns_chk.can_sort -%}{%- break -%}{%- endif -%}
             {%- set tc_id = id_of(ns_a.tool_calls[i]) -%}
             {%- if not tc_id -%}
                 {%- set ns_chk.can_sort = false -%}
@@ -219,6 +222,7 @@ For each function call, output the function name and arguments within the follow
             {%- for j in range(i + 1, ns_a.tool_calls | length) -%}
                 {%- if id_of(ns_a.tool_calls[j]) == tc_id -%}
                     {%- set ns_chk.can_sort = false -%}
+                    {%- break -%}
                 {%- endif -%}
             {%- endfor -%}
     {%- endfor -%}

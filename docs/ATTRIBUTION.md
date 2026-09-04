@@ -10,6 +10,7 @@ in `LICENSES/` or file-level SPDX identifiers.
 | Source | Exact revision | License | Relationship |
 | --- | --- | --- | --- |
 | [MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) | `eb0469fbb2b49fd7c025f594a3339a121e58f7a9` | MIT | Serving-recipe, GLM integration, E2 prefill, DFlash2, cache, scheduler-control, warmup, and two-node base |
+| [zai-org/GLM-5.3 chat template](https://huggingface.co/zai-org/GLM-5.3/blob/aca966e4e02791568aa6a4ced368624b3d897f42/chat_template.jinja) | `aca966e4e02791568aa6a4ced368624b3d897f42` | GLM-5.3 License | Chat serialization base; imported `None` guard and early-exit correctness/performance update for tool-result reordering, with SparkGLM's inherited reasoning and multimodal extensions retained |
 | [vllm-project/vllm](https://github.com/vllm-project/vllm) | `487ecf187d3dfe74d2cf6119a92881dba403c219` | Apache-2.0 | Runtime source base used by the reproducible build |
 | [turboderp-org/exllamav3](https://github.com/turboderp-org/exllamav3) | `c5d9c657966ffeeaa9353f0cc899f18629da4a13` | MIT | EXL3 K4 trellis decode, Hadamard helpers, and tensor-core MMA foundations |
 | [Reederey87/glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark) | `0c03250cd7176a2fef9cbbf9329fed08c8750e7d` | Apache-2.0 with retained Mia MIT notice | M64 `cp.async` fat-GEMM pipeline adapted into the current kernel |
@@ -32,6 +33,8 @@ The following are original project work built on the foundations above:
   GLM clamp/SwiGLU integration.
 - tinyGLM, deterministic model-free and endpoint A/B gates, staggered workload
   harnesses, capacity admission checks, and publication-oriented evidence.
+- The merge and regression coverage that keeps Z.ai's pinned chat-template
+  behavior together with the recipe's reasoning toggle and multimodal sentinels.
 
 SparkGLM did not invent EXL3 arithmetic, vLLM scheduling, DFlash2, GLM-5.3,
 the M64 `cp.async` tile, packed RMSNorm, or the FP16 sparse selector.
