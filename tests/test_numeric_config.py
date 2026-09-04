@@ -198,6 +198,31 @@ def test_tiny_dummy_mode_fails_closed() -> None:
         assert result.returncode == 2, (enabled, model, args, result.stderr)
 
 
+def validate_api_exposure(host: str, key: str, allow: str = "0") -> subprocess.CompletedProcess[str]:
+    script = (
+        guard_source()
+        + '\nAPI_HOST="$1"; VLLM_API_KEY="$2"; ALLOW_UNAUTHENTICATED_LAN="$3"\n'
+        + "_glm53_validate_api_exposure\n"
+    )
+    return subprocess.run(
+        ["bash", "-c", script, "test", host, key, allow],
+        text=True,
+        capture_output=True,
+        check=False,
+        env={**os.environ, "LC_ALL": "C"},
+    )
+
+
+def test_api_exposure_fails_closed() -> None:
+    for host in ("127.0.0.1", "localhost", "::1"):
+        assert validate_api_exposure(host, "").returncode == 0
+    assert validate_api_exposure("0.0.0.0", "secret").returncode == 0
+    assert validate_api_exposure("10.0.0.1", "", "1").returncode == 0
+    denied = validate_api_exposure("0.0.0.0", "")
+    assert denied.returncode == 2
+    assert "unauthenticated API" in denied.stderr
+
+
 def test_restart_validates_before_stop() -> None:
     source = START.read_text()
     main = source.index("main() {")
@@ -213,5 +238,6 @@ if __name__ == "__main__":
     test_spinwait_numeric_contract()
     test_manual_kv_budget_cannot_silently_reduce_c4_to_c2()
     test_tiny_dummy_mode_fails_closed()
+    test_api_exposure_fails_closed()
     test_restart_validates_before_stop()
     print("numeric config tests: PASS")

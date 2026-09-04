@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # GLM-5.3-Flash NoPE sparse MLA on SM121 (NVIDIA GB10 / DGX Spark).
 #
 # EXL3 weights, not NVFP4: this overlay is the MLA/KV geometry, not the GEMM.
@@ -373,6 +374,8 @@ COPY overlay/patch_exl3_ext_aarch64.py /opt/glm53/patch_exl3_ext_aarch64.py
 COPY overlay/patch_exl3_fat_kernel.py /opt/glm53/patch_exl3_fat_kernel.py
 COPY overlay/exl3_fat_gemm.cu /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu
 COPY overlay/exl3_fat_gemm.cuh /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cuh
+COPY overlay/exl3_decode_moe.cu /opt/glm53/exl3-fat-kernel/exl3_decode_moe.cu
+COPY overlay/exl3_decode_moe.cuh /opt/glm53/exl3-fat-kernel/exl3_decode_moe.cuh
 
 ARG EXLLAMAV3_COMMIT=c5d9c657966ffeeaa9353f0cc899f18629da4a13
 ENV TORCH_CUDA_ARCH_LIST=12.1a
@@ -461,7 +464,28 @@ COPY tests/test_indexer_workspace.py /opt/glm53/test_indexer_workspace.py
 COPY overlay/ablit_runtime.py /opt/glm53/ablit_runtime.py
 COPY overlay/patch_ablit.py /opt/glm53/patch_ablit.py
 COPY tests/test_ablit.py /opt/glm53/test_ablit.py
-COPY ablit/LAYER_MAP.json ablit/fetch_transplant.py ablit/refusal_direction_glm53_bf_oproj.pt ablit/refusal_direction_glm53_dealign_late.pt /opt/glm53/ablit/
+COPY ablit/LAYER_MAP.json ablit/fetch_transplant.py /opt/glm53/ablit/
+COPY patches/runtime/packed-rmsnorm.patch /opt/glm53/packed-rmsnorm.patch
+RUN python3 - <<'PY'
+from pathlib import Path
+
+target = Path(
+    "/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/"
+    "fused_qk_rmsnorm.py"
+)
+text = target.read_text()
+old = "    qr_out = torch.empty_like(qr)\n    kv_out = torch.empty_like(kv)\n"
+new = (
+    "    # Keep outputs packed when qr/kv are slices of a fused projection.\n"
+    "    qr_out = torch.empty(qr.shape, dtype=qr.dtype, device=qr.device)\n"
+    "    kv_out = torch.empty(kv.shape, dtype=kv.dtype, device=kv.device)\n"
+)
+if old in text:
+    target.write_text(text.replace(old, new, 1))
+elif new not in text:
+    raise RuntimeError("packed RMSNorm patch does not match the pinned base")
+print("packed RMSNorm runtime patch OK")
+PY
 RUN python3 /opt/glm53/patch_model_overrides.py
 RUN python3 /opt/glm53/patch_dflash2.py
 RUN python3 /opt/glm53/patch_glm_eagle3.py
@@ -490,4 +514,7 @@ RUN EXL3_SELFCHECK_GPU=0 python3 /opt/glm53/test_exl3_overlay.py \
 # Baked by start.sh --build-arg so a git pull that changes overlay/Dockerfile
 # misses this label and rebuilds once. Keep last so stamp-only rebuilds are cheap.
 ARG GLM53_RECIPE_STAMP=unknown
-LABEL glm53.recipe.stamp=${GLM53_RECIPE_STAMP}
+ARG SPARKGLM_SOURCE_REVISION=unknown
+LABEL glm53.recipe.stamp=${GLM53_RECIPE_STAMP} \
+      org.opencontainers.image.source="https://github.com/Enntity/sparkglm" \
+      org.opencontainers.image.revision=${SPARKGLM_SOURCE_REVISION}

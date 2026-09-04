@@ -7,7 +7,8 @@
 # brandonmusic/GLM-5.3-Flash-tr3-4bpw @
 # 5ab363a8dcf6405955fd5f99671e01a1c9fb124b) on this 2× DGX Spark (GB10 /
 # SM121) kit: vLLM TP=2 over CX7, OpenAI API on :8888, NoPE-MLA overlay image.
-# DFlash2-7 is the default speculator. Target KV stays packed fp8_ds_mla;
+# MTP is the license-conservative default speculator. DFlash2-7 is available
+# as an explicit non-commercial profile. Target KV stays packed fp8_ds_mla;
 # the SM120 B12X recipe (EP2/DCP2 + nvfp4_ds_mla) is a different image/arch.
 #
 #   head   : this machine (HEAD_IP, default 10.0.0.1) — vLLM rank 0 + API
@@ -86,6 +87,8 @@ _cli_dflash_model="${DFLASH_MODEL-}"
 _cli_dflash_cache_name="${DFLASH_CACHE_NAME-}"
 _cli_dflash_revision="${DFLASH_REVISION-}"
 _cli_served_model_name="${SERVED_MODEL_NAME-}"
+_cli_api_host="${API_HOST-}"
+_cli_allow_unauthenticated_lan="${ALLOW_UNAUTHENTICATED_LAN-}"
 _cli_max_model_len="${MAX_MODEL_LEN-}"
 _cli_util="${GPU_MEM_UTIL-}"
 _cli_lm="${LANGUAGE_MODEL_ONLY-}"
@@ -139,6 +142,8 @@ set +a
 [ -n "${_cli_dflash_cache_name}" ] && DFLASH_CACHE_NAME="$_cli_dflash_cache_name"
 [ -n "${_cli_dflash_revision}" ] && DFLASH_REVISION="$_cli_dflash_revision"
 [ -n "${_cli_served_model_name}" ] && SERVED_MODEL_NAME="$_cli_served_model_name"
+[ -n "${_cli_api_host}" ] && API_HOST="$_cli_api_host"
+[ -n "${_cli_allow_unauthenticated_lan}" ] && ALLOW_UNAUTHENTICATED_LAN="$_cli_allow_unauthenticated_lan"
 [ -n "${_cli_max_model_len}" ] && MAX_MODEL_LEN="$_cli_max_model_len"
 [ -n "${_cli_util}" ] && GPU_MEM_UTIL="$_cli_util"
 [ -n "${_cli_lm}" ] && LANGUAGE_MODEL_ONLY="$_cli_lm"
@@ -165,7 +170,7 @@ MODEL_FALLBACK_CACHE_NAME="${MODEL_FALLBACK_CACHE_NAME:-models--${MODEL_FALLBACK
 # Immutable Hub commits for the Mia-AiLab mirror and byte-identical fallback.
 MODEL_REVISION="${MODEL_REVISION:-25a44fdbf16862a46b7cc9921142c6c81350af2f}"
 MODEL_FALLBACK_REVISION="${MODEL_FALLBACK_REVISION:-5ab363a8dcf6405955fd5f99671e01a1c9fb124b}"
-IMAGE="${IMAGE:-ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3}"
+IMAGE="${IMAGE:-sparkglm:local}"
 SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-GLM-5.3-Flash-EXL3}"
 GHCR_USER="${GHCR_USER:-MiaAI-Lab}"
 
@@ -208,11 +213,13 @@ USE_HOST_NCCL="${USE_HOST_NCCL:-0}"
 TP="${TP:-2}"
 NNODES="${NNODES:-2}"
 PORT="${PORT:-8888}"
+API_HOST="${API_HOST:-127.0.0.1}"
+ALLOW_UNAUTHENTICATED_LAN="${ALLOW_UNAUTHENTICATED_LAN:-0}"
 MASTER_PORT="${MASTER_PORT:-29521}"
 
 MTP_TOKENS="${MTP_TOKENS:-2}"
-# dflash (default, incoai/GLM-5.3-Flash-DFlash2, k=7) | mtp | none
-SPEC_METHOD="${SPEC_METHOD:-dflash}"
+# dflash (optional, CC BY-NC-ND 4.0) | mtp (default) | none
+SPEC_METHOD="${SPEC_METHOD:-mtp}"
 DFLASH_MODEL="${DFLASH_MODEL:-incoai/GLM-5.3-Flash-DFlash2}"
 DFLASH_CACHE_NAME="${DFLASH_CACHE_NAME:-models--${DFLASH_MODEL//\//--}}"
 DFLASH_REVISION="${DFLASH_REVISION:-bf582e4eacc1810f76656d1811693ff6c6737d2a}"
@@ -241,7 +248,7 @@ KPOOL_TAIL_PATCH_HOST="${KPOOL_TAIL_PATCH_HOST:-$SCRIPT_DIR/overlay/patch_kpool_
 SPINWAIT_PATCH_HOST="${SPINWAIT_PATCH_HOST:-$SCRIPT_DIR/overlay/patch_spinwait.py}"
 KV_CACHE_DTYPE="${KV_CACHE_DTYPE:-fp8}"
 QUANTIZATION="${QUANTIZATION:-exl3}"
-LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-0}"
+LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-1}"
 SKIP_MM_PROFILING="${SKIP_MM_PROFILING:-1}"
 # JSON default cannot sit in ${LIMIT_MM:-{...}} — } ends the expansion.
 if [ -z "${LIMIT_MM:-}" ]; then
@@ -285,9 +292,10 @@ EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"
 EXL3_FAT_TILE_M="${EXL3_FAT_TILE_M:-64}"
 EXL3_FAT_PAIR="${EXL3_FAT_PAIR:-1}"
 EXL3_FAT_FUSED_ACT="${EXL3_FAT_FUSED_ACT:-1}"
-# Keep counts and the complete fat-expert pipeline on GPU. Promoted after the
-# paired 16K C1/C2 full-model gate; set 0 for immediate rollback.
-EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-1}"
+# Candidate GPU-resident grouped-prefill path. Legacy evidence was encouraging,
+# but it predates qualification-v1 and reserves about 1.2 GiB/rank of scratch.
+# Keep it opt-in until it passes the current G3/G4 matrix.
+EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-0}"
 # Cooperative decode remains opt-in. Materialize both defaults before building
 # rank-1's env list so an enabled worker never receives an empty max-token value.
 EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-0}"
@@ -460,6 +468,18 @@ _glm53_validate_tiny_dummy_mode() {
     esac
 }
 
+_glm53_validate_api_exposure() {
+    _glm53_validate_enum ALLOW_UNAUTHENTICATED_LAN \
+        "${ALLOW_UNAUTHENTICATED_LAN:-0}" 0 1 || return
+    case "${API_HOST:-127.0.0.1}" in
+        127.0.0.1|localhost|::1) return 0 ;;
+    esac
+    if [ -z "${VLLM_API_KEY:-}" ] && [ "${ALLOW_UNAUTHENTICATED_LAN:-0}" != 1 ]; then
+        echo "API_HOST=${API_HOST:-} exposes an unauthenticated API; set VLLM_API_KEY or explicitly set ALLOW_UNAUTHENTICATED_LAN=1" >&2
+        return 2
+    fi
+}
+
 validate_numeric_config() {
     if ! [[ "$GPU_MEM_UTIL" =~ ^(0([.][0-9]+)?|[.][0-9]+|1([.]0+)?)$ ]] \
        || ! awk -v u="$GPU_MEM_UTIL" 'BEGIN { exit !(u > 0 && u <= 1) }'; then
@@ -474,6 +494,7 @@ validate_numeric_config() {
     _glm53_validate_spinwait_ms || return
     _glm53_validate_manual_kv_budget || return
     _glm53_validate_tiny_dummy_mode || return
+    _glm53_validate_api_exposure || return
     _glm53_validate_enum GLM53_BOOT_LONG_C4 "${GLM53_BOOT_LONG_C4-1}" 0 1 \
         || return
 }
@@ -727,6 +748,7 @@ overlay_recipe_hash() {
     {
         printf '%s\n' "$SCRIPT_DIR/Dockerfile"
         find "$SCRIPT_DIR/overlay" "$SCRIPT_DIR/files" "$SCRIPT_DIR/tests" \
+            "$SCRIPT_DIR/patches" \
             "$SCRIPT_DIR/ablit" \
             -type f \
             ! -path '*/__pycache__/*' \
@@ -746,10 +768,14 @@ image_recipe_stamp() {
 }
 
 build_image() {
-    local stamp
+    local stamp source_revision
     stamp="$(overlay_recipe_hash)"
+    source_revision="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || printf unknown)"
     log "building ${IMAGE} from Dockerfile stamp=${stamp:0:12} (log: $LOGDIR/build-sm121.log) ..."
-    docker build --build-arg "GLM53_RECIPE_STAMP=$stamp" -t "$IMAGE" "$SCRIPT_DIR" \
+    docker build \
+        --build-arg "GLM53_RECIPE_STAMP=$stamp" \
+        --build-arg "SPARKGLM_SOURCE_REVISION=$source_revision" \
+        -t "$IMAGE" "$SCRIPT_DIR" \
         >"$LOGDIR/build-sm121.log" 2>&1 \
         || { tail -n 40 "$LOGDIR/build-sm121.log" >&2; die "docker build of $IMAGE failed"; }
 }
@@ -1081,7 +1107,7 @@ say() { echo "[glm53-exl3-head] $*"; }
 
 ARGS=(
     --served-model-name "${SERVED_MODEL_NAME}"
-    --host 0.0.0.0
+    --host "${API_HOST}"
     --port "${PORT}"
     --tensor-parallel-size "${TP}"
     --nnodes "${NNODES}"
@@ -1178,7 +1204,7 @@ say() { echo "[glm53-exl3-worker] $*"; }
 
 ARGS=(
     --served-model-name "${SERVED_MODEL_NAME}"
-    --host 0.0.0.0
+    --host "${API_HOST}"
     --port "${PORT}"
     --tensor-parallel-size "${TP}"
     --nnodes "${NNODES}"
@@ -1358,7 +1384,7 @@ launch_cluster() {
 
     local serve_env=""
     local v
-    for v in SERVED_MODEL_NAME PORT TP NNODES HEAD_IP MASTER_PORT QUANTIZATION \
+    for v in SERVED_MODEL_NAME PORT API_HOST TP NNODES HEAD_IP MASTER_PORT QUANTIZATION \
              MAX_MODEL_LEN GPU_MEM_UTIL MAX_NUM_SEQS MAX_NUM_BATCHED_TOKENS \
              KV_CACHE_DTYPE MTP_TOKENS SPEC_METHOD DFLASH_TOKENS DFLASH_MODEL_DIR \
              DFLASH_DRAFT_TP \
@@ -1437,7 +1463,7 @@ launch_cluster() {
         -e NCCL_IB_GID_INDEX="$HEAD_GID" \
         -e VLLM_HOST_IP="$HEAD_IP" \
         -e SERVED_MODEL_NAME="$SERVED_MODEL_NAME" \
-        -e PORT="$PORT" -e TP="$TP" -e NNODES="$NNODES" \
+        -e PORT="$PORT" -e API_HOST="$API_HOST" -e TP="$TP" -e NNODES="$NNODES" \
         -e HEAD_IP="$HEAD_IP" -e MASTER_PORT="$MASTER_PORT" \
         -e QUANTIZATION="$QUANTIZATION" \
         -e MAX_MODEL_LEN="$MAX_MODEL_LEN" -e GPU_MEM_UTIL="$GPU_MEM_UTIL" \

@@ -36,6 +36,12 @@
 # ============================================================================
 set -euo pipefail
 
+if [ "${SPARKGLM_UNSUPPORTED_TP4:-0}" != 1 ]; then
+    echo "TP4 is unsupported research in this exactly-two-Spark project." >&2
+    echo "Set SPARKGLM_UNSUPPORTED_TP4=1 only to inspect or deliberately test it." >&2
+    exit 2
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
