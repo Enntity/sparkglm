@@ -91,6 +91,9 @@ def _stream_one(
         "ignore_eos": True,
         "chat_template_kwargs": {"enable_thinking": False},
     }
+    if getattr(args, "cache_salt", None):
+        # Isolate KV reuse without changing the recorded prompt text/tokens.
+        body["cache_salt"] = args.cache_salt
     if args.logprobs:
         body["logprobs"] = True
         body["top_logprobs"] = 0
@@ -227,6 +230,7 @@ def capture(args: argparse.Namespace) -> None:
         "max_tokens": args.max_tokens,
         "prompt_style": args.prompt_style,
         "prompt_salt": args.prompt_salt,
+        "cache_salt": getattr(args, "cache_salt", None),
         "prompt_tokens_target": args.prompt_tokens,
         "stagger_ms": args.stagger_ms,
         "recipe_label": args.recipe_label,
@@ -682,6 +686,10 @@ def parser() -> argparse.ArgumentParser:
         "--prompt-style", choices=("counting", "field-guide"), default="counting"
     )
     capture_parser.add_argument("--recipe-label", default="")
+    capture_parser.add_argument(
+        "--cache-salt", default=None,
+        help="KV-cache namespace; unlike prompt-salt this does not alter prompt tokens.",
+    )
     capture_parser.add_argument("--engine-commit", default="")
     capture_parser.add_argument("--timeout-s", type=float, default=600)
     capture_parser.add_argument("--logprobs", action="store_true")
