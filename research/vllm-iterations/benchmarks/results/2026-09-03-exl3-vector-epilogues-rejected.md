@@ -1,0 +1,65 @@
+# EXL3 M64 vector epilogues: rejected
+
+Date: 2026-09-03
+
+## Verdict
+
+Reject both four-float epilogue variants. They preserve the accepted arithmetic
+exactly, but neither gives a regression-free production-shape matrix. The
+paired gate/up variant loses outright, while the scatter-only variant helps
+most small row counts but regresses three measured shapes and becomes
+negligible at the large row counts that dominate long prefill.
+
+Neither candidate was wired into serving or loaded with model weights.
+
+## Candidate
+
+The accepted M64 kernels write one FP32 output element per thread iteration.
+The experiment grouped four adjacent, aligned output elements into one
+`float4` shared-memory load and one `float4` global load/store. The scatter
+variant retained the same per-element multiply followed by add order. A second
+variant also used vector stores for the paired gate/up output.
+
+The exact GLM TP-local shape was used: hidden width 4,096, intermediate width
+1,024, K4 MCG trellises, M64/K16/N128 kernel geometry. The final scatter output
+was bit-identical to the scalar M64 oracle at every tested row count.
+
+## Paired gate/up result
+
+Vectorizing both the paired output and the scatter output lost 2.9% at 129
+rows, 0.5% at 512 rows, and 0.04% at 2,048 rows. The paired vector path was
+removed before the full scatter-only sweep.
+
+## Scatter-only production-shape sweep
+
+The final sweep used 40 warmups, 250 timed iterations, 15 alternating-order
+repeats and medians on one GB10. Speedup is accepted scalar M64 divided by the
+scatter-vector candidate.
+
+| Rows | Scalar M64 (ms) | Vec4 scatter (ms) | Speedup |
+| ---: | ---: | ---: | ---: |
+| 129 | 0.11515 | 0.11069 | 1.0403x |
+| 145 | 0.11690 | 0.11097 | 1.0534x |
+| 192 | 0.12223 | 0.11727 | 1.0422x |
+| 255 | 0.16683 | 0.16351 | 1.0202x |
+| 257 | 0.17262 | 0.17497 | **0.9866x** |
+| 320 | 0.18931 | 0.18430 | 1.0272x |
+| 383 | 0.20318 | 0.20110 | 1.0103x |
+| 385 | 0.24073 | 0.24092 | **0.9992x** |
+| 512 | 0.28828 | 0.28338 | 1.0173x |
+| 640 | 0.36091 | 0.35399 | 1.0195x |
+| 768 | 0.40365 | 0.39642 | 1.0182x |
+| 1,024 | 0.56012 | 0.56381 | **0.9934x** |
+| 2,048 | 1.17471 | 1.16501 | 1.0083x |
+| 4,096 | 2.43027 | 2.42521 | 1.0021x |
+| 6,528 | 3.87103 | 3.85673 | 1.0037x |
+
+All final outputs had `max_abs=0` against scalar M64.
+
+## Consequence
+
+Do not add a fitted row-count selector for this result. It would encode a
+fragile boundary from one microbenchmark and the available endpoint ceiling is
+sub-percent. Continue with work that changes the K4 codebook decode and tensor
+core dataflow inside the kernels, which is paid for every K block and has a
+larger possible effect than the final output stores.

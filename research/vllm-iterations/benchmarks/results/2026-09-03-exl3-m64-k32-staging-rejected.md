@@ -1,0 +1,110 @@
+# EXL3 M64 K32 staging: rejected
+
+Date: 2026-09-03
+
+## Verdict
+
+Do not ship the two-K-block (`K32`) M64 EXL3 fat-expert kernel. It is
+bit-exact and usually wins the isolated expert pipeline, but it does not
+improve the complete two-Spark appliance. The warm medium-C2 endpoint result
+regressed aggregate decode materially, and the three candidate passes did not
+show a repeatable wall-time win over the same-image K16 control.
+
+The candidate code and serving flags were removed after this receipt. The
+accepted independent M64/K16 gate-up and down-scatter kernels remain the
+production path.
+
+## Hypothesis and implementation
+
+The accepted M64 kernel stages one 16-wide K slice per CTA barrier. The
+candidate stages two consecutive K16 slices before the barrier and consumes
+them in the original arithmetic order. It therefore preserves the K4 MCG
+dequantization contract and accumulator order while attempting to amortize
+barrier and scheduling latency.
+
+The experiment added independent `*_m64_k32` pair and scatter symbols and an
+`EXL3_FAT_TILE_K=16|32|auto` runtime policy. `auto` selected K32 for expert-row
+counts at or below 192 and at or above 320, retaining K16 for 193-319. Missing
+symbols failed closed. K16 remained selectable from the identical executable,
+so the endpoint comparison did not confound the kernel with a different base
+image.
+
+## Operator evidence
+
+The extension compiled for `sm_121a` and passed the complete GPU self-check on
+both ranks. Gate/up output, fused activation output and final scatter output
+were bit-identical to M64/K16 (`max_abs=0`) at every tested row count.
+
+The high-confidence microbenchmark used 40 warmups, 250 timed iterations and
+15 alternating repetitions per row count. K32 speedup over K16 was:
+
+| Expert rows | K32/K16 speedup |
+| ---: | ---: |
+| 129 | 1.0453x |
+| 145 | 1.0373x |
+| 192 | 1.0486x |
+| 255 | 1.0004x |
+| 257 | 0.9872x |
+| 320 | 1.0394x |
+| 383 | 1.0145x |
+| 385 | 1.0087x |
+| 512 | 1.0302x |
+| 640 | 1.0059x |
+| 768 | 1.0250x |
+| 1,024 | 1.0184x |
+| 2,048 | 1.0112x |
+| 4,096 | 1.0293x |
+| 6,528 | 1.0174x |
+
+This qualified the candidate for an endpoint test but did not establish an
+appliance win.
+
+## Same-image endpoint gate
+
+All rows used the same candidate image, 128 forced output tokens, five-second
+staggered C2, unique prompt salts and no prefix hits. The first pass after each
+boot is reported but is not used as the warm comparison.
+
+| Configuration | Case | Prefill tok/s | Aggregate decode tok/s | Wall |
+| --- | --- | ---: | ---: | ---: |
+| K16 control, cold | medium C2 | 1,002.88 | 25.76 | 38.28 s |
+| K16 control, warm | medium C2 | 1,323.46 | 32.66 | 28.90 s |
+| K16 control, cold | large C2 | 1,338.98 | 10.69 | 54.17 s |
+| K16 control, warm | large C2 | 1,383.61 | 11.41 | 52.65 s |
+| K32 auto, cold | medium C2 | 1,170.30 | 29.41 | 32.93 s |
+| K32 auto, warm A | medium C2 | 1,230.56 | 29.09 | 31.59 s |
+| K32 auto, warm B | medium C2 | 1,369.84 | 29.49 | 28.95 s |
+| K32 auto, cold | large C2 | 1,378.45 | 11.53 | 52.62 s |
+| K32 auto, warm | large C2 | 1,361.54 | 11.58 | 52.97 s |
+
+Warm medium candidate A was 7.0% lower in prefill, 10.9% lower in aggregate
+decode and 9.3% slower in wall time than K16. A fresh-salt repetition recovered
+prefill to 3.5% above K16, but aggregate decode remained 9.7% lower and wall
+time was effectively tied. Warm large C2 was 1.6% lower in prefill, 1.5% higher
+in decode and 0.6% slower in wall time. There is no repeatable composed win.
+
+Every request completed 128/128 tokens, retained its own marker, contained no
+foreign marker and returned no API error. Correctness passed; performance did
+not.
+
+## Engagement evidence
+
+After the final endpoint pass both ranks independently reported the same
+counters: 98,179 direct, pair, fused-activation and scatter calls, including
+75,618 K32 pair and K32 scatter calls. Both ranks used the kernel tier and
+reported zero batched, sorted or legacy fallback. The negative endpoint result
+therefore cannot be explained by missing symbols, asymmetric dispatch or a
+fallback path.
+
+## Interpretation
+
+The isolated kernel gain is only one to five percent and applies to a subset
+of expert-row calls. The larger shared-memory staging changes CTA residency and
+interference while the model is concurrently running activation, stock EXL3,
+collective, attention and decode work. Those system effects are larger than
+the isolated saving and are especially visible in concurrent decode.
+
+Do not revisit wider K staging without a design that reduces synchronization
+or shared-memory footprint enough to win under the complete mixed workload.
+The next expert-compute design should retain M64/K16 as its oracle and change
+the SM121 execution primitive rather than merely increasing per-CTA staging.

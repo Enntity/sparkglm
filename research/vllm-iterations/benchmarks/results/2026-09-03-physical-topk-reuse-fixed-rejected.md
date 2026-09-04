@@ -1,0 +1,76 @@
+# Corrected sparse physical-index reuse rejection — 2026-09-03
+
+## Verdict
+
+Reject from the appliance branch. The corrected implementation is exact in
+the isolated CUDA oracle and materially faster in the conversion kernel, but
+its endpoint effect is inconsistent. It regressed the frozen medium C2 case
+and therefore fails the no-regression gate.
+
+The experiment remains preserved at
+`experiments/rejected-physical-topk-reuse-fixed` commit `3a2122a4fd`.
+
+## Artifacts
+
+- Control image: `sparkglm-vllm:fp16-cpasync-0c03250`
+- Control image ID:
+  `sha256:168d27a9abf37ce19cfe5566dbf6139b55dbcda6b15032746c02feed89a6f528`
+- Candidate image: `sparkglm-vllm:physical-reuse-fixed`
+- Candidate image ID:
+  `sha256:e4873c80f3ac5d0e2b20fb5850ffc755e21e9e2a1c7822fcdef49ce7f5493bd0`
+- Model: `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw`
+- Hardware: two DGX Spark GB10 systems, TP2 over ConnectX-7
+- Workload: 128 forced output tokens; C2 starts separated by five seconds
+- Paired prompt salt: `physical-reuse-fixed-20260902-b`
+
+Both ranks used the exact same deterministic candidate image. The candidate
+passed its startup self-check and the 20/20 boot-shape warmup.
+
+## Correctness repair
+
+The first experiment reused an uninitialized compacted-output tail and
+corrupted model output. The repaired branch:
+
+- initializes the single-tile compacted tail to `-1`;
+- preclears the multi-tile destination before compaction;
+- keeps the persistent physical-index buffers scoped to the backend;
+- poisons the reused buffer in the CUDA test before shrinking the next call;
+- compares canonicalized selected sets for the multi-tile kernel, whose atomic
+  tile reservations intentionally do not define output order; and
+- verifies the unused tail separately.
+
+The repaired CUDA oracle passed both the shrink/reuse case and the multi-tile
+case. End-to-end responses completed 128/128 tokens, retained their own
+isolation markers, contained no peer marker, and returned no errors.
+
+## Isolated GB10 result
+
+At 2,048 rows and a 2,048-wide selected-index output, persistent reuse reduced
+mean conversion time from 0.204233 ms to 0.150695 ms: **1.3553x**, or 35.5%
+more conversion throughput. Row counts 1, 4, 128, and 512 were approximately
+1.44x faster. The 384-wide multi-tile path was approximately neutral at 2,048
+rows.
+
+## Exact paired endpoint matrix
+
+| Case | Candidate TTFT (s) | Control TTFT (s) | Candidate aggregate prefill (tok/s) | Control aggregate prefill (tok/s) | Candidate/control wall (s) |
+| --- | --- | --- | ---: | ---: | ---: |
+| Medium C1 | 13.290 | 23.321* | 1189.520 | 677.890* | 17.160 / 27.039* |
+| Medium C2 | 25.857 / 23.917 | 22.904 / 22.430 | 1093.386 | 1152.541 | 35.620 / 33.055 |
+| Large C1 | 27.059 | 30.665 | 1189.278 | 1049.447 | 32.173 / 34.604 |
+| Large C2 | 34.075 / 46.907 | 36.988 / 51.019 | 1239.888 | 1149.021 | 58.362 / 62.358 |
+
+`*` The restored control's first medium C1 request paid first-long-shape/JIT
+cost and is not a valid paired comparison.
+
+The valid paired deltas are mixed:
+
+- Medium C2 regressed aggregate prefill by 5.1%, wall time by 7.8%, and the two
+  TTFTs by approximately 13.0% and 6.6%.
+- Large C1 improved TTFT by 11.8% and wall time by 7.0%.
+- Large C2 improved aggregate prefill by 7.9%, wall time by 6.4%, and both
+  TTFTs by approximately 8%.
+
+The medium C2 regression is disqualifying even though the large cases win.
+Allocator removal in this small conversion stage is not a sufficiently stable
+endpoint lever for the opinionated appliance.

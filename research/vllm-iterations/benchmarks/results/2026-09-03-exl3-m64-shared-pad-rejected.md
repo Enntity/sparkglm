@@ -1,0 +1,64 @@
+# EXL3 M64 shared-output padding: rejected
+
+Date: 2026-09-03
+
+## Verdict
+
+Do not select the padded M64 EXL3 fat kernel in production. Padding the
+16-by-128 FP32 shared-output scratch from 128 to 132 columns removes most of
+the measured shared-store bank conflicts and improves the isolated paired
+gate/up kernel, but it does not safely improve the complete staggered C2
+workload. The production control remains M64 with no padding.
+
+## Exact kernel result
+
+The candidate added independent `*_m64_pad4` symbols and compared them with
+the accepted M64 symbols in one image. Gate/up, fused activation and final
+scatter outputs were bit-identical for every tested row count. Across 129,
+145, 192, 255, 257, 320, 383, 385, 512, 640, 768, 1,024, 2,048, 4,096 and
+6,528 rows, the paired kernel improved by 0.77-2.57% except at 2,048 rows,
+where it regressed 0.13%.
+
+Nsight Compute at 512 rows measured:
+
+| Kernel | M64 | Pad4 | Change |
+| --- | ---: | ---: | ---: |
+| paired gate/up duration | 281.95 us | 273.31 us | +3.16% |
+| paired shared-store conflicts | 101,733 / 60.82% | 35,674 / 34.99% | lower |
+| down/scatter duration | 213.98 us | 215.46 us | -0.69% |
+| scatter shared-store conflicts | 202,898 / 60.81% | 71,012 / 35.15% | lower |
+
+The scatter kernel remained dominated by L1 scoreboard stalls. Removing the
+bank conflicts therefore did not remove its limiting dependency or memory
+path.
+
+## Endpoint A/B
+
+Both modes used the same image and launch configuration: TP2, EXL3 K4 MCG,
+DFlash2 K7/TP2, FP8 KV, 7,168 scheduled tokens, four sequence slots,
+work-conserving mixed scheduling, five-second stagger and 128 forced output
+tokens. Each restart ran the same cold medium-C2 and large-C2 salts followed
+by the same warm medium-C2 salt. Every request completed 128/128 tokens,
+returned its own isolation marker and no peer marker, and had no API error.
+
+| Case | Pad4 prefill | Pad0 prefill | Pad4 aggregate decode | Pad0 aggregate decode | Pad4 wall | Pad0 wall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| cold medium C2 | 865.16 | 1,189.70 | 20.15 | 26.83 | 42.86 s | 32.68 s |
+| cold large C2 | 1,184.21 | 1,246.60 | 10.52 | 11.09 | 60.14 s | 56.98 s |
+| warm medium C2 | 1,373.49 | 1,334.59 | 25.96 | 30.68 | 30.03 s | 29.11 s |
+
+The warm prefill sample favors Pad4 by 2.91%, but aggregate decode regresses
+15.38% and wall time regresses 3.16%. Cold/JIT and stochastic-routing noise is
+visible across boots, so these rows do not prove that padding causes the large
+decode delta. They do prove that this low-single-digit kernel change has not
+met the no-regression endpoint gate. It is rejected rather than adding
+production surface area for an unproven gain.
+
+## Consequence
+
+Shared-output bank conflicts are not the next large lever. Keep the accepted
+M64 geometry and target work inside the K4 MCG loop and epilogue: packed
+codebook decode, L1 dependency chains, Hadamard/output traffic, and a truly
+SM121-native tensor-core schedule. The complete routed-MoE boundary is about
+half of long-prefill CUDA time; this is where a material endpoint gain can
+still originate.
