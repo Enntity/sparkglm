@@ -44,8 +44,8 @@ class Result:
     own_request_marker: bool
     foreign_request_markers: list[int]
     visible_events: int
-    inter_token_gap_p95_s: float | None
-    max_inter_token_gap_s: float | None
+    inter_event_gap_p95_s: float | None
+    max_inter_event_gap_s: float | None
     finish_reason: str | None
     error: str | None
 
@@ -113,6 +113,77 @@ def benchmark_prompt(
     return make_prompt(request_id, approximate_tokens, prompt_salt)
 
 
+def token_count(prompt: str, args: argparse.Namespace) -> int:
+    """Ask the serving tokenizer to count the exact chat request."""
+    payload = {
+        "model": args.model,
+        "messages": [{"role": "user", "content": prompt}],
+        "chat_template_kwargs": {
+            "thinking": args.enable_thinking,
+            "enable_thinking": args.enable_thinking,
+        },
+    }
+    headers = {"Content-Type": "application/json"}
+    if args.api_key:
+        headers["Authorization"] = f"Bearer {args.api_key}"
+    request = urllib.request.Request(
+        args.base_url.rstrip("/") + "/tokenize",
+        data=json.dumps(payload).encode(),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=args.timeout_s) as response:
+        decoded = json.loads(response.read())
+    if isinstance(decoded.get("count"), int):
+        return decoded["count"]
+    if isinstance(decoded.get("tokens"), list):
+        return len(decoded["tokens"])
+    raise RuntimeError(f"/tokenize response has no count or tokens: {decoded!r}")
+
+
+def exact_isolation_prompt(
+    request_id: int,
+    target_tokens: int,
+    prompt_salt: str,
+    args: argparse.Namespace,
+) -> tuple[str, int]:
+    """Build a deterministic prompt whose rendered chat count meets the target."""
+    marker = isolation_marker(request_id)
+    salt_line = f"Benchmark case: {prompt_salt}\n" if prompt_salt else ""
+    prefix = (
+        salt_line
+        + f"Request {request_id}. Summarize the payload, repeat {marker} exactly once, "
+        "and mention FINAL-FACT. Payload:"
+    )
+    suffix = "\nFINAL-FACT"
+
+    def candidate(words: int) -> str:
+        return prefix + (" alpha" * words) + suffix
+
+    base_count = token_count(candidate(0), args)
+    if base_count > target_tokens:
+        raise RuntimeError(
+            f"target {target_tokens} is smaller than chat-template overhead {base_count}"
+        )
+    low, high = 0, max(1, target_tokens - base_count + 16)
+    while token_count(candidate(high), args) < target_tokens:
+        high *= 2
+    while low + 1 < high:
+        middle = (low + high) // 2
+        if token_count(candidate(middle), args) < target_tokens:
+            low = middle
+        else:
+            high = middle
+    for words in range(max(0, low - 2), high + 3):
+        prompt = candidate(words)
+        count = token_count(prompt, args)
+        if count == target_tokens:
+            return prompt, count
+    raise RuntimeError(
+        f"could not construct an exact {target_tokens}-token prompt with this tokenizer"
+    )
+
+
 def stream_one(
     request_id: int,
     scheduled_s: float,
@@ -127,12 +198,7 @@ def stream_one(
     prompt_style_target = args.prompt_styles_by_request[request_id]
     output_tokens_target = args.output_tokens_by_request[request_id]
     min_output_tokens_target = args.min_output_tokens_by_request[request_id]
-    prompt = benchmark_prompt(
-        request_id,
-        prompt_style_target,
-        prompt_tokens_target,
-        args.prompt_salt,
-    )
+    prompt = args.prompts_by_request[request_id]
     payload = {
         "model": args.model,
         "messages": [
@@ -258,8 +324,8 @@ def stream_one(
         own_request_marker=not isolation_enabled or own_marker in output_text,
         foreign_request_markers=foreign_markers,
         visible_events=len(visible_event_times),
-        inter_token_gap_p95_s=percentile(gaps, 0.95),
-        max_inter_token_gap_s=max(gaps) if gaps else None,
+        inter_event_gap_p95_s=percentile(gaps, 0.95),
+        max_inter_event_gap_s=max(gaps) if gaps else None,
         finish_reason=finish_reason,
         error=error,
     )
@@ -273,6 +339,11 @@ def main() -> int:
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--stagger-ms", type=int, default=500)
     parser.add_argument("--prompt-tokens", type=int, default=8192)
+    parser.add_argument(
+        "--exact-prompt-tokens",
+        action="store_true",
+        help="calibrate isolation prompts through /tokenize to the requested actual count",
+    )
     parser.add_argument(
         "--prompt-salt",
         default="",
@@ -352,6 +423,10 @@ def main() -> int:
     allowed_prompt_styles = {"isolation", "mia-structured", "mia-prose"}
     if any(style not in allowed_prompt_styles for style in args.prompt_styles_by_request):
         parser.error("prompt-style-list contains an unsupported prompt style")
+    if args.exact_prompt_tokens and any(
+        style != "isolation" for style in args.prompt_styles_by_request
+    ):
+        parser.error("--exact-prompt-tokens supports only isolation prompts")
     args.output_tokens_by_request = parse_request_values(
         args.output_token_list, args.output_tokens, "output-token-list"
     )
@@ -370,6 +445,25 @@ def main() -> int:
         )
     ):
         parser.error("every per-request min output must be between 0 and its output limit")
+
+    try:
+        args.prompts_by_request = []
+        for request_id, (style, target) in enumerate(
+            zip(args.prompt_styles_by_request, args.prompt_tokens_by_request)
+        ):
+            if args.exact_prompt_tokens:
+                prompt, count = exact_isolation_prompt(
+                    request_id, target, args.prompt_salt, args
+                )
+                if count != target:
+                    raise RuntimeError(f"calibration returned {count}, expected {target}")
+            else:
+                prompt = benchmark_prompt(
+                    request_id, style, target, args.prompt_salt
+                )
+            args.prompts_by_request.append(prompt)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, RuntimeError) as exc:
+        parser.error(f"prompt calibration failed: {exc}")
 
     epoch = time.monotonic() + 0.25
     barrier = threading.Barrier(args.concurrency)
@@ -409,8 +503,9 @@ def main() -> int:
         "config": {
             "concurrency": args.concurrency,
             "stagger_ms": args.stagger_ms,
-            "approximate_prompt_tokens": args.prompt_tokens,
-            "approximate_prompt_tokens_by_request": args.prompt_tokens_by_request,
+            "requested_prompt_tokens": args.prompt_tokens,
+            "requested_prompt_tokens_by_request": args.prompt_tokens_by_request,
+            "exact_prompt_tokens": args.exact_prompt_tokens,
             "prompt_salt": args.prompt_salt,
             "prompt_style": args.prompt_style,
             "prompt_styles_by_request": args.prompt_styles_by_request,

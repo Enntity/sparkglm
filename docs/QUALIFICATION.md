@@ -28,6 +28,10 @@ alternate which arm is run first across repeated campaigns:
 
 ```bash
 export SPARKGLM_PAIR_ID=2026-09-04-my-experiment
+export SPARKGLM_IMAGE_DIGESTS=sha256:<rank0>,sha256:<rank1>
+export SPARKGLM_MODEL_REVISION=<immutable-model-revision>
+# Run one repetition at a time so retained first-arm order can alternate.
+export SPARKGLM_FULL_REPETITION_ID=1
 scripts/full-model-gate.sh baseline \
   results/candidates/2026-09-04-my-experiment <served-model-name>
 # restart at the candidate commit with otherwise identical configuration
@@ -36,9 +40,13 @@ scripts/full-model-gate.sh candidate \
 ```
 
 The collector writes C1 16K/32K, staggered C2 16K/32K, and staggered C4 16K
-receipts with 400 delivered tokens per request and three repetitions per arm.
-The report must still record actual tokenizer counts and prove that the two
-server launches used the same frozen configuration.
+receipts with exactly calibrated prompts and 400 delivered tokens per request.
+It also captures the served-model response, source revision, declared rank
+image digests, and non-secret configuration. Omit
+`SPARKGLM_FULL_REPETITION_ID` only when collecting a single arm's three
+repetitions in one launch; a publishable comparison should run one repetition
+at a time and alternate which arm runs first. Record the six-arm order in
+`environment.run_order`.
 
 Create a new candidate skeleton from a clean candidate commit with:
 

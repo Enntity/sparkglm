@@ -86,7 +86,7 @@ change. The primary frozen matrix is:
 | --- | --- | ---: | ---: | --- |
 | C1 | isolated | 16K actual tokens | 400 | medium prefill plus decode |
 | C1 | isolated | 32K actual tokens | 400 | large prefill plus decode |
-| C2 | staggered | 16K actual tokens each | 400 each | real concurrent service |
+| C2 | staggered | 16K actual tokens each | 400 each | concurrent service-stress proxy |
 | C2 | staggered | 32K actual tokens each | 400 each | primary stress workload |
 | C4 | staggered | 16K actual tokens each | 400 each | capacity/fairness guard |
 
@@ -94,6 +94,10 @@ The corresponding arms must use identical model, quantization, drafter,
 precision, KV budget, graph sizes, scheduler policy, prompt bytes, arrival
 offsets, generation parameters, and warmup. Record actual tokenizer counts;
 fixture arguments such as `--prompt-tokens 16384` are not authoritative.
+
+Use `--exact-prompt-tokens` and retain the endpoint's tokenizer counts; the
+benchmark now calibrates through `/tokenize`. Approximate fixture sizes and
+whitespace counts are never valid substitutes for the recorded actual count.
 
 Complete graph capture and the shape warmup, then discard one exact workload
 run. Alternate the retained order between baseline and candidate. Use at least
@@ -105,12 +109,30 @@ Declare one primary metric before running. Protect at least:
 
 - aggregate delivered output tokens/s;
 - wall time and per-request TTFT;
-- inter-token gap p95/max and request fairness;
+- visible SSE-event gap p95/max and request fairness;
 - completion, request isolation, errors, and output hashes;
 - KV capacity, persistent memory, and startup/graph success.
 
 Small improvements are welcome. They become a win only after the combined
 stack passes this same matrix.
+
+### Metric names and non-claims
+
+- `aggregate_decode_tok_s` is aggregate delivered output tokens divided by the
+  interval from the first visible token until the last request completes. It
+  includes mixed-work stalls; it is not a pure decode-kernel rate.
+- `decode_tok_s` is per-request post-first-token delivery rate.
+- `effective_prefill_tok_s` is actual prompt tokens divided by request TTFT. It
+  includes queueing and first-token work, so it is an appliance prompt-to-first-
+  token rate—not raw prefill-kernel throughput.
+- `inter_event_gap_*` measures time between visible streamed SSE events. A
+  speculative event can carry more than one token, so it must not be called an
+  inter-token latency distribution.
+
+The frozen isolation workload is a deterministic stress proxy. A G4 result
+must separately cover relevant reasoning, tools, prefix behavior,
+cancellation, and multimodal operation before anyone calls the result
+representative of a complete real application workload.
 
 ### G4: semantics and operation
 

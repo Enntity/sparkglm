@@ -287,6 +287,106 @@ def _check_gpu_gemm() -> None:
     _check_e2_diag(device)
     _check_apply_expert_map(device)
     _check_fused_cudagraph(device)
+    _check_grouped_prefill_execution(device)
+
+
+def _check_grouped_prefill_execution(device) -> None:
+    """Execute, repeat, and graph-replay grouped prefill at GLM TP2 dimensions."""
+    import exllamav3_ext as ext
+    import torch
+
+    if not hasattr(ext, "exl3_grouped_prefill_k4"):
+        raise AssertionError("grouped-prefill symbol is required by this image")
+
+    hidden, intermediate, packed_words = 4096, 1024, 64
+    counts_host = [65, 17, 1]  # cap+1, odd interior, minimum boundary
+    cap, tokens = 64, 96
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(20260904)
+
+    def matrix(size_k: int, size_n: int):
+        trellis = torch.randint(
+            -(1 << 15), 1 << 15,
+            (size_k // 16, size_n // 16, packed_words),
+            dtype=torch.int16, generator=generator,
+        ).to(device)
+        suh = torch.empty(size_k, dtype=torch.float16).uniform_(
+            0.004, 0.012, generator=generator
+        ).to(device)
+        svh = torch.empty(size_n, dtype=torch.float16).uniform_(
+            0.004, 0.012, generator=generator
+        ).to(device)
+        return trellis, suh, svh
+
+    x = (torch.randn(tokens, hidden, generator=generator) * 0.05).half().to(device)
+    counts = torch.tensor(counts_host, dtype=torch.int64, device=device)
+    offsets = torch.cat((torch.zeros(1, dtype=torch.int64, device=device), counts.cumsum(0)))
+    token_sorted = torch.cat(
+        [
+            (torch.arange(count, device=device, dtype=torch.int64) + 11 * expert)
+            % tokens
+            for expert, count in enumerate(counts_host)
+        ]
+    )
+    weight_sorted = torch.full(
+        (token_sorted.numel(),), 0.25, dtype=torch.float16, device=device
+    )
+    gate_t, gate_u, gate_v = [], [], []
+    up_t, up_v, down_t, down_u, down_v = [], [], [], [], []
+    for expert in range(len(counts_host)):
+        gt, gu, gv = matrix(hidden, intermediate)
+        ut, _, uv = matrix(hidden, intermediate)
+        dt, du, dv = matrix(intermediate, hidden)
+        gate_t.append(gt); gate_u.append(gu); gate_v.append(gv)
+        up_t.append(ut); up_v.append(uv)
+        down_t.append(dt); down_u.append(du); down_v.append(dv)
+
+    def pointers(items):
+        return torch.tensor(
+            [item.data_ptr() for item in items], dtype=torch.int64, device=device
+        )
+
+    tables = tuple(
+        pointers(items)
+        for items in (gate_t, gate_u, gate_v, up_t, up_v, down_t, down_u, down_v)
+    )
+    total_rows = int(token_sorted.numel())
+    grouped_h13 = torch.empty(total_rows, hidden, dtype=torch.float16, device=device)
+    grouped_gate_up = torch.empty(
+        total_rows, 2 * intermediate, dtype=torch.float32, device=device
+    )
+    grouped_h2 = torch.empty(total_rows, intermediate, dtype=torch.float16, device=device)
+    tasks = torch.empty(
+        (total_rows + 63) // 64 + len(counts_host), 4,
+        dtype=torch.int32, device=device,
+    )
+    task_count = torch.empty(1, dtype=torch.int32, device=device)
+
+    def grouped(out):
+        out.zero_()
+        ext.exl3_grouped_prefill_k4(
+            x, out, offsets, token_sorted, weight_sorted,
+            grouped_h13, grouped_gate_up, grouped_h2, tasks, task_count,
+            *tables, cap, 10.0,
+        )
+
+    first = torch.empty(tokens, hidden, dtype=torch.float32, device=device)
+    second = torch.empty_like(first)
+    grouped(first); grouped(second); torch.cuda.synchronize()
+    assert torch.isfinite(first).all()
+    assert torch.equal(first, second), "grouped prefill is not repeat-deterministic"
+
+    graph_out = torch.empty_like(first)
+    graph = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(graph):
+        grouped(graph_out)
+    graph.replay(); torch.cuda.synchronize()
+    assert torch.equal(first, graph_out), "grouped prefill graph replay changed output"
+    print(
+        "grouped prefill execution OK "
+        f"dims={hidden}x{intermediate} experts={counts_host} graph=yes",
+        flush=True,
+    )
 
 
 

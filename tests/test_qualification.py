@@ -153,6 +153,42 @@ def test_legacy_evidence_cannot_be_retroactively_reviewed() -> None:
         assert any("legacy evidence cannot be certified" in item for item in failures)
 
 
+def test_reviewed_g3_requires_complete_paired_matrix() -> None:
+    q = module()
+    with tempfile.TemporaryDirectory() as raw:
+        bundle = Path(raw) / "example"
+        bundle.mkdir()
+        artifact = bundle / "raw.json"
+        artifact.write_text("{}\n")
+        payload = record_for(bundle, artifact)
+        payload["qualification_level"] = "G3"
+        payload["gates"] = [
+            {"id": gate, "status": "pass", "summary": "ok"}
+            for gate in ("G0", "G1", "G2", "G3")
+        ]
+        payload["environment"] = {
+            "hardware": "2x GB10",
+            "topology": "TP2",
+            "image_digests": ["sha256:" + "1" * 64],
+            "model_revision": "2" * 40,
+            "configuration": {"MAX_NUM_SEQS": 4},
+        }
+        payload["limitations"] = ["G4 not run"]
+        payload["attestation"] = {
+            "status": "maintainer-reviewed",
+            "maintainer": "maintainer",
+            "date": "2026-09-04",
+        }
+        record = bundle / "qualification.json"
+        record.write_text(json.dumps(payload))
+        failures = q.verify_record(record)
+        assert any("exactly two rank image digests" in item for item in failures)
+        assert any("run_order" in item for item in failures)
+        assert any("three baseline c1-16k" in item for item in failures)
+        assert any("baseline server manifest" in item for item in failures)
+        assert any("declared metrics" in item for item in failures)
+
+
 if __name__ == "__main__":
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

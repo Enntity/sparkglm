@@ -8,6 +8,21 @@ its state, target workload and metric, protected behavior, applicable gate
 level, and rollback. Use the pull-request template; do not substitute an
 isolated peak result for its requested evidence.
 
+The shortest correct loop is:
+
+```bash
+./scripts/check.sh all                 # G0, public-runner safe
+./scripts/tinyglm-gate.sh ...          # G2 when the change touches runtime code
+./scripts/full-model-gate.sh ...       # exact-token G3 arm on reviewed hardware
+python3 scripts/qualification.py verify-all
+```
+
+`scripts/full-model-gate.sh` requires exact image digests and model revision,
+captures a server manifest, and fails incomplete or cross-contaminated streams.
+It does not switch images or alternate run order for you. Record that order,
+run at least three paired repetitions, and checksum every receipt into the
+qualification bundle.
+
 Read [docs/LICENSING.md](docs/LICENSING.md) before carrying code, templates,
 weights, or results across project boundaries. Update
 `provenance/upstreams.json` whenever an upstream, revision, relationship,
@@ -24,6 +39,9 @@ notice, or affected path changes.
   performance win.
 - Retain negative results when they prevent others from repeating an expensive
   experiment.
+- Treat `docs/KNOWN_LIMITATIONS.md` as a release artifact: update it whenever a
+  compatibility shim changes semantics, a gate remains partial, or a supported
+  scope narrows.
 - Do not commit weights, tensors, compiled binaries, credentials, machine-local
   paths, `.env` files, or generated videos.
 - Run `scripts/check.sh all` before every pull request.

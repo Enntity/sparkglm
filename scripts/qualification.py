@@ -208,6 +208,46 @@ def verify_record(path: Path) -> list[str]:
                         )
                 if not record["artifacts"]:
                     failures.append(f"{path}: reviewed G3+ qualification requires raw artifacts")
+                digests = environment.get("image_digests")
+                if not isinstance(digests, list) or len(digests) != 2 or any(
+                    not isinstance(value, str)
+                    or not re.search(r"sha256:[0-9a-f]{64}$", value)
+                    for value in digests
+                ):
+                    failures.append(
+                        f"{path}: reviewed G3+ requires exactly two rank image digests"
+                    )
+                run_order = environment.get("run_order")
+                if not isinstance(run_order, list) or len(run_order) < 6:
+                    failures.append(
+                        f"{path}: reviewed G3+ requires the retained baseline/candidate run_order"
+                    )
+                elif not ({"baseline", "candidate"} <= {
+                    str(item).split("-")[-1] for item in run_order
+                }):
+                    failures.append(
+                        f"{path}: run_order must include baseline and candidate arms"
+                    )
+                for case in ("c1-16k", "c1-32k", "c2-16k", "c2-32k", "c4-16k"):
+                    for arm in ("baseline", "candidate"):
+                        case_receipts = [
+                            name for name in listed_artifacts
+                            if arm in name and case in name and name.endswith(".json")
+                        ]
+                        if len(case_receipts) < 3:
+                            failures.append(
+                                f"{path}: reviewed G3+ requires three {arm} {case} JSON receipts"
+                            )
+                for arm in ("baseline", "candidate"):
+                    if not any(
+                        arm in name and "server-manifest" in name
+                        for name in listed_artifacts
+                    ):
+                        failures.append(
+                            f"{path}: reviewed G3+ requires a {arm} server manifest"
+                        )
+                if not record["metrics"]:
+                    failures.append(f"{path}: reviewed G3+ requires declared metrics")
                 gate_map = {
                     gate.get("id"): gate.get("status")
                     for gate in record["gates"]
