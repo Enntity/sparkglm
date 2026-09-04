@@ -90,6 +90,15 @@ replay of current HEAD is required before claiming current performance
 equivalence. The grouped-prefill and cooperative-decode limitations are stated
 in `docs/KNOWN_LIMITATIONS.md` and both retain explicit rollback switches.
 
+A clean-source replay has since been recorded under
+`results/candidates/2026-09-04-clean-release-c4-replay/`. Three warmed runs had
+a 23.514 aggregate decode tok/s median versus 24.267 tok/s in the posted
+one-off, a 3.1% difference. The bundle also records that 10 of 2,423 installed
+vLLM Python files and the rebuilt EXL3 extension differ from the historical
+image. Accordingly, the public default is described as the same runtime
+profile and a measured close successor—not as a byte-identical rebuild or a
+statistically certified performance tie.
+
 ## License boundary
 
 The default fetches `incoai/GLM-5.3-Flash-DFlash2` at the pinned revision in

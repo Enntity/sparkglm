@@ -1,0 +1,43 @@
+{
+  "schema": "sparkglm.source-parity/v1",
+  "historical_image": {
+    "tag": "sparkglm-vllm:exl3-grouped-prefill-candidate-20260903d",
+    "image_id": "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+    "source_revision": "6a49e49e7e6a3226197a2ceefcf217cdf55f751e",
+    "vllm_version": "0.1.dev47+g6a49e49e7",
+    "python_manifest_sha256": "f10ebf62d7f2450e849129b702f743b92747df91dfae40572492d42a446722aa",
+    "exllamav3_extension_sha256": "853dfcfe66b70622a4e2ea3f8c9f3e47c2b743aaa97a67241c5b0138ffd7cb68"
+  },
+  "clean_image": {
+    "tag": "sparkglm-release:b3d0bbd",
+    "image_id": "sha256:5dfeec28e67740b087a3f432505f8726784d703d813ecbc33b39587ad58822d4",
+    "source_revision": "b3d0bbd61a2331fa3d6e9e3a09c2a0e6f375e69e",
+    "vllm_version": "0.1.dev20051+g487ecf187",
+    "python_manifest_sha256": "f646905273323c601abf9b01e8067dbf4662f2965d2ffe25662cfba71ca8b28b",
+    "exllamav3_extension_sha256": "5c2ded39055b170355bc36669b3d17887e3a71ba25c0b13ca8e1c23dfd93700c"
+  },
+  "installed_vllm_python": {
+    "historical_file_count": 2423,
+    "clean_file_count": 2423,
+    "changed_file_count": 10,
+    "changed_files": [
+      "vllm/_version.py",
+      "vllm/config/attention.py",
+      "vllm/model_executor/layers/quantization/exl3.py",
+      "vllm/model_executor/layers/sparse_attn_indexer.py",
+      "vllm/model_executor/layers/sparse_attn_indexer_kpool.py",
+      "vllm/models/common/ops/fused_qk_rmsnorm.py",
+      "vllm/utils/deep_gemm.py",
+      "vllm/v1/core/kv_cache_coordinator.py",
+      "vllm/v1/core/sched/scheduler.py",
+      "vllm/vllm_flash_attn/__init__.py"
+    ]
+  },
+  "clean_kernel_sources": {
+    "exl3_fat_gemm_cu_sha256": "fee047d2ae88090095bf27916fe0c6fe9ea0c6a29fc8b4e60622a3e16a03f918",
+    "exl3_fat_gemm_cuh_sha256": "cda828fd9c0e1cde46688a2421c57dd94ced48c8b0b0cc69ee3044675c0f2a43",
+    "exl3_decode_moe_cu_sha256": "34865877f9f0253e3de79b88e54cbcc6a4714c7703740efae5642d9f3682eb2a",
+    "exl3_decode_moe_cuh_sha256": "f8fc13fd948b524aaec17cf62047503fb492d53f13a97b8789b493c1e6943a11"
+  },
+  "conclusion": "Same posted runtime profile and close endpoint behavior; not a byte-identical historical-image rebuild."
+}

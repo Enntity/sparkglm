@@ -18,6 +18,15 @@ posted configuration as the reconstructable default does not grandfather its
 legacy evidence; the next performance claim must establish a clean, signed
 baseline under the new methodology.
 
+The first post-policy reconstruction measurement is now available at
+[`2026-09-04-clean-release-c4-replay`](candidates/2026-09-04-clean-release-c4-replay/).
+The clean `b3d0bbd` image completed three warmed C4 16K-class repetitions at a
+23.514 aggregate decode tok/s median, 3.1% below the retained posted one-off.
+It is deliberately labeled G0 baseline evidence: only this workload was run,
+there was no paired arm, and no G4 quality suite was performed. Its source
+receipt also records the exact boundary between the historical image and the
+clean-source successor rather than claiming byte parity.
+
 The legacy labels matter. The old “16K” isolation generator produced roughly
 33K actual tokenizer tokens in at least the grouped-prefill campaign, the Mia
 comparison retained only two repetitions per arm, and none of these bundles is

@@ -1,0 +1,158 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-04-clean-release-c4-replay",
+  "title": "Clean release C4 replay",
+  "date": "2026-09-04",
+  "state": "baseline",
+  "qualification_level": "G0",
+  "target": "Three warmed four-stream 16K-class staggered replay measurements",
+  "change": {
+    "baseline_ref": "4b2375977df873be57bc277b17778f94323ef7e6",
+    "candidate_ref": "b3d0bbd61a2331fa3d6e9e3a09c2a0e6f375e69e",
+    "working_tree_clean": true,
+    "provenance": [
+      "The candidate is the clean public-source reconstruction of the original-project 4b237597 optimization plus the original-project c805318 launcher fix.",
+      "The historical comparison image and clean image were inspected locally; raw/source-parity.json records their immutable identities and file-level parity boundary.",
+      "No external optimization was introduced by this measurement bundle."
+    ]
+  },
+  "environment": {
+    "capture_platform": "macOS-26.5.1-arm64-arm-64bit client",
+    "python": "3.11.6",
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "cross-node TP=2",
+    "image_digests": [
+      "sha256:5dfeec28e67740b087a3f432505f8726784d703d813ecbc33b39587ad58822d4",
+      "sha256:5dfeec28e67740b087a3f432505f8726784d703d813ecbc33b39587ad58822d4"
+    ],
+    "model_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "quant_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "drafter_revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
+    "configuration": {
+      "streams": 4,
+      "arrival_stagger_ms": 1000,
+      "prompt_generator_target": 16000,
+      "actual_prompt_tokens_min": 15806,
+      "actual_prompt_tokens_max": 15809,
+      "max_output_tokens_per_stream": 400,
+      "max_num_batched_tokens": 7168,
+      "max_num_seqs": 4,
+      "mixed_prefill_chunk": 0,
+      "grouped_prefill": true,
+      "cooperative_decode": true,
+      "cooperative_decode_max_tokens": 16,
+      "dflash_tokens": 7,
+      "kv_cache_dtype": "fp8",
+      "warmup": "startup shape sweep plus fatal four-resident-stream capacity gate; benchmark server reused across all three retained repetitions"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed for the clean candidate before the full image build; the checksum-bound result commit reruns the same gate."
+    },
+    {
+      "id": "G1",
+      "status": "not-applicable",
+      "summary": "This bundle introduces no operator change; it measures the already reconstructed default."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No new engine change is being promoted by this measurement. Earlier tinyGLM evidence remains legacy evidence."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Only three C4 16K-class repetitions were collected, without paired run order or the remaining frozen cases."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No semantic-quality matrix was run."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance, failure, or rollback campaign was run."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "aggregate_decode_tok_s_median",
+      "candidate": 23.514211,
+      "unit": "tokens/s"
+    },
+    {
+      "name": "aggregate_decode_tok_s_min",
+      "candidate": 23.038251,
+      "unit": "tokens/s"
+    },
+    {
+      "name": "aggregate_decode_tok_s_max",
+      "candidate": 23.786362,
+      "unit": "tokens/s"
+    },
+    {
+      "name": "wall_median",
+      "candidate": 89.492258,
+      "unit": "s"
+    },
+    {
+      "name": "completed_requests",
+      "candidate": 12,
+      "unit": "requests"
+    },
+    {
+      "name": "posted_single_sample_delta",
+      "candidate": -3.102,
+      "unit": "percent aggregate_decode_tok_s"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "38ed53f3ea4d760eb4b4013f99f33d246833bb91ea60ee56a4a3fa8e6868c560"
+    },
+    {
+      "path": "raw/c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "1e894bbec66fd762310142fd596a16d8bae14d939352b5803c014126638dc83b"
+    },
+    {
+      "path": "raw/c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "2afc0f532b3f378ceb80732eec4544590954b8a81e7bc8b4c81826ef86b55dbc"
+    },
+    {
+      "path": "raw/c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "27104996c50f03240cf83ea2df5db8cac273151a84e754ddfe9bd4374cc28e13"
+    },
+    {
+      "path": "raw/server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "dcf4d5387434ee9a21088b0907cca5833666cbb96b58de17e53ae0c1df293e50"
+    },
+    {
+      "path": "raw/source-parity.json",
+      "kind": "raw-receipt",
+      "sha256": "a43b76dd8a5080afd9aadc68d6c2c8bb161b47df2333cd7756f1ea653c5188f9"
+    }
+  ],
+  "limitations": [
+    "This is a reconstruction baseline measurement, not a paired candidate-versus-baseline experiment.",
+    "Only the C4 16K-class video workload was run; the complete frozen G3 matrix was not run.",
+    "The prompt generator produced 15,806-15,809 actual tokens, not exactly 16,384 tokens.",
+    "No G4 semantic-quality suite was run.",
+    "The historical and clean images use the same posted runtime profile but are not byte-identical; raw/source-parity.json records the boundary.",
+    "The server manifest was captured after result files made the checkout dirty; the image itself was built from the clean candidate commit and is identified by digest."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
