@@ -77,6 +77,25 @@ def check_recipe_integrity() -> None:
 
 
 def check_direction_files() -> None:
+    paths = [ABLIT_DIR / fname for fname in ablit.DIRECTION_FILES.values()]
+    present = [path for path in paths if path.is_file()]
+    if not present:
+        # Public/source-only builds intentionally exclude model-derived
+        # direction tensors.  The runtime must remain testable with ABLIT=0,
+        # while an operator who enables a missing artifact still gets a loud
+        # failure instead of silently serving stock weights.
+        try:
+            ablit.load_direction(paths[0])
+        except ablit.AblitError as exc:
+            assert "cannot load ablit direction" in str(exc)
+        else:
+            raise AssertionError("missing direction tensor did not fail closed")
+        print("direction files absent (expected for public source-only build; fail-closed OK)")
+        return
+    assert len(present) == len(paths), (
+        "partial ablit direction set is unsafe: "
+        f"found {[path.name for path in present]}, expected {[path.name for path in paths]}"
+    )
     for fname in ablit.DIRECTION_FILES.values():
         r = ablit.load_direction(ABLIT_DIR / fname)
         assert r.shape == (HIDDEN,), r.shape
@@ -263,7 +282,8 @@ def check_module_walk() -> None:
 
 def check_maybe_apply_gating() -> None:
     model = _fake_model()
-    r_ref = ablit.load_direction(ABLIT_DIR / ablit.DIRECTION_FILES["dealign"])
+    r_ref = torch.ones(HIDDEN, dtype=torch.float32)
+    r_ref /= r_ref.norm()
     before = model.layers[15].self_attn.o_proj.weight.clone()
 
     with tempfile.TemporaryDirectory() as tmp:
