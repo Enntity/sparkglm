@@ -7,11 +7,14 @@ mailbox patches under `research/current-engine-history/patches/`; the public
 branch itself uses a fresh sanitized history so excluded model artifacts from
 the upstream recipe are not reachable through Git history.
 
-Before downloading weights, read `docs/LICENSING.md`. In particular, the
-DFlash2 is an optional performance profile and is separately licensed CC
-BY-NC-ND 4.0. The default uses `SPEC_METHOD=mtp`; use `SPEC_METHOD=none` to
-disable speculation. Model and drafter
-revisions are pinned independently from source and container revisions.
+Before downloading weights, read `docs/LICENSING.md`. The default deliberately
+matches the published four-stream video and therefore selects DFlash2 k=7.
+That checkpoint is fetched separately and licensed CC BY-NC-ND 4.0, including
+non-commercial/no-derivatives restrictions. Use `SPEC_METHOD=mtp` for the
+checkpoint's built-in MTP path or `SPEC_METHOD=none` to disable speculation.
+Model and drafter revisions are pinned independently from source and container
+revisions. The exact runtime mapping and evidence boundary are in
+`docs/PUBLISHED_VIDEO_CONFIGURATION.md`.
 
 The canonical image is `sparkglm:local`, built by `./start.sh` from the root
 `Dockerfile` and shipped byte-for-byte to rank 1. The root image applies the

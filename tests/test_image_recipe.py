@@ -13,6 +13,48 @@ START = ROOT / "start.sh"
 DOCKERFILE = ROOT / "Dockerfile"
 ENV_EXAMPLE = ROOT / ".env.example"
 C4_CAPACITY_WARMUP = ROOT / "scripts" / "c4-capacity-warmup.sh"
+VIDEO_PROFILE_DOC = ROOT / "docs" / "PUBLISHED_VIDEO_CONFIGURATION.md"
+
+
+PUBLISHED_VIDEO_DEFAULTS = {
+    "TP": "2",
+    "NNODES": "2",
+    "QUANTIZATION": "exl3",
+    "ENFORCE_EAGER": "0",
+    "EXL3_FUSED_MOE": "1",
+    "EXL3_FAT_KERNEL": "1",
+    "EXL3_FAT_TILE_M": "64",
+    "EXL3_FAT_PAIR": "1",
+    "EXL3_FAT_FUSED_ACT": "1",
+    "EXL3_GROUPED_PREFILL_K4": "0",
+    "EXL3_DECODE_COOP_K4": "0",
+    "EXL3_DECODE_COOP_MAX_TOKENS": "16",
+    "SPEC_METHOD": "dflash",
+    "DFLASH_TOKENS": "7",
+    "DFLASH_DRAFT_TP": "2",
+    "MAX_MODEL_LEN": "1000000",
+    "MAX_NUM_SEQS": "4",
+    "MAX_NUM_BATCHED_TOKENS": "7168",
+    "GPU_MEM_UTIL": "0.87",
+    "KV_CACHE_DTYPE": "fp8",
+    "LANGUAGE_MODEL_ONLY": "0",
+    "GLM53_BOOT_SHAPE_WARMUP": "1",
+    "GLM53_BOOT_LONG_C4": "1",
+    "GLM53_MIXED_PREFILL_CHUNK": "0",
+    "GLM53_INDEXER_WORKSPACE": "rightsize",
+    "GLM53_SPINWAIT_MS": "16",
+}
+
+
+def _plain_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in path.read_text().splitlines():
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+            values[name] = value
+    return values
 
 
 def test_documented_defaults() -> None:
@@ -21,15 +63,25 @@ def test_documented_defaults() -> None:
     assert 'MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-7168}"' in start
     assert 'EXL3_FAT_KERNEL="${EXL3_FAT_KERNEL:-1}"' in start
     assert 'IMAGE="${IMAGE:-sparkglm:local}"' in start
-    assert 'SPEC_METHOD="${SPEC_METHOD:-mtp}"' in start
-    assert 'LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-1}"' in start
+    assert 'SPEC_METHOD="${SPEC_METHOD:-dflash}"' in start
+    assert 'LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-0}"' in start
     assert 'EXL3_GROUPED_PREFILL_K4="${EXL3_GROUPED_PREFILL_K4:-0}"' in start
     assert "MAX_NUM_BATCHED_TOKENS=7168" in example
     assert re.search(r"^EXL3_FAT_KERNEL=1$", example, re.M)
     assert re.search(r"^IMAGE=sparkglm:local$", example, re.M)
-    assert re.search(r"^SPEC_METHOD=mtp$", example, re.M)
-    assert re.search(r"^LANGUAGE_MODEL_ONLY=1$", example, re.M)
+    assert re.search(r"^SPEC_METHOD=dflash$", example, re.M)
+    assert re.search(r"^LANGUAGE_MODEL_ONLY=0$", example, re.M)
     assert re.search(r"^EXL3_GROUPED_PREFILL_K4=0$", example, re.M)
+
+
+def test_fresh_checkout_matches_published_video_profile() -> None:
+    values = _plain_env(ENV_EXAMPLE)
+    observed = {name: values.get(name) for name in PUBLISHED_VIDEO_DEFAULTS}
+    assert observed == PUBLISHED_VIDEO_DEFAULTS
+    docs = VIDEO_PROFILE_DOC.read_text()
+    assert "e7e35579b8058bbacb2408dce67b8fb7dd39f9b4" in docs
+    assert "single warmed visual run" in docs
+    assert "CC BY-NC-ND 4.0" in docs
 
 
 def test_docker_copy_sources_exist_and_ignored_files_are_not_required() -> None:
@@ -93,6 +145,7 @@ def test_long_c4_capacity_warmup_is_fatal_and_checks_residency() -> None:
 
 if __name__ == "__main__":
     test_documented_defaults()
+    test_fresh_checkout_matches_published_video_profile()
     test_docker_copy_sources_exist_and_ignored_files_are_not_required()
     test_recipe_stamp_wiring()
     test_overlay_recipe_hash_runs()

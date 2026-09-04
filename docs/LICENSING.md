@@ -33,11 +33,12 @@ by the root Apache license, and none is committed here. The launcher downloads
 immutable revisions from their publishers:
 
 - the primary and fallback EXL3/TR3 checkpoints use the ShapleyMCG License 1.0;
-- the optional DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
+- the default DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
   non-commercial and no-derivatives restrictions;
 - the underlying GLM model uses the GLM-5.3 License.
 
-Operators must decide whether those terms fit their use. Select
+The default matches the published-video configuration; it does not imply that
+the drafter's terms fit every operator. Select
 `SPEC_METHOD=mtp` or `SPEC_METHOD=none` instead of DFlash2 when its terms do
 not. SparkGLM does not copy DFlash2 weights or claim that Apache-2.0 changes
 their license.

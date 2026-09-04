@@ -48,11 +48,15 @@ approximation on both arms and disclose it.
 
 - The supported target is exactly two GB10/SM121 systems with TP=2. Root-level
   TP4 files are inherited experimental material, not a supported product path.
-- Text-only serving is the default. Vision can be enabled, but multimodal
-  capacity and quality are not certified by text throughput results.
-- DFlash2 is optional and separately licensed CC BY-NC-ND 4.0. It may perform
-  very differently across output styles because speculative acceptance varies;
-  it is not a universal speed multiplier.
+- The default loads the vision tower because the historical video appliance did,
+  but the video workload itself was text-only. Multimodal capacity and quality
+  are not certified by that text throughput result. `LANGUAGE_MODEL_ONLY=1` is
+  the lower-memory custom alternative.
+- DFlash2 is the published-video default and is separately licensed CC
+  BY-NC-ND 4.0. The default is therefore not appropriate for commercial use.
+  It may also perform very differently across output styles because speculative
+  acceptance varies; it is not a universal speed multiplier. Select MTP or
+  no speculation when the license or workload does not fit.
 - The primary synthetic isolation fixture is a reproducible service-stress
   proxy, not a claim that repetitive filler represents every agent, tool,
   reasoning, or multimodal workload.

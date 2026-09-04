@@ -7,8 +7,9 @@
 # brandonmusic/GLM-5.3-Flash-tr3-4bpw @
 # 5ab363a8dcf6405955fd5f99671e01a1c9fb124b) on this 2× DGX Spark (GB10 /
 # SM121) kit: vLLM TP=2 over CX7, OpenAI API on :8888, NoPE-MLA overlay image.
-# MTP is the license-conservative default speculator. DFlash2-7 is available
-# as an explicit non-commercial profile. Target KV stays packed fp8_ds_mla;
+# The default reproduces the published C4 video's DFlash2-7 runtime profile.
+# Its separately downloaded checkpoint is CC BY-NC-ND 4.0; SPEC_METHOD=mtp is
+# the license-conservative override. Target KV stays packed fp8_ds_mla;
 # the SM120 B12X recipe (EP2/DCP2 + nvfp4_ds_mla) is a different image/arch.
 #
 #   head   : this machine (HEAD_IP, default 10.0.0.1) — vLLM rank 0 + API
@@ -218,8 +219,8 @@ ALLOW_UNAUTHENTICATED_LAN="${ALLOW_UNAUTHENTICATED_LAN:-0}"
 MASTER_PORT="${MASTER_PORT:-29521}"
 
 MTP_TOKENS="${MTP_TOKENS:-2}"
-# dflash (optional, CC BY-NC-ND 4.0) | mtp (default) | none
-SPEC_METHOD="${SPEC_METHOD:-mtp}"
+# dflash (published-video default, CC BY-NC-ND 4.0) | mtp | none
+SPEC_METHOD="${SPEC_METHOD:-dflash}"
 DFLASH_MODEL="${DFLASH_MODEL:-incoai/GLM-5.3-Flash-DFlash2}"
 DFLASH_CACHE_NAME="${DFLASH_CACHE_NAME:-models--${DFLASH_MODEL//\//--}}"
 DFLASH_REVISION="${DFLASH_REVISION:-bf582e4eacc1810f76656d1811693ff6c6737d2a}"
@@ -248,7 +249,7 @@ KPOOL_TAIL_PATCH_HOST="${KPOOL_TAIL_PATCH_HOST:-$SCRIPT_DIR/overlay/patch_kpool_
 SPINWAIT_PATCH_HOST="${SPINWAIT_PATCH_HOST:-$SCRIPT_DIR/overlay/patch_spinwait.py}"
 KV_CACHE_DTYPE="${KV_CACHE_DTYPE:-fp8}"
 QUANTIZATION="${QUANTIZATION:-exl3}"
-LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-1}"
+LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-0}"
 SKIP_MM_PROFILING="${SKIP_MM_PROFILING:-1}"
 # JSON default cannot sit in ${LIMIT_MM:-{...}} — } ends the expansion.
 if [ -z "${LIMIT_MM:-}" ]; then
@@ -1128,14 +1129,14 @@ ARGS=(
 [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
 [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
 [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
-if [ "${SPEC_METHOD:-mtp}" = "dflash" ]; then
+if [ "${SPEC_METHOD:-dflash}" = "dflash" ]; then
     ARGS+=(--speculative-config "$(python3 -S -c 'import json,os
 spec={"method":"dflash","model":os.environ["DFLASH_MODEL_DIR"],"num_speculative_tokens":int(os.environ.get("DFLASH_TOKENS","7")),"kv_cache_dtype":"auto","draft_sample_method":"probabilistic","rejection_sample_method":"standard"}
 tp=os.environ.get("DFLASH_DRAFT_TP","").strip()
 if tp:
     spec["draft_tensor_parallel_size"]=int(tp)
 print(json.dumps(spec,separators=(",",":")))')")
-elif [ "${SPEC_METHOD:-mtp}" = "none" ]; then
+elif [ "${SPEC_METHOD:-dflash}" = "none" ]; then
     :
 elif [ "${MTP_TOKENS:-0}" != "0" ]; then
     ARGS+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${MTP_TOKENS}}")
@@ -1226,14 +1227,14 @@ ARGS=(
 [ -n "${MAX_NUM_SEQS:-}" ] && ARGS+=(--max-num-seqs "${MAX_NUM_SEQS}")
 [ -n "${MAX_NUM_BATCHED_TOKENS:-}" ] && ARGS+=(--max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS}")
 [ -n "${KV_CACHE_DTYPE:-}" ] && ARGS+=(--kv-cache-dtype "${KV_CACHE_DTYPE}")
-if [ "${SPEC_METHOD:-mtp}" = "dflash" ]; then
+if [ "${SPEC_METHOD:-dflash}" = "dflash" ]; then
     ARGS+=(--speculative-config "$(python3 -S -c 'import json,os
 spec={"method":"dflash","model":os.environ["DFLASH_MODEL_DIR"],"num_speculative_tokens":int(os.environ.get("DFLASH_TOKENS","7")),"kv_cache_dtype":"auto","draft_sample_method":"probabilistic","rejection_sample_method":"standard"}
 tp=os.environ.get("DFLASH_DRAFT_TP","").strip()
 if tp:
     spec["draft_tensor_parallel_size"]=int(tp)
 print(json.dumps(spec,separators=(",",":")))')")
-elif [ "${SPEC_METHOD:-mtp}" = "none" ]; then
+elif [ "${SPEC_METHOD:-dflash}" = "none" ]; then
     :
 elif [ "${MTP_TOKENS:-0}" != "0" ]; then
     ARGS+=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":${MTP_TOKENS}}")
@@ -1636,6 +1637,9 @@ on_ready() {
 
 # ------------------------------- start -------------------------------------
 start() {
+    if [ "$SPEC_METHOD" = "dflash" ]; then
+        warn "published-video profile uses ${DFLASH_MODEL}@${DFLASH_REVISION} (CC BY-NC-ND 4.0; non-commercial/no-derivatives); use SPEC_METHOD=mtp or none if those terms do not fit"
+    fi
     preflight
     ensure_image
     download_weights

@@ -40,12 +40,16 @@ kept as explicitly legacy evidence rather than retroactively certified.
 ## Start here
 
 - **Check the component licenses before downloading:** read
-  [docs/LICENSING.md](docs/LICENSING.md). The default uses the checkpoint's
-  built-in MTP path. DFlash2 is explicit opt-in because its checkpoint is CC
-  BY-NC-ND 4.0.
+  [docs/LICENSING.md](docs/LICENSING.md). The default reproduces the published
+  four-stream video's DFlash2 configuration. Its separately downloaded
+  checkpoint is CC BY-NC-ND 4.0 and therefore non-commercial/no-derivatives;
+  use `SPEC_METHOD=mtp` or `none` when those terms do not fit.
 - **Run the current engine:** follow the build and two-node launch process in
   [SPARKGLM.md](SPARKGLM.md) and the detailed upstream recipe guide in
   [docs/upstream/MIA_RECIPE_README.md](docs/upstream/MIA_RECIPE_README.md).
+- **Reproduce what we showed:** the fresh-checkout defaults and their exact
+  historical evidence are mapped in
+  [the published-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md).
 - **Understand what is original:** read
   [docs/PROVENANCE.md](docs/PROVENANCE.md) and
   [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md), then consult the practical
@@ -110,8 +114,8 @@ The optimized path is intentionally narrow:
 - GLM-5.3-Flash
 - TP=2
 - EXL3/TR3 K4 routed experts
-- MTP by default; optional DFlash2 k=7 where its separate license and workload
-  fit are acceptable
+- DFlash2 k=7 by default to match the published video; MTP and no-speculation
+  overrides remain available
 - medium and long staggered workloads, not only short synthetic decode
 
 Fallbacks and rollback knobs remain because a fast unsupported shape is a bug,
@@ -140,9 +144,9 @@ upstreams:
 - The bundled Z.ai chat template is covered by the GLM-5.3 License.
 
 Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
-[docs/LICENSING.md](docs/LICENSING.md) before redistribution. The optional
-DFlash2 checkpoint is CC BY-NC-ND 4.0; use `SPEC_METHOD=mtp` or `none` when
-those terms do not fit the deployment.
+[docs/LICENSING.md](docs/LICENSING.md) before redistribution. The default
+DFlash2 checkpoint is fetched separately under CC BY-NC-ND 4.0; use
+`SPEC_METHOD=mtp` or `none` when those terms do not fit the deployment.
 
 ## Publication gate
 
