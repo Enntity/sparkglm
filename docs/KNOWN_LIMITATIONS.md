@@ -42,9 +42,11 @@ approximation on both arms and disclose it.
   on. It passed exact-shape and tinyGLM checks, but its isolated long-C2 signal
   was flat and its broader semantic qualification is incomplete. Set it to `0`
   for rollback.
-- Native FP16 sparse-selector logits require a separately rebuilt DeepGEMM
-  artifact. The accepted binary rejected that dtype during graph profiling, so
-  FP32 remains the supported setting.
+- The posted-video foundation used native FP16 sparse-selector logits, requiring
+  a matching DeepGEMM build. The earlier release reconstruction omitted it.
+  The restoration now builds those components together; source parity must
+  not be confused with full-model numeric or performance qualification. See
+  `docs/VIDEO_SOURCE_RESTORATION.md` for current verification status.
 
 ## Scope boundaries
 

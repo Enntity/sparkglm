@@ -16,7 +16,7 @@ in `LICENSES/` or file-level SPDX identifiers.
 | [Reederey87/glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark) | `0c03250cd7176a2fef9cbbf9329fed08c8750e7d` | Apache-2.0 with retained Mia MIT notice | M64 `cp.async` fat-GEMM pipeline adapted into the current kernel |
 | [vcruz305/vllm-exl3](https://github.com/vcruz305/vllm-exl3) | `67dc7426dfbdecbc1527199eb32c0d328d8f609f` | Apache-2.0 | Cooperative-grid decode direction; wrapper and kernel were not copied |
 | [vLLM PR 53109](https://github.com/vllm-project/vllm/pull/53109) | `515c2470db4b81f639b88f17817a43836354fddc` | Apache-2.0 | Packed fused-RMSNorm output fix, directly ported |
-| [vLLM PR 52696](https://github.com/vllm-project/vllm/pull/52696) | `290870040627818252b045382914fbfc6377c80b` campaign tip | Apache-2.0 | Native FP16 sparse-selector capability, ported; FP16 remains off by default in the accepted image |
+| [vLLM PR 52696](https://github.com/vllm-project/vllm/pull/52696) | `290870040627818252b045382914fbfc6377c80b` campaign tip | Apache-2.0 | Native FP16 sparse-selector capability, ported; the historical video foundation selected FP16 on CUDA by default, now restored rather than disabled |
 | [vLLM PR 52805](https://github.com/vllm-project/vllm/pull/52805) | `12f64b39d29282437e35be9aa5db432fb2a1a6e6` | Apache-2.0 | XGrammar termination correctness backport inherited from Mia |
 | [vLLM PR 53046](https://github.com/vllm-project/vllm/pull/53046) | `c6e19b3be24338759a443e03c8325d76da9ee202` | Apache-2.0 | Speculative-reasoning FSM correctness backport inherited from Mia |
 
@@ -54,7 +54,26 @@ No checkpoint or derived direction tensor from these projects is committed.
 No DFlash2 checkpoint source or modified artifact is copied into SparkGLM;
 operators can select `SPEC_METHOD=mtp` or `none` when its terms do not fit.
 
-## Atlas-native archive
+## Posted-video foundation restoration
+
+The posted-video foundation restoration additionally carries:
+
+- [vLLM](https://github.com/vllm-project/vllm) FP16 selector work, including
+  Woosuk Kwon's `839529e52230c649bd8e8d5117ff8ed773f68106` (Apache-2.0),
+  restored from SparkGLM foundation `6a49e49e7e6a3226197a2ceefcf217cdf55f751e`.
+- [Reederey's recipe](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark)
+  at `b229968a64ae3a270acdda9ce539a421e21598d7`: inherited scheduler alignment
+  and per-group cache-retention support (Apache-2.0 and inherited Mia MIT).
+- [DeepGEMM](https://github.com/deepseek-ai/DeepGEMM) at
+  `8b1392b978f5a03c828dd1711090d7fb50958b8a`: MIT source dependency with the
+  vLLM-side FP16 paged-MQA patch. Its full notice is retained in
+  `LICENSES/MIT-DeepGEMM.txt`.
+
+`patches/video/` restores these inherited changes. The new build orchestration
+and fail-closed source manifest are SparkGLM work; the underlying algorithms
+are not new contributions in this restoration.
+
+## Atlas-native archive contents
 
 | Source | Exact revision | License | Relationship |
 | --- | --- | --- | --- |

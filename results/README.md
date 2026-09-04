@@ -12,8 +12,9 @@ engine, then use `index.json` for the complete machine-readable catalog.
 - `legacy/` contains the complete pre-policy experiment archive, migrated
   without pretending it satisfied requirements that did not yet exist.
 
-At present, all retained performance measurements are under `legacy/`. There
-is no post-policy accepted or promoted performance bundle yet. That absence is
+Legacy campaigns remain under `legacy/`; post-policy partial reconstruction
+measurements are under `candidates/`. There is no post-policy accepted or
+promoted performance bundle yet. That absence is
 intentional and is more honest than upgrading old experiments after the fact.
 
 Read `docs/METHODOLOGY.md` before comparing numbers and

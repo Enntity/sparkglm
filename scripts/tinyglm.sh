@@ -32,12 +32,12 @@ case "${1:-build}" in
         ;;
     start|restart)
         command="$1"
-        build
+        snapshot="$(build)"
         export MODEL="sparkglm/tinyglm"
         export MODEL_FALLBACK="$MODEL"
         export MODEL_CACHE_NAME
         export MODEL_FALLBACK_CACHE_NAME="$MODEL_CACHE_NAME"
-        export MODEL_REVISION="tinyglm-v1"
+        export MODEL_REVISION="${snapshot##*/}"
         export MODEL_FALLBACK_REVISION="$MODEL_REVISION"
         export EXPECTED_SHARDS=0
         export SKIP_DOWNLOAD=1

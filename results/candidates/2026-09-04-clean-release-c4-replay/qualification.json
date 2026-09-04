@@ -11,7 +11,7 @@
     "candidate_ref": "b3d0bbd61a2331fa3d6e9e3a09c2a0e6f375e69e",
     "working_tree_clean": true,
     "provenance": [
-      "The candidate is the clean public-source reconstruction of the original-project 4b237597 optimization plus the original-project c805318 launcher fix.",
+      "Correction: the candidate reconstructed the EXL3 overlays and settings from 4b237597 plus c805318, but omitted substantive changes inherited from their custom vLLM foundation. It was not implementation-complete.",
       "The historical comparison image and clean image were inspected locally; raw/source-parity.json records their immutable identities and file-level parity boundary.",
       "No external optimization was introduced by this measurement bundle."
     ]
@@ -114,7 +114,7 @@
     {
       "path": "RESULT.md",
       "kind": "human-report",
-      "sha256": "38ed53f3ea4d760eb4b4013f99f33d246833bb91ea60ee56a4a3fa8e6868c560"
+      "sha256": "ceaeed38e3fa702bb74e8366ec20b1331e1b02b291bf4b11bf9c2a73e1a3434a"
     },
     {
       "path": "raw/c4-16k-r1.json",
@@ -143,6 +143,7 @@
     }
   ],
   "limitations": [
+    "Source audit subsequently found missing FP16 sparse-indexer, native DeepGEMM/top-k, scheduler/cache, and FA discovery code. These results do not establish code parity with the video; see docs/VIDEO_SOURCE_RESTORATION.md.",
     "This is a reconstruction baseline measurement, not a paired candidate-versus-baseline experiment.",
     "Only the C4 16K-class video workload was run; the complete frozen G3 matrix was not run.",
     "The prompt generator produced 15,806-15,809 actual tokens, not exactly 16,384 tokens.",

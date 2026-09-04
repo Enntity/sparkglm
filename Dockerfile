@@ -87,6 +87,18 @@
 #   docker build -t glm53-flash-sm121:local .
 
 ARG BASE=vllm/vllm-openai:glm53-flash-arm64-cu130@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce
+FROM ${BASE} AS video-native
+RUN apt-get update && apt-get install -y --no-install-recommends git cmake
+COPY patches/video/native.patch /opt/video-native.patch
+COPY scripts/build-video-native.sh /opt/build-video-native.sh
+RUN --mount=type=cache,target=/opt/video-deps \
+    --mount=type=cache,id=sparkglm-video-native-487ecf187-v1,target=/opt/video-vllm-build \
+    MAX_JOBS=8 bash /opt/build-video-native.sh
+COPY scripts/check_video_source_parity.py /opt/check_video_source_parity.py
+COPY provenance/video-source-parity.json /opt/video-source-parity.json
+RUN python3 /opt/check_video_source_parity.py --kind native \
+    --manifest /opt/video-source-parity.json --root /opt/video-vllm-source
+
 FROM ${BASE}
 
 RUN python3 - <<'PY'
@@ -500,6 +512,23 @@ RUN python3 /opt/glm53/patch_kpool_tail_slotmap.py
 RUN python3 /opt/glm53/patch_indexer_workspace.py
 RUN python3 /opt/glm53/patch_spinwait.py --preflight
 RUN python3 /opt/glm53/patch_ablit.py
+
+# Restore the recorded 4b23759+c805318 image's inherited vLLM foundation,
+# including its compiled FP16 selector. Python-only copying is insufficient.
+COPY --from=video-native /opt/video-native/vllm/ /usr/local/lib/python3.12/dist-packages/vllm/
+COPY --from=video-native /opt/video-native/VLLM-LICENSE /opt/glm53/licenses/VLLM-LICENSE
+COPY LICENSES/MIT-DeepGEMM.txt /opt/glm53/licenses/MIT-DeepGEMM.txt
+COPY patches/video/runtime.patch /opt/glm53/video-runtime.patch
+RUN cd /usr/local/lib/python3.12/dist-packages \
+    && patch --batch --forward --fuzz=0 --dry-run -p1 < /opt/glm53/video-runtime.patch \
+    && patch --batch --forward --fuzz=0 -p1 < /opt/glm53/video-runtime.patch
+COPY scripts/check_video_source_parity.py /opt/glm53/check_video_source_parity.py
+COPY provenance/video-source-parity.json /opt/glm53/video-source-parity.json
+RUN python3 /opt/glm53/check_video_source_parity.py --kind python \
+    --manifest /opt/glm53/video-source-parity.json \
+    --root /usr/local/lib/python3.12/dist-packages
+RUN python3 /opt/glm53/check_video_source_parity.py --kind exl3 \
+    --manifest /opt/glm53/video-source-parity.json --root /opt/glm53
 
 RUN EXL3_SELFCHECK_GPU=0 python3 /opt/glm53/test_exl3_overlay.py \
     && python3 /opt/glm53/test_suppress_stops.py \

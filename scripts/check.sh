@@ -25,6 +25,7 @@ QUICK_TESTS=(
     tests/test_warm_restart_stdout.py
     tests/test_xgrammar_termination.py
     tests/test_qualification.py
+    tests/test_video_source_parity.py
 )
 
 CONTAINER_TESTS=(
@@ -61,6 +62,7 @@ quick() {
     done < <(git ls-files '*.sh')
     python3 scripts/qualification.py verify-all
     git diff --check
+    git diff --cached --check
     echo "SparkGLM quick gate: PASS"
 }
 

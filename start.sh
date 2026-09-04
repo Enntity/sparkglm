@@ -753,6 +753,9 @@ image_platform() {
 overlay_recipe_hash() {
     {
         printf '%s\n' "$SCRIPT_DIR/Dockerfile"
+        printf '%s\n' "$SCRIPT_DIR/scripts/build-video-native.sh" \
+            "$SCRIPT_DIR/scripts/check_video_source_parity.py" \
+            "$SCRIPT_DIR/provenance/video-source-parity.json"
         find "$SCRIPT_DIR/overlay" "$SCRIPT_DIR/files" "$SCRIPT_DIR/tests" \
             "$SCRIPT_DIR/patches" \
             "$SCRIPT_DIR/ablit" \

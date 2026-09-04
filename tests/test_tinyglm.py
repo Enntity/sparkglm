@@ -66,6 +66,9 @@ def test_tinyglm_builds_self_contained_weightless_snapshot() -> None:
 
 
 if __name__ == "__main__":
+    launcher = (ROOT / "scripts/tinyglm.sh").read_text()
+    assert 'snapshot="$(build)"' in launcher
+    assert 'export MODEL_REVISION="${snapshot##*/}"' in launcher
     test_tinyglm_preserves_kernel_selecting_dimensions()
     test_tinyglm_builds_self_contained_weightless_snapshot()
     print("tinyGLM structural tests OK")

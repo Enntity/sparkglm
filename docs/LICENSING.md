@@ -20,6 +20,7 @@ source pins, retained license/notice bytes, path rules, and SPDX consistency.
 | Z.AI chat template | GLM-5.3 License | Keep its dedicated license and provenance sidecar |
 | Atlas-native archive | AGPL-3.0-only | Keep it under `research/atlas/`; do not copy it into the Apache serving path |
 | FlashKDA source | MIT | The external source is not vendored; its license is retained |
+| DeepGEMM FP16 integration | MIT and Apache-2.0 | Preserve DeepSeek's MIT notice for patched source and vLLM's Apache notice for the integration |
 | FlashKDA slot patch | MIT and AGPL-3.0-only | It contains MIT-derived patch context plus AGPL SparkGLM changes |
 | Patch mailboxes | Per target file | A mailbox is an archive, not a relicensing mechanism |
 

@@ -1,0 +1,1028 @@
+diff --git a/vllm/config/attention.py b/vllm/config/attention.py
+index 994be05..5b56b22 100644
+--- a/vllm/config/attention.py
++++ b/vllm/config/attention.py
+@@ -11,6 +11,7 @@ from vllm.v1.attention.backends.mla.prefill.registry import MLAPrefillBackendEnu
+ from vllm.v1.attention.backends.registry import AttentionBackendEnum
+ 
+ IndexerKVDType = Literal["bf16", "fp8", "mxfp4", "nvfp4"]
++IndexerLogitsDType = Literal["auto", "float16", "float32"]
+ MiniMaxM3MSADecodeBackend = Literal["triton", "cutlass"]
+ 
+ 
+@@ -72,6 +73,10 @@ class AttentionConfig:
+     """Data type for the sparse-attention indexer K cache. Quantized formats
+     (fp8, mxfp4, nvfp4) require indexer kernel support in the backend."""
+ 
++    indexer_logits_dtype: IndexerLogitsDType = "auto"
++    """Output data type for sparse-attention indexer logits. "auto" uses
++    float16 on CUDA and float32 on other platforms."""
++
+     use_non_causal: bool = False
+     """Whether to use non-causal (bidirectional) attention."""
+ 
+diff --git a/vllm/model_executor/layers/sparse_attn_indexer.py b/vllm/model_executor/layers/sparse_attn_indexer.py
+index d94b377..f1607e3 100644
+--- a/vllm/model_executor/layers/sparse_attn_indexer.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer.py
+@@ -44,6 +44,35 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
+ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
+ MXFP4_BLOCK_SIZE = 32
+ 
++_INDEXER_LOGITS_DTYPES = {
++    "float16": torch.float16,
++    "float32": torch.float32,
++}
++
++
++def _should_use_native_fp16_decode_topk(
++    logits_dtype: torch.dtype, num_rows: int, max_seq_len: int
++) -> bool:
++    # FP16 crossovers measured on GB200 for #52696; retune on Hopper.
++    if logits_dtype != torch.float16:
++        return False
++    if max_seq_len <= 32768:
++        return False
++    if max_seq_len <= 65536:
++        return num_rows >= 768
++    if max_seq_len <= 100000:
++        return num_rows >= 512
++    return max_seq_len <= 131072 and num_rows >= 1024
++
++
++def _get_indexer_logits_dtype() -> torch.dtype:
++    setting = get_current_vllm_config().attention_config.indexer_logits_dtype
++    if setting != "auto":
++        return _INDEXER_LOGITS_DTYPES[setting]
++    if not current_platform.is_cuda():
++        return torch.float32
++    return torch.float16
++
+ 
+ def _assert_cutedsl_dcp_merge_supported(
+     logits: torch.Tensor,
+@@ -60,10 +89,10 @@ def _assert_cutedsl_dcp_merge_supported(
+         )
+     if logits.device.type != "cuda":
+         raise RuntimeError("DCP sparse-indexer merge requires CUDA tensors.")
+-    if logits.dtype != torch.float32 or topk_indices.dtype != torch.int32:
+-        raise RuntimeError(
+-            "DCP sparse-indexer merge requires fp32 logits and int32 indices."
+-        )
++    if logits.dtype not in (torch.float32, torch.float16):
++        raise RuntimeError("DCP sparse-indexer merge requires fp32 or fp16 logits.")
++    if topk_indices.dtype != torch.int32:
++        raise RuntimeError("DCP sparse-indexer merge requires int32 indices.")
+     if k not in (512, 1024, 2048):
+         raise RuntimeError(
+             f"DCP sparse-indexer merge requires index_topk in (512, 1024, 2048); "
+@@ -316,6 +345,7 @@ def sparse_attn_indexer(
+     dcp_world_size: int = 1,
+     cp_kv_cache_interleave_size: int = 1,
+     skip_topk_buffer_clear: bool = False,
++    use_fp16_logits: bool = False,
+ ) -> torch.Tensor:
+     # careful! this will be None in dummy run
+     forward_context = get_forward_context()
+@@ -485,7 +515,12 @@ def sparse_attn_indexer(
+                     q_slice_cast = q_slice
+                     k_quant_cast = k_quant
+                     k_scale_cast = k_scale.view(torch.float32).squeeze(-1)
++                logits_dtype = torch.float16 if use_fp16_logits else torch.float32
+                 if current_platform.is_xpu():
++                    if logits_dtype != torch.float32:
++                        raise RuntimeError(
++                            "Reduced-precision indexer logits are not supported on XPU"
++                        )
+                     if q_scale_slice is not None:
+                         raise RuntimeError("XPU fp8_mqa_logits does not support FP4 Q")
+                     logits = torch.ops.vllm.xpu_fp8_mqa_logits(
+@@ -504,6 +539,7 @@ def sparse_attn_indexer(
+                         cu_seqlen_ks,
+                         cu_seqlen_ke,
+                         clean_logits=False,
++                        logits_dtype=logits_dtype,
+                     )
+                 num_rows = logits.shape[0]
+                 ops.top_k_per_row_prefill(
+@@ -584,7 +620,12 @@ def sparse_attn_indexer(
+             if use_fp4_cache
+             else padded_q_quant_decode_tokens
+         )
++        logits_dtype = torch.float16 if use_fp16_logits else torch.float32
+         if current_platform.is_xpu():
++            if logits_dtype != torch.float32:
++                raise RuntimeError(
++                    "Reduced-precision indexer logits are not supported on XPU"
++                )
+             if padded_q_scale is not None:
+                 raise RuntimeError("XPU fp8_paged_mqa_logits does not support FP4 Q")
+             seq_lens_xpu = (
+@@ -610,6 +651,7 @@ def sparse_attn_indexer(
+                 max_model_len=max_model_len,
+                 clean_logits=False,
+                 indices=decode_metadata.indices,
++                logits_dtype=logits_dtype,
+             )
+         num_rows = logits.shape[0]
+         topk_indices = topk_indices_buffer[:num_padded_tokens, :topk_tokens]
+@@ -618,14 +660,20 @@ def sparse_attn_indexer(
+             current_platform.is_cuda()
+             and topk_tokens in (512, 1024, 2048)
+             and num_rows <= 32
+-            and logits.stride(0) % 4 == 0  # TMA 16-byte alignment
++            and (
++                # TMA requires 16-byte alignment.
++                logits.stride(0) % (16 // logits.element_size()) == 0
++            )
+             and current_platform.has_device_capability(90)
+             and not current_platform.is_device_capability_family(120)
+         )
+-        use_persistent_topk = current_platform.is_cuda() and topk_tokens in (
+-            512,
+-            1024,
+-            2048,
++        use_native_fp16_decode_topk = _should_use_native_fp16_decode_topk(
++            logits.dtype, num_rows, attn_metadata_narrowed.max_seq_len
++        )
++        use_persistent_topk = (
++            current_platform.is_cuda()
++            and topk_tokens in (512, 1024, 2048)
++            and not use_native_fp16_decode_topk
+         )
+         if use_cooperative_topk:
+             workspace_manager = current_workspace_manager()
+@@ -712,6 +760,7 @@ def sparse_attn_indexer_fake(
+     dcp_world_size: int = 1,
+     cp_kv_cache_interleave_size: int = 1,
+     skip_topk_buffer_clear: bool = False,
++    use_fp16_logits: bool = False,
+ ) -> torch.Tensor:
+     return topk_indices_buffer
+ 
+@@ -762,6 +811,7 @@ class SparseAttnIndexer(CustomOp):
+         self.topk_indices_buffer = topk_indices_buffer
+         self.skip_k_cache_insert = skip_k_cache_insert
+         self.use_fp4_cache = use_fp4_cache
++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
+         self.dense_mha_metadata_layer_name = ""
+         # DCP scalars are constant for the run; resolve them here (config is set
+         # during model construction) and pass them into the custom op, rather
+@@ -829,6 +879,8 @@ class SparseAttnIndexer(CustomOp):
+             self.dcp_rank,
+             self.dcp_world_size,
+             self.cp_kv_cache_interleave_size,
++            False,
++            self.use_fp16_logits,
+         )
+ 
+     def forward_xpu(
+diff --git a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+index 33e7eb8..40d28e8 100644
+--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+@@ -50,6 +50,24 @@ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
+ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
+ MXFP4_BLOCK_SIZE = 32
+ 
++_INDEXER_LOGITS_DTYPES = {
++    "float16": torch.float16,
++    "float32": torch.float32,
++}
++
++
++def _get_indexer_logits_dtype() -> torch.dtype:
++    """Resolve score dtype before the custom op leaves config context."""
++    cfg = get_current_vllm_config_or_none()
++    setting = (
++        cfg.attention_config.indexer_logits_dtype if cfg is not None else "auto"
++    )
++    if setting != "auto":
++        return _INDEXER_LOGITS_DTYPES[setting]
++    if not current_platform.is_cuda():
++        return torch.float32
++    return torch.float16
++
+ # kpool write helper: form pools from the current token batch and compress them
+ # into the index K cache via the fused Triton kernel.
+ 
+@@ -269,6 +287,7 @@ def sparse_attn_indexer_kpool(
+     # path and when the tail cache is disabled.
+     tail_kv_cache: torch.Tensor | None = None,
+     tail_prefix: str | None = None,
++    use_fp16_logits: bool = False,
+ ) -> torch.Tensor:
+     # careful! this will be None in dummy run
+     attn_metadata = get_forward_context().attn_metadata
+@@ -309,8 +328,10 @@ def sparse_attn_indexer_kpool(
+                 sched.max_num_seqs * (num_spec + 1),
+                 sched.max_num_batched_tokens,
+             )
+-        # float32 logits -> 4 bytes/element; uint8 sentinel so elems == bytes.
+-        decode_logits_elems = worst_decode_tokens * max_model_len * 4
++        # The uint8 sentinel's element count is a byte count. Match the score
++        # dtype so FP16 mode does not reserve the former FP32 peak.
++        logits_bytes = 2 if use_fp16_logits else 4
++        decode_logits_elems = worst_decode_tokens * max_model_len * logits_bytes
+         prefill_cap_elems = envs.VLLM_SPARSE_INDEXER_MAX_LOGITS_MB * 1024 * 1024
+         max_logits_elems = max(decode_logits_elems, prefill_cap_elems)
+         _ = torch.empty(
+@@ -527,6 +548,7 @@ def sparse_attn_indexer_kpool(
+                 chunk.cu_seqlen_ks,
+                 chunk.cu_seqlen_ke,
+                 clean_logits=False,
++                logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
+             )
+             num_rows = logits.shape[0]
+ 
+@@ -794,6 +816,7 @@ def sparse_attn_indexer_kpool(
+             decode_metadata.schedule_metadata,
+             max_model_len=max_model_len,
+             clean_logits=False,
++            logits_dtype=(torch.float16 if use_fp16_logits else torch.float32),
+         )
+         num_rows = logits.shape[0]
+         # kpool: logits are pool-granular -> select topk_tokens//kpool pools,
+@@ -807,7 +830,7 @@ def sparse_attn_indexer_kpool(
+         else:
+             topk_dst = topk_indices_buffer[:num_padded_tokens, :topk_tokens]
+ 
+-        if current_platform.is_cuda() and select_k in (512, 1024, 2048):
++        if False and current_platform.is_cuda() and select_k in (512, 1024, 2048):  # GB10 persistent_topk smem
+             workspace_manager = current_workspace_manager()
+             (topk_workspace,) = workspace_manager.get_simultaneous(
+                 ((RADIX_TOPK_WORKSPACE_SIZE,), torch.uint8),
+@@ -910,6 +933,7 @@ def sparse_attn_indexer_kpool_fake(
+     positions: torch.Tensor | None = None,
+     tail_kv_cache: torch.Tensor | None = None,
+     tail_prefix: str | None = None,
++    use_fp16_logits: bool = False,
+ ) -> torch.Tensor:
+     return topk_indices_buffer
+ 
+@@ -967,6 +991,7 @@ class SparseAttnIndexerKpool(CustomOp):
+         self.topk_indices_buffer = topk_indices_buffer
+         self.skip_k_cache_insert = skip_k_cache_insert
+         self.use_fp4_cache = use_fp4_cache
++        self.use_fp16_logits = _get_indexer_logits_dtype() == torch.float16
+         if current_platform.is_cuda() and not has_deep_gemm():
+             raise RuntimeError(
+                 "Sparse Attention Indexer CUDA op requires DeepGEMM to be installed."
+@@ -1044,6 +1069,7 @@ class SparseAttnIndexerKpool(CustomOp):
+             positions,
+             self.tail_cache.kv_cache if self.tail_cache is not None else None,
+             self.tail_cache.prefix if self.tail_cache is not None else None,
++            self.use_fp16_logits,
+         )
+ 
+     def forward_hip(
+diff --git a/vllm/utils/deep_gemm.py b/vllm/utils/deep_gemm.py
+index 434a8d5..55c6b0f 100644
+--- a/vllm/utils/deep_gemm.py
++++ b/vllm/utils/deep_gemm.py
+@@ -519,6 +519,7 @@ def fp8_fp4_mqa_logits(
+     cu_seqlen_ks: torch.Tensor,
+     cu_seqlen_ke: torch.Tensor,
+     clean_logits: bool,
++    logits_dtype: torch.dtype = torch.float32,
+ ) -> torch.Tensor:
+     """Compute MQA logits for a single sequence without KV paging.
+ 
+@@ -540,9 +541,10 @@ def fp8_fp4_mqa_logits(
+         cu_seqlen_ke: End indices (exclusive) for valid K per query
+             position, shape [M], dtype int32.
+         clean_logits: Whether to clean the unfilled logits into `-inf`.
++        logits_dtype: Output dtype. Supports float32 and float16.
+ 
+     Returns:
+-        Logits tensor of shape [M, N], dtype `torch.float32`.
++        Logits tensor of shape [M, N] with `logits_dtype`.
+     """
+     _lazy_init()
+     if _fp8_fp4_mqa_logits_impl is None:
+@@ -554,6 +556,7 @@ def fp8_fp4_mqa_logits(
+         cu_seqlen_ks,
+         cu_seqlen_ke,
+         clean_logits=clean_logits,
++        logits_dtype=logits_dtype,
+     )
+ 
+ 
+@@ -595,6 +598,7 @@ def fp8_fp4_paged_mqa_logits(
+     max_model_len: int,
+     clean_logits: bool,
+     indices: torch.Tensor | None = None,
++    logits_dtype: torch.dtype = torch.float32,
+ ) -> torch.Tensor:
+     """Compute MQA logits using a paged KV-cache.
+ 
+@@ -620,10 +624,11 @@ def fp8_fp4_paged_mqa_logits(
+         max_model_len: Maximum sequence length used to size the logits output.
+         clean_logits: Whether to clean the unfilled logits into `-inf`.
+         indices: Optional request index for each varlen row.
++        logits_dtype: Output dtype. Supports float32 and float16.
+ 
+     Returns:
+-        Logits tensor of shape [B * next_n, max_model_len], dtype
+-        `torch.float32`.
++        Logits tensor of shape [B * next_n, max_model_len] with
++        `logits_dtype`.
+     """
+     _lazy_init()
+     if _fp8_fp4_paged_mqa_logits_impl is None:
+@@ -645,6 +650,7 @@ def fp8_fp4_paged_mqa_logits(
+         schedule_metadata,
+         max_model_len,
+         clean_logits=clean_logits,
++        logits_dtype=logits_dtype,
+         **kwargs,
+     )
+ 
+diff --git a/vllm/v1/core/kv_cache_coordinator.py b/vllm/v1/core/kv_cache_coordinator.py
+index a556c60..894dd14 100644
+--- a/vllm/v1/core/kv_cache_coordinator.py
++++ b/vllm/v1/core/kv_cache_coordinator.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++import os  # [glm53-apc-per-group]
+ from abc import ABC, abstractmethod
+ from collections.abc import Sequence
+ from typing import NamedTuple
+@@ -43,6 +44,187 @@ def _glm53_is_draft_swa_spec(spec) -> bool:
+     return type(_glm53_inner_kv_spec(spec)).__name__ == "SlidingWindowSpec"
+ 
+ 
++
++def _glm53_swa_retention_env(  # [glm53-apc-per-group]
++    scheduler_block_size,
++    max_interval=1_000_000,
++):
++    """Parse + validate VLLM_PREFIX_CACHE_RETENTION_INTERVAL_SWA.
++
++    Unset/empty -> None (automatic rule). Otherwise the raw value is validated
++    *unconditionally* — before any group is inspected — so a typo is a boot
++    failure rather than a silent no-op on a model without a drafter group:
++    integer, non-negative, a multiple of ``scheduler_block_size`` (the base
++    cache-hit granularity, so a retained tail lands on a real hit boundary),
++    and <= ``max_interval``.
++    """
++    key = "VLLM_PREFIX_CACHE_RETENTION_INTERVAL_SWA"
++    raw = os.environ.get(key, "")
++    if raw.strip() == "":
++        return None
++    try:
++        value = int(raw.strip())
++    except ValueError:
++        raise ValueError(
++            f"{key} must be an integer (got {raw!r}); "
++            "leave it unset for the automatic rule."
++        ) from None
++    if value < 0:
++        raise ValueError(f"{key} ({value}) must be non-negative.")
++    if scheduler_block_size and value % scheduler_block_size != 0:
++        raise ValueError(
++            f"{key} ({value}) must be a multiple of scheduler_block_size "
++            f"({scheduler_block_size}); 0 means reachable boundaries only."
++        )
++    if value > max_interval:
++        raise ValueError(
++            f"{key} ({value}) exceeds the maximum supported retention "
++            f"interval ({max_interval})."
++        )
++    return value
++
++
++def _glm53_min_exempt_group_ids(  # [glm53-apc-per-group]
++    kv_cache_groups,
++    eagle_group_ids,
++):
++    """Group ids the coordinator itself treats as EAGLE-exempt drafter groups.
++
++    Derived from coordinator state, never from a class name alone. A group
++    qualifies only when
++
++      (a) its inner spec is an *exact* ``SlidingWindowSpec`` (the DFlash2
++          drafter; ``KpoolTailSpec`` subclasses it and never prefix-caches), and
++      (b) ``eagle_group_ids`` is *exactly* that set of drafter groups.
++
++    (b) is the state overlay/patch_hybrid_prefix_hit.py establishes: it narrows
++    ``eagle_group_ids`` from the upstream all-groups fallback down to the drafter
++    SWA groups and, driven by the same discriminator, makes those groups skip the
++    hybrid hit ``min()``. When ``eagle_group_ids`` is the undiscriminating
++    all-groups fallback (or is annotated over some other group), the equality
++    fails and this returns the empty set — so an explicit SWA override fails
++    closed instead of starving a group that still shortens the hybrid hit.
++    """
++    eagle = set(eagle_group_ids)
++    swa = {
++        i
++        for i, g in enumerate(kv_cache_groups)
++        if _glm53_is_draft_swa_spec(g.kv_cache_spec)
++    }
++    if not swa or eagle != swa:
++        return frozenset()
++    return frozenset(swa)
++
++
++def _glm53_retention_for_group(  # [glm53-apc-per-group]
++    spec,
++    global_interval,
++    swa_interval,
++    alignment_tokens,
++    is_min_exempt,
++):
++    """Prefix-cache retention interval for one KV cache group.
++
++    Only a group that is both an exact ``SlidingWindowSpec`` **and** EAGLE/
++    min-exempt per ``_glm53_min_exempt_group_ids`` diverges from the global
++    value. Both the explicit and the automatic path require min-exemption: a
++    sliding-window group that still participates in the hybrid hit ``min()``
++    must keep the global interval, because sparsifying it would shorten every
++    hit.
++
++    ``swa_interval is not None``  -> use it verbatim for min-exempt drafter
++        groups (operator override; the caller has already validated it and has
++        already refused the setting outright if no group is min-exempt).
++    ``swa_interval is None``      -> automatic rule: a *hit-inert* sliding-window
++        group -- window smaller than the cache-hit alignment (so its cached tail
++        can only ever be consulted at an alignment boundary) AND EAGLE/min-exempt
++        (so its hit length is discarded) -- costs
++        ``need = cdiv(window - 1, block) + 1`` ids per boundary (>= 2 for any
++        EAGLE group) while contributing nothing to hit length, so keep only the
++        reachable boundaries (0). Any other group falls through to the global
++        value, including a genuine SWA model whose window spans the alignment.
++    """
++    if not _glm53_is_draft_swa_spec(spec) or not is_min_exempt:
++        return global_interval
++    if swa_interval is not None:
++        return swa_interval
++    inner = _glm53_inner_kv_spec(spec)
++    window = getattr(inner, "sliding_window", None)
++    block = getattr(inner, "block_size", None)
++    if not window or not block or not alignment_tokens:
++        return global_interval
++    if window >= alignment_tokens:
++        return global_interval
++    return 0
++
++
++def _glm53_resolve_retention_by_group(  # [glm53-apc-per-group]
++    kv_cache_groups,
++    eagle_group_ids,
++    global_interval,
++    swa_interval,
++    alignment_tokens,
++):
++    """Resolve the per-group retention vector, failing closed on a misdirected
++    SWA override.
++
++    An explicit ``VLLM_PREFIX_CACHE_RETENTION_INTERVAL_SWA`` is only meaningful
++    for the EAGLE-exempt drafter group. If the coordinator has not singled such a
++    group out, refuse to boot rather than ignore the setting (which would look
++    like the knob worked) or apply it by class name (which would sparsify a group
++    that is still inside the hit ``min()``).
++    """
++    min_exempt = _glm53_min_exempt_group_ids(kv_cache_groups, eagle_group_ids)
++    if swa_interval is not None and not min_exempt:
++        raise ValueError(
++            "VLLM_PREFIX_CACHE_RETENTION_INTERVAL_SWA is set "
++            f"({swa_interval}) but this coordinator has no EAGLE-exempt drafter "
++            "sliding-window group: eagle_group_ids="
++            f"{sorted(set(eagle_group_ids))} does not match the set of exact "
++            "SlidingWindowSpec groups. Applying it would sparsify a group that "
++            "still shortens the hybrid prefix-cache hit. Unset the variable (the "
++            "automatic rule is safe on any model) or apply "
++            "overlay/patch_hybrid_prefix_hit.py first."
++        )
++    return tuple(
++        _glm53_retention_for_group(
++            g.kv_cache_spec,
++            global_interval,
++            swa_interval,
++            alignment_tokens,
++            i in min_exempt,
++        )
++        for i, g in enumerate(kv_cache_groups)
++    )
++
++
++def _glm53_validate_retention_intervals(  # [glm53-apc-per-group]
++    intervals,
++    scheduler_block_size,
++):
++    """Per-group counterpart of _validate_prefix_cache_retention_interval.
++
++    Defence in depth over the resolved vector: every non-``None`` entry is either
++    0 or a non-negative multiple of ``scheduler_block_size``. No upper bound here
++    — inherited *global* values are upstream's to bound; the 1,000,000 cap
++    applies to the SWA value this overlay introduces (``_glm53_swa_retention_env``).
++    """
++    for group_id, value in enumerate(intervals):
++        if value is None or value == 0:
++            continue
++        if value < 0 or value % scheduler_block_size != 0:
++            raise ValueError(
++                f"prefix-cache retention interval for KV cache group {group_id} "
++                f"({value}) must be non-negative and a multiple of "
++                f"scheduler_block_size ({scheduler_block_size})."
++            )
++
++
++def _glm53_format_retention_vector(intervals):  # [glm53-apc-per-group]
++    """Compact, greppable rendering of the resolved vector: ``[None,None,0]``."""
++    return "[" + ",".join("None" if v is None else str(v) for v in intervals) + "]"
++
++
+ def _validate_prefix_cache_retention_interval(
+     retention_interval: int | None,
+     scheduler_block_size: int,
+@@ -155,6 +337,36 @@ class KVCacheCoordinator(ABC):
+         _validate_prefix_cache_retention_interval(
+             self.retention_interval, self.scheduler_block_size, kv_cache_config
+         )
++        # [glm53-apc-per-group] Per-group retention. The DFlash2 drafter SWA group
++        # hashes cdiv(window - 1, block) + 1 == 33 block ids at EVERY hit boundary
++        # and frees them *cached* onto the LRU tail (BlockPool.free_blocks), i.e.
++        # 33 of the 38 ids a cached 3584-token segment costs -- for a group that is
++        # exempted from the hybrid hit min(). Give it its own sparse interval so
++        # MLA and mamba can stay dense and keep the fine hit grid. The raw env
++        # value is validated unconditionally; it is applied only to the groups the
++        # coordinator itself flagged EAGLE-exempt, else boot fails.
++        _glm53_swa_interval = _glm53_swa_retention_env(self.scheduler_block_size)
++        _glm53_min_exempt = _glm53_min_exempt_group_ids(
++            kv_cache_config.kv_cache_groups, self.eagle_group_ids
++        )
++        self.retention_interval_by_group = _glm53_resolve_retention_by_group(
++            kv_cache_config.kv_cache_groups,
++            self.eagle_group_ids,
++            self.retention_interval,
++            _glm53_swa_interval,
++            self.scheduler_block_size,
++        )
++        _glm53_validate_retention_intervals(
++            self.retention_interval_by_group, self.scheduler_block_size
++        )
++        logger.info(  # [glm53-apc-per-group]
++            "[glm53-apc-per-group] retention_by_group=%s "
++            "(global=%s swa_env=%s eagle_min_exempt=%s)",
++            _glm53_format_retention_vector(self.retention_interval_by_group),
++            self.retention_interval,
++            _glm53_swa_interval,
++            sorted(_glm53_min_exempt),
++        )
+ 
+     def get_num_blocks_to_allocate(
+         self,
+@@ -309,11 +521,12 @@ class KVCacheCoordinator(ABC):
+                 that need to be cached
+                 (including tokens that are already cached).
+         """
+-        for manager in self.single_type_managers:
++        for i, manager in enumerate(self.single_type_managers):
+             manager.cache_blocks(
+                 request,
+                 num_computed_tokens,
+-                retention_interval=self.retention_interval,
++                # [glm53-apc-per-group] per-group, not the single global value
++                retention_interval=self.retention_interval_by_group[i],
+             )
+ 
+     def free(self, request_id: str) -> None:
+@@ -734,7 +947,7 @@ class HybridKVCacheCoordinator(KVCacheCoordinator):
+                 // self.scheduler_block_size
+                 * self.scheduler_block_size
+             )
+-        for manager in self.single_type_managers:
++        for i, manager in enumerate(self.single_type_managers):
+             num_tokens_to_cache = aligned_num_computed_tokens
+             # EAGLE groups match one block past each aligned boundary and drop
+             # it, so make that lookahead block eligible to be cached.
+@@ -750,7 +963,8 @@ class HybridKVCacheCoordinator(KVCacheCoordinator):
+             manager.cache_blocks(
+                 request,
+                 num_tokens_to_cache,
+-                retention_interval=self.retention_interval,
++                # [glm53-apc-per-group] per-group, not the single global value
++                retention_interval=self.retention_interval_by_group[i],
+             )
+ 
+     def find_longest_cache_hit(
+diff --git a/vllm/v1/core/sched/scheduler.py b/vllm/v1/core/sched/scheduler.py
+index 59807d5..089889c 100644
+--- a/vllm/v1/core/sched/scheduler.py
++++ b/vllm/v1/core/sched/scheduler.py
+@@ -9,6 +9,161 @@ from dataclasses import replace
+ from typing import Any
+ 
+ 
++
++_GLM53_GATE_CFG = None
++_GLM53_FIRST_SEEN_FALLBACK = None   # WeakKeyDictionary used only if Request rejects attribute assignment
++_GLM53_PHASE_CFG = None
++
++
++def _glm53_gate_config():
++    """Parse the gate knobs once (validated; bad values fall back to defaults and are reported once).  [glm53-decode-floor-v2] [glm53-decode-floor-v3]"""
++    global _GLM53_GATE_CFG
++    if _GLM53_GATE_CFG is not None:
++        return _GLM53_GATE_CFG
++
++    def _int(name, default, lo, hi):
++        raw = os.environ.get(name)
++        if raw is None or raw.strip() == "":
++            return default
++        try:
++            v = int(raw.strip(), 10)
++        except ValueError:
++            print(f"[glm53-decode-floor-v3] {name}={raw!r} is not an integer; using {default}", flush=True)
++            return default
++        if v < lo or v > hi:
++            print(f"[glm53-decode-floor-v3] {name}={v} outside [{lo}, {hi}]; using {default}", flush=True)
++            return default
++        return v
++
++    cfg = {
++        "warm_tokens": _int("GLM53_MIXED_PREFILL_WARM_TOKENS", 3584, 0, 1_000_000),
++        # Disabled by default.  The published Mia reference holds a waiting
++        # prefill until the active decode finishes; forcing a 512-token late
++        # admission after 1.5 s collapses the active request on GB10 MoE.
++        # Operators may opt into the starvation/TTFT tradeoff explicitly.
++        "max_wait_ms": _int("GLM53_MIXED_PREFILL_MAX_WAIT_MS", 0, 0, 600_000),
++        "late_cap": _int("GLM53_MIXED_PREFILL_LATE_CAP", 512, 64, 8192),
++        # v3 aging: 0 = flat v2 crawl; N = the late cap doubles every N ms up to late_cap_max
++        "escalate_ms": _int("GLM53_MIXED_PREFILL_ESCALATE_MS", 0, 0, 600_000),
++        "late_cap_max": _int("GLM53_MIXED_PREFILL_LATE_CAP_MAX", 1792, 64, 8192),
++    }
++    if cfg["late_cap_max"] < cfg["late_cap"]:
++        print(f"[glm53-decode-floor-v3] LATE_CAP_MAX {cfg['late_cap_max']} < LATE_CAP {cfg['late_cap']}; clamping to LATE_CAP", flush=True)
++        cfg["late_cap_max"] = cfg["late_cap"]
++    print(f"[glm53-decode-floor-v3] gate config: {cfg}", flush=True)
++    _GLM53_GATE_CFG = cfg
++    return cfg
++
++
++def _glm53_fallback_get(current):
++    """Bounded id-keyed fallback map lookup; the stored request_id guards against id() reuse.  [glm53-decode-floor-v3]"""
++    m = _GLM53_FIRST_SEEN_FALLBACK
++    if not m:
++        return None
++    ent = m.get(id(current))
++    if ent is None:
++        return None
++    rid, st = ent
++    if rid != getattr(current, "request_id", None):
++        m.pop(id(current), None)
++        return None
++    return st
++
++
++def _glm53_fallback_put(current, st):
++    global _GLM53_FIRST_SEEN_FALLBACK
++    if _GLM53_FIRST_SEEN_FALLBACK is None:
++        _GLM53_FIRST_SEEN_FALLBACK = {}
++        print("[glm53-decode-floor-v3] Request rejects attributes; using a bounded id-keyed state map", flush=True)
++    m = _GLM53_FIRST_SEEN_FALLBACK
++    if len(m) >= 4096:
++        for k in list(m)[:1024]:
++            m.pop(k, None)
++    m[id(current)] = (getattr(current, "request_id", None), st)
++
++
++def _glm53_gate_state(current, create=False):
++    """Per-request gate state (first_seen / late_at / cap / done / last_computed) kept on the Request so it
++    survives chunking, preemption and requeue; bounded id-keyed fallback (request_id-checked) if the Request
++    class rejects attributes -- no weakrefs, so slotted or unhashable Request types cannot raise here.  [glm53-decode-floor-v3]"""
++    st = getattr(current, "_glm53_gate_state", None)
++    if st is None:
++        st = _glm53_fallback_get(current)
++    if st is None and create:
++        st = {}
++        try:
++            current._glm53_gate_state = st
++        except AttributeError:
++            _glm53_fallback_put(current, st)
++    return st
++
++
++def _glm53_mixed_prefill_gate(running, current, num_computed_tokens):
++    """Return (cap|None) for this prefill step: remaining-prefill threshold bypass + deadline + aging.  [glm53-decode-floor-v2] [glm53-decode-floor-v3]
++
++    Bypass: remaining uncached prefill <= GLM53_MIXED_PREFILL_WARM_TOKENS (default 3584 = one hybrid block) -> no policy
++            (typically <= 2 MNBT steps): cached follow-up tails, short cold prompts, and the last block of a late crawl.
++    Late:   when GLM53_MIXED_PREFILL_MAX_WAIT_MS is explicitly > 0, wait that long then proceed under GLM53_MIXED_PREFILL_LATE_CAP
++            (default 512) tokens per step -- a bound on time-to-first-service, NOT on TTFT or completion.
++    Aging:  once late, the cap doubles every GLM53_MIXED_PREFILL_ESCALATE_MS (default 0 = flat v2 crawl) up to
++            GLM53_MIXED_PREFILL_LATE_CAP_MAX (default 1792 = the long-prefill chunk ceiling), so a cold read behind a
++            long generation converges toward full chunks instead of crawling at the floor for minutes. On this MoE the
++            per-step cost is dominated by expert-weight streaming, so a small cap multiplies the number of expensive
++            steps and taxes the running decodes for longer -- aging bounds the tax in time.
++    Log:    one line per late admission, per escalation step, and when the crawl reaches its bypass tail (crawl_ms).
++    Remainder uses ``num_tokens`` (prompt + generated so far) like the base scheduler.
++    """
++    import time as _t
++    cfg = _glm53_gate_config()
++    remaining = current.num_tokens - num_computed_tokens
++    if remaining <= 0:
++        return None
++    st = _glm53_gate_state(current)
++    if st is not None:
++        last = st.get("last_computed")
++        if last is not None and num_computed_tokens < last:
++            # preempted and rolled back: the hold age (first_seen) survives, the crawl episode does not,
++            # so a resumed request re-admits at the base late cap and logs its own crawl.
++            st.pop("late_at", None); st.pop("cap", None); st.pop("done", None)
++        st["last_computed"] = num_computed_tokens
++    if remaining <= cfg["warm_tokens"]:
++        if st is not None and st.get("late_at") is not None and not st.get("done"):
++            st["done"] = True
++            print(f"[glm53-decode-floor-v3] late-done req={getattr(current, 'request_id', '?')} "
++                  f"crawl_ms={int((_t.monotonic() - st['late_at']) * 1000)} final_cap={st.get('cap')}", flush=True)
++        return None
++    cap = _glm53_mixed_prefill_policy(running, current)
++    if cap is None or cap > 0:
++        return cap
++    max_wait_ms = cfg["max_wait_ms"]
++    if max_wait_ms <= 0:
++        return cap
++    if st is None:
++        st = _glm53_gate_state(current, create=True)
++        st["last_computed"] = num_computed_tokens
++    now = _t.monotonic()
++    if st.get("first_seen") is None:
++        st["first_seen"] = now
++    waited_ms = (now - st["first_seen"]) * 1000.0
++    if waited_ms < max_wait_ms:
++        return cap
++    late_cap = cfg["late_cap"]
++    if st.get("late_at") is None:
++        st["late_at"] = now
++        print(f"[glm53-decode-floor-v3] late-admit req={getattr(current, 'request_id', '?')} "
++              f"waited_ms={int(waited_ms)} remaining={remaining} cap={late_cap}", flush=True)
++    esc = cfg["escalate_ms"]
++    if esc > 0:
++        doublings = min(int(((now - st["late_at"]) * 1000.0) // esc), 8)
++        late_cap = min(cfg["late_cap_max"], late_cap << doublings)
++    if late_cap != st.get("cap"):
++        if st.get("cap") is not None:
++            print(f"[glm53-decode-floor-v3] late-escalate req={getattr(current, 'request_id', '?')} "
++                  f"cap={st['cap']}->{late_cap}", flush=True)
++        st["cap"] = late_cap
++    return max(min(late_cap, remaining), 1)
++
++
+ def _glm53_mixed_prefill_policy(running, current):
+     """Mixed-step prefill policy when a peer in `running` is decoding.
+ 
+@@ -35,6 +190,46 @@ def _glm53_mixed_prefill_policy(running, current):
+     return None
+ 
+ 
++def _glm53_phase_config():
++    """Parse the exclusive decode/prefill phase scheduler configuration."""
++    global _GLM53_PHASE_CFG
++    if _GLM53_PHASE_CFG is not None:
++        return _GLM53_PHASE_CFG
++
++    def _int(name, default, lo, hi):
++        raw = os.environ.get(name, "").strip()
++        try:
++            value = int(raw, 10) if raw else default
++        except ValueError:
++            value = default
++        return value if lo <= value <= hi else default
++
++    enabled = os.environ.get("GLM53_PHASE_INTERLEAVE", "0").strip().lower()
++    _GLM53_PHASE_CFG = {
++        "enabled": enabled in ("1", "on", "true", "yes"),
++        "decode_steps": _int("GLM53_PHASE_DECODE_STEPS", 8, 1, 256),
++        "prefill_tokens": _int("GLM53_PHASE_PREFILL_TOKENS", 2048, 64, 8192),
++    }
++    logger.info("[glm53-phase-interleave] config=%s", _GLM53_PHASE_CFG)
++    return _GLM53_PHASE_CFG
++
++
++
++_GLM53_ALIGN_FLOOR = None
++
++
++def _glm53_align_floor():
++    """True when the align-floor fix is enabled (default on).  # [glm53-align-floor]
++
++    Off restores the exact upstream disjunct, so rollback is one env value with
++    no kernel-shape change and therefore no JIT cache wipe.
++    """
++    global _GLM53_ALIGN_FLOOR
++    if _GLM53_ALIGN_FLOOR is None:
++        v = os.environ.get("GLM53_ALIGN_FLOOR", "1").strip().lower()
++        _GLM53_ALIGN_FLOOR = v not in ("0", "off", "false", "no", "")
++    return _GLM53_ALIGN_FLOOR
++
+ from vllm.compilation.cuda_graph import CUDAGraphStat
+ from vllm.config import KVEventsConfig, VllmConfig
+ from vllm.distributed.ec_transfer.ec_connector.base import (
+@@ -313,6 +508,9 @@ class Scheduler(SchedulerInterface):
+         # Scheduler iteration counter. Drives the V2+PP+async decode-throttle
+         # cadence (`next_decode_eligible_step`).
+         self.current_step = 0
++        # Number of productive decode-only steps since the most recent
++        # prefill-only slab while GLM phase interleaving is contended.
++        self._glm53_phase_decode_steps = 0  # [glm53-phase-interleave]
+         # DP prefill balancing: Flag to track whether the last cadence-aligned
+         # prefill batch fully drained the waiting queue. Prefill throttling
+         # is disabled in this case.
+@@ -421,7 +619,17 @@ class Scheduler(SchedulerInterface):
+             if long_prefill_threshold > 0:
+                 max_prefill_tokens = min(max_prefill_tokens, long_prefill_threshold)
+             aligned_end = end // block_size * block_size
+-            if aligned_end > start or block_size <= max_prefill_tokens:
++            # [glm53-align-floor] Truncate to the block boundary only when that
++            # leaves forward progress. With LPTT >= block_size the second
++            # disjunct fired even when aligned_end <= start, zeroing any
++            # sub-block chunk (notably the decode-floor late-admit ladder,
++            # whose caps are all < block_size) and stalling the request for as
++            # long as a peer decoded. Advancing sub-block and re-aligning at
++            # the next boundary is what the LPTT < block_size regime already
++            # does. Mandatory stops below are unaffected.
++            if aligned_end > start or (
++                block_size <= max_prefill_tokens and not _glm53_align_floor()
++            ):
+                 end = aligned_end
+ 
+         next_block_boundary = (start // block_size + 1) * block_size
+@@ -464,6 +672,45 @@ class Scheduler(SchedulerInterface):
+         )
+         return blocks, num_local, shared_prefix_boundary, False
+ 
++    def _glm53_phase_mode(self) -> str | None:
++        """Select an exclusive decode or prefill step under contention."""
++        cfg = _glm53_phase_config()
++        if not cfg["enabled"]:
++            self._glm53_phase_decode_steps = 0
++            return None
++
++        has_decode = any(
++            request.num_computed_tokens >= request.num_prompt_tokens
++            for request in self.running
++        )
++        has_prefill = any(
++            request.num_computed_tokens < request.num_prompt_tokens
++            for request in itertools.chain(
++                self.running, self.waiting, self.skipped_waiting
++            )
++        )
++        if not (has_decode and has_prefill):
++            self._glm53_phase_decode_steps = 0
++            return None
++        if self._glm53_phase_decode_steps >= cfg["decode_steps"]:
++            return "prefill"
++        return "decode"
++
++    def _glm53_finish_phase_step(
++        self, phase_mode: str | None, total_num_scheduled_tokens: int
++    ) -> None:
++        if phase_mode is None or total_num_scheduled_tokens == 0:
++            return
++        if phase_mode == "decode":
++            self._glm53_phase_decode_steps += 1
++            return
++
++        logger.info(
++            "[glm53-phase-interleave] prefill slab after %d decode steps",
++            self._glm53_phase_decode_steps,
++        )
++        self._glm53_phase_decode_steps = 0
++
+     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
+         self.current_step += 1
+         # NOTE(woosuk) on the scheduling algorithm:
+@@ -488,6 +735,8 @@ class Scheduler(SchedulerInterface):
+         spec = self.vllm_config.speculative_config
+         draft_slots = spec.max_num_new_slots_for_drafting if spec is not None else 0
+         input_budget = self.scheduler_config.max_num_batched_tokens
++        glm53_phase_mode = self._glm53_phase_mode()
++        glm53_phase_prefill_tokens = _glm53_phase_config()["prefill_tokens"]
+         if self._pause_state == PauseState.PAUSED_ALL:
+             # Do not schedule any requests when paused.
+             token_budget = 0
+@@ -518,6 +767,16 @@ class Scheduler(SchedulerInterface):
+             if input_budget <= draft_slots:
+                 break
+ 
++            request_is_prefill = (
++                request.num_computed_tokens < request.num_prompt_tokens
++            )
++            if glm53_phase_mode == "decode" and request_is_prefill:
++                req_index += 1
++                continue
++            if glm53_phase_mode == "prefill" and not request_is_prefill:
++                req_index += 1
++                continue
++
+             if (
+                 request.num_output_placeholders > 0
+                 # This is (num_computed_tokens + 1) - (num_output_placeholders - 1).
+@@ -556,9 +815,14 @@ class Scheduler(SchedulerInterface):
+             num_new_tokens = min(
+                 num_new_tokens, token_budget, input_budget - draft_slots
+             )
+-            mixed_cap = _glm53_mixed_prefill_policy(self.running, request)  # [glm53-decode-floor]
+-            if mixed_cap is not None and request.num_computed_tokens < request.num_prompt_tokens:
+-                num_new_tokens = min(num_new_tokens, mixed_cap)
++            if glm53_phase_mode == "prefill" and request_is_prefill:
++                num_new_tokens = min(
++                    num_new_tokens, glm53_phase_prefill_tokens
++                )
++            else:
++                mixed_cap = _glm53_mixed_prefill_gate(self.running, request, request.num_computed_tokens)  # [glm53-decode-floor] [glm53-decode-floor-v2]
++                if mixed_cap is not None:
++                    num_new_tokens = min(num_new_tokens, mixed_cap)
+ 
+             # Make sure the input position does not exceed the max model len.
+             # This is necessary when using spec decoding.
+@@ -734,7 +998,11 @@ class Scheduler(SchedulerInterface):
+         if not preempted_reqs and self._pause_state == PauseState.UNPAUSED:
+             step_skipped_waiting = create_request_queue(self.policy)
+ 
+-            while (self.waiting or self.skipped_waiting) and token_budget > 0:
++            while (
++                glm53_phase_mode != "decode"
++                and (self.waiting or self.skipped_waiting)
++                and token_budget > 0
++            ):
+                 if input_budget <= draft_slots:
+                     break
+                 # Paused streaming sessions (WAITING_FOR_STREAMING_REQ) are not
+@@ -935,16 +1203,29 @@ class Scheduler(SchedulerInterface):
+                             break
+                         pad_spec_decode = True
+ 
++                    if (
++                        glm53_phase_mode == "prefill"
++                        and num_computed_tokens >= request.num_prompt_tokens
++                    ):
++                        request_queue.pop_request()
++                        step_skipped_waiting.prepend_request(request)
++                        continue
++
+                     threshold = self.scheduler_config.long_prefill_token_threshold
+                     if 0 < threshold < num_new_tokens:
+                         num_new_tokens = threshold
+-                    mixed_cap = _glm53_mixed_prefill_policy(self.running, request)  # [glm53-decode-floor]
+-                    if mixed_cap is not None and num_computed_tokens < request.num_prompt_tokens:
+-                        if mixed_cap <= 0:
+-                            request_queue.pop_request()
+-                            step_skipped_waiting.prepend_request(request)
+-                            continue
+-                        num_new_tokens = min(num_new_tokens, mixed_cap)
++                    if glm53_phase_mode == "prefill":
++                        num_new_tokens = min(
++                            num_new_tokens, glm53_phase_prefill_tokens
++                        )
++                    else:
++                        mixed_cap = _glm53_mixed_prefill_gate(self.running, request, num_computed_tokens)  # [glm53-decode-floor] [glm53-decode-floor-v2]
++                        if mixed_cap is not None:
++                            if mixed_cap <= 0:
++                                request_queue.pop_request()
++                                step_skipped_waiting.prepend_request(request)
++                                continue
++                            num_new_tokens = min(num_new_tokens, mixed_cap)
+ 
+                     # chunked prefill has to be enabled explicitly to allow
+                     # pooling requests to be chunked
+@@ -1154,6 +1435,9 @@ class Scheduler(SchedulerInterface):
+ 
+         # Check if the scheduling constraints are satisfied.
+         total_num_scheduled_tokens = sum(num_scheduled_tokens.values())
++        self._glm53_finish_phase_step(
++            glm53_phase_mode, total_num_scheduled_tokens
++        )
+         assert total_num_scheduled_tokens <= self.max_num_scheduled_tokens
+ 
+         assert token_budget >= 0
+diff --git a/vllm/vllm_flash_attn/__init__.py b/vllm/vllm_flash_attn/__init__.py
+index 6ea5b87..c975a0e 100644
+--- a/vllm/vllm_flash_attn/__init__.py
++++ b/vllm/vllm_flash_attn/__init__.py
+@@ -23,6 +23,7 @@ if os.path.islink(_cute_dir) and "flash_attn" not in sys.modules:
+ from vllm.vllm_flash_attn.flash_attn_interface import (  # noqa: E402
+     FA2_AVAILABLE,
+     FA3_AVAILABLE,
++    FA4_AVAILABLE,
+     compile_flash_attn_varlen_func_from_specs,
+     fa_version_unsupported_reason,
+     flash_attn_varlen_func,
+@@ -30,10 +31,10 @@ from vllm.vllm_flash_attn.flash_attn_interface import (  # noqa: E402
+     is_fa_version_supported,
+ )
+ 
+-if not (FA2_AVAILABLE or FA3_AVAILABLE):
++if not (FA2_AVAILABLE or FA3_AVAILABLE or FA4_AVAILABLE):
+     raise ImportError(
+-        "vllm.vllm_flash_attn requires the CUDA flash attention extensions "
+-        "(_vllm_fa2_C or _vllm_fa3_C). On ROCm, use upstream flash_attn."
++        "vllm.vllm_flash_attn requires a CUDA flash attention implementation "
++        "(FA2, FA3, or FA4 CuteDSL). On ROCm, use upstream flash_attn."
+     )
+ 
+ __all__ = [

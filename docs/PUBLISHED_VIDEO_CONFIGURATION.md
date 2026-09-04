@@ -1,7 +1,8 @@
 # Posted four-stream video configuration
 
-A fresh checkout defaults to the runtime configuration used for the final
-current-best comparison posted on 2026-09-03. The capture identifies the
+The build target is the implementation used for the final current-best
+comparison posted on 2026-09-03, not merely a similarly configured successor.
+The capture identifies the
 optimization commit as
 `4b2375977df873be57bc277b17778f94323ef7e6` plus its required launcher fix
 `c80531867e13085c356ae5b9bff4c3b98ee64e8b`.
@@ -76,12 +77,25 @@ also identical on both ranks.
 
 ## What “same as the video” does and does not mean
 
-The default is the same reconstructable runtime profile and includes the two
-optimization switches that were active in the posted capture. The current
-source tree is not a byte-for-byte rebuild of the historical image: it includes
-subsequent chat-template, security, build, attribution, and qualification work.
-Its container labels must therefore record the current source revision rather
-than impersonating the historical image.
+**Correction:** the earlier clean reconstruction at `b3d0bbd` did not contain
+all of the video implementation. It restored the EXL3 overlays and runtime
+settings on Mia's base, but omitted changes inherited from the video's custom
+vLLM foundation. Similar throughput did not establish source parity. That
+reconstruction did not meet the requested default-build contract.
+
+The restoration in `patches/video/` includes the inherited FP16 sparse-indexer
+path, its native top-k and DeepGEMM support, scheduler alignment/phase support,
+per-group prefix-cache retention, and FlashAttention discovery. The Dockerfile
+rebuilds the changed native components from pinned public sources. It checks
+the installed Python inventory against all 2,423 files in the retained video
+image, allowing only three explicit byte-pinned metadata/comment/license
+differences. It also checks the eight changed native-source inputs against
+the historical foundation. See `provenance/video-source-parity.json` and
+`docs/VIDEO_SOURCE_RESTORATION.md` for the exact boundary and validation status.
+
+Source parity is not binary reproducibility: the build retains current source
+labels and subsequent chat-template, security, build, attribution, and
+qualification work. It must not impersonate the historical image.
 
 The video is one warmed visual sample, not a post-policy G3/G4/G5
 qualification. Rebuilding the same profile does not promise identical timing,
@@ -90,14 +104,12 @@ replay of current HEAD is required before claiming current performance
 equivalence. The grouped-prefill and cooperative-decode limitations are stated
 in `docs/KNOWN_LIMITATIONS.md` and both retain explicit rollback switches.
 
-A clean-source replay has since been recorded under
+A replay of the **incomplete reconstruction** is retained under
 `results/candidates/2026-09-04-clean-release-c4-replay/`. Three warmed runs had
 a 23.514 aggregate decode tok/s median versus 24.267 tok/s in the posted
-one-off, a 3.1% difference. The bundle also records that 10 of 2,423 installed
-vLLM Python files and the rebuilt EXL3 extension differ from the historical
-image. Accordingly, the public default is described as the same runtime
-profile and a measured close successor—not as a byte-identical rebuild or a
-statistically certified performance tie.
+one-off, a 3.1% difference. Those measurements remain valid for that build, but
+are not evidence that it reproduced the video implementation. Do not attach
+them to the restored build or treat them as a statistically certified tie.
 
 ## License boundary
 

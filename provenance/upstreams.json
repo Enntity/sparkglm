@@ -36,6 +36,11 @@
       "id": "LicenseRef-GLM-5.3",
       "path": "LICENSES/GLM-5.3.txt",
       "sha256": "96e1622099fc9d6b70c9760f007d99e66d7497eec636b63c60fe208401e9170c"
+    },
+    {
+      "id": "MIT-DeepGEMM",
+      "path": "LICENSES/MIT-DeepGEMM.txt",
+      "sha256": "6c73a30c14a2938abaa6afe98ebb19e6d81dac5bd4ace0cb05c61c20afa37b85"
     }
   ],
   "notices": [
@@ -52,72 +57,125 @@
       "repository": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
       "revision": "eb0469fbb2b49fd7c025f594a3339a121e58f7a9",
       "license_expression": "MIT",
-      "notice_ids": ["MIT-Mia"],
+      "notice_ids": [
+        "MIT-Mia"
+      ],
       "relationship": "base recipe, with verbatim and modified files",
-      "covered_paths": ["Dockerfile", "start.sh", "start-tp4.sh", ".env.example", ".env.tp4.example", "assets/glm.png", "overlay/patch_*.py", "ablit/**", "docs/upstream/MIA_RECIPE_README.md"]
+      "covered_paths": [
+        "Dockerfile",
+        "start.sh",
+        "start-tp4.sh",
+        ".env.example",
+        ".env.tp4.example",
+        "assets/glm.png",
+        "overlay/patch_*.py",
+        "ablit/**",
+        "docs/upstream/MIA_RECIPE_README.md"
+      ]
     },
     {
       "id": "zai-chat-template",
       "repository": "https://huggingface.co/zai-org/GLM-5.3",
       "revision": "aca966e4e02791568aa6a4ced368624b3d897f42",
       "license_expression": "LicenseRef-GLM-5.3",
-      "notice_ids": ["LicenseRef-GLM-5.3"],
+      "notice_ids": [
+        "LicenseRef-GLM-5.3"
+      ],
       "relationship": "adapted chat template",
-      "covered_paths": ["files/chat_template.jinja", "files/chat_template.PROVENANCE.md"]
+      "covered_paths": [
+        "files/chat_template.jinja",
+        "files/chat_template.PROVENANCE.md"
+      ]
     },
     {
       "id": "vllm",
       "repository": "https://github.com/vllm-project/vllm",
       "revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
       "license_expression": "Apache-2.0",
-      "notice_ids": ["Apache-2.0"],
+      "notice_ids": [
+        "Apache-2.0"
+      ],
       "relationship": "runtime base and directly ported fixes",
-      "covered_paths": ["patches/vllm/**", "patches/runtime/**", "overlay/dflash2_speculator.py", "overlay/qwen3_dflash2.py"]
+      "covered_paths": [
+        "patches/vllm/**",
+        "patches/runtime/**",
+        "overlay/dflash2_speculator.py",
+        "overlay/qwen3_dflash2.py"
+      ]
     },
     {
       "id": "exllamav3",
       "repository": "https://github.com/turboderp-org/exllamav3",
       "revision": "c5d9c657966ffeeaa9353f0cc899f18629da4a13",
       "license_expression": "MIT",
-      "notice_ids": ["MIT-ExLlamaV3"],
+      "notice_ids": [
+        "MIT-ExLlamaV3"
+      ],
       "relationship": "adapted EXL3 arithmetic foundations",
-      "covered_paths": ["overlay/exl3.py", "overlay/exl3_fat_gemm.cu", "overlay/exl3_fat_gemm.cuh", "overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh"]
+      "covered_paths": [
+        "overlay/exl3.py",
+        "overlay/exl3_fat_gemm.cu",
+        "overlay/exl3_fat_gemm.cuh",
+        "overlay/exl3_decode_moe.cu",
+        "overlay/exl3_decode_moe.cuh"
+      ]
     },
     {
       "id": "reederey-reference",
       "repository": "https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark",
       "revision": "0c03250cd7176a2fef9cbbf9329fed08c8750e7d",
       "license_expression": "Apache-2.0 AND MIT",
-      "notice_ids": ["Apache-2.0", "Reederey-NOTICE", "MIT-Mia"],
+      "notice_ids": [
+        "Apache-2.0",
+        "Reederey-NOTICE",
+        "MIT-Mia"
+      ],
       "relationship": "adapted M64 cp.async fat-GEMM pipeline",
-      "covered_paths": ["overlay/exl3_fat_gemm.cu", "overlay/exl3_fat_gemm.cuh"]
+      "covered_paths": [
+        "overlay/exl3_fat_gemm.cu",
+        "overlay/exl3_fat_gemm.cuh"
+      ]
     },
     {
       "id": "vcruz-cooperative-grid",
       "repository": "https://github.com/vcruz305/vllm-exl3",
       "revision": "67dc7426dfbdecbc1527199eb32c0d328d8f609f",
       "license_expression": "Apache-2.0",
-      "notice_ids": ["Apache-2.0"],
+      "notice_ids": [
+        "Apache-2.0"
+      ],
       "relationship": "inspiration only; wrapper and kernel not copied",
-      "covered_paths": ["overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh", "docs/PROVENANCE.md"]
+      "covered_paths": [
+        "overlay/exl3_decode_moe.cu",
+        "overlay/exl3_decode_moe.cuh",
+        "docs/PROVENANCE.md"
+      ]
     },
     {
       "id": "atlas",
       "repository": "https://github.com/Atlas-Inf/atlas",
       "revision": "bdcccc2ca91eba084aac94a059e3b0f4a5d556dd",
       "license_expression": "AGPL-3.0-only",
-      "notice_ids": ["AGPL-3.0-only"],
+      "notice_ids": [
+        "AGPL-3.0-only"
+      ],
       "relationship": "archived native-engine derivative",
-      "covered_paths": ["research/atlas/**"]
+      "covered_paths": [
+        "research/atlas/**"
+      ]
     },
     {
       "id": "flashkda",
       "repository": "https://github.com/MoonshotAI/FlashKDA",
       "revision": "1ce47ea3bb22c84eb9cc665028399cf35e8ffb0b",
       "license_expression": "MIT",
-      "notice_ids": ["MIT-FlashKDA"],
+      "notice_ids": [
+        "MIT-FlashKDA"
+      ],
       "relationship": "pinned source dependency and MIT-derived slot patch",
-      "covered_paths": ["research/atlas/flash_kda/**"]
+      "covered_paths": [
+        "research/atlas/flash_kda/**"
+      ]
     },
     {
       "id": "cutlass",
@@ -126,72 +184,204 @@
       "license_expression": "BSD-3-Clause",
       "notice_ids": [],
       "relationship": "build-only pinned dependency; not redistributed",
-      "covered_paths": ["research/atlas/flash_kda/PINS.sha256", "research/atlas/flash_kda/rebuild.sh"]
+      "covered_paths": [
+        "research/atlas/flash_kda/PINS.sha256",
+        "research/atlas/flash_kda/rebuild.sh"
+      ]
+    },
+    {
+      "id": "vllm-video-fp16",
+      "repository": "https://github.com/vllm-project/vllm",
+      "revision": "839529e52230c649bd8e8d5117ff8ed773f68106",
+      "license_expression": "Apache-2.0",
+      "notice_ids": [
+        "Apache-2.0"
+      ],
+      "relationship": "ported FP16 selector lineage restored from historical SparkGLM foundation",
+      "covered_paths": [
+        "patches/video/**"
+      ]
+    },
+    {
+      "id": "reederey-video-foundation",
+      "repository": "https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark",
+      "revision": "b229968a64ae3a270acdda9ce539a421e21598d7",
+      "license_expression": "Apache-2.0 AND MIT",
+      "notice_ids": [
+        "Apache-2.0",
+        "Reederey-NOTICE",
+        "MIT-Mia"
+      ],
+      "relationship": "restored inherited scheduler alignment and per-group prefix-cache retention",
+      "covered_paths": [
+        "patches/video/runtime.patch"
+      ]
+    },
+    {
+      "id": "deepgemm-video",
+      "repository": "https://github.com/deepseek-ai/DeepGEMM",
+      "revision": "8b1392b978f5a03c828dd1711090d7fb50958b8a",
+      "license_expression": "MIT AND Apache-2.0",
+      "notice_ids": [
+        "MIT-DeepGEMM",
+        "Apache-2.0"
+      ],
+      "relationship": "pinned build dependency and vLLM-side FP16 paged-MQA patch",
+      "covered_paths": [
+        "patches/video/native.patch",
+        "scripts/build-video-native.sh"
+      ]
     }
   ],
   "path_rules": [
     {
-      "patterns": ["Dockerfile"],
+      "patterns": [
+        "LICENSES/MIT-DeepGEMM.txt"
+      ],
+      "license_expression": "MIT",
+      "reason": "verbatim DeepSeek license text"
+    },
+    {
+      "patterns": [
+        "patches/video/native.patch",
+        "patches/video/runtime.patch"
+      ],
+      "license_expression": "MIT AND Apache-2.0",
+      "reason": "vLLM source patches with MIT-derived DeepGEMM and inherited Mia/Reederey context"
+    },
+    {
+      "patterns": [
+        "Dockerfile"
+      ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "Mia MIT recipe containing direct Apache-2.0 vLLM compatibility modifications"
     },
     {
-      "patterns": ["overlay/exl3.py", "overlay/exl3_fat_gemm.cu", "overlay/exl3_fat_gemm.cuh", "overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh"],
+      "patterns": [
+        "overlay/exl3.py",
+        "overlay/exl3_fat_gemm.cu",
+        "overlay/exl3_fat_gemm.cuh",
+        "overlay/exl3_decode_moe.cu",
+        "overlay/exl3_decode_moe.cuh"
+      ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "MIT ExLlamaV3-derived arithmetic with Apache-2.0 SparkGLM integration; the M64 path also retains its separate Reederey notice"
     },
     {
-      "patterns": ["files/chat_template.jinja"],
+      "patterns": [
+        "files/chat_template.jinja"
+      ],
       "license_expression": "LicenseRef-GLM-5.3",
       "reason": "adapted Z.AI template"
     },
     {
-      "patterns": ["research/current-engine-history/patches/**", "research/vllm-iterations/patches/**"],
+      "patterns": [
+        "research/current-engine-history/patches/**",
+        "research/vllm-iterations/patches/**"
+      ],
       "license_expression": "PER-TARGET",
       "reason": "format-patch archives retain the license of each target file"
     },
     {
-      "patterns": ["research/atlas/flash_kda/LICENSE"],
+      "patterns": [
+        "research/atlas/flash_kda/LICENSE"
+      ],
       "license_expression": "MIT",
       "reason": "verbatim FlashKDA license"
     },
     {
-      "patterns": ["research/atlas/flash_kda/flash_kda_sm121_slots.patch"],
+      "patterns": [
+        "research/atlas/flash_kda/flash_kda_sm121_slots.patch"
+      ],
       "license_expression": "MIT AND AGPL-3.0-only",
       "reason": "MIT-derived FlashKDA patch with AGPL SparkGLM modifications"
     },
     {
-      "patterns": ["research/atlas/**", "results/legacy/2026-08-31-atlas-*/**", "results/legacy/2026-09-01-atlas-*/**"],
+      "patterns": [
+        "research/atlas/**",
+        "results/legacy/2026-08-31-atlas-*/**",
+        "results/legacy/2026-09-01-atlas-*/**"
+      ],
       "license_expression": "AGPL-3.0-only",
       "reason": "Atlas-derived archive"
     },
     {
-      "patterns": ["benchmarks/staggered_openai.py", "research/vllm-iterations/benchmarks/LICENSE", "research/vllm-iterations/benchmarks/real_workload_matrix.py", "research/vllm-iterations/benchmarks/staggered_openai.py"],
+      "patterns": [
+        "benchmarks/staggered_openai.py",
+        "research/vllm-iterations/benchmarks/LICENSE",
+        "research/vllm-iterations/benchmarks/real_workload_matrix.py",
+        "research/vllm-iterations/benchmarks/staggered_openai.py"
+      ],
       "license_expression": "AGPL-3.0-only",
       "reason": "benchmark code carried from the Atlas campaign"
     },
     {
-      "patterns": [".env.example", ".env.tp4.example", ".github/FUNDING.yml", "start.sh", "download.sh", "ablit/**", "assets/glm.png", "docs/DESIGN-indexer-workspace.md", "docs/_run_cold_prefill.py", "docs/upstream/**", "examples/**", "overlay/ablit_runtime.py", "scripts/boot-shape-warmup.sh", "tests/_run_cold_prefill.py", "tests/bench_decode.py", "tests/bench_prefix_cache.py", "tests/test_ablit.py", "tests/test_bringup_robustness.py", "tests/test_chat_template.py", "tests/test_exl3_overlay.py", "tests/test_hybrid_prefix_hit.py", "tests/test_image_recipe.py", "tests/test_indexer_workspace.py", "tests/test_kpool_tail_slotmap.py", "tests/test_mixed_prefill_decode.py", "tests/test_numeric_config.py", "tests/test_scheduler_decode_floor.py", "tests/test_spinwait_patch.py", "tests/test_start_overrides.py", "tests/test_suppress_stops.py", "tests/test_warm_restart_stdout.py", "tests/test_xgrammar_termination.py", "results/legacy/2026-08-29-cold-prefill-baseline/**", "results/legacy/2026-08-29-prefill-optimization-campaign/**"],
+      "patterns": [
+        ".env.example",
+        ".env.tp4.example",
+        ".github/FUNDING.yml",
+        "start.sh",
+        "download.sh",
+        "ablit/**",
+        "assets/glm.png",
+        "docs/DESIGN-indexer-workspace.md",
+        "docs/_run_cold_prefill.py",
+        "docs/upstream/**",
+        "examples/**",
+        "overlay/ablit_runtime.py",
+        "scripts/boot-shape-warmup.sh",
+        "tests/_run_cold_prefill.py",
+        "tests/bench_decode.py",
+        "tests/bench_prefix_cache.py",
+        "tests/test_ablit.py",
+        "tests/test_bringup_robustness.py",
+        "tests/test_chat_template.py",
+        "tests/test_exl3_overlay.py",
+        "tests/test_hybrid_prefix_hit.py",
+        "tests/test_image_recipe.py",
+        "tests/test_indexer_workspace.py",
+        "tests/test_kpool_tail_slotmap.py",
+        "tests/test_mixed_prefill_decode.py",
+        "tests/test_numeric_config.py",
+        "tests/test_scheduler_decode_floor.py",
+        "tests/test_spinwait_patch.py",
+        "tests/test_start_overrides.py",
+        "tests/test_suppress_stops.py",
+        "tests/test_warm_restart_stdout.py",
+        "tests/test_xgrammar_termination.py",
+        "results/legacy/2026-08-29-cold-prefill-baseline/**",
+        "results/legacy/2026-08-29-prefill-optimization-campaign/**"
+      ],
       "license_expression": "MIT",
       "reason": "Mia recipe files retained or modified under its MIT terms"
     },
     {
-      "patterns": ["overlay/patch_*.py"],
+      "patterns": [
+        "overlay/patch_*.py"
+      ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "MIT recipe patchers that modify or backport Apache-2.0 vLLM code"
     },
     {
-      "patterns": ["LICENSES/MIT-Mia.txt", "LICENSES/MIT-ExLlamaV3.txt", "LICENSES/MIT-FlashKDA.txt"],
+      "patterns": [
+        "LICENSES/MIT-Mia.txt",
+        "LICENSES/MIT-ExLlamaV3.txt",
+        "LICENSES/MIT-FlashKDA.txt"
+      ],
       "license_expression": "MIT",
       "reason": "retained license texts"
     },
     {
-      "patterns": ["LICENSES/AGPL-3.0-only.txt"],
+      "patterns": [
+        "LICENSES/AGPL-3.0-only.txt"
+      ],
       "license_expression": "AGPL-3.0-only",
       "reason": "retained license text"
     },
     {
-      "patterns": ["LICENSES/GLM-5.3.txt"],
+      "patterns": [
+        "LICENSES/GLM-5.3.txt"
+      ],
       "license_expression": "LicenseRef-GLM-5.3",
       "reason": "retained model/template license text"
     }

@@ -1,5 +1,11 @@
 # Clean release C4 replay
 
+**Correction after source audit:** this build omitted inherited code from the
+video's custom vLLM foundation. It is an incomplete reconstruction. The
+measurements below remain valid for its recorded image, but do not establish
+implementation parity. The corrective work is documented in
+`docs/VIDEO_SOURCE_RESTORATION.md`.
+
 This is the first clean-source replay of the default posted-video profile at
 repository commit `b3d0bbd61a2331fa3d6e9e3a09c2a0e6f375e69e`. It is a
 three-run measurement, not a paired optimization qualification and not a G3
@@ -26,9 +32,8 @@ The retained posted capture was one warmed sample at 86.149 seconds and 24.267
 tok/s. The clean-build median is 3.1% lower in aggregate throughput and 3.9%
 higher in wall time. That difference is inside the variation seen when the
 historical image was replayed on this appliance, but this bundle does not claim
-statistical equivalence. It establishes that the default clean build is close,
-stable across three repetitions, and not suffering a large missing-path
-regression.
+statistical equivalence. It establishes only the observed timing of these
+three runs; it cannot establish that all required code paths were present.
 
 ## Identity and startup
 
@@ -69,9 +74,9 @@ not described as identical or silently credited to the clean build.
 
 The proven current-best EXL3 features are present in the clean image: the M64
 paired/fused expert path, GPU-resident grouped prefill, and cooperative decode.
-The close three-run endpoint result is stronger evidence for the reconstructed
-default than source-shape inference alone, while still falling short of the
-full frozen G3/G4/G5 policy.
+The close three-run endpoint result does not substitute for the requested
+code-accurate reconstruction, and also falls short of the full frozen
+G3/G4/G5 policy.
 
 ## Limitations
 

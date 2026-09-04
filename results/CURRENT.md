@@ -1,5 +1,11 @@
 # Current qualification status
 
+**Source-restoration correction:** the first release reconstruction omitted
+substantive code inherited from the posted video's custom vLLM foundation.
+The default build is being corrected to restore that implementation, not just
+its flags. See [the source audit](../docs/VIDEO_SOURCE_RESTORATION.md). Earlier
+reconstruction timings are not evidence of implementation parity.
+
 The runnable engine predates qualification-v1. Its strongest retained evidence
 has been migrated honestly rather than re-labeled as newly certified:
 
@@ -24,8 +30,9 @@ The clean `b3d0bbd` image completed three warmed C4 16K-class repetitions at a
 23.514 aggregate decode tok/s median, 3.1% below the retained posted one-off.
 It is deliberately labeled G0 baseline evidence: only this workload was run,
 there was no paired arm, and no G4 quality suite was performed. Its source
-receipt also records the exact boundary between the historical image and the
-clean-source successor rather than claiming byte parity.
+receipt records file differences; the later audit identified substantive
+omissions, now explicitly acknowledged in that bundle. Its numbers apply to
+the incomplete reconstruction only.
 
 The legacy labels matter. The old “16K” isolation generator produced roughly
 33K actual tokenizer tokens in at least the grouped-prefill campaign, the Mia
