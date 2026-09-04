@@ -48,7 +48,7 @@ recipe under its MIT notice; the sponsor link intentionally remains Mia's.
 | --- | --- | --- |
 | GLM-5.3-Flash | [zai-org](https://huggingface.co/zai-org/GLM-5.3-Flash) | Model license at the source repository |
 | EXL3/TR3 4bpw weights | [Mia mirror](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw/tree/25a44fdbf16862a46b7cc9921142c6c81350af2f), [brandonmusic fallback](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw/tree/5ab363a8dcf6405955fd5f99671e01a1c9fb124b) | ShapleyMCG License 1.0; both launcher revisions are immutable |
-| DFlash2 drafter | [incoai](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2/tree/bf582e4eacc1810f76656d1811693ff6c6737d2a) | CC BY-NC-ND 4.0; non-commercial/no-derivatives terms; immutable launcher revision |
+| DFlash2 drafter | [incoai](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2/tree/7d74cdd881ed7e32c31175984a67823127b66cfe) | CC BY-NC-ND 4.0; non-commercial/no-derivatives terms; immutable revision recovered from both video-appliance acquisition receipts |
 
 No checkpoint or derived direction tensor from these projects is committed.
 No DFlash2 checkpoint source or modified artifact is copied into SparkGLM;

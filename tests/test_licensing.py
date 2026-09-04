@@ -121,7 +121,7 @@ def main() -> int:
     for name, revision in (
         ("MODEL_REVISION", "25a44fdbf16862a46b7cc9921142c6c81350af2f"),
         ("MODEL_FALLBACK_REVISION", "5ab363a8dcf6405955fd5f99671e01a1c9fb124b"),
-        ("DFLASH_REVISION", "bf582e4eacc1810f76656d1811693ff6c6737d2a"),
+        ("DFLASH_REVISION", "7d74cdd881ed7e32c31175984a67823127b66cfe"),
     ):
         assert f'{name}="${{{name}:-{revision}}}"' in start
         assert f"{name}={revision}" in env

@@ -11,7 +11,7 @@ recipe commit as `e7e35579b8058bbacb2408dce67b8fb7dd39f9b4`.
 | --- | --- | --- |
 | topology | `TP=2`, `NNODES=2` | TP2 on two GB10 systems |
 | target quantization | `QUANTIZATION=exl3`, `KV_CACHE_DTYPE=fp8` | EXL3/TR3 K4, FP8 target KV |
-| speculation | `SPEC_METHOD=dflash`, `DFLASH_TOKENS=7` | DFlash2 k=7 |
+| speculation | `SPEC_METHOD=dflash`, `DFLASH_TOKENS=7` | DFlash2 k=7 at `7d74cdd881ed7e32c31175984a67823127b66cfe` |
 | drafter placement | `DFLASH_DRAFT_TP=2` | TP2 |
 | model length | `MAX_MODEL_LEN=1000000` | 1,000,000 |
 | request capacity | `MAX_NUM_SEQS=4` | four resident streams |
@@ -46,13 +46,31 @@ the first visible token. Those figures describe that run only. Rebuilding the
 same profile does not promise identical timing, model output, or speculative
 acceptance on another checkout or appliance.
 
-The historical receipt did not preserve the container digest, complete
-environment manifest, or immutable target/drafter checkpoint revisions. The
-runtime values above are recoverable from the recorded recipe commit and its
-capacity-fix report; the current launcher additionally pins the public model
-and DFlash2 revisions. We cannot retroactively prove that those exact weight
-bytes were loaded for the video. A new full qualification of current HEAD is
-still required before claiming byte-for-byte or performance equivalence.
+The JSON trace alone did not preserve the complete environment. The original
+appliance did: a read-only forensic check on 2026-09-04 recovered the launch
+directory whose `.env` was written at 10:04:17 immediately before the recorded
+run, plus Docker journal entries for both ranks and LLooM acquisition receipts.
+They establish:
+
+- image ID `sha256:756e06f95e240719947aa5e90edd27c2cf643eb3857782e8292e23e06618ca6d`
+  on both ranks, labeled source revision
+  `e3f690c8b8407c91aa23fe9ff3a9c1a6985332b5`;
+- rank-0/rank-1 container starts named `sparkglm-e3f690c-r0` and
+  `sparkglm-e3f690c-r1` at 10:03–10:04, immediately before the video run;
+- target acquisition revision
+  `25a44fdbf16862a46b7cc9921142c6c81350af2f`;
+- DFlash2 acquisition revision
+  `7d74cdd881ed7e32c31175984a67823127b66cfe` and identical 2.34 GB drafter
+  SHA-256 `8931dc522be0aa31760a7463f8d2f8044fa3e6d40be2e87aa08e9fd17bfd6683`
+  on both ranks;
+- successful SHA-256 verification of all 120 target weight shards and every
+  serving config/tokenizer file against the retained manifest on both ranks.
+
+This closes the checkpoint-identity gap and is why the default pins the older
+`7d74cdd` DFlash2 release rather than its later, weight-changing `bf582e4`
+revision. It still does not make current HEAD byte-identical to the historical
+image: the source tree contains later fixes and a newer chat template. A fresh
+full-model replay of current HEAD is required to claim performance equivalence.
 
 ## License boundary
 
