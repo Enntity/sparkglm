@@ -279,7 +279,7 @@ rank agreement, and speculative acceptance. A faster incorrect result is a
 failed result.
 
 The synchronized current-build profile in
-`benchmarks/sparkglm/results/2026-09-03-current-long-prefill-profile.md`
+`results/legacy/2026-09-03-current-long-prefill-profile/2026-09-03-current-long-prefill-profile.md`
 supersedes the pre-E2 ordering below. On two genuine long-prefill target
 forwards, the complete routed-MoE boundary consumed about 48-49% of CUDA time,
 TP all-reduce 10-12%, mHC about 9%, and sparse MLA about 9%. The complete
@@ -384,7 +384,7 @@ selects it with native FP16 top-k. On the paired five-second-stagger workload,
 medium C2 wall time improved 4.85% and large C2 improved 3.18%. The 2,048-row
 selector kernel itself improved 37.0% at 4,096 pool columns and 43.5% at 8,192
 pool columns. The full receipt is
-`benchmarks/sparkglm/results/2026-09-02-fp16-sparse-selector.md`.
+`results/legacy/2026-09-02-fp16-sparse-selector/2026-09-02-fp16-sparse-selector.md`.
 
 This halves the score tensor but does not remove it. Scorer-plus-selector
 fusion remains optimization 1's principal target.
@@ -410,4 +410,4 @@ with seven DFlash2 lookahead slots each, but changed the worker and E2 maximum
 shape to recover at most 0.39% more input work per full slab. On the identical
 four-stream 33K gate it regressed delivered throughput 2.67%, aggregate decode
 3.70%, and wall time 2.74%. It was reverted. The receipt is
-`benchmarks/sparkglm/results/2026-09-02-spec-slot-budget-rejected.md`.
+`results/legacy/2026-09-02-spec-slot-budget-rejected/2026-09-02-spec-slot-budget-rejected.md`.

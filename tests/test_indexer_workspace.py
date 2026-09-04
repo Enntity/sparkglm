@@ -804,7 +804,9 @@ def test_recipe_wiring_if_present() -> None:
     if readme.is_file():
         text = readme.read_text()
         assert "`GLM53_INDEXER_WORKSPACE`" in text
-        assert "tests/test_indexer_workspace.py" in text
+        assert "scripts/check.sh all" in text
+        check_script = (ROOT / "scripts" / "check.sh").read_text()
+        assert "tests/test_indexer_workspace.py" in check_script
 
 
 def main() -> int:

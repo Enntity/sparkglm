@@ -15,7 +15,7 @@ both target verify and draft proposal. Authoritative reference-logit parity, lon
 endurance, node-failure recovery, prefix reuse, and vision are not yet
 validated, so the measured receipts below are narrower than a production
 readiness claim. Current TP=2 receipts are in
-[`NATIVE_TP2_VALIDATION_2026-09-01.md`](NATIVE_TP2_VALIDATION_2026-09-01.md).
+[`NATIVE_TP2_VALIDATION_2026-09-01.md`](../../../results/legacy/2026-09-01-atlas-native-tp2-validation/NATIVE_TP2_VALIDATION_2026-09-01.md).
 
 Source contract:
 
@@ -146,7 +146,7 @@ tok/s with seven drafts. Mia currently publishes 65.1 tok/s for its matching
 lab protocol. The short 64-token Atlas canary reports higher numbers because
 the TTFT boundary excludes the first speculative burst from elapsed decode
 time; do not use it as the cross-engine headline. See
-[`NATIVE_TP2_VALIDATION_2026-09-01.md`](NATIVE_TP2_VALIDATION_2026-09-01.md).
+[`NATIVE_TP2_VALIDATION_2026-09-01.md`](../../../results/legacy/2026-09-01-atlas-native-tp2-validation/NATIVE_TP2_VALIDATION_2026-09-01.md).
 
 ## Historical EP bootstrap receipts (2026-08-31)
 
@@ -163,7 +163,7 @@ gaps of 0.14-0.75 seconds. TTFT still grew from 7.41 to 40.21 seconds across the
 queue: current phase interleaving bounds decode stalls but does not make EP
 prefill and decode execute concurrently. Exact commands, per-request numbers,
 binary identity, and caveats are in
-[`LIVE_VALIDATION_2026-08-31.md`](LIVE_VALIDATION_2026-08-31.md).
+[`LIVE_VALIDATION_2026-08-31.md`](../../../results/legacy/2026-08-31-atlas-live-validation/LIVE_VALIDATION_2026-08-31.md).
 
 ## Reproducible test without a GPU
 

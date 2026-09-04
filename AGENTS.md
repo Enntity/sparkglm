@@ -17,3 +17,15 @@ applicable upstream copyright and license notices in source files.
   recommendation to enable them.
 - Do not change repository visibility or publish releases without explicit
   user approval after the private review checklist is complete.
+
+## Change qualification
+
+- Read `docs/METHODOLOGY.md` before modifying performance-sensitive code.
+- Run `scripts/check.sh all` for every change.
+- Keep experiments disabled until they pass the gate required by their change
+  class. tinyGLM is a required integration gate, not production evidence.
+- Put every performance claim, accepted optimization, or rejected experiment
+  in a checksum-bound result bundle under `results/`.
+- Do not call a change promoted or alter the recommended default without a
+  maintainer-reviewed qualification at the required level.
+- Do not execute untrusted pull-request code on private Spark hardware.

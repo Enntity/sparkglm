@@ -10,6 +10,24 @@ that succeeded, failed, or changed the direction of the project.
 > publication review. It has not been declared production-ready, and no
 > repository visibility change is part of this commit.
 
+## How changes earn promotion
+
+```text
+idea -> static checks -> exact-shape operator -> tinyGLM
+     -> full 16K/32K C1/C2 comparison -> quality/reliability -> default
+```
+
+This promotion path is the center of the project. tinyGLM is the mandatory
+fast integration gate: it preserves the production kernel geometry without a
+164 GiB model load. It decides whether a candidate deserves full-model time;
+it never substitutes for real-model performance or quality evidence.
+
+Read [the test methodology](docs/METHODOLOGY.md), then browse the canonical
+[current qualification status](results/CURRENT.md) and the complete
+[results and qualification index](results/README.md). Every performance claim
+must point to a checksum-bound `qualification.json`. Pre-policy results are
+kept as explicitly legacy evidence rather than retroactively certified.
+
 ## Start here
 
 - **Run the current engine:** follow the build and two-node launch process in
@@ -19,7 +37,7 @@ that succeeded, failed, or changed the direction of the project.
   [docs/PROVENANCE.md](docs/PROVENANCE.md) and
   [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md).
 - **Inspect the evidence:** see [docs/RESULTS.md](docs/RESULTS.md), retained raw
-  receipts under `benchmarks/receipts/`, and the older campaign under
+  receipts and reports under `results/`, and the code archive under
   `research/vllm-iterations/`.
 - **Inspect the native-engine attempt:** see `research/atlas/`. It is valuable
   research, but it is not the recommended serving path.
@@ -31,7 +49,8 @@ that succeeded, failed, or changed the direction of the project.
 | Path | Status | Purpose |
 | --- | --- | --- |
 | repository root | current candidate | Two-Spark vLLM + EXL3 serving recipe and optimized kernels |
-| `benchmarks/` | current evidence | Reproducible endpoint, tinyGLM, and kernel A/B harnesses |
+| `benchmarks/` | test harnesses | Reproducible endpoint, tinyGLM, and kernel A/B programs |
+| `results/` | canonical evidence | Indexed qualification records, reports, raw receipts, limitations, and rejected work |
 | `research/current-engine-history/` | provenance | Accepted commit mailbox without unsafe historical git objects |
 | `research/vllm-iterations/` | historical | Accepted and rejected vLLM-era experiments, measurements, and patch mailboxes |
 | `research/atlas/` | archival | AGPL Atlas GLM implementation, probes, and a reconstructable source patch |
@@ -115,10 +134,7 @@ Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
 Run:
 
 ```bash
-./scripts/publication-audit.sh
-python3 tests/test_indexer_workspace.py
-python3 tests/test_tinyglm.py
-python3 tests/test_tinyglm_gate.py
+./scripts/check.sh all
 ```
 
 Passing that script is necessary but not sufficient. A human should still

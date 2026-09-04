@@ -6,20 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 cd "$ROOT"
 
 static_gate() {
-    python3 tests/test_tinyglm.py
-    python3 tests/test_numeric_config.py
-    python3 tests/test_start_overrides.py
-    python3 tests/test_tinyglm_gate.py
-    python3 -m py_compile \
-        overlay/exl3.py \
-        scripts/make_tinyglm.py \
-        benchmarks/exl3_decode_moe_ab.py \
-        benchmarks/exl3_grouped_prefill_ab.py \
-        benchmarks/tinyglm_smoke.py \
-        benchmarks/tinyglm_gate.py \
-        benchmarks/tinyglm_prefill_gate.py
-    bash -n start.sh scripts/tinyglm.sh scripts/tinyglm-gate.sh
-    git diff --check
+    scripts/check.sh quick
     echo "tinyGLM static gate: PASS"
 }
 

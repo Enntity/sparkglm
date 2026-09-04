@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Enntity/sparkglm-release-candidate/blob/main/schemas/qualification-v1.schema.json",
+  "title": "SparkGLM qualification record v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "date",
+    "state",
+    "qualification_level",
+    "target",
+    "change",
+    "environment",
+    "gates",
+    "metrics",
+    "artifacts",
+    "limitations",
+    "attestation"
+  ],
+  "properties": {
+    "schema": {"const": "sparkglm.qualification/v1"},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "title": {"type": "string", "minLength": 1},
+    "date": {"type": ["string", "null"]},
+    "state": {
+      "enum": ["experiment", "candidate", "accepted", "promoted", "rejected", "baseline", "measurement"]
+    },
+    "qualification_level": {"enum": ["legacy", "G0", "G1", "G2", "G3", "G4", "G5"]},
+    "target": {"type": "string", "minLength": 1},
+    "change": {
+      "type": "object",
+      "required": ["baseline_ref", "candidate_ref", "working_tree_clean", "provenance"],
+      "properties": {
+        "baseline_ref": {"type": ["string", "null"]},
+        "candidate_ref": {"type": ["string", "null"]},
+        "working_tree_clean": {"type": ["boolean", "null"]},
+        "provenance": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "environment": {"type": "object"},
+    "gates": {"type": "array"},
+    "metrics": {"type": "array"},
+    "artifacts": {"type": "array"},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "attestation": {
+      "type": "object",
+      "required": ["status", "maintainer", "date"],
+      "properties": {
+        "status": {"enum": ["unattested", "legacy", "maintainer-reviewed"]},
+        "maintainer": {"type": ["string", "null"]},
+        "date": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

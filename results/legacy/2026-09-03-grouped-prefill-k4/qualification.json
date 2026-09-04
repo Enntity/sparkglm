@@ -1,0 +1,138 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-03-grouped-prefill-k4",
+  "title": "GPU-resident grouped EXL3 prefill",
+  "date": "2026-09-03",
+  "state": "accepted",
+  "qualification_level": "legacy",
+  "target": "16K and 32K C1/C2 prefill TTFT and wall time",
+  "change": {
+    "baseline_ref": "616fda8a5a819d3a102b8bc7acf46b2654da1113",
+    "candidate_ref": "4b2375977df873be57bc277b17778f94323ef7e6",
+    "working_tree_clean": null,
+    "provenance": [
+      "Original grouped orchestration over EXL3 arithmetic and the attributed Reederey M64 cp.async tile.",
+      "Migrated from pre-policy SparkGLM evidence without retroactive certification."
+    ]
+  },
+  "environment": {
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "cross-node TP=2",
+    "model": "complete GLM-5.3-Flash 320B checkpoint, EXL3/TR3 K4",
+    "drafter": "DFlash2 k=7",
+    "kv_cache": "FP8",
+    "configuration": {
+      "max_num_batched_tokens": 7168,
+      "scheduler": "work-conserving mixed prefill",
+      "repetitions": 3,
+      "actual_prompt_tokens": "approximately 32992-32995"
+    }
+  },
+  "gates": [
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Model-free production-shape A/B was bit-for-bit exact in every measured shape."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Deterministic tinyGLM output matched; performance was neutral as expected for reduced expert fan-out."
+    },
+    {
+      "id": "G3",
+      "status": "pass",
+      "summary": "Three paired full-checkpoint C1/C2 repetitions completed after graph, shape, and discarded workload warmup."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "The full-model run was a corruption/performance gate, not a broad semantic quality suite."
+    }
+  ],
+  "metrics": [
+    {"name": "C1_TTFT", "baseline": 25.739, "candidate": 23.479, "unit": "s", "change_pct": -8.8},
+    {"name": "C1_effective_prefill", "baseline": 1281.9, "candidate": 1405.3, "unit": "tokens/s", "change_pct": 9.6},
+    {"name": "C2_TTFT_p50", "baseline": 41.381, "candidate": 38.85, "unit": "s", "change_pct": -6.1},
+    {"name": "C2_wall", "baseline": 50.536, "candidate": 47.554, "unit": "s", "change_pct": -5.9},
+    {"name": "C2_aggregate_effective_prefill", "baseline": 1305.8, "candidate": 1387.7, "unit": "tokens/s", "change_pct": 6.3}
+  ],
+  "artifacts": [
+    {
+      "path": "grouped-prefill-k4.md",
+      "kind": "human-report",
+      "sha256": "ce1295b4c7509992a9024c121ffa4eb7fd53d3c39accae95098de2934e13d43f"
+    },
+    {
+      "path": "baseline-16k-c1-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "fa68c9bec2f4816f5c6ce47f10847159a4c70f8e979e996e84c21c0b406ba1a2"
+    },
+    {
+      "path": "baseline-16k-c1-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "f0ef720bc5f22bc454cc9a456c25a9cf85c999a7c9d28601a64fc82cc5d97e81"
+    },
+    {
+      "path": "baseline-16k-c1-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "315094d20a464f4044a7b03ac72f186dc6fe8993f70233c39bb346be5b1f9b51"
+    },
+    {
+      "path": "baseline-16k-c2-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "6884cd40c88c52c371db07e39ccd555c2a07b2a037767594e4d64dc345e5a725"
+    },
+    {
+      "path": "baseline-16k-c2-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "6a081ea9f301a9ffb426fee84ec56ceb0c826fae32f8943c47e1e7d1ebbe61a4"
+    },
+    {
+      "path": "baseline-16k-c2-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "4de92bf19a0c4f0e3ece46940d697537e2866aee379bbf70c233256c69cf8575"
+    },
+    {
+      "path": "candidate-16k-c1-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "21ec9424bee091ff5a16f3a5775f9a4c7325d99fa6aa1eae5d879119a48d7eca"
+    },
+    {
+      "path": "candidate-16k-c1-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1fa37c8fa9f0a81ecc6a726f4ccf185c26f84b24dad11f661be7bcbbe128f26c"
+    },
+    {
+      "path": "candidate-16k-c1-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "188383a5aabbfd317f603364378b29e9730ebfb42e54753ba38056b099780cb4"
+    },
+    {
+      "path": "candidate-16k-c2-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b9ebcd98ec30cf86d153cab0808ab337df33b9823198ad4be15923616ea6331f"
+    },
+    {
+      "path": "candidate-16k-c2-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "f17c75da329e2936814baa4b06daee14cd803fd1a6f19051f6505765dc699741"
+    },
+    {
+      "path": "candidate-16k-c2-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "64e0b3b908ab3bfa86909fffe8c202562bbb45395203b99f10e4178524942187"
+    }
+  ],
+  "limitations": [
+    "This evidence predates qualification-v1.",
+    "The fixture argument named 16K encoded to approximately 33K actual model tokens; actual receipt counts are authoritative.",
+    "The persistent route scratch costs about 1.2 GB per rank and reduced reported KV capacity by 3.8%.",
+    "No broad semantic quality claim is supported."
+  ],
+  "attestation": {
+    "status": "legacy",
+    "maintainer": null,
+    "date": null
+  }
+}

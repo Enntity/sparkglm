@@ -7,6 +7,7 @@ The repository must remain private until a human completes this checklist.
 - [ ] `./scripts/publication-audit.sh` passes from a clean checkout.
 - [ ] All JSON benchmark receipts parse.
 - [ ] Shell launch and build scripts pass `bash -n`.
+- [ ] `scripts/check.sh all` and qualification verification pass.
 - [ ] No checkpoint, tensor, shared object, cache, credential, or machine-local
       environment file is tracked.
 - [ ] No private workstation path or private Spark hostname appears outside an
@@ -36,6 +37,9 @@ The repository must remain private until a human completes this checklist.
       gains rather than equivalent raw GPU acceleration.
 - [ ] Confirm cooperative-decode claims retain the tinyGLM/full-model boundary.
 - [ ] Confirm Atlas is labeled archival and incomplete, not production-ready.
+- [ ] Confirm every public performance claim resolves through `results/index.json`
+      to a checksum-valid qualification and its limitations.
+- [ ] Confirm legacy evidence is never described as post-policy certification.
 
 ## Repository presentation
 
@@ -48,5 +52,7 @@ The repository must remain private until a human completes this checklist.
       show MiaAI-Lab's sponsor link on the public fork.
 - [ ] Verify GitHub description, topics, default branch, issue templates, and
       security policy.
+- [ ] Enable the static workflow as a required branch check before accepting
+      public pull requests; never attach fork PRs directly to Spark runners.
 - [ ] Make the visibility change only as a separate, explicit action after this
       review.

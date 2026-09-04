@@ -1,6 +1,8 @@
 # Results map
 
-This page is a map to primary evidence, not a replacement for the raw data.
+This page summarizes primary evidence. The machine-verifiable canonical index
+is `results/index.json`; methodology and qualification rules are in
+`docs/METHODOLOGY.md` and `docs/QUALIFICATION.md`.
 
 ## Current runnable line
 
@@ -15,8 +17,7 @@ cache settings, and a discarded full-workload warmup before measurement.
 | Mia mixed versus Mia strict skip | +44.2% | -25.0% | fourth request -50.7% |
 | SparkGLM `5940f05` versus Mia mixed | +7.4% | -5.7% | requests 1-4 improved 1.9-4.3% |
 
-Primary report:
-`benchmarks/2026-09-03-latest-mia-apples-to-apples.md`.
+Primary bundle: `results/legacy/2026-09-03-latest-mia-apples-to-apples/`.
 
 ### GPU-resident grouped prefill
 
@@ -32,8 +33,7 @@ decode on both arms, and three retained paired repetitions.
 | staggered C2 wall | -5.9% |
 | staggered C2 aggregate effective prefill | +6.3% |
 
-Primary report: `docs/grouped-prefill-k4.md`. Raw receipts:
-`benchmarks/receipts/{baseline,candidate}-16k-{c1,c2}-r*.json`.
+Primary bundle: `results/legacy/2026-09-03-grouped-prefill-k4/`.
 
 ### Cooperative decode
 
@@ -42,7 +42,7 @@ warmed tinyGLM endpoint gate improved C1 by 5.5% and staggered C4 by 2.9%; long
 C2 was -0.2%. Those results prove the mechanism and exact token agreement in
 the gate, but do not establish a universal full-checkpoint serving gain.
 
-Primary report: `docs/vllm-exl3-vcruz305-audit.md`.
+Primary bundle: `results/legacy/2026-09-03-cooperative-decode/`.
 
 ## Inherited major result
 
@@ -53,7 +53,7 @@ recipe and must not be presented as original SparkGLM work. See
 
 ## Historical and negative results
 
-The older campaign is under `research/vllm-iterations/benchmarks/results/`.
+The older campaign is indexed under `results/legacy/`.
 It records rejected TP row sharding, fused score/top-k, speculative slot
 padding, grouped E2 dispatch, M32 and alternate M64 tiles, FlashKDA integration,
 hot-expert caches, and other candidates. Patch mailboxes retain the code path

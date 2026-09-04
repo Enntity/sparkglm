@@ -3,6 +3,11 @@
 SparkGLM accepts narrowly scoped work for GLM-5.3-Flash on two DGX Spark GB10
 systems.
 
+Start with [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Every change must name
+its state, target workload and metric, protected behavior, applicable gate
+level, and rollback. Use the pull-request template; do not substitute an
+isolated peak result for its requested evidence.
+
 - Preserve exact upstream attribution and license notices.
 - State whether external work was copied, adapted, ported, or merely inspired
   the change.
@@ -16,6 +21,20 @@ systems.
   experiment.
 - Do not commit weights, tensors, compiled binaries, credentials, machine-local
   paths, `.env` files, or generated videos.
+- Run `scripts/check.sh all` before every pull request.
+- For runtime changes, also run `scripts/check.sh container` in the built image
+  and the applicable tinyGLM/full-model gates; `all` deliberately means all
+  public-runner-safe checks, not access to private hardware.
+- Add a result bundle for every performance claim or promoted default; validate
+  it with `python3 scripts/qualification.py verify-all`.
+- Keep a candidate behind a rollback flag until its required full-model and
+  semantic gates pass.
+- Never run untrusted public pull-request code automatically on private Spark
+  hardware. Maintainers qualify reviewed commits.
 
 Every optimization commit should use the provenance structure documented in
 `docs/PROVENANCE.md`.
+
+Passing tinyGLM is required for relevant engine changes but is not a
+full-model speed or quality claim. See [docs/QUALIFICATION.md](docs/QUALIFICATION.md)
+for the result format and creation command.

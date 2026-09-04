@@ -1,0 +1,118 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-03-latest-mia-apples-to-apples",
+  "title": "Latest Mia apples-to-apples comparison",
+  "date": "2026-09-03",
+  "state": "accepted",
+  "qualification_level": "legacy",
+  "target": "Four-stream 16K staggered appliance throughput and TTFT",
+  "change": {
+    "baseline_ref": "eb0469fbb2b49fd7c025f594a3339a121e58f7a9",
+    "candidate_ref": "5940f05b08155f5c276ee0bccfedb5cfa1d7ee04",
+    "working_tree_clean": null,
+    "provenance": [
+      "Candidate derived from MiaAI-Lab eb0469fbb2b49fd7c025f594a3339a121e58f7a9.",
+      "Migrated from pre-policy SparkGLM evidence without retroactive certification."
+    ]
+  },
+  "environment": {
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "cross-node TP=2 over ConnectX-7",
+    "model": "GLM-5.3-Flash EXL3/TR3 4 bpw",
+    "drafter": "DFlash2 k=7, TP=2",
+    "kv_cache": "FP8",
+    "configuration": {
+      "max_num_seqs": 4,
+      "max_num_batched_tokens": 7168,
+      "mixed_prefill_chunk": "0",
+      "indexer_workspace": "rightsize",
+      "spinwait_ms": 16
+    }
+  },
+  "gates": [
+    {
+      "id": "G3",
+      "status": "pass",
+      "summary": "Two prewarmed paired four-stream 16K staggered runs completed on each arm."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Outputs were coherent but no separate semantic quality suite was run."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "aggregate_output_rate",
+      "scope": "SparkGLM versus Mia mixed",
+      "baseline": 21.794,
+      "candidate": 23.407,
+      "unit": "tokens/s",
+      "change_pct": 7.4
+    },
+    {
+      "name": "wall_time",
+      "scope": "SparkGLM versus Mia mixed",
+      "baseline": 97.217,
+      "candidate": 91.663,
+      "unit": "s",
+      "change_pct": -5.7
+    },
+    {
+      "name": "aggregate_output_rate",
+      "scope": "Mia mixed versus Mia strict skip",
+      "baseline": 15.113,
+      "candidate": 21.794,
+      "unit": "tokens/s",
+      "change_pct": 44.2
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "2026-09-03-latest-mia-apples-to-apples.md",
+      "kind": "human-report",
+      "sha256": "56a4a4da59a9a2e8867de351ddc96fc9d11fdad9b1ced4f8f548aedcc56048ad"
+    },
+    {
+      "path": "mia-eb0469f-mixed-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "23ebb4299f31fdc70d6888705264a5cdbfc2959973399a3b3dabccf756fe2f3c"
+    },
+    {
+      "path": "mia-eb0469f-mixed-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "995040db70aeb9213f397e1d6d4fd88e594762a1bbce0d77aa00a2c3bbf8a00b"
+    },
+    {
+      "path": "mia-eb0469f-skip-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "59cb389d8bfab30f4e28062cafd6a0f52c426fa25da0a474c761f7d68553c069"
+    },
+    {
+      "path": "mia-eb0469f-skip-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "03a72bcb0586f0741e2eb3fdacc77aee77fc51ddd051f54707a5367185a0e7ae"
+    },
+    {
+      "path": "sparkglm-5940f05-mixed-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b25fffdd713957eaf3041a01e842802d3397b500c270f55784452fc486a369ba"
+    },
+    {
+      "path": "sparkglm-5940f05-mixed-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "cb480891b89f4f901932ea1e499db16f2a557a44b374b33d80b2c69a570c998e"
+    }
+  ],
+  "limitations": [
+    "This evidence predates qualification-v1.",
+    "Only two retained repetitions were run, so this is not a broad confidence interval.",
+    "The mixed-versus-skip result is a service-policy result, not a raw kernel acceleration.",
+    "No semantic quality-parity claim is supported."
+  ],
+  "attestation": {
+    "status": "legacy",
+    "maintainer": null,
+    "date": null
+  }
+}

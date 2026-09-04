@@ -2,7 +2,7 @@
 
 > Historical EP=2 bootstrap receipt. The optimized appliance is now pure TP=2
 > with DFlash2 and cross-sequence target/draft batching; see
-> [`NATIVE_TP2_VALIDATION_2026-09-01.md`](NATIVE_TP2_VALIDATION_2026-09-01.md).
+> [`NATIVE_TP2_VALIDATION_2026-09-01.md`](../2026-09-01-atlas-native-tp2-validation/NATIVE_TP2_VALIDATION_2026-09-01.md).
 
 These receipts are from the Atlas `glm53-flash` branch serving
 `Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` with EP=2/TP=1 on two DGX Sparks.

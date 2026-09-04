@@ -1,0 +1,69 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-03-cooperative-decode",
+  "title": "TP2 cooperative EXL3 decode",
+  "date": "2026-09-03",
+  "state": "accepted",
+  "qualification_level": "legacy",
+  "target": "Exact-shape decode kernel and tinyGLM endpoint throughput",
+  "change": {
+    "baseline_ref": "9964472b8c68d1f98370e2021f95fcd1eb4068fa",
+    "candidate_ref": "616fda8a5a819d3a102b8bc7acf46b2654da1113",
+    "working_tree_clean": null,
+    "provenance": [
+      "Inspired by vcruz305/vllm-exl3 cooperative-grid decode; wrapper and kernel were not copied.",
+      "Migrated from pre-policy SparkGLM evidence without retroactive certification."
+    ]
+  },
+  "environment": {
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "cross-node TP=2",
+    "model": "tinyGLM exact-geometry fixture for endpoint qualification",
+    "configuration": {
+      "decode_coop_max_tokens": 16,
+      "quantization": "EXL3 K4"
+    }
+  },
+  "gates": [
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Exact-shape CUDA kernel comparison matched and improved 5.5-13.9% across one to sixteen tokens."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Warmed tinyGLM endpoint gate preserved exact tokens across C1, C4, and long C2."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No broad complete-checkpoint workload qualification was retained for this isolated change."
+    }
+  ],
+  "metrics": [
+    {"name": "exact_shape_kernel_improvement_min", "candidate": 5.5, "unit": "percent"},
+    {"name": "exact_shape_kernel_improvement_max", "candidate": 13.9, "unit": "percent"},
+    {"name": "tinyGLM_C1_throughput_change", "candidate": 5.5, "unit": "percent"},
+    {"name": "tinyGLM_C4_throughput_change", "candidate": 2.9, "unit": "percent"},
+    {"name": "tinyGLM_long_C2_throughput_change", "candidate": -0.2, "unit": "percent"}
+  ],
+  "artifacts": [
+    {
+      "path": "vllm-exl3-vcruz305-audit.md",
+      "kind": "human-report",
+      "sha256": "f362a241675ae07e74eb4505148e1d533e25a35264960cd1e5beb8d354bb7f20"
+    }
+  ],
+  "limitations": [
+    "This evidence predates qualification-v1.",
+    "tinyGLM throughput is integration evidence, not a full-model speed prediction.",
+    "Long C2 was flat and a broad full-checkpoint quality/workload gate was not completed.",
+    "The cooperative path therefore remains opt-in."
+  ],
+  "attestation": {
+    "status": "legacy",
+    "maintainer": null,
+    "date": null
+  }
+}

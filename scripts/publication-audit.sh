@@ -26,6 +26,11 @@ require_file LICENSES/NOTICE-Reederey.txt
 require_file LICENSES/GLM-5.3.txt
 require_file docs/ATTRIBUTION.md
 require_file docs/PUBLICATION_REVIEW.md
+require_file docs/METHODOLOGY.md
+require_file docs/QUALIFICATION.md
+require_file results/README.md
+require_file results/index.json
+require_file schemas/qualification-v1.schema.json
 require_file research/atlas/atlas-glm53.patch
 
 prohibited_files="$({
@@ -71,6 +76,9 @@ done < <(git ls-files '*.json')
 while IFS= read -r shell_file; do
     bash -n "$shell_file" || fail "invalid shell syntax: $shell_file"
 done < <(git ls-files '*.sh')
+
+python3 scripts/qualification.py verify-all \
+    || fail "qualification records are invalid or the result index is stale"
 
 if ! grep -q 'libatlas_glm53_flash_kda.so' research/atlas/README.md; then
     fail "Atlas binary exclusion is undocumented"

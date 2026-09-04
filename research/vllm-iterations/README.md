@@ -4,7 +4,8 @@ This archive predates the clean Mia-derived current branch at the repository
 root. It preserves the experimental trail rather than presenting every patch
 as useful.
 
-- `benchmarks/results/` contains accepted and rejected measurements.
+- `../../results/legacy/` contains the indexed accepted, rejected, and raw
+  measurements migrated from this campaign.
 - `benchmarks/` contains the corresponding public-safe harnesses and raw JSON.
 - `docs/` contains the execution analysis and upstream audits.
 - `scripts/` contains generic build helpers; machine-local LLooM alias tooling
