@@ -19,7 +19,7 @@ BASE = "http://127.0.0.1:8888"
 SERVED = "GLM-5.3-Flash-EXL3"
 FILLER = "the "
 TASK = "Reply with OK."
-OUT_JSON = Path("docs/_cold_prefill_raw.json")
+OUT_JSON = Path("results/cold-prefill-raw.json")
 
 # target prompt_tokens, http timeout seconds
 LADDER = [

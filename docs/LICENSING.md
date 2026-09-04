@@ -33,7 +33,7 @@ by the root Apache license, and none is committed here. The launcher downloads
 immutable revisions from their publishers:
 
 - the primary and fallback EXL3/TR3 checkpoints use the ShapleyMCG License 1.0;
-- the optional/default DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
+- the optional DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
   non-commercial and no-derivatives restrictions;
 - the underlying GLM model uses the GLM-5.3 License.
 

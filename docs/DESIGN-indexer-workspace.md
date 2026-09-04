@@ -4,7 +4,7 @@
 `tests/test_indexer_workspace.py`
 
 Condensed from the 2026-08-31 read-only inspection of the live fork
-(`0.1.dev20051+g487ecf187` in `glm53-exl3-head`, head Spark 192.0.2.1), with the
+(`0.1.dev20051+g487ecf187` in `glm53-exl3-head`, head appliance rank), with the
 corrections from Codex's review folded in and the 2026-09-01 workspace receipt
 attached. `file:line` citations are against
 `/usr/local/lib/python3.12/dist-packages/vllm/` inside that container.

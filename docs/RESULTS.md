@@ -4,11 +4,16 @@ This page summarizes primary evidence. The machine-verifiable canonical index
 is `results/index.json`; methodology and qualification rules are in
 `docs/METHODOLOGY.md` and `docs/QUALIFICATION.md`.
 
-## Current runnable line
+## Legacy signals from the current lineage
+
+These are pre-policy measurements, not certification of the current release
+candidate. They remain visible because hiding partial evidence would be less
+useful than stating its scope precisely.
 
 ### Latest-Mia apples-to-apples comparison
 
-The retained comparison used four independent approximately 16K-token prompts,
+The retained comparison used four independent prompts requested as
+approximately 16K tokens,
 one-second staggered arrivals, 400 requested output tokens, identical graph and
 cache settings, and a discarded full-workload warmup before measurement.
 
@@ -17,11 +22,13 @@ cache settings, and a discarded full-workload warmup before measurement.
 | Mia mixed versus Mia strict skip | +44.2% | -25.0% | fourth request -50.7% |
 | SparkGLM `5940f05` versus Mia mixed | +7.4% | -5.7% | requests 1-4 improved 1.9-4.3% |
 
+It retained only two repetitions per arm and did not run the current G4 suite.
 Primary bundle: `results/legacy/2026-09-03-latest-mia-apples-to-apples/`.
 
 ### GPU-resident grouped prefill
 
-The complete 320B checkpoint test used approximately 33K actual tokens per
+The complete 320B checkpoint test requested “16K” from the old approximate
+fixture but recorded approximately 33K actual tokens per
 prompt, TP2, DFlash2 k=7, FP8 target KV, mixed scheduling, identical cooperative
 decode on both arms, and three retained paired repetitions.
 
@@ -33,7 +40,8 @@ decode on both arms, and three retained paired repetitions.
 | staggered C2 wall | -5.9% |
 | staggered C2 aggregate effective prefill | +6.3% |
 
-Primary bundle: `results/legacy/2026-09-03-grouped-prefill-k4/`.
+It covered C1/C2 but not today's full C1/C2/C4 matrix or G4 suite. Primary
+bundle: `results/legacy/2026-09-03-grouped-prefill-k4/`.
 
 ### Cooperative decode
 

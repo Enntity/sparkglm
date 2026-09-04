@@ -54,7 +54,7 @@
       "license_expression": "MIT",
       "notice_ids": ["MIT-Mia"],
       "relationship": "base recipe, with verbatim and modified files",
-      "covered_paths": ["Dockerfile", "start.sh", "overlay/patch_*.py", "ablit/**", "docs/upstream/MIA_RECIPE_README.md"]
+      "covered_paths": ["Dockerfile", "start.sh", "start-tp4.sh", ".env.example", ".env.tp4.example", "assets/glm.png", "overlay/patch_*.py", "ablit/**", "docs/upstream/MIA_RECIPE_README.md"]
     },
     {
       "id": "zai-chat-template",
@@ -81,7 +81,7 @@
       "license_expression": "MIT",
       "notice_ids": ["MIT-ExLlamaV3"],
       "relationship": "adapted EXL3 arithmetic foundations",
-      "covered_paths": ["overlay/exl3.py", "overlay/exl3_fat_gemm.cu", "overlay/exl3_decode_moe.cu"]
+      "covered_paths": ["overlay/exl3.py", "overlay/exl3_fat_gemm.cu", "overlay/exl3_fat_gemm.cuh", "overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh"]
     },
     {
       "id": "reederey-reference",
@@ -99,7 +99,7 @@
       "license_expression": "Apache-2.0",
       "notice_ids": ["Apache-2.0"],
       "relationship": "inspiration only; wrapper and kernel not copied",
-      "covered_paths": ["overlay/exl3_decode_moe.cu", "docs/PROVENANCE.md"]
+      "covered_paths": ["overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh", "docs/PROVENANCE.md"]
     },
     {
       "id": "atlas",
@@ -130,6 +130,11 @@
     }
   ],
   "path_rules": [
+    {
+      "patterns": ["overlay/exl3.py", "overlay/exl3_fat_gemm.cu", "overlay/exl3_fat_gemm.cuh", "overlay/exl3_decode_moe.cu", "overlay/exl3_decode_moe.cuh"],
+      "license_expression": "MIT AND Apache-2.0",
+      "reason": "MIT ExLlamaV3-derived arithmetic with Apache-2.0 SparkGLM integration; the M64 path also retains its separate Reederey notice"
+    },
     {
       "patterns": ["files/chat_template.jinja"],
       "license_expression": "LicenseRef-GLM-5.3",

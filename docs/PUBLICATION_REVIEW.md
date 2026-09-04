@@ -8,6 +8,8 @@ The repository must remain private until a human completes this checklist.
 - [ ] All JSON benchmark receipts parse.
 - [ ] Shell launch and build scripts pass `bash -n`.
 - [ ] `scripts/check.sh all` and qualification verification pass.
+- [ ] Root Docker `COPY` inputs are complete and a clean ARM64 build has passed
+      on a Spark; static context validation alone is not a built image.
 - [ ] No checkpoint, tensor, shared object, cache, credential, or machine-local
       environment file is tracked.
 - [ ] No private workstation path or private Spark hostname appears outside an
@@ -46,10 +48,18 @@ The repository must remain private until a human completes this checklist.
 - [ ] Confirm every public performance claim resolves through `results/index.json`
       to a checksum-valid qualification and its limitations.
 - [ ] Confirm legacy evidence is never described as post-policy certification.
+- [ ] Review `docs/KNOWN_LIMITATIONS.md`, especially the 2051-to-2048 sparse-MLA
+      candidate-set approximation, and ensure the README disclosure remains.
+- [ ] Confirm grouped prefill, cooperative decode, vision, and DFlash2 remain
+      opt-in unless a current qualification explicitly promotes them.
 
 ## Repository presentation
 
 - [ ] Verify the root README points users to the current vLLM engine first.
+- [ ] Verify the default image name is SparkGLM-owned and does not overwrite or
+      masquerade as an upstream Mia image tag.
+- [ ] Verify the default API bind is loopback and any public/LAN example uses a
+      bearer key.
 - [ ] Decide whether generated videos belong in a GitHub release; do not commit
       the entire local render archive.
 - [ ] Decide whether the staging repository should be renamed to `sparkglm`

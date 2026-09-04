@@ -51,7 +51,7 @@ if git grep -I -l -E \
 fi
 
 if git grep -I -l -E \
-    '/Users/jmac|/home/enntitysparkadmin|ennspark0[12]' \
+    '/Users/jmac|/home/enntitysparkadmin|/home/mia/NewModels|ennspark0[12]|@[A-Za-z0-9._-]+[.]local' \
     -- . ':!scripts/publication-audit.sh' \
     >/tmp/sparkglm-publication-local-files.txt; then
     cat /tmp/sparkglm-publication-local-files.txt >&2

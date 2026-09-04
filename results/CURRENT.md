@@ -13,3 +13,8 @@ has been migrated honestly rather than re-labeled as newly certified:
 No result currently claims post-policy G5 release qualification. The first
 future default-changing optimization should establish the clean, signed
 baseline under the new methodology rather than grandfathering old evidence.
+
+The legacy labels matter. The old “16K” isolation generator produced roughly
+33K actual tokenizer tokens in at least the grouped-prefill campaign, the Mia
+comparison retained only two repetitions per arm, and none of these bundles is
+a complete current G3 plus G4 matrix. See `docs/KNOWN_LIMITATIONS.md`.

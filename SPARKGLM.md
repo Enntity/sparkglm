@@ -8,15 +8,20 @@ branch itself uses a fresh sanitized history so excluded model artifacts from
 the upstream recipe are not reachable through Git history.
 
 Before downloading weights, read `docs/LICENSING.md`. In particular, the
-DFlash2 checkpoint selected by the fastest default is separately licensed CC
-BY-NC-ND 4.0. Use `SPEC_METHOD=mtp` or `SPEC_METHOD=none` if its
-non-commercial/no-derivatives terms do not fit your use. Model and drafter
+DFlash2 is an optional performance profile and is separately licensed CC
+BY-NC-ND 4.0. The default uses `SPEC_METHOD=mtp`; use `SPEC_METHOD=none` to
+disable speculation. Model and drafter
 revisions are pinned independently from source and container revisions.
 
-The EXL3 changes build through this repository's normal `Dockerfile`. The two
-vLLM-core changes are stored as patches against the exact vLLM source revision
-used by Mia, `487ecf187d3dfe74d2cf6119a92881dba403c219`. Apply them before building
-the base `vllm-openai` image:
+The canonical image is `sparkglm:local`, built by `./start.sh` from the root
+`Dockerfile` and shipped byte-for-byte to rank 1. The root image applies the
+packed-RMSNorm runtime patch itself and compiles the SM121 EXL3 extension from
+the pinned ExLlamaV3 source. Its labels bind the recipe hash and SparkGLM Git
+revision.
+
+The complete vLLM source patches are also stored against Mia's exact vLLM
+revision, `487ecf187d3dfe74d2cf6119a92881dba403c219`, for upstream development or
+a from-source vLLM rebuild:
 
 ```bash
 git clone https://github.com/vllm-project/vllm.git /path/to/vllm
@@ -24,9 +29,9 @@ git -C /path/to/vllm checkout 487ecf187d3dfe74d2cf6119a92881dba403c219
 ./scripts/apply-sparkglm-vllm-patches.sh /path/to/vllm
 ```
 
-Build that checkout's `vllm-openai` target, then pass its image tag as
-`--build-arg BASE=...` when building this recipe. This order intentionally
-reuses Mia's compatibility overlay on top of the patched vLLM base.
+The native FP16 sparse-selector patch changes DeepGEMM and therefore cannot be
+applied as a Python overlay. It is research-only until a source-built artifact
+passes the current gates; it is not silently claimed by the canonical image.
 
 For a fair endpoint comparison, the untouched and optimized images must use
 the same model revision, DFlash revision and topology, KV/cache budget,

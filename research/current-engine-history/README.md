@@ -7,8 +7,11 @@ snapshots cannot remain reachable through old git objects.
 This directory preserves the accepted SparkGLM changes as a mailbox series
 from Mia base `eb0469fbb2b49fd7c025f594a3339a121e58f7a9` through SparkGLM
 candidate `c80531867e13085c356ae5b9bff4c3b98ee64e8b`. Commit authors, messages,
-co-author trailers, and per-change provenance remain inspectable without
-publishing the contaminated historical object graph.
+and per-change provenance remain inspectable without publishing the
+contaminated historical object graph. Two credit-only `Co-authored-by`
+trailers were normalized to explicit `Provenance:` lines because the project
+cannot assert that those upstream authors directly participated in these
+commits. Their upstream authorship and revisions remain fully credited.
 
 The repository root already contains the resulting source tree. These patches
 are provenance records, not an additional installation path.

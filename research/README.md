@@ -1,5 +1,10 @@
 # Research archive
 
+Nothing under this tree is a second supported distribution. Root-level
+Dockerfiles whose names include `binary` or `derivative`, plus `start-tp4.sh`,
+are likewise historical qualification/unsupported research helpers; only the
+root `Dockerfile` and `start.sh` define the current two-Spark path.
+
 This directory preserves work that informed the current engine but is not the
 recommended serving path.
 

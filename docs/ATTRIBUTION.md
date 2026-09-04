@@ -39,6 +39,9 @@ The following are original project work built on the foundations above:
 SparkGLM did not invent EXL3 arithmetic, vLLM scheduling, DFlash2, GLM-5.3,
 the M64 `cp.async` tile, packed RMSNorm, or the FP16 sparse selector.
 
+The root banner and `.github/FUNDING.yml` are retained from the pinned Mia
+recipe under its MIT notice; the sponsor link intentionally remains Mia's.
+
 ## Model artifacts not redistributed here
 
 | Artifact | Author/source | License boundary |

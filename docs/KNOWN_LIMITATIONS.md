@@ -1,0 +1,67 @@
+# Known limitations
+
+This is the short list a user, reviewer, or benchmark reader should understand
+before treating SparkGLM as a finished appliance.
+
+## Model-semantic approximation in sparse MLA
+
+GLM-5.3's k-pool indexer can emit 2051 candidates: 512 pools expanded by four,
+plus up to three recent tail tokens. The available FlashInfer SM121 sparse-MLA
+kernel is instantiated at exactly 2048 candidates. The current compatibility
+overlay expands 511 pools and preserves the recent tail, so as many as four of
+the lowest-ranked pooled candidates are omitted.
+
+That is a small candidate-set change (at most 4/2051 on affected rows), but it
+is not mathematically exact model execution. The proper root fix is an SM121
+kernel/dispatch contract that accepts all 2051 candidates, followed by output
+and quality qualification. Until then, comparisons must use the same
+approximation on both arms and disclose it.
+
+## Qualification status
+
+- No checked-in result currently gives this release candidate post-policy G5
+  qualification.
+- The retained performance campaign is `legacy`: it predates the exact 16K/32K
+  prompt calibration, complete G3 matrix, and current G4 semantic requirements.
+- The root Docker build is now statically checked for complete build-context
+  inputs, but a clean ARM64/SM121 image build and two-rank boot still require
+  the DGX Spark hardware gate.
+- `scripts/full-model-gate.sh` captures exact tokenizer counts and fails on
+  incomplete output or request-marker contamination. The operator must still
+  alternate baseline/candidate order and create the checksum-bound
+  qualification record; the script cannot restart two different engines by
+  itself.
+
+## Candidate optimizations kept off by default
+
+- `EXL3_GROUPED_PREFILL_K4=1` showed encouraging legacy results but allocates
+  roughly 1.2 GiB of persistent scratch per rank and has not passed the current
+  full G3/G4 matrix. It defaults off.
+- `EXL3_DECODE_COOP_K4=1` passed exact-shape and tinyGLM checks, but its long C2
+  full-model signal was flat and its broader semantic qualification is
+  incomplete. It defaults off.
+- Native FP16 sparse-selector logits require a separately rebuilt DeepGEMM
+  artifact. The accepted binary rejected that dtype during graph profiling, so
+  FP32 remains the supported setting.
+
+## Scope boundaries
+
+- The supported target is exactly two GB10/SM121 systems with TP=2. Root-level
+  TP4 files are inherited experimental material, not a supported product path.
+- Text-only serving is the default. Vision can be enabled, but multimodal
+  capacity and quality are not certified by text throughput results.
+- DFlash2 is optional and separately licensed CC BY-NC-ND 4.0. It may perform
+  very differently across output styles because speculative acceptance varies;
+  it is not a universal speed multiplier.
+- The primary synthetic isolation fixture is a reproducible service-stress
+  proxy, not a claim that repetitive filler represents every agent, tool,
+  reasoning, or multimodal workload.
+- The API binds to loopback by default. A non-loopback bind requires a bearer
+  key unless the operator explicitly accepts unauthenticated LAN exposure.
+
+## Research archive
+
+`research/` intentionally contains incomplete and rejected work. Those files
+are useful provenance and negative evidence, not alternate supported install
+paths. Atlas code remains AGPL-3.0-only and never becomes Apache merely because
+it is stored in this repository.

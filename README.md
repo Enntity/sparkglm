@@ -1,5 +1,7 @@
 # SparkGLM
 
+![SparkGLM GLM-5.3-Flash EXL3 banner](assets/glm.png)
+
 SparkGLM is an open research project for running **GLM-5.3-Flash on exactly two
 NVIDIA DGX Spark GB10 systems**. The current runnable path is an opinionated
 vLLM/EXL3 appliance derived from MiaAI-Lab's two-Spark recipe. The repository
@@ -9,6 +11,13 @@ that succeeded, failed, or changed the direction of the project.
 > **Release-candidate status:** this repository is staged privately for a
 > publication review. It has not been declared production-ready, and no
 > repository visibility change is part of this commit.
+
+> **Known semantic approximation:** the current FlashInfer SM121 compatibility
+> path can represent 2048 sparse-MLA candidates while GLM-5.3 may produce 2051.
+> SparkGLM retains the recent tail and omits the four lowest-ranked pooled
+> candidates. This affects at most 4/2051 candidates at those rows, but it is
+> still a model-semantic deviation—not “exact inference.” See
+> [known limitations](docs/KNOWN_LIMITATIONS.md).
 
 ## How changes earn promotion
 
@@ -31,8 +40,9 @@ kept as explicitly legacy evidence rather than retroactively certified.
 ## Start here
 
 - **Check the component licenses before downloading:** read
-  [docs/LICENSING.md](docs/LICENSING.md). The fastest default downloads a
-  CC BY-NC-ND 4.0 DFlash2 checkpoint; `SPEC_METHOD=mtp` and `none` avoid it.
+  [docs/LICENSING.md](docs/LICENSING.md). The default uses the checkpoint's
+  built-in MTP path. DFlash2 is explicit opt-in because its checkpoint is CC
+  BY-NC-ND 4.0.
 - **Run the current engine:** follow the build and two-node launch process in
   [SPARKGLM.md](SPARKGLM.md) and the detailed upstream recipe guide in
   [docs/upstream/MIA_RECIPE_README.md](docs/upstream/MIA_RECIPE_README.md).
@@ -47,6 +57,9 @@ kept as explicitly legacy evidence rather than retroactively certified.
   research, but it is not the recommended serving path.
 - **Review before publication:** see
   [docs/PUBLICATION_REVIEW.md](docs/PUBLICATION_REVIEW.md).
+- **Know what remains unproven:** read
+  [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) before deployment or
+  quoting a result.
 
 ## What is running code versus research
 
@@ -63,27 +76,19 @@ The project deliberately retains negative results. A rejected patch is not an
 optional optimization and should not be enabled merely because its source is
 available.
 
-## Current measured picture
+## Evidence status
 
-All numbers below were measured on the project's two directly connected GB10
-systems. They are not vendor claims.
+There is not yet a post-policy G3/G4/G5 qualification for this release
+candidate. The repository contains valuable pre-policy measurements, but they
+are labeled `legacy` because several use approximate prompt generators,
+partial matrices, or fewer semantic checks than the current method requires.
+They guide hypotheses; they do not certify today's default.
 
-- Enabling work-conserving mixed scheduling instead of strict prefill deferral
-  raised four-stream 16K aggregate output rate by **44.2%**, reduced makespan by
-  **25.0%**, and cut the fourth request's TTFT by **50.7%**. This is a policy
-  correction using existing scheduler machinery, not a 44% kernel speedup.
-- Against the prewarmed Mia mixed control at `eb0469f`, the earlier SparkGLM
-  candidate `5940f05` raised aggregate output rate by **7.4%** and reduced wall
-  time by **5.7%** on the retained four-stream 16K workload.
-- The later GPU-resident grouped-prefill path improved full-model effective
-  prefill by **9.6% at C1** and **6.3% at staggered C2** on approximately 33K
-  actual-token prompts; C2 wall time improved **5.9%**.
-- The cooperative decode kernel improved the isolated exact-shape kernel by
-  **5.5-13.9%** and tinyGLM endpoint throughput by **5.5% at C1** and **2.9% at
-  C4**. Long C2 was flat. It still needs a broader full-checkpoint quality and
-  workload gate before a universal production claim.
-
-See [docs/RESULTS.md](docs/RESULTS.md) for scopes and primary receipts.
+The strongest retained signals were work-conserving mixed scheduling, the
+inherited M64 fat-expert pipeline, grouped prefill, and cooperative decode.
+Their exact numbers, revisions, raw receipts, and limitations live in
+[the results map](docs/RESULTS.md). Do not add their percentages together or
+describe a tinyGLM/kernel result as full-model endpoint performance.
 
 ## What is not included
 
@@ -105,18 +110,19 @@ The optimized path is intentionally narrow:
 - GLM-5.3-Flash
 - TP=2
 - EXL3/TR3 K4 routed experts
-- DFlash2 k=7 where its separate license and workload fit are acceptable
+- MTP by default; optional DFlash2 k=7 where its separate license and workload
+  fit are acceptable
 - medium and long staggered workloads, not only short synthetic decode
 
 Fallbacks and rollback knobs remain because a fast unsupported shape is a bug,
 not an optimization.
 
-Important appliance defaults include work-conserving
+Important candidate defaults include work-conserving
 `GLM53_MIXED_PREFILL_CHUNK=0`, the GB10-selected 16 ms TP spin window, and the
-`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. Cooperative EXL3 decode remains
-an explicit opt-in until its full-checkpoint workload and quality gate is
-broader; see `.env.example` and [SPARKGLM.md](SPARKGLM.md) for the complete
-controls.
+`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. Grouped prefill and cooperative
+EXL3 decode remain explicit opt-ins until they pass the current full-checkpoint
+workload and semantic gates; see `.env.example` and
+[SPARKGLM.md](SPARKGLM.md) for the complete controls.
 
 ## Licensing
 
