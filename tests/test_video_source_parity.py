@@ -5,6 +5,8 @@ import hashlib
 import argparse
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -57,6 +59,67 @@ def test_wiring():
         assert name in runtime
 
 
+def test_candidate_is_explicit_and_fail_closed():
+    before = "a" * 64
+    after = "b" * 64
+    name = "vllm/test.py"
+    manifest = {"python_files": {name: before}, "native_source": {},
+                "exl3_compile_inputs": {}, "allowed_nonfunctional_differences": {},
+                "allowed_exl3_license_differences": {}}
+    change = {"reference_sha256": before, "candidate_sha256": after, "reason": "test-only experiment"}
+    declaration = {"schema": "sparkglm.candidate-sources/v1", "changes": {"python": {name: change}}}
+    expected, allowed = parity.candidate_expectations(manifest, declaration, "python", {name: before}, {})
+    assert expected == {name: after} and allowed == {}
+    assert manifest["python_files"][name] == before  # never rewrite the baseline
+    for field, bad in (("reference_sha256", "c" * 64), ("candidate_sha256", "bad"), ("reason", "")):
+        invalid = json.loads(json.dumps(declaration))
+        invalid["changes"]["python"][name][field] = bad
+        try:
+            parity.candidate_expectations(manifest, invalid, "native", {}, {})
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"accepted invalid {field}")
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "vllm").mkdir()
+        path = root / name
+        path.write_text("candidate\n")
+        change["candidate_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        expected, allowed = parity.candidate_expectations(manifest, declaration, "python", {name: before}, {})
+        assert parity.verify(root, expected, allowed, inventory=True)["passed"]
+        assert not parity.verify(root, {name: before}, inventory=True)["passed"]
+        path.write_text("undeclared change\n")
+        assert not parity.verify(root, expected, allowed)["passed"]
+        path.unlink()
+        assert not parity.verify(root, expected, allowed)["passed"]
+    frozen = (ROOT / "provenance/video-source-parity.json").read_bytes()
+    command = [sys.executable, str(ROOT / "scripts/build_candidate.py"),
+               "--manifest", str(ROOT / "provenance/candidate-sources.example.json"),
+               "--tag", "sparkglm-candidate:test", "--print-dockerfile"]
+    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    assert result.stdout.count("--candidate-manifest /opt/sparkglm-candidate-sources.json") == 3
+    assert result.stdout.count("COPY provenance/candidate-sources.example.json /opt/sparkglm-candidate-sources.json") == 2
+    assert 'org.enntity.sparkglm.build-profile="candidate"' in result.stdout
+    assert frozen == (ROOT / "provenance/video-source-parity.json").read_bytes()
+    assert '--candidate-manifest' not in (ROOT / "Dockerfile").read_text()
+    for kind in ("native", "python", "exl3"):
+        assert f"--kind {kind}" in result.stdout
+    command[command.index("sparkglm-candidate:test")] = "sparkglm:local"
+    assert subprocess.run(command, capture_output=True).returncode != 0
+
+
+def test_contributor_dependencies_and_context_boundaries():
+    contributing = (ROOT / "CONTRIBUTING.md").read_text()
+    workflow = (ROOT / ".github/workflows/static.yml").read_text()
+    assert "pip install -r requirements-dev.txt" in contributing
+    assert "pip install -r requirements-dev.txt" in workflow
+    assert "Jinja2>=3.1,<4" in (ROOT / "requirements-dev.txt").read_text()
+    excluded = (ROOT / ".dockerignore").read_text().splitlines()
+    for pattern in (".git", ".env", ".venv", "**/*.safetensors", "**/*.pt", "**/*.pem"):
+        assert pattern in excluded
+
+
 def test_replay_cache_namespace_does_not_change_video_request_inputs():
     spec = importlib.util.spec_from_file_location("video", ROOT / "benchmarks/four_stream_video.py")
     video = importlib.util.module_from_spec(spec)
@@ -92,5 +155,7 @@ def test_replay_cache_namespace_does_not_change_video_request_inputs():
 if __name__ == "__main__":
     test_gate()
     test_wiring()
+    test_candidate_is_explicit_and_fail_closed()
+    test_contributor_dependencies_and_context_boundaries()
     test_replay_cache_namespace_does_not_change_video_request_inputs()
     print("video source parity gate: PASS")

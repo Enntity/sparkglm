@@ -4,6 +4,12 @@ tinyGLM is a deterministic, weightless integration model for testing the
 GLM-5.3 serving stack without loading the 164 GiB checkpoint. It is deliberately
 useless as a language model.
 
+New here? Start with the runnable [contributor loop](../CONTRIBUTING.md).
+Source-only work does not require Sparks. Fixture creation is fast; an
+uncached engine image still requires native compilation. The
+[candidate builder](CANDIDATE_BUILDS.md) keeps experimental changes separate
+from the frozen reference.
+
 It preserves the dimensions and operations that choose the production kernels:
 
 - hidden size 4096;

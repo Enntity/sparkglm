@@ -66,6 +66,19 @@ approximation on both arms and disclose it.
   reasoning, or multimodal workload.
 - The API binds to loopback by default. A non-loopback bind requires a bearer
   key unless the operator explicitly accepts unauthenticated LAN exposure.
+  Readiness/warmup probes currently use loopback; use an SSH tunnel or an
+  authenticated `API_HOST=0.0.0.0` bind rather than a LAN-only bind.
+
+## Distribution and development
+
+- The source preview has no qualified prebuilt registry image. First use
+  builds native code; see `docs/IMAGE_RELEASE.md` for the binary-publication gate.
+- Candidate builds are explicitly unqualified and use separate declared
+  hashes rather than modifying the frozen video reference. New/deleted
+  inventory entries need tooling review; see `docs/CANDIDATE_BUILDS.md`.
+- The launcher retains Mia's default container names. Follow the migration
+  section in `SPARKGLM.md`; do not use one recipe's stop/restart command while
+  assuming the other recipe's same-named containers are independent.
 
 ## Research archive
 

@@ -159,6 +159,12 @@ Required for a named public release or a new recommended appliance baseline:
 - rollback exercise and partial-node failure check;
 - eight-hour mixed-arrival endurance with no leak, deadlock, or quality drift.
 
+Publishing the source repository as an explicitly unqualified research preview
+is not a named appliance release or a new baseline promotion. It requires the
+publication/attribution checks and honest evidence labels, but must not claim
+G5, add a certified release tag, or imply a qualified binary distribution.
+This distinction does not relax any runtime-change or performance-claim gate.
+
 ## Promotion rules by change class
 
 | Change | Minimum before merge | Minimum before default/claim |
@@ -168,7 +174,7 @@ Required for a named public release or a new recommended appliance baseline:
 | CUDA/operator | G0 + G1 + G2 | G3, plus G4 when numeric behavior changes |
 | scheduler/cache/TP | G0 + G2 | G3 + operational G4 |
 | quantization/speculation | G0 + G1 + G2 | G3 + quality G4 |
-| public release | all relevant prior gates | G5 |
+| named appliance release | all relevant prior gates | G5 |
 
 ## Public-runner boundary
 

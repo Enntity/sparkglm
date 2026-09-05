@@ -19,6 +19,17 @@ that succeeded, failed, or changed the direction of the project.
 > still a model-semantic deviation—not “exact inference.” See
 > [known limitations](docs/KNOWN_LIMITATIONS.md).
 
+## Choose your path
+
+- **I want to run the model:** [two-Spark quickstart](SPARKGLM.md), from
+  prerequisites and migration to the first streamed answer. The current
+  distribution builds from source; no qualified prebuilt image is published.
+- **I want to improve it:** [contributor quickstart](CONTRIBUTING.md), with a
+  laptop-only first test and a concrete tinyGLM candidate loop. No Sparks are
+  needed to submit a source-only contribution.
+- **I want the measurements:** [current evidence](results/CURRENT.md) and
+  [methodology](docs/METHODOLOGY.md). Historical experiments are not defaults.
+
 ## How changes earn promotion
 
 ```text
@@ -45,8 +56,8 @@ kept as explicitly legacy evidence rather than retroactively certified.
   checkpoint is CC BY-NC-ND 4.0 and therefore non-commercial/no-derivatives;
   use `SPEC_METHOD=mtp` or `none` when those terms do not fit.
 - **Run the current engine:** follow the build and two-node launch process in
-  [SPARKGLM.md](SPARKGLM.md) and the detailed upstream recipe guide in
-  [docs/upstream/MIA_RECIPE_README.md](docs/upstream/MIA_RECIPE_README.md).
+  [SPARKGLM.md](SPARKGLM.md). It is the authoritative installation guide;
+  the retained upstream README is historical reference.
   Stop any resident full model before `BUILD=1`: native EXL3 compilation and a
   loaded checkpoint compete for the GB10's unified memory. The launcher now
   refuses a build below 32 GiB `MemAvailable` unless the operator deliberately

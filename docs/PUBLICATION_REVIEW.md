@@ -10,7 +10,9 @@ private, archived `sparkglm-private-history`. Do not merge or mirror its Git
 history into the publication branch.
 
 The current build guide is [SPARKGLM.md](../SPARKGLM.md). The final presentation
-cleanup changes no engine code or defaults. Detailed build-reproduction
+cleanup changes no serving engine code or defaults. Contributor tooling now
+has a separate declared-hash candidate build and an explicit-image tinyGLM
+wrapper regression fix. Detailed build-reproduction
 diagnostics remain linked from [current status](../results/CURRENT.md), not
 promoted as a separate performance claim.
 
@@ -34,6 +36,17 @@ CPU runners, not the private Sparks. Private vulnerability reporting could not
 be enabled during private preparation (GitHub returned 404); verify and enable
 it as part of the visibility-change checklist before directing security
 reports there.
+
+The consumer and contributor entry points are now self-contained. Source-only
+setup is checked in a fresh Python environment; reference source checks were
+also exercised against the retained image without a GPU or model load.
+The new candidate builder has source/command-generation tests; it is not a
+newly hardware-qualified engine. No new speed or full-model quality claim is
+made by this onboarding work.
+
+Tonight's publication target is a **source research preview**, not a named
+G5 appliance release. No prebuilt image is offered until the separate
+[binary audit](IMAGE_RELEASE.md) and registry-pull qualification are complete.
 
 ## Automated gate
 

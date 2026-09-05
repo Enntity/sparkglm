@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install the one source-test dependency
-        run: python -m pip install 'Jinja2>=3.1,<4'
+        run: python -m pip install -r requirements-dev.txt
       - name: Run source and evidence gates
         run: scripts/check.sh all
       - name: Enforce runtime commit provenance
