@@ -27,6 +27,14 @@ were checked during preparation. These are automated checks, not a substitute
 for the human licensing/claims review below or full G3/G4/G5 qualification.
 Repository visibility remains a separate approval.
 
+GitHub `main` requires the hosted `quick` check from GitHub Actions, an
+up-to-date branch, and resolved review conversations. Force pushes and branch
+deletion are disabled; administrators retain recovery bypass. CI uses hosted
+CPU runners, not the private Sparks. Private vulnerability reporting could not
+be enabled during private preparation (GitHub returned 404); verify and enable
+it as part of the visibility-change checklist before directing security
+reports there.
+
 ## Automated gate
 
 - [ ] `./scripts/publication-audit.sh` passes from a clean checkout.
@@ -97,5 +105,7 @@ Repository visibility remains a separate approval.
       security policy.
 - [ ] Enable the static workflow as a required branch check before accepting
       public pull requests; never attach fork PRs directly to Spark runners.
+- [ ] Verify branch protection after the visibility change and enable/test
+      private vulnerability reporting and the security-template link.
 - [ ] Make the visibility change only as a separate, explicit action after this
       review.
