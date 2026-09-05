@@ -11,10 +11,24 @@ records exact source checks on both ranks, native oracle checks, tinyGLM
 results including the initial failed throughput guard, and the new full-model
 C4 replays. Implementation identity is not a claim of binary reproducibility,
 deterministic full-model text, or a new speedup. The bundle is not promoted.
-Its restored-image C4 median is 90.678 seconds versus 87.552 seconds for a
-contemporary retained-original-image run, a 3.57% wall-time increase. The
-video-style aggregate rates are 22.770 versus 24.023 tok/s. **Speed parity
-remains unproven; the slower point estimate is an open qualification item.**
+Its first restored-image C4 median was 90.678 seconds versus 87.552 seconds for
+a contemporary retained-original-image run, a 3.57% wall-time increase. The
+video-style aggregate rates were 22.770 versus 24.023 tok/s. Those historical
+receipts remain intact; the initial small-sample gap was not causally isolated.
+
+**Stronger controlled follow-up: headline speed is effectively tied.**
+[Ten measured repetitions per image](candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md),
+across two warmed startups each in reversed order, give mean wall times of
+88.835 seconds preserved versus 88.907 seconds rebuilt (**+0.08%**), and mean
+delivered rates of 23.372 versus 23.458 tok/s. The earlier 5% throughput deficit
+did not reproduce with matched cache/CPU controls. Secondary latency differences
+and conditional uncertainty are reported, not omitted. This remains one C4
+workload, not complete G3/G4/G5 or proof of equality under automatic sizing.
+
+The follow-up [runtime and native-artifact investigation](candidates/2026-09-04-video-runtime-isolation/RESULT.md)
+checks the whole package environment, input token IDs, CUDA instruction bodies,
+and bounded operator timings. It distinguishes confirmed environment drift
+from a causal explanation; neither a missing library nor a speed fix is assumed.
 
 The runnable engine predates qualification-v1. Its strongest retained evidence
 has been migrated honestly rather than re-labeled as newly certified:

@@ -115,8 +115,15 @@ The [source-restored replay](../results/candidates/2026-09-04-video-source-resto
 is now separate evidence: three warmed runs took 90.678 seconds median versus
 87.552 seconds for a contemporary replay of the retained original container.
 The corresponding aggregate rates are 22.770 and 24.023 tok/s. The rebuild
-restores the audited source, but its slower point estimate remains unresolved;
-these runs do not certify speed parity or full-model quality equivalence.
+restores the audited source; these initial runs did not isolate the slower
+point estimate or certify speed or quality equivalence.
+
+The stronger [ten-repetition-per-image comparison](../results/candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md)
+finds mean completion times of 88.835 seconds preserved and 88.907 seconds
+rebuilt (+0.08%) with equal actual cache pools and CPU placement. The earlier
+5% throughput deficit did not reproduce. This is a headline tie for the
+controlled video workload, not an equivalence certificate for every latency
+metric, automatic memory-sizing condition, or model-quality case.
 
 ## License boundary
 

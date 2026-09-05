@@ -1,0 +1,745 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-04-video-runtime-isolation",
+  "title": "Retained video runtime and native artifact isolation",
+  "date": "2026-09-04",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Explain the rebuilt versus retained image discrepancy without changing runtime defaults",
+  "change": {
+    "baseline_ref": "6a49e49e7e6a3226197a2ceefcf217cdf55f751e",
+    "candidate_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original diagnostic orchestration; no optimization introduced. Inspects the retained engine at 6a49e49e7e6a3226197a2ceefcf217cdf55f751e and source-restored engine at 672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7. Their existing upstream lineage is unchanged; see provenance/upstreams.json."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Linux aarch64 on NVIDIA DGX Spark; local source/report processing on macOS",
+    "hardware": "2x NVIDIA DGX Spark GB10, TP2",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66"
+    ],
+    "reference_image_digests": [
+      "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+      "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159"
+    ],
+    "diagnostic_hybrid_image_digests": [
+      "sha256:1f61283f5dfc19b6036ef5f9eed1e95dd587a586cfa07ddf8c339216ecd3a2aa",
+      "sha256:c3758c14662c7cef9e71a745a1039bcad3ee3e1f1171336af68f3acffcd02a5a"
+    ],
+    "configuration": {
+      "tiny_fixture": "tinyglm-v1-e16-v256-l32768",
+      "tiny_dummy": true,
+      "tiny_speculative": false,
+      "tiny_repetitions": 7,
+      "tiny_discarded_warmups": 2,
+      "tiny_cpuset": "5-8,15-19",
+      "native_probe_cpuset": "19",
+      "tiny_run_order": [
+        "rebuilt",
+        "hybrid",
+        "original",
+        "rebuilt-repeat"
+      ],
+      "native_run_order": [
+        "original",
+        "rebuilt",
+        "rebuilt",
+        "original"
+      ],
+      "full_model": "Complete: ten measured fixed-cache repetitions per image, two independently warmed startups each, ABBA order; earlier five-run automatic-cache arms retained separately",
+      "full_primary_metric": "four-request workload wall_s",
+      "full_fixed_cache_blocks": 650,
+      "full_fixed_cache_reported_tokens": 1132404,
+      "full_measured_repetitions_per_image": 10,
+      "full_independent_startups_per_image": 2,
+      "full_fixed_cache_order": [
+        "clean-fixed650",
+        "original-fixed650-b1",
+        "original-fixed650-b2",
+        "clean-fixed650-b2"
+      ],
+      "full_discarded_replays_per_startup": 1,
+      "full_prompt_tokens_actual": [
+        15807,
+        15810,
+        15810,
+        15809
+      ],
+      "full_arrival_offsets_s": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "full_completion_tokens_per_request": 400,
+      "full_profile": {
+        "client_revision": "e0aaf9d056aa06be37ea53e2a5dca2709efe80ea",
+        "checkpoint_installation": "Same retained local EXL3 and DFlash2 installation as 2026-09-04-video-source-restoration, reused without downloads or weight changes; see that bundle for snapshot provenance.",
+        "temperature": 0,
+        "thinking": false,
+        "ignore_eos": true,
+        "quantization": "EXL3 4bpw",
+        "speculation": "DFlash2 k7",
+        "tensor_parallel_size": 2,
+        "draft_tensor_parallel_size": 2,
+        "kv_cache_dtype": "fp8",
+        "max_model_len": 1000000,
+        "max_num_batched_tokens": 7168,
+        "max_num_seqs": 4,
+        "gpu_memory_utilization": 0.87,
+        "mixed_prefill_chunk": 0,
+        "grouped_prefill": true,
+        "cooperative_decode": true,
+        "cooperative_decode_max_tokens": 16,
+        "spinwait_ms": 16,
+        "indexer_workspace": "rightsize",
+        "vision": true,
+        "abliteration": false,
+        "prefix_cache_policy": "Unique cache namespace per replay; prompt text unchanged",
+        "cpuset_both_ranks": "5-8,15-19"
+      }
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed, including publication audit; diagnostic probe syntax checked separately."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Focused native timing and instruction fingerprint checks only; not full G1."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Four tinyGLM arms completed with matching output token IDs. No promotion claimed."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Twenty measured C4 posted-video replays completed under equal-cache ABBA controls; not the full C1/C2/C4 16K/32K matrix, no G3 certification."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Not part of this diagnostic investigation."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Not part of this diagnostic investigation."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "controlled_c4_wall_mean",
+      "unit": "seconds",
+      "baseline": 88.8353404,
+      "candidate": 88.9074029,
+      "change_pct": 0.08111918035718091,
+      "evidence": "raw/ten-rep-summary.json",
+      "note": "Primary metric; ten runs per image, two startups each. Effective headline tie under declared controls."
+    },
+    {
+      "name": "controlled_c4_aggregate_decode_mean",
+      "unit": "tokens/second",
+      "baseline": 23.3716756,
+      "candidate": 23.458184,
+      "change_pct": 0.3701420534863109,
+      "evidence": "raw/ten-rep-summary.json",
+      "note": "Delivered output after first visible token, including mixed-work stalls; not pure kernel decode."
+    },
+    {
+      "name": "controlled_c4_mean_per_replay_event_gap_p95",
+      "unit": "seconds",
+      "baseline": 0.2901802949999998,
+      "candidate": 0.31336346500000034,
+      "evidence": "raw/ten-rep-summary.json",
+      "note": "Secondary visible SSE-gap metric, not inter-token latency. Retained difference; no general regression or equivalence claim."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "33d0da65a957551674570ef991a829c5712eea1c60996eac3156af618c4f4a04"
+    },
+    {
+      "path": "TEN_REP_PROTOCOL.md",
+      "kind": "human-report",
+      "sha256": "60f7e7e778aed0e1ef2737a3df07eec093f01eba8593dfc6bbc07d58de159ae3"
+    },
+    {
+      "path": "TEN_REP_RESULT.md",
+      "kind": "human-report",
+      "sha256": "cbf09f13715a3b7dc6c01af6bef67767593e76adb38184e71c13dd903b2a946c"
+    },
+    {
+      "path": "probes/elf-audit.py",
+      "kind": "raw-evidence",
+      "sha256": "78a185ebc01183ff573dd50af8a106547607a17e57956458bfab34c6da19b7de"
+    },
+    {
+      "path": "probes/full-isolation-probe.py",
+      "kind": "raw-evidence",
+      "sha256": "24a3ac7e95a6925cb31e7e74ef833a8ee418a9c6c23608d8ec23bb668d3890be"
+    },
+    {
+      "path": "probes/host-launch-timing.py",
+      "kind": "raw-evidence",
+      "sha256": "6cd66148442bfb251c5f0d3b53754c099256fa6dd104edde61cfe76ea9193210"
+    },
+    {
+      "path": "probes/native-timing.py",
+      "kind": "raw-evidence",
+      "sha256": "9cc3de021ede9e89858d65e289e48466770af40694427ea8bc8081dfc2d9b521"
+    },
+    {
+      "path": "probes/runtime-audit.py",
+      "kind": "raw-evidence",
+      "sha256": "09d38a470314bd9a1af04e66d5b7cab9b25b2eb971f6535261b0404fe6d0ab1c"
+    },
+    {
+      "path": "probes/sass-audit.py",
+      "kind": "raw-evidence",
+      "sha256": "5d1a654db7f7ec51a46dab8d3ba8e455513ddd3780cdc8d9b373b35a9c6563d6"
+    },
+    {
+      "path": "probes/startup-excerpts.py",
+      "kind": "raw-evidence",
+      "sha256": "2c24b4e61c34379844a6837dcbe7b80edb193fa3b2d3edf9e25eba231c381c66"
+    },
+    {
+      "path": "probes/summarize-ten-reps.py",
+      "kind": "raw-evidence",
+      "sha256": "12b0d1f418160847cbb39e119de189c9106021ad97a9d15290c73c99ffdb0421"
+    },
+    {
+      "path": "probes/ten-rep-campaign.py",
+      "kind": "raw-evidence",
+      "sha256": "fb5466ed60e9eb5f6a8f0c56a572995717c8a41291b7b5aef7d6e28706b0e6c5"
+    },
+    {
+      "path": "raw/audit-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "fa38e186994b3ec4c107434a536729a8f448bcc853f3965970812e0296ef4e6e"
+    },
+    {
+      "path": "raw/clean-draft-config.json",
+      "kind": "raw-receipt",
+      "sha256": "895c5d6fae35fda78274e3bcd389ee1fd37d3b7a961f3f3acb14f123dea11b06"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "560f9ec1d64f86802d18058c9d358e21b798c1726a98b7a799aa63ed3d74492c"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "bfda04646fc4b95151fc32d44f073af0e14dd0e346b71818570e8942206a131d"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "e66f3375788f6ef67bdddf4bf00ccf11673e6766ad73e751ff87b1271e5df34d"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "42f0db15348d5f631c004a0b39202f6f07783f6030cf342a71a3709c2ce3ff69"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "65ca1d846a0e908d10b709eb760794039d80799ec2c69f3e0f8c231dbdb36f60"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "b7d7e107b4a961257c426ed566a776a0c43ffe2bdaa2c239d156837f91f75014"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "c1fc6f3f48fc0da739eba56fdff39aeed540aee47566045e301f7676a6213cac"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "c1c28a559a73eda2641b284259ec07d79ed7a70eb04d35c0b85bc1526437b282"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "82d4ede174d7ef392fe9fac01e02864038bfd082cb50c6e067142506483b77ef"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "e4a272f2dd31500aeca518fdf50e7e292101c9dd0c8e0facf5bfae291badf69d"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-startup.json",
+      "kind": "raw-receipt",
+      "sha256": "09b54eacf20901fe075935bc949ac75843de27ab4ac8d1a0c71b79a25ebac676"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "d08652042d14d638c3f615046b90dcdddf0032ed8a69d5b0500dac081e6a1a22"
+    },
+    {
+      "path": "raw/clean-fixed650-b2-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "591fc4b880845c4755951b34cdd2276f9a9dff63a3246d212538f7388ab35bd0"
+    },
+    {
+      "path": "raw/clean-fixed650-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "c7b80aa4431c1453e7e4712ad3142d8ef4122b848b46a474478d3070c21b02a4"
+    },
+    {
+      "path": "raw/clean-fixed650-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7af27b2482a7cf4ddfd651c64e0b2cadbbc59758c19e137b2415b775b58777dd"
+    },
+    {
+      "path": "raw/clean-fixed650-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "9a2b4c0855309ad02149fe8fa19f1f9e72ef940b203d295ca1d0f72d07b549dc"
+    },
+    {
+      "path": "raw/clean-fixed650-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "f5b6ad929222df3dfeda73ba5ef5c394b879e752778d1a6d1ba5262f26963b63"
+    },
+    {
+      "path": "raw/clean-fixed650-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "8c08cc456c5ba11e01310336107fc9daf120a7b591d555428f783565c2e92c88"
+    },
+    {
+      "path": "raw/clean-fixed650-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "dec906b682d76241bba1fa892e25e10fa1a625822f5a8e4405ca363c3c985692"
+    },
+    {
+      "path": "raw/clean-fixed650-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "3733af46746e16b42ec16d94151a71a3d286cdc90ef41eb0c126c76d60bc9702"
+    },
+    {
+      "path": "raw/clean-fixed650-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "05075f0317cb2d9ade1c9e63a4942f58548eebda0d4d2eb9c23a65e290eb514c"
+    },
+    {
+      "path": "raw/clean-fixed650-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "866f1fd264277277f7a23eb6947d6a6030756a0c5ffc5732213290d3afb2e361"
+    },
+    {
+      "path": "raw/clean-fixed650-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "41a3ac60e96947e14ed6c5834689ee264690996fbd11b467a59cfffbb7d6dbbe"
+    },
+    {
+      "path": "raw/clean-fixed650-startup.json",
+      "kind": "raw-receipt",
+      "sha256": "6e40f4ee537d702660dbec4378d1e3b83cbaa54db90f642558774a114248cde8"
+    },
+    {
+      "path": "raw/clean-fixed650-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "a5c82124a1daabd3865fc5c70c50556625c3ee0c71fd5247a8fdfec1430949de"
+    },
+    {
+      "path": "raw/clean-fixed650-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "0d7f0c9dbffba8c4f86e73678d97c97065dcac9b436d7c0edf0d20f5eeeaeb8a"
+    },
+    {
+      "path": "raw/clean-native-timing-1788572601.json",
+      "kind": "raw-receipt",
+      "sha256": "f1c941569907cee213b53e5a364197c8a6323b4fbc475beb9374f1457dfa272e"
+    },
+    {
+      "path": "raw/clean-native-timing-1788572609.json",
+      "kind": "raw-receipt",
+      "sha256": "327b4ac829c6ffe57cb6bac6770ad2d10f3a4f78550eb7c1300b6e8bd02d5336"
+    },
+    {
+      "path": "raw/clean-perfcores-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "9308c43da36d3eb8e01a62e60c134a124a497bdae3b1eb423af1c10c1b451fe3"
+    },
+    {
+      "path": "raw/clean-perfcores-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7638d7217684edb9d41e8d14fe7f793fb33a99b95663932bbf6c46fe25ad4f9c"
+    },
+    {
+      "path": "raw/clean-perfcores-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "f5ba84a682edbd1351e39031ae364d11460fd2938d458730e7fed2e913355031"
+    },
+    {
+      "path": "raw/clean-perfcores-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "52dcf110a158436d2f025632ad99e6dd342798dcd02e48ed59ef52a30e326cb3"
+    },
+    {
+      "path": "raw/clean-perfcores-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "513033605985d0e8a33b911e279c338645e5b14e0be8e3a56b2929a504658b31"
+    },
+    {
+      "path": "raw/clean-perfcores-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "b94fe7156daefed7df6f29418c9dd51c1f41ed2691c906a0312d4fb3b5780214"
+    },
+    {
+      "path": "raw/clean-perfcores-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "32fbbea25e3b4391f9f62c4a0e1ab3085aaa71f3beb7056dfec8237138ac0c03"
+    },
+    {
+      "path": "raw/clean-perfcores-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "c5c4f70b19cc8ebc1211119c5b17a7ec4a77bcd9e0ae6d4f2fcc70049d7c763a"
+    },
+    {
+      "path": "raw/clean-perfcores-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "61387ca29989c94df5c686326c222a2fb122c4975bc8f8fe87c0fce6b6eaf537"
+    },
+    {
+      "path": "raw/clean-perfcores-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "0094adae91d43fccd46ae144e84aebcff1de33a1128d04d734b3a3eecf5a72bf"
+    },
+    {
+      "path": "raw/clean-perfcores-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "a948383f9e23dd1639b56fa9d26149585f54e151a7e2dd8962c2b9f6bb07345a"
+    },
+    {
+      "path": "raw/clean-perfcores-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "a442e1e6723ef03e5398d2d5a4fc4b3456970f3fa002ca94ef784922a505a32d"
+    },
+    {
+      "path": "raw/executed-probes.json",
+      "kind": "raw-receipt",
+      "sha256": "1fcac8a228576f844c9760358cfa22959240d24272032c5b25ac5ad303b13b66"
+    },
+    {
+      "path": "raw/fixed-cache-startup-excerpts.json",
+      "kind": "raw-receipt",
+      "sha256": "9e2c23cc256ccbac026b1c9e4b9e892d26d75ad1bcab229b2ab5d11563426e0a"
+    },
+    {
+      "path": "raw/host-clean-1788574029.json",
+      "kind": "raw-receipt",
+      "sha256": "a4e5c7e12fc7c9230ecfc580afca32c91ed68579cc68a8757cb522348d654140"
+    },
+    {
+      "path": "raw/host-clean-1788574032.json",
+      "kind": "raw-receipt",
+      "sha256": "96a56c283f7f47218472449316b61df558e6a9ec0a28dae60326d9657d4bbec8"
+    },
+    {
+      "path": "raw/host-original-1788574026.json",
+      "kind": "raw-receipt",
+      "sha256": "a0b9d595d9f4ae360b32a4cecd2ecb0e48c355397fa785d995681aa417a909b4"
+    },
+    {
+      "path": "raw/host-original-1788574035.json",
+      "kind": "raw-receipt",
+      "sha256": "cda1efe6c3880720625dd9d06e3b890285d48f08d30b4d5ac6ce0b597729980a"
+    },
+    {
+      "path": "raw/original-draft-config.json",
+      "kind": "raw-receipt",
+      "sha256": "d3aab1c6109f13d2f6306040c235d9147fd14a7d62bbdeedfdfff6f9d931125c"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "1e240495adfd368d177458b395ae46f58c16d856305737212b331ac4fd3d2970"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "5eea1382203610f1b8ecb9cf9ac78e308b19b10cee17362b30d7d63b03ad2f20"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "994e9d9b3ac7b0dce30e51b4ce8477c737fc30dca7075ca8dab9921e757642b2"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1c31105fd43e9e280493b487a3c00948673eb0438b268d98a4cf0ba6cc6cbc95"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "bcddb304a9875a16b1daaf94256412705fbdb819dc807a45abc0408a70573aa8"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "fb5effb05526881e792da475951d1aafe2cee888b3049ef939bc63c78e187439"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "b92d2a9ad6aaaad65e0af16e687b561bfe936ab47b7e23358367b3de4499d891"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "938b60d87e4e8a4844b35baeb587961f8fc40ffdd166f16575b385cf0223a7d6"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "e9f3ae2bc493bdf2296e04c7474c85db18df94e951c8f0a69557101c7f527ed6"
+    },
+    {
+      "path": "raw/original-fixed650-b1-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "49227a08018cf26e609b685e665de2526e9fa6852a2cc18e733f7de3e2798d67"
+    },
+    {
+      "path": "raw/original-fixed650-b1-startup.json",
+      "kind": "raw-receipt",
+      "sha256": "78db3567642ade533d6d92426c78e295fa323c57dff5a3f5045b1292a3afdf4b"
+    },
+    {
+      "path": "raw/original-fixed650-b1-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "f79204662147dd11704cb34206fbae3fc6a8d4e7ee8b86a54a103522a9e80cda"
+    },
+    {
+      "path": "raw/original-fixed650-b1-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "dfc264cba30447a992f8a5bf41717f974ae1b89d0f5cefbd882122c6c8a80df3"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "ac3d8a017846fdbb12b5111c75cdbd1ef1aa11407887df60cd057af0ea84c418"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "01d305ceaaf0093e65a0e704a7a59f6e149a75b93dd9223780e752dea977dad7"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "f7e4e6ed2200dacc42f51436af6b5c1791ac32c6054803a746b9cdc7d67b77ba"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "26475d5db628bc34bf0aa7e1a52196459c1c05c77962ddf366512db9f5144751"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "f32f2bfa4e332bf7b62f7702cd7ffab5061bb4207d2489661b274de0c363dfb6"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "f35e78438570136e08ab1a862c26aac42dd5285307eb3b3da84db7157f6b7d84"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "76087bc9cf8e9a119d59ad66ce20d8205d1b8363f4a442b0d4bb7def761eb67d"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "f72b929369249327a0f410799543fe8f242443b224ee4b62dbe44ba2a2e56d2d"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "e1163dbc020358fb20d9107078c81bcf80e965316cdb27dddcf08d9c33dec84b"
+    },
+    {
+      "path": "raw/original-fixed650-b2-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "47b84efbedd32dff969a39af4b7784a34501b7a863be3aa2a8259aa1113ae482"
+    },
+    {
+      "path": "raw/original-fixed650-b2-startup.json",
+      "kind": "raw-receipt",
+      "sha256": "a03c16a52ea306a9139f27cf5d6dca102f1f40cdb0e31809ffe09dd54b9fe5d6"
+    },
+    {
+      "path": "raw/original-fixed650-b2-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "2919e917267731518543ce5a1c04d4d667ddb8d55bbc13a37a02519e7575d71c"
+    },
+    {
+      "path": "raw/original-fixed650-b2-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "a7a4a6057c89e56269fee637007aaea93791cea5231f7790ac1daf48a323bf24"
+    },
+    {
+      "path": "raw/original-native-timing-1788572595.json",
+      "kind": "raw-receipt",
+      "sha256": "caf399d8d839cede09b06a2dd85a2dff1efddff9f31b3c86c3f0a17ff2d4affc"
+    },
+    {
+      "path": "raw/original-native-timing-1788572614.json",
+      "kind": "raw-receipt",
+      "sha256": "0bf24fa7f40637ea31ef94b0f7c1f2598632510efa3ff68f5b02192ca42277fb"
+    },
+    {
+      "path": "raw/original-perfcores-r1-work.json",
+      "kind": "raw-receipt",
+      "sha256": "781aed5802818c20110486f617ebd8178f622cd3f29eb136105d4d952138cf32"
+    },
+    {
+      "path": "raw/original-perfcores-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "c2129a1c66b3960815d3692b19bc405954057a187f823a50ff1f1d4c94b2eb72"
+    },
+    {
+      "path": "raw/original-perfcores-r2-work.json",
+      "kind": "raw-receipt",
+      "sha256": "fdbb1e2eb6c3dbb9ea3a9713d34685d03522c43529144bc90bbd04cfa686808d"
+    },
+    {
+      "path": "raw/original-perfcores-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "381a197af2e70f85b207f3229558562ddfb4e9bbb28126b8536a7877d7850b0f"
+    },
+    {
+      "path": "raw/original-perfcores-r3-work.json",
+      "kind": "raw-receipt",
+      "sha256": "7784445a1d92f7c20a12e1db7bb1e01afd8e4e2f806c91f32fd72557523c6c0c"
+    },
+    {
+      "path": "raw/original-perfcores-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "64196ca351e0ffaa93fff34bc2f4525c862116206d2ee538d7bcfe06a33be246"
+    },
+    {
+      "path": "raw/original-perfcores-r4-work.json",
+      "kind": "raw-receipt",
+      "sha256": "fae0433d688ecb4f1343ee7f1d72b2f0d0d5a6339127d7a85e7dd6bc1151984d"
+    },
+    {
+      "path": "raw/original-perfcores-r4.json",
+      "kind": "raw-receipt",
+      "sha256": "cf6f2d2c5780cb4afe2a86b585560d6eccf26d2ff636ec5ef89a35d37c87fe30"
+    },
+    {
+      "path": "raw/original-perfcores-r5-work.json",
+      "kind": "raw-receipt",
+      "sha256": "1e7f71c59e01957f3be20377901d952e0868b1554918f657cfac37a455bc5267"
+    },
+    {
+      "path": "raw/original-perfcores-r5.json",
+      "kind": "raw-receipt",
+      "sha256": "297ee564f099975c62f862b5e42524c90821021dfe81d6448b5bc0cc3d2b8566"
+    },
+    {
+      "path": "raw/original-perfcores-warmup-work.json",
+      "kind": "raw-receipt",
+      "sha256": "29bb63a2bcbb017fc676704535ef57694c84b20336677d6a5152910749587242"
+    },
+    {
+      "path": "raw/original-perfcores-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "80aeb20a4c638ee328a1033c2d3f496a4c60c784c6eced802acc2ae7d8bd5b0e"
+    },
+    {
+      "path": "raw/os-library-comparison.json",
+      "kind": "raw-receipt",
+      "sha256": "77a7230382e0c340e19ca85a38659e2ee8e25da5cbb343322e171c682c40cc2b"
+    },
+    {
+      "path": "raw/shared-gpu-libraries.json",
+      "kind": "raw-receipt",
+      "sha256": "87acf6f13c789f932f7fc498762ec666be9c7f3fe0d2b98cc7bdd5a2e008d7ac"
+    },
+    {
+      "path": "raw/ten-rep-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "dc94c27a98d0c05f993c9a745c314f1dbe13c26e5180f4d163ee04bf039b41ae"
+    },
+    {
+      "path": "raw/tiny-clean-repeat-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "dee7e2d66ac593f8761238ee0a22f0bf40e3624de2beabf98e18347bfa000e09"
+    },
+    {
+      "path": "raw/tiny-clean-repeat.json",
+      "kind": "raw-receipt",
+      "sha256": "2467f1dabb20f63de50dcbd2659c6e1570219fa7b4a5ddc3b526dacb32680780"
+    },
+    {
+      "path": "raw/tiny-clean-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "2ea815a5df88fe78be6abe01c1deecd4e639b59f4a939195fa677578340efdd8"
+    },
+    {
+      "path": "raw/tiny-clean.json",
+      "kind": "raw-receipt",
+      "sha256": "a527654ddca8a57b816da210f014895628ab08e2d0f58da12a715cdcbd078669"
+    },
+    {
+      "path": "raw/tiny-hybrid-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "2733ebf71f6a18a2b1338bf8f707b192f77ca8afe00750b069fedac5d1895252"
+    },
+    {
+      "path": "raw/tiny-hybrid.json",
+      "kind": "raw-receipt",
+      "sha256": "fb24fba372ebe690cc402dd25616db51ce5c5ad59c3fdc5a342f87185b00e4e8"
+    },
+    {
+      "path": "raw/tiny-original-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "0f24195865fbb66f66f62963445969d0c20794f706a2a0bacbc87ec05174ec56"
+    },
+    {
+      "path": "raw/tiny-original.json",
+      "kind": "raw-receipt",
+      "sha256": "69c36982b15dc5959f0d11ff7d179552f12e29fd3547cdbad6b59aca501ff991"
+    }
+  ],
+  "limitations": [
+    "No single causal explanation of the earlier automatic-cache slow samples; the 5% deficit did not reproduce under fixed-cache/CPU controls.",
+    "Only two independent startups per image. Within-block bootstrap intervals omit startup uncertainty and serial dependence; no formal equivalence certification.",
+    "One C4 posted-video workload, not the full G3/G4/G5 matrix. No default promoted.",
+    "Full-model text varies in every stream position within both images; not a quality evaluation or token-identity claim.",
+    "Secondary first-stream TTFT and mean per-replay SSE-gap p95 are somewhat longer on the rebuild; headline tie does not make all latency statistics equal.",
+    "Normalized CUDA body comparisons do not establish entire binary or host-dispatch identity.",
+    "tinyGLM uses dummy weights and no DFlash2; not full-model speed or quality evidence.",
+    "Original runtime and binary-containing hybrid images remain private diagnostics, not published artifacts.",
+    "Unrelated CPU workloads and a small idle sidecar were preserved; head-GPU telemetry only.",
+    "Fixed cache override is diagnostic. Automatic memory sizing and unconstrained placement may behave differently."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
