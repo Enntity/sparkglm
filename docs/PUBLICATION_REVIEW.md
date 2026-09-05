@@ -2,6 +2,31 @@
 
 The repository must remain private until a human completes this checklist.
 
+## Prepared for final review
+
+The publication repository is now named `Enntity/sparkglm`; it remains
+private. The original development repository is preserved separately as the
+private, archived `sparkglm-private-history`. Do not merge or mirror its Git
+history into the publication branch.
+
+The current build guide is [SPARKGLM.md](../SPARKGLM.md). The final presentation
+cleanup changes no engine code or defaults. Detailed build-reproduction
+diagnostics remain linked from [current status](../results/CURRENT.md), not
+promoted as a separate performance claim.
+
+The publication-history audit removed an upstream machine-local output path
+from an old script revision and completed two missing provenance trailers.
+The current file tree was unchanged by that cleanup. The
+[commit map](../provenance/publication-commit-map.txt) connects original and
+sanitized revisions; benchmark receipts keep their original measured IDs and
+checksums. The pre-cleanup history remains in the private archive. Historical
+contributor mail headers are retained as credits, not deployment settings.
+
+Source checks, all 52 qualification records, and the existing hosted CI logs
+were checked during preparation. These are automated checks, not a substitute
+for the human licensing/claims review below or full G3/G4/G5 qualification.
+Repository visibility remains a separate approval.
+
 ## Automated gate
 
 - [ ] `./scripts/publication-audit.sh` passes from a clean checkout.
@@ -64,8 +89,8 @@ The repository must remain private until a human completes this checklist.
       bearer key.
 - [ ] Decide whether generated videos belong in a GitHub release; do not commit
       the entire local render archive.
-- [ ] Decide whether the staging repository should be renamed to `sparkglm`
-      before public release.
+- [ ] Confirm `Enntity/sparkglm` is the reviewed publication repository and
+      the private development archive remains separate.
 - [ ] Confirm the deliberately retained `.github/FUNDING.yml` MiaAI-Lab
       sponsor link still matches the disclosure in `docs/LICENSING.md`.
 - [ ] Verify GitHub description, topics, default branch, issue templates, and
