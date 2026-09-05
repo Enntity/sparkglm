@@ -27,6 +27,9 @@ contributor names are retained; personal or machine-local mail addresses may be
 replaced by the contributor's GitHub noreply address for publication privacy.
 The additional privacy cleanup makes archived appliance addresses required
 configuration, without changing the current serving source or raw receipts.
+Its [second commit map](../provenance/publication-privacy-commit-map.txt) maps
+the reviewed revisions to the publication privacy rewrite. Chain it with the
+earlier map when tracing an original revision; measured source IDs stay intact.
 
 Source checks, all 52 qualification records, and the existing hosted CI logs
 were checked during preparation. These are automated checks, not a substitute
