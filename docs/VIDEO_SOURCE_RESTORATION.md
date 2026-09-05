@@ -84,33 +84,16 @@ The newer public chat template was checked separately: it renders identical
 prompt bytes for the four recorded video requests. Its tool/None fixes remain
 explicit later changes, not silently claimed to exist in the old template.
 
-The clean source-restored image completed three warmed full-model C4 replays
-at a 90.678-second median and 22.770 aggregate delivered tok/s. A contemporary
-run of the retained original image completed three at 87.552 seconds and
-24.023 tok/s. That is a 3.57% wall-time increase and 5.22% throughput decrease
-for the rebuild's point estimates: **speed parity is not certified**. The
-remaining difference was not causally isolated and could not then be dismissed
-as noise. Both arms also vary in generated text between repetitions.
+The [controlled ten-repetition follow-up](../results/candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md)
+found effectively tied headline speed under matched cache/CPU controls.
+The earlier small-sample deficit did not reproduce. This is release
+verification for the video workload, not a new speedup or quality claim.
 
-The stronger [ten-repetition follow-up](../results/candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md)
-now finds effectively tied headline speed under matched cache/CPU controls:
-88.835-second preserved mean versus 88.907-second rebuilt mean, only +0.08%.
-The two reversed-order block pairs change direction. The earlier 5% throughput
-deficit did not reproduce. This does not identify the cause of each earlier
-slow sample, erase the dependency differences, or certify all workload and
-latency metrics as equivalent.
-
-The subsequent [runtime-isolation audit](../results/candidates/2026-09-04-video-runtime-isolation/RESULT.md)
-finds broader dependency-environment differences, while the inspected EXL3 and
-vLLM-core CUDA instruction bodies match. Source parity, package-environment
-parity, and performance parity are distinct tests. Read that investigation
-before attributing the gap to a missing compiled optimization.
-
-See the checksum-bound [restoration result](../results/candidates/2026-09-04-video-source-restoration/RESULT.md)
-for every retained and discarded sample, exact image identities, source
-checks, warmup, and limitations. This is not a full paired G3 matrix, G4
-semantic evaluation, or G5 release qualification. No speedup or new quality
-claim is made.
+The [restoration result](../results/candidates/2026-09-04-video-source-restoration/RESULT.md)
+and [runtime-isolation audit](../results/candidates/2026-09-04-video-runtime-isolation/RESULT.md)
+retain all partial results, source checks, environment differences, image
+identities, and limitations. Source parity, package-environment parity, and
+performance parity are distinct tests. None is a complete G3/G4/G5 certificate.
 
 The replay client accepts `--cache-salt` to isolate repeated runs without
 editing prompt text. The production profile does not expose the development

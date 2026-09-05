@@ -99,31 +99,16 @@ qualification work. It must not impersonate the historical image.
 
 The video is one warmed visual sample, not a post-policy G3/G4/G5
 qualification. Rebuilding the same profile does not promise identical timing,
-model output, speculative acceptance, clocks, or thermals. A fresh full-model
-replay of current HEAD is required before claiming current performance
-equivalence. The grouped-prefill and cooperative-decode limitations are stated
+model output, speculative acceptance, clocks, or thermals. Future engine
+changes require fresh full-model evidence rather than inheriting these
+measurements. The grouped-prefill and cooperative-decode limitations are stated
 in `docs/KNOWN_LIMITATIONS.md` and both retain explicit rollback switches.
 
-A replay of the **incomplete reconstruction** is retained under
-`results/candidates/2026-09-04-clean-release-c4-replay/`. Three warmed runs had
-a 23.514 aggregate decode tok/s median versus 24.267 tok/s in the posted
-one-off, a 3.1% difference. Those measurements remain valid for that build, but
-are not evidence that it reproduced the video implementation. Do not attach
-them to the restored build or treat them as a statistically certified tie.
-
-The [source-restored replay](../results/candidates/2026-09-04-video-source-restoration/RESULT.md)
-is now separate evidence: three warmed runs took 90.678 seconds median versus
-87.552 seconds for a contemporary replay of the retained original container.
-The corresponding aggregate rates are 22.770 and 24.023 tok/s. The rebuild
-restores the audited source; these initial runs did not isolate the slower
-point estimate or certify speed or quality equivalence.
-
-The stronger [ten-repetition-per-image comparison](../results/candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md)
-finds mean completion times of 88.835 seconds preserved and 88.907 seconds
-rebuilt (+0.08%) with equal actual cache pools and CPU placement. The earlier
-5% throughput deficit did not reproduce. This is a headline tie for the
-controlled video workload, not an equivalence certificate for every latency
-metric, automatic memory-sizing condition, or model-quality case.
+Release verification found effectively matching headline performance in a
+[controlled ten-repetition-per-image replay](../results/candidates/2026-09-04-video-runtime-isolation/TEN_REP_RESULT.md).
+This verifies the intended build for that workload, not every latency metric,
+automatic memory-sizing condition, or model-quality case. Earlier partial
+reconstructions and diagnostic results remain in the evidence archive.
 
 ## License boundary
 

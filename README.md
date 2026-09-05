@@ -54,9 +54,6 @@ kept as explicitly legacy evidence rather than retroactively certified.
 - **Reproduce what we showed:** the fresh-checkout defaults and their exact
   historical evidence are mapped in
   [the published-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md).
-  The earlier reconstruction omitted inherited engine code; the
-  [source-restoration audit](docs/VIDEO_SOURCE_RESTORATION.md) explains the
-  correction, explicit equivalence boundary, and new test evidence.
 - **Understand what is original:** read
   [docs/PROVENANCE.md](docs/PROVENANCE.md) and
   [docs/ATTRIBUTION.md](docs/ATTRIBUTION.md), then consult the practical
