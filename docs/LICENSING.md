@@ -19,6 +19,7 @@ source pins, retained license/notice bytes, path rules, and SPDX consistency.
 | Reederey M64 pipeline | Apache-2.0 plus inherited Mia MIT material | Retain both the Apache license and Reederey/Mia notice |
 | Z.AI chat template | GLM-5.3 License | Keep its dedicated license and provenance sidecar |
 | Atlas-native archive | AGPL-3.0-only | Keep it under `research/atlas/`; do not copy it into the Apache serving path |
+| Standalone staggered benchmark and archived campaign harnesses | AGPL-3.0-only | `benchmarks/staggered_openai.py` and `research/vllm-iterations/benchmarks/` retain their labels and full license; they are not Apache serving components |
 | FlashKDA source | MIT | The external source is not vendored; its license is retained |
 | DeepGEMM FP16 integration | MIT and Apache-2.0 | Preserve DeepSeek's MIT notice for patched source and vLLM's Apache notice for the integration |
 | FlashKDA slot patch | MIT and AGPL-3.0-only | It contains MIT-derived patch context plus AGPL SparkGLM changes |
@@ -38,11 +39,27 @@ immutable revisions from their publishers:
   non-commercial and no-derivatives restrictions;
 - the underlying GLM model uses the GLM-5.3 License.
 
+ShapleyMCG is **source-available, not OSI open source**. The pinned license's
+Section 3.2 covers published benchmarks, posts, READMEs, and technical reports
+produced using its work, even when weights are not redistributed. Credit
+Brandon M. Music and ShapleyMCG, link its canonical repository, and reproduce
+the Schedule B notice and citation in [QUANT_ATTRIBUTION.md](QUANT_ATTRIBUTION.md).
+That attribution applies to the included historical checkpoint measurements;
+it does not claim our serving implementation invented the quantization.
+
+Sections 1 and 4–6 define a named-party exclusion (the person known as
+`0xSero`, related parties as defined there, and specified distribution
+channels). Review the [exact pinned license](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw/blob/25a44fdbf16862a46b7cc9921142c6c81350af2f/LICENSE)
+before use or redistribution. This is a disclosure of the publisher's terms,
+not an endorsement of allegations in its historical schedule or a legal
+determination of their scope. Do not assume ordinary permissive-license rights.
+
 The default matches the published-video configuration; it does not imply that
 the drafter's terms fit every operator. Select
 `SPEC_METHOD=mtp` or `SPEC_METHOD=none` instead of DFlash2 when its terms do
 not. SparkGLM does not copy DFlash2 weights or claim that Apache-2.0 changes
 their license.
+These drafter switches do **not** remove the target quant's ShapleyMCG terms.
 
 Container base images and packages installed during a build retain their own
 licenses. Publishing a SparkGLM image requires preserving the notices and

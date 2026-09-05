@@ -13,7 +13,7 @@ license. The SparkGLM bridge/archive glue is AGPL; the slot patch contains
 MIT-derived context plus AGPL modifications. See `../../docs/LICENSING.md` for
 the exact per-path boundary.
 
-## Exact reconstruction
+## Source reconstruction
 
 ```bash
 GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/Atlas-Inf/atlas.git atlas-sparkglm
@@ -27,6 +27,10 @@ The patch represents SparkGLM Atlas archive commit
 `libatlas_glm53_flash_kda.so`. Rebuild that artifact from the pinned source
 using `flash_kda/rebuild.sh`; compiled binaries are intentionally not
 distributed in this repository.
+Publication privacy replaces archived lab network defaults with required
+environment variables. Supply the SSH and fabric settings for your own nodes;
+this archive is not a byte-identical copy of the original private appliance
+configuration. The serving algorithms are unchanged by that sanitization.
 
 The copied `docs/` and `bench/` directories are provided for convenient web
 browsing. They are also present in the reconstructable patch.

@@ -1,5 +1,9 @@
 # Results map
 
+Checkpoint credit: **Brandon M. Music / ShapleyMCG**, via Mia's EXL3/TR3 mirror.
+The [required quant notice and citation](QUANT_ATTRIBUTION.md) accompany the
+historical results below; this is distinct from serving-engine authorship.
+
 This page summarizes primary evidence. The machine-verifiable canonical index
 is `results/index.json`; methodology and qualification rules are in
 `docs/METHODOLOGY.md` and `docs/QUALIFICATION.md`.

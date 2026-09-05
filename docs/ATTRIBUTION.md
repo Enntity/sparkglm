@@ -44,6 +44,11 @@ recipe under its MIT notice; the sponsor link intentionally remains Mia's.
 
 ## Model artifacts not redistributed here
 
+The target EXL3/TR3 quantization is credited to **Brandon M. Music and
+[ShapleyMCG](https://github.com/brandonmmusic-max/shapleymcg)**, not SparkGLM.
+[The required notice and citation](QUANT_ATTRIBUTION.md) apply to the included
+results produced using that checkpoint. Mia provides the pinned primary mirror.
+
 | Artifact | Author/source | License boundary |
 | --- | --- | --- |
 | GLM-5.3-Flash | [zai-org](https://huggingface.co/zai-org/GLM-5.3-Flash) | Model license at the source repository |

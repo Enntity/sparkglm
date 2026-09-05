@@ -1,13 +1,14 @@
-# Private publication review
+# Publication review
 
-The repository must remain private until a human completes this checklist.
+Release maintainers must complete this review before publishing source or images.
 
 ## Prepared for final review
 
-The publication repository is now named `Enntity/sparkglm`; it remains
-private. The original development repository is preserved separately as the
-private, archived `sparkglm-private-history`. Do not merge or mirror its Git
-history into the publication branch.
+The publication repository is `Enntity/sparkglm`. Original development and
+pre-publication histories are preserved separately in private archives. Do not
+merge or mirror their Git history into the publication branch. Publication uses
+a fresh GitHub repository so old private commits and CI attachments are not
+carried into the public repository by a visibility flip.
 
 The current build guide is [SPARKGLM.md](../SPARKGLM.md). The final presentation
 cleanup changes no serving engine code or defaults. Contributor tooling now
@@ -22,7 +23,10 @@ The current file tree was unchanged by that cleanup. The
 [commit map](../provenance/publication-commit-map.txt) connects original and
 sanitized revisions; benchmark receipts keep their original measured IDs and
 checksums. The pre-cleanup history remains in the private archive. Historical
-contributor mail headers are retained as credits, not deployment settings.
+contributor names are retained; personal or machine-local mail addresses may be
+replaced by the contributor's GitHub noreply address for publication privacy.
+The additional privacy cleanup makes archived appliance addresses required
+configuration, without changing the current serving source or raw receipts.
 
 Source checks, all 52 qualification records, and the existing hosted CI logs
 were checked during preparation. These are automated checks, not a substitute
@@ -58,8 +62,9 @@ G5 appliance release. No prebuilt image is offered until the separate
       on a Spark; static context validation alone is not a built image.
 - [ ] No checkpoint, tensor, shared object, cache, credential, or machine-local
       environment file is tracked.
-- [ ] No private workstation path or private Spark hostname appears outside an
-      explicitly historical patch-mail header.
+- [ ] No private workstation path, appliance address, or private hostname appears
+      in tracked files or reachable history; run
+      `python3 scripts/check_publication_privacy.py --history` on a full clone.
 - [ ] Confirm the public remote contains only the sanitized root history; do
       not push the source clone's inherited branches or tags.
 
@@ -69,8 +74,9 @@ G5 appliance release. No prebuilt image is offered until the separate
 - [ ] Confirm `LICENSE`, `NOTICE`, and every file in `LICENSES/` are retained.
 - [ ] Confirm the Z.AI chat-template notice and `LICENSES/GLM-5.3.txt` remain
       present with the pinned template provenance.
-- [ ] Confirm Atlas-derived material remains confined to `research/atlas/` and
-      labeled AGPL-3.0-only.
+- [ ] Confirm Atlas engine material remains under `research/atlas/` and labeled
+      AGPL-3.0-only; the standalone staggered benchmark and archived campaign
+      harnesses are also AGPL and are disclosed separately from serving code.
 - [ ] Confirm Mia's MIT notice is preserved and prominent.
 - [ ] Confirm Reederey, ExLlamaV3, vLLM PR authors, FlashKDA, model, quant, and
       drafter sources are credited.
@@ -82,6 +88,11 @@ G5 appliance release. No prebuilt image is offered until the separate
       `scripts/check_commit_provenance.py` for the proposed public range.
 - [ ] Confirm DFlash2's CC BY-NC-ND 4.0 warning and MTP/none alternative are
       visible before the first download/run instructions.
+- [ ] Confirm ShapleyMCG's required notice, author, canonical link, and technical
+      citation accompany checkpoint results. Disclose source-available and
+      named-party/channel restrictions independently of drafter selection.
+- [ ] Include the same applicable attribution in separately published benchmark
+      posts; repository attribution does not retroactively update other sites.
 
 ## Technical claims
 

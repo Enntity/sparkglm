@@ -4,8 +4,10 @@ Every new commit that ports, adapts, or is materially inspired by external work
 must make the lineage visible in the commit message. Source comments and design
 documents are useful, but they do not replace commit-level attribution.
 
-The preserved patch mailboxes predate this release policy and remain immutable
-historical evidence. We do not rewrite their messages; their lineage is
+The preserved patch mailboxes predate this release policy. Their code and
+messages remain historical evidence; publication privacy may replace a
+personal or machine-local contact address with a GitHub noreply address while
+preserving the contributor's name. Their lineage is
 normalized in `provenance/upstreams.json` and `docs/ATTRIBUTION.md`. CI applies
 this policy to every new pull-request commit that touches runtime paths.
 

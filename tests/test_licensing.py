@@ -85,6 +85,19 @@ def main() -> int:
         assert matches(files, rule["patterns"]), rule["patterns"]
 
     licensing = (ROOT / "docs" / "LICENSING.md").read_text()
+    quant = (ROOT / 'docs/QUANT_ATTRIBUTION.md').read_text()
+    notice = next(line[2:] for line in quant.splitlines() if line.startswith('> This work includes'))
+    for relative in ('README.md', 'NOTICE'):
+        assert notice in (ROOT / relative).read_text(), relative
+    for phrase in ('Brandon M. Music', 'https://github.com/brandonmmusic-max/shapleymcg',
+                   '@misc{music2026shapleymcg', '25a44fdbf16862a46b7cc9921142c6c81350af2f'):
+        assert phrase in quant, phrase
+    for relative in ('docs/RESULTS.md', 'results/README.md', 'docs/ATTRIBUTION.md'):
+        assert 'QUANT_ATTRIBUTION.md' in (ROOT / relative).read_text(), relative
+    assert 'source-available' in licensing and 'named-party' in licensing
+    assert 'do **not** remove' in licensing
+    for relative in ('README.md', 'NOTICE', 'docs/LICENSING.md'):
+        assert 'benchmarks/staggered_openai.py' in (ROOT / relative).read_text(), relative
     for artifact in manifest["non_redistributed_artifacts"]:
         assert FULL_REVISION.fullmatch(artifact["revision"]), artifact["id"]
         assert artifact["revision"] in attribution, artifact["id"]

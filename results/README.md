@@ -1,5 +1,9 @@
 # Results and qualifications
 
+Checkpoint credit: **Brandon M. Music / ShapleyMCG**, via Mia's EXL3/TR3 mirror.
+The [required quant notice and citation](../docs/QUANT_ATTRIBUTION.md) accompany
+this evidence collection. Retained raw receipts are not rewritten for credit.
+
 This is the canonical entry point for SparkGLM evidence.
 
 Start with [`CURRENT.md`](CURRENT.md) for the evidence supporting the runnable

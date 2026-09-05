@@ -8,9 +8,16 @@ vLLM/EXL3 appliance derived from MiaAI-Lab's two-Spark recipe. The repository
 also preserves the earlier Atlas-native implementation and the experiments
 that succeeded, failed, or changed the direction of the project.
 
-> **Release-candidate status:** this repository is staged privately for a
-> publication review. It has not been declared production-ready, and no
-> repository visibility change is part of this commit.
+> **Source research preview:** the default reproduces the posted-video source
+> configuration, not a production-certified appliance. No prebuilt image or
+> complete G5 qualification is claimed.
+
+The EXL3/TR3 checkpoint used for the included benchmark results was produced
+using **ShapleyMCG by Brandon M. Music**. Its source-available license is separate
+from this repository's code licenses; see the required notice and citation in
+[quant attribution](docs/QUANT_ATTRIBUTION.md).
+
+> This work includes or was produced using ShapleyMcg, created by Brandon M. Music (https://github.com/brandonmmusic-max/shapleymcg). ShapleyMcg is licensed under the ShapleyMcg License v1.0, an attribution-required license that grants no rights to the person known as "0xSero." Use of ShapleyMcg without this attribution is unlicensed.
 
 > **Known semantic approximation:** the current FlashInfer SM121 compatibility
 > path can represent 2048 sparse-MLA candidates while GLM-5.3 may produce 2051.
@@ -155,6 +162,8 @@ upstreams:
 - MiaAI-Lab serving-kit material and retained modifications: MIT; mixed vLLM
   patchers also retain Apache-2.0 obligations.
 - Atlas-derived source and patches under `research/atlas/`: AGPL-3.0-only.
+- The staggered benchmark `benchmarks/staggered_openai.py` and its archived
+  campaign harnesses are also AGPL-3.0-only, not Apache-licensed serving code.
 - Upstream FlashKDA source: MIT. SparkGLM's Atlas bridge is AGPL, while the
   slot patch contains MIT-derived context plus AGPL modifications.
 - Other third-party material retains its file-level license and attribution.
@@ -164,6 +173,10 @@ Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
 [docs/LICENSING.md](docs/LICENSING.md) before redistribution. The default
 DFlash2 checkpoint is fetched separately under CC BY-NC-ND 4.0; use
 `SPEC_METHOD=mtp` or `none` when those terms do not fit the deployment.
+Those switches do not change the target EXL3/TR3 checkpoint's ShapleyMCG
+License 1.0: it requires attribution for published results and includes a
+named-party/channel exclusion. It is source-available, not OSI open source.
+Read [the model licensing boundary](docs/LICENSING.md#model-boundary) before use.
 
 ## Publication gate
 

@@ -748,8 +748,8 @@ def test_live_container_copy_if_enabled() -> None:
     """
     if os.environ.get("GLM53_INDEXER_LIVE_SSH") != "1":
         return
-    jump = os.environ.get("GLM53_LIVE_SSH_JUMP", "spark-worker")
-    head = os.environ.get("GLM53_LIVE_SSH_HEAD", "192.0.2.1")
+    jump = os.environ["GLM53_LIVE_SSH_JUMP"]
+    head = os.environ["GLM53_LIVE_SSH_HEAD"]
     container = os.environ.get("GLM53_LIVE_CONTAINER", "glm53-exl3-head")
     remote = (
         "/usr/local/lib/python3.12/dist-packages/vllm/"

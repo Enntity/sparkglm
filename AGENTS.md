@@ -15,7 +15,9 @@ revision, relationship, license/notice file, and affected path.
 - Run `scripts/publication-audit.sh` before every release-oriented commit.
 - Never add weights, model-derived tensors, compiled GPU binaries, credentials,
   machine-local `.env` files, private hostnames, or generated videos.
-- Keep Atlas-derived material under `research/atlas/` and AGPL-3.0-only.
+- Keep Atlas-derived engine material under `research/atlas/` and AGPL-3.0-only.
+  The separately labeled staggered benchmark and archived campaign harnesses
+  also remain AGPL; do not move their code into the Apache serving path.
 - Keep rejected experiments labeled as rejected; their presence is not a
   recommendation to enable them.
 - Do not change repository visibility or publish releases without explicit

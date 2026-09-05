@@ -26,6 +26,7 @@ require_file LICENSES/NOTICE-Reederey.txt
 require_file LICENSES/GLM-5.3.txt
 require_file docs/ATTRIBUTION.md
 require_file docs/LICENSING.md
+require_file docs/QUANT_ATTRIBUTION.md
 require_file docs/PUBLICATION_REVIEW.md
 require_file docs/METHODOLOGY.md
 require_file docs/QUALIFICATION.md
@@ -83,6 +84,8 @@ python3 scripts/qualification.py verify-all \
     || fail "qualification records are invalid or the result index is stale"
 python3 tests/test_licensing.py \
     || fail "licensing or attribution ledger is invalid"
+python3 scripts/check_publication_privacy.py \
+    || fail "private operational details or prohibited material found"
 
 if ! grep -q 'libatlas_glm53_flash_kda.so' research/atlas/README.md; then
     fail "Atlas binary exclusion is undocumented"

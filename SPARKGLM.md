@@ -24,6 +24,10 @@ research preview, not a G5-qualified production release.
   (non-commercial/no-derivatives). Set `SPEC_METHOD=mtp` or `none` in
   `.env` before the first launch if those terms do not fit. Those profiles
   do not inherit the video's performance. The target/quant have separate terms.
+- The target EXL3/TR3 quant is **ShapleyMCG source-available**, with attribution
+  requirements for published results and named-party/channel exclusions.
+  Disabling DFlash2 does not remove those terms. Read the
+  [quant notice and citation](docs/QUANT_ATTRIBUTION.md) before benchmarking.
 - Read [known limitations](docs/KNOWN_LIMITATIONS.md), particularly the
   sparse-MLA candidate-set approximation. We do not claim exact inference.
 
