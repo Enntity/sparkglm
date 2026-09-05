@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -65,10 +67,34 @@ def test_tinyglm_builds_self_contained_weightless_snapshot() -> None:
         assert len(tokenizer["model"]["vocab"]) == 256
 
 
+def test_explicit_candidate_image_survives_reference_env() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        (root / "scripts").mkdir()
+        script = root / "scripts/tinyglm.sh"
+        script.write_text((ROOT / "scripts/tinyglm.sh").read_text())
+        (root / ".env").write_text("IMAGE=sparkglm:local\n")
+        (root / "scripts/make_tinyglm.py").write_text(
+            'print("/fixture/snapshots/tinyglm-v1-e16-v256-l32768")\n')
+        start = root / "start.sh"
+        start.write_text('#!/usr/bin/env bash\nprintf "%s %s %s\\n" "$IMAGE" "$MODEL_REVISION" "$SPARKGLM_TINY_DUMMY"\n')
+        start.chmod(0o755)
+        env = dict(os.environ)
+        env["IMAGE"] = "sparkglm-candidate:regression-test"
+        result = subprocess.run(["bash", str(script), "restart"], env=env,
+                                check=True, capture_output=True, text=True)
+        assert result.stdout.strip() == "sparkglm-candidate:regression-test tinyglm-v1-e16-v256-l32768 1"
+        env.pop("IMAGE")
+        result = subprocess.run(["bash", str(script), "restart"], env=env,
+                                check=True, capture_output=True, text=True)
+        assert result.stdout.startswith("sparkglm:local ")
+
+
 if __name__ == "__main__":
     launcher = (ROOT / "scripts/tinyglm.sh").read_text()
     assert 'snapshot="$(build)"' in launcher
     assert 'export MODEL_REVISION="${snapshot##*/}"' in launcher
     test_tinyglm_preserves_kernel_selecting_dimensions()
     test_tinyglm_builds_self_contained_weightless_snapshot()
+    test_explicit_candidate_image_survives_reference_env()
     print("tinyGLM structural tests OK")

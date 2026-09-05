@@ -4,12 +4,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
+# Match start.sh: an explicit candidate image must win over the reference .env.
+tiny_cli_image="${IMAGE-}"
 if [ -f "$SCRIPT_DIR/.env" ]; then
     set -a
     # shellcheck disable=SC1091
     source "$SCRIPT_DIR/.env"
     set +a
 fi
+[ -z "$tiny_cli_image" ] || export IMAGE="$tiny_cli_image"
 
 HF_CACHE_DIR="${HF_HOME:-$HOME/.cache/huggingface}"
 MODEL_CACHE_NAME="models--sparkglm--tinyglm"
