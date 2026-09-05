@@ -1,0 +1,41 @@
+{
+  "rank": 1,
+  "image": "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+  "source_revision": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+  "environment": {
+    "EXL3_GROUPED_PREFILL_K4": "1",
+    "EXL3_DECODE_COOP_MAX_TOKENS": "16",
+    "SPARKGLM_TINY_DUMMY": "0",
+    "GLM53_INDEXER_WORKSPACE": "rightsize",
+    "GLM53_MIXED_PREFILL_CHUNK": "0",
+    "EXL3_DECODE_COOP_K4": "1",
+    "GLM53_SPINWAIT_MS": "16"
+  },
+  "source_check": {
+    "allowed_differences": [
+      {
+        "path": "vllm/_version.py",
+        "reason": "Truthful pinned-base build metadata; not a claim to be the historical binary."
+      },
+      {
+        "path": "vllm/model_executor/layers/quantization/exl3.py",
+        "reason": "Corrected SPDX attribution only."
+      },
+      {
+        "path": "vllm/models/common/ops/fused_qk_rmsnorm.py",
+        "reason": "Comments only; operator implementation unchanged."
+      }
+    ],
+    "failures": [],
+    "files_checked": 2423,
+    "kind": "video-runtime",
+    "passed": true,
+    "reference_image": "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+    "runtime_transformations": {
+      "vllm/distributed/device_communicators/shm_broadcast.py": {
+        "reason": "The recorded launcher replaces busy_loop_s=1 with 0.016 for GLM53_SPINWAIT_MS=16; hash derived from the retained pristine source with exactly that one replacement.",
+        "sha256": "5d63b64b146413b78501e42c2e672aafbe77d0e09d3226c5aa0d8e886c16628b"
+      }
+    }
+  }
+}

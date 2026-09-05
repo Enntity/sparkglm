@@ -1,0 +1,26 @@
+{
+  "rank_images": [
+    "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+    "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159"
+  ],
+  "recipe_revision": "4b2375977df873be57bc277b17778f94323ef7e6",
+  "launcher_revision": "c80531867e13085c356ae5b9bff4c3b98ee64e8b",
+  "foundation_revision": "6a49e49e7e6a3226197a2ceefcf217cdf55f751e",
+  "comparison_launcher_revision": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+  "comparison_client_revision": "e0aaf9d056aa06be37ea53e2a5dca2709efe80ea",
+  "source_check_rank0": {
+    "allowed_differences": [],
+    "failures": [],
+    "files_checked": 2423,
+    "kind": "video-runtime",
+    "passed": true,
+    "reference_image": "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+    "runtime_transformations": {
+      "vllm/distributed/device_communicators/shm_broadcast.py": {
+        "reason": "The recorded launcher replaces busy_loop_s=1 with 0.016 for GLM53_SPINWAIT_MS=16; hash derived from the retained pristine source with exactly that one replacement.",
+        "sha256": "5d63b64b146413b78501e42c2e672aafbe77d0e09d3226c5aa0d8e886c16628b"
+      }
+    }
+  },
+  "boundary": "Retained original image on both ranks, current safe launcher and same four rendered video prompts; reference binary is not rebuilt."
+}

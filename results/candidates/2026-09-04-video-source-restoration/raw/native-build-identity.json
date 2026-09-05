@@ -1,0 +1,39 @@
+{
+  "schema": "sparkglm.native-build-identity/v1",
+  "component": "vllm/_C_stable_libtorch.abi3.so",
+  "reference": {
+    "sha256": "610d8362f276a57920f932fd459bdc359fd430e6f481653d7d802743d3669eb7",
+    "elf_compiler_comments": [
+      "GCC: (GNU) 13.3.1 20240611 (Red Hat 13.3.1-2)",
+      "GCC: (GNU) 8.5.0 20210514 (Red Hat 8.5.0-28)"
+    ],
+    "reported_embedded_cuda_targets": [
+      "sm_120",
+      "sm_80",
+      "sm_89",
+      "sm_90"
+    ]
+  },
+  "pinned_base": {
+    "sha256": "cd14cceedf7799afff915fcfe52afb051b5d6c7e9040bd936bc8ad23bb5d4ae0",
+    "image": "sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce"
+  },
+  "restored": {
+    "sha256": "f8d43f9cd488a29de2cb7bdf5d9c52bc7482683785fbc7243d7823db54562d0a",
+    "elf_compiler_comments": [
+      "GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    ],
+    "reported_embedded_cuda_targets": [
+      "sm_120",
+      "sm_80",
+      "sm_89",
+      "sm_90"
+    ]
+  },
+  "method": "sha256sum, readelf -p .comment, and cuobjdump --list-elf; no CUDA context allocated",
+  "limitations": [
+    "Matching embedded architecture names does not prove identical generated GPU code or compiler flags.",
+    "Compiler metadata and binary hashes differ; this check does not establish that those differences cause the measured performance gap.",
+    "The reference native library differs from the pinned base library; copying only Python files onto that base would not reproduce native binary identity."
+  ]
+}

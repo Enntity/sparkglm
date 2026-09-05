@@ -1,0 +1,293 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-04-video-source-restoration",
+  "title": "Posted-video source restoration",
+  "date": "2026-09-04",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "Restore the actual 4b23759+c805318 implementation, not just its profile",
+  "change": {
+    "baseline_ref": "c80531867e13085c356ae5b9bff4c3b98ee64e8b",
+    "candidate_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "working_tree_clean": true,
+    "provenance": [
+      "207709ab87c1dbe3d23c3bad764758784a4d3a6b restores the retained video image's inherited foundation at 6a49e49e7e6a3226197a2ceefcf217cdf55f751e, on vLLM 487ecf187d3dfe74d2cf6119a92881dba403c219. Full lineage and exact input hashes are in provenance/video-source-parity.json and provenance/upstreams.json.",
+      "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7 fixes native generated-header cache handling without changing runtime code.",
+      "The native oracle is original test orchestration around the existing vLLM top-k operator ABI and torch.topk; it does not introduce an optimization."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Linux aarch64; head-local HTTP client for full-model captures; macOS source audit",
+    "python": "Client Python 3; container CPython 3.12",
+    "hardware": "2x NVIDIA DGX Spark GB10",
+    "topology": "Cross-node TP=2 over CX7",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66"
+    ],
+    "model_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "quant_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "drafter_revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
+    "configuration": {
+      "client_revision": "e0aaf9d056aa06be37ea53e2a5dca2709efe80ea",
+      "streams": 4,
+      "arrival_stagger_ms": 1000,
+      "prompt_generator_target": 16000,
+      "actual_prompt_tokens": [
+        15807,
+        15810,
+        15810,
+        15809
+      ],
+      "prompt_salt": "current-best-video-20260903-r1",
+      "cache_policy": "Unique namespace per repetition; identical prompt bytes and original within-run request configuration",
+      "max_output_tokens_per_stream": 400,
+      "temperature": 0,
+      "max_model_len": 1000000,
+      "max_num_batched_tokens": 7168,
+      "max_num_seqs": 4,
+      "gpu_memory_utilization": 0.87,
+      "mixed_prefill_chunk": 0,
+      "grouped_prefill": true,
+      "cooperative_decode": true,
+      "cooperative_decode_max_tokens": 16,
+      "spinwait_ms": 16,
+      "indexer_workspace": "rightsize",
+      "dflash_tokens": 7,
+      "draft_tensor_parallel_size": 2,
+      "kv_cache_dtype": "fp8",
+      "language_model_only": false,
+      "abliteration": false,
+      "dummy_weights": false,
+      "cudagraph_capture_sizes": [
+        1,
+        2,
+        4,
+        8,
+        16,
+        24,
+        32
+      ],
+      "warmup": "20-request boot shape sweep, long C4 capacity warmup, one discarded exact-workload replay",
+      "packages": {
+        "torch": "2.13.0+cu130",
+        "triton": "3.7.1",
+        "flashinfer": "0.6.17",
+        "exllamav3": "0.0.43"
+      },
+      "kv_pool_gib_observed": {
+        "restored": 18.86,
+        "reference": 18.24
+      }
+    },
+    "reference_image_digests": [
+      "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159",
+      "sha256:0b17bd9246763d74e2f5e1b79fecdcb6a8ef03e1b8e5823f2d2183ceafb91159"
+    ],
+    "run_order": [
+      "restored-warmup",
+      "restored-r1",
+      "restored-r2",
+      "restored-r3",
+      "reference-warmup",
+      "reference-r1",
+      "reference-r2",
+      "reference-r3"
+    ]
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passes. Clean rebuilt image passes embedded tests, native source gate, and running Python source checks on both ranks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Focused native subtests pass: 30 FP16/FP32 decode/prefill cases, exact selected values and unique in-range indices across three graph replays, with identical reference/candidate value hashes. This is not the complete production-shape/sanitizer G1 suite."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "All tinyGLM token IDs match the retained video image. After two discarded warmup repetitions per arm, the initial three-repetition C1 candidate missed the 5% throughput guard by 0.03 percentage points. A retained ten-repetition follow-up passes C1, C4, and long C2. Both receipts remain included; no speed improvement is claimed."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Partial full-model C4 comparison only: three warmed runs per arm at identical prompt counts, restored then retained original. Median wall 90.678298 vs 87.551781 s; aggregate 22.769525 vs 24.023372 tok/s. Slower point estimates remain unresolved. No alternating full G3 matrix or parity certification."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No broad semantic-quality, tool, multimodal, cancellation, or fault suite was run."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No release/endurance qualification or public promotion is claimed."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "aggregate_decode_tok_s_median",
+      "candidate": 22.769525,
+      "baseline": 24.023372,
+      "unit": "tokens/s"
+    },
+    {
+      "name": "wall_median",
+      "candidate": 90.678298,
+      "baseline": 87.551781,
+      "unit": "s"
+    },
+    {
+      "name": "wall_increase_pct",
+      "candidate": 3.5710490001339856,
+      "unit": "percent"
+    },
+    {
+      "name": "aggregate_throughput_change_pct",
+      "candidate": -5.219279791363163,
+      "unit": "percent"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "21c553109574257fbecec0edb554e1872cd25f972a456c15d90eb46f9925532d"
+    },
+    {
+      "path": "raw/clean-rank-0-identity.json",
+      "kind": "raw-receipt",
+      "sha256": "46452e1d5d295126e8a47f697a0f4762dbe889b105ddb2757d239548a4bf0cbe"
+    },
+    {
+      "path": "raw/clean-rank-1-identity.json",
+      "kind": "raw-receipt",
+      "sha256": "b758f18385c370d86cad8426f5bcdb7af54368d29f4882fd48e1c79aed762d30"
+    },
+    {
+      "path": "raw/external-source-parity.json",
+      "kind": "raw-receipt",
+      "sha256": "e1ac91595635f4e6e928b4c57c23515e237063c74775acbc7291517718b8fd0a"
+    },
+    {
+      "path": "raw/full-model-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "54a458c346642202d5ade24a8afbc33b19e045a5c00ada8d7e602c1d17c5bd6a"
+    },
+    {
+      "path": "raw/native-build-identity.json",
+      "kind": "raw-receipt",
+      "sha256": "52c0ecfd0445f87c7929a84dbb0d9e9838839c0d79b19ff41a9aad703900d162"
+    },
+    {
+      "path": "raw/reference-live-identity.json",
+      "kind": "raw-receipt",
+      "sha256": "97d2a0bc7ac1970d541165f2502a72a62007d5ccd31121dec5d011ae3f71a83f"
+    },
+    {
+      "path": "raw/tiny-video-candidate-extended.json",
+      "kind": "raw-receipt",
+      "sha256": "846ec0d9a58b20b02d05efa2ac3cc2dd8847373d719e512b551a6e0c0660250b"
+    },
+    {
+      "path": "raw/tiny-video-candidate-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "45a43247c7d21c003839df1b2de5c19ddc168811474637870bcce0453e6d2def"
+    },
+    {
+      "path": "raw/tiny-video-candidate.json",
+      "kind": "raw-receipt",
+      "sha256": "e2c50c5eec7e945ede1871979a22da709189a1e641d5740981d62d4b8745c00b"
+    },
+    {
+      "path": "raw/tiny-video-reference-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "4e4105f931b0f9aec94b61b43319254d227f9f73c4c68ae53a3ee10e9de02fba"
+    },
+    {
+      "path": "raw/tiny-video-reference.json",
+      "kind": "raw-receipt",
+      "sha256": "10ce8ac054f2a121f30033e5c0cff3c97ca0cc17debf61acf863d48c28ee85cf"
+    },
+    {
+      "path": "raw/video-candidate-native.json",
+      "kind": "raw-receipt",
+      "sha256": "296082c580210adf6e237af60ccd39a31fa8a010b8820c45a7ac33b1a0d3cc65"
+    },
+    {
+      "path": "raw/video-clean-native.json",
+      "kind": "raw-receipt",
+      "sha256": "46dd21cf1cda6d26608480e8663d432610e556d77e0f54700109bbb98e777b8d"
+    },
+    {
+      "path": "raw/video-clean-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8b2709e9522d34fad4f6871f8cb37934943ed7ef1d901ef6a4505a06b016549c"
+    },
+    {
+      "path": "raw/video-clean-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "4da818305744214c06f4bcb58744c1ca7d3ca9614a606bdbbff54206830425b4"
+    },
+    {
+      "path": "raw/video-clean-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "1b0a3371d60ef6cedf8d1b0aa03fe1801df82c6e8151b411df055c9fc0cad82b"
+    },
+    {
+      "path": "raw/video-clean-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "59117c61b68a84e04cb9179adcec702ea5a2fe28223399feb85a70dc6dc28e33"
+    },
+    {
+      "path": "raw/video-reference-native.json",
+      "kind": "raw-receipt",
+      "sha256": "f123f64ad74f48aeddcfdbe19832a3081d4dd875b32a7c175b09cd71f0410b31"
+    },
+    {
+      "path": "raw/video-reference-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "252e5a988c1ab70fba65d8c3f327b0455454f24fd8a6ce6b349307bca8c7cec4"
+    },
+    {
+      "path": "raw/video-reference-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "98081cf31493e51ac2cb9f7217104b4dfb1407feef536eca46335344333b77e8"
+    },
+    {
+      "path": "raw/video-reference-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "5a96adecb23ea1c81505f6f3007148478462a2134152c7630f05e2674a41c1c1"
+    },
+    {
+      "path": "raw/video-reference-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "63a48498c7387527aad7f56d06bee01f8c56e7d223b6253407c0188e509fb441"
+    },
+    {
+      "path": "raw/video-request-render-parity.json",
+      "kind": "raw-receipt",
+      "sha256": "291c62ac06206c5add6cc890a44bb4c6a141ec95adc37e41e05b10f6abdf6a1a"
+    }
+  ],
+  "limitations": [
+    "Restores implementation identity; not a new optimization or a claim to reproduce every historical container byte.",
+    "tinyGLM used image sha256:c09c9636f7dd7360c4bf6c290969973268f4c963e4e9d6f437fc98473bcd3c9e, built from the restoration working tree before revision labeling. The subsequent clean-source build has separately recorded identity; its stable native binary differs, so its native oracle was rerun. EXL3 and DeepGEMM binaries match the tiny-tested image.",
+    "Initial tinyGLM C1 throughput was 5.03% lower than the reference; the retained longer follow-up was 3.17% lower. Do not report only the follow-up or claim a speedup.",
+    "The tiny comparison was not interleaved ABAB and unrelated CPU activity remained on the appliance; it is an integration gate, not a publishable performance experiment.",
+    "Native top-k may reorder indices or select different members among equal FP16 boundary scores; exact selected-value equality is its tested contract.",
+    "No full-model quality or G5 release qualification is established.",
+    "The restored full-model C4 median is 6.17% below the retained posted one-off. Source identity is not performance parity; the historical sample is not a contemporary paired baseline.",
+    "The contemporary retained-image comparison favors the original: restored median wall is 3.57% longer and video-style aggregate throughput is 5.22% lower. Cause not isolated; do not call performance parity or dismiss the difference as noise.",
+    "Both full-model arms produce different text across temperature-zero repetitions and differ from the posted text. Non-repeatability is observed in the original too; neither quality equivalence nor a rebuild-only quality regression is established.",
+    "The same automatic GPU memory utilization policy yielded 18.86 GiB KV in the restored startup and 18.24 GiB in the retained-image startup. Background CPU work remained; these are consecutive-arm diagnostic measurements, not an isolated paired G3 campaign."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

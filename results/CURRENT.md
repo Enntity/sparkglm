@@ -2,9 +2,19 @@
 
 **Source-restoration correction:** the first release reconstruction omitted
 substantive code inherited from the posted video's custom vLLM foundation.
-The default build is being corrected to restore that implementation, not just
+The default build now restores that implementation, not just
 its flags. See [the source audit](../docs/VIDEO_SOURCE_RESTORATION.md). Earlier
 reconstruction timings are not evidence of implementation parity.
+
+The new [source-restoration evidence](candidates/2026-09-04-video-source-restoration/RESULT.md)
+records exact source checks on both ranks, native oracle checks, tinyGLM
+results including the initial failed throughput guard, and the new full-model
+C4 replays. Implementation identity is not a claim of binary reproducibility,
+deterministic full-model text, or a new speedup. The bundle is not promoted.
+Its restored-image C4 median is 90.678 seconds versus 87.552 seconds for a
+contemporary retained-original-image run, a 3.57% wall-time increase. The
+video-style aggregate rates are 22.770 versus 24.023 tok/s. **Speed parity
+remains unproven; the slower point estimate is an open qualification item.**
 
 The runnable engine predates qualification-v1. Its strongest retained evidence
 has been migrated honestly rather than re-labeled as newly certified:

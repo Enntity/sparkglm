@@ -111,6 +111,13 @@ one-off, a 3.1% difference. Those measurements remain valid for that build, but
 are not evidence that it reproduced the video implementation. Do not attach
 them to the restored build or treat them as a statistically certified tie.
 
+The [source-restored replay](../results/candidates/2026-09-04-video-source-restoration/RESULT.md)
+is now separate evidence: three warmed runs took 90.678 seconds median versus
+87.552 seconds for a contemporary replay of the retained original container.
+The corresponding aggregate rates are 22.770 and 24.023 tok/s. The rebuild
+restores the audited source, but its slower point estimate remains unresolved;
+these runs do not certify speed parity or full-model quality equivalence.
+
 ## License boundary
 
 The default fetches `incoai/GLM-5.3-Flash-DFlash2` at the pinned revision in

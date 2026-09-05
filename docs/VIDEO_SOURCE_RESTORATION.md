@@ -39,6 +39,15 @@ The separate `--kind video-runtime` check verifies a running container after
 startup, requiring the recorded 16 ms spinwait transformation as well. It is
 intentionally specific to the video profile, not arbitrary operator overrides.
 
+The retained build-version exception is not an assertion that version strings
+are unused: vLLM includes the version in compilation/configuration cache
+fingerprints and reported identity. Those fingerprints can differ on the
+rebuild. The historical source's CUDA platform selection distinguishes CPU
+builds rather than these two development revisions; the inspected EXL3 and
+FlashInfer source does not dispatch on this vLLM version. Warm each image
+independently; do not use cache reuse or identical startup time as a parity
+claim.
+
 The native build compiles `_C_stable_libtorch` and `_deep_gemm_C`. Other native
 components are retained from the pinned base: their source is unchanged
 between the base and historical foundation, although independently built
@@ -71,7 +80,25 @@ Do not omit the initial failure or treat this as a performance improvement.
 The tiny fixture launcher also needed its generated, shape-specific snapshot
 revision instead of the obsolete hard-coded `tinyglm-v1` name.
 
-Full-model replay remains pending. Source checks, native probes, and tinyGLM
-do not constitute full-model qualification. Retain new results separately from
-the earlier incomplete reconstruction. No new speed or quality claim is made
-here.
+The newer public chat template was checked separately: it renders identical
+prompt bytes for the four recorded video requests. Its tool/None fixes remain
+explicit later changes, not silently claimed to exist in the old template.
+
+The clean source-restored image completed three warmed full-model C4 replays
+at a 90.678-second median and 22.770 aggregate delivered tok/s. A contemporary
+run of the retained original image completed three at 87.552 seconds and
+24.023 tok/s. That is a 3.57% wall-time increase and 5.22% throughput decrease
+for the rebuild's point estimates: **speed parity is not certified**. The
+remaining difference is not causally isolated and must not be waved away as
+noise. Both arms also vary in generated text between repetitions.
+
+See the checksum-bound [restoration result](../results/candidates/2026-09-04-video-source-restoration/RESULT.md)
+for every retained and discarded sample, exact image identities, source
+checks, warmup, and limitations. This is not a full paired G3 matrix, G4
+semantic evaluation, or G5 release qualification. No speedup or new quality
+claim is made.
+
+The replay client accepts `--cache-salt` to isolate repeated runs without
+editing prompt text. The production profile does not expose the development
+`/reset_prefix_cache` route. A fresh cache namespace supplies the same cache-miss
+condition without enabling that route or reloading the checkpoint.
