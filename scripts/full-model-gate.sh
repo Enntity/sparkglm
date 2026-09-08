@@ -42,7 +42,7 @@ run_case() {
         --output-tokens 400 \
         --min-output-tokens 400 \
         --exact-prompt-tokens \
-        "${auth_args[@]}" \
+        ${auth_args[@]+"${auth_args[@]}"} \
         --timeout-s "${SPARKGLM_FULL_TIMEOUT_S:-900}" \
         > "$output"
     python3 - "$output" "$concurrency" "$prompt_tokens" <<'PY'
