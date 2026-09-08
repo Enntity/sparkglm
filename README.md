@@ -1,4 +1,31 @@
-# SparkGLM
+# SparkGLM — retained latest EXL3 work
+
+This branch preserves the corrected concurrent E3 implementation and its
+September 7 qualification campaign. Source recorded as
+`2da74aa817ea86b1a0881698c8990b38152c9bb3` is preserved byte-for-byte at public
+snapshot `9833a0b12d1f649cabb06317d99f30e70bae3473`; results recorded at
+`17cec73bf4e7bd0d59728e166e4cc349b25becac` are retained here too.
+
+The latest EXL3 configuration is TP2, concurrent-only E3, 32 expert temporary
+rows, 7168-token prefill chunks, BF16 DFlash2 with seven draft tokens, automatic
+KV allocation and 1,000,000 context. [Measured results](results/candidates/2026-09-07-e3-profilefix-full/RESULT.md).
+Bounded arithmetic failures remain; this is not a general quality certification.
+
+**Install the latest EXL3 through the shared LLooM installer on `main`:**
+
+```bash
+git switch main
+./start.sh --profile exl3 --worker USER@WORKER
+```
+
+See [the public quickstart](https://github.com/Enntity/sparkglm/blob/main/SPARKGLM.md)
+for prerequisites and source pins. `main` defaults to NVFP4; selecting `exl3`
+builds this latest EXL3 source, not an older image. The `start.sh` below on this
+retained branch is the historical standalone video-foundation launcher. It does
+not enable the newer E3 profile. The rest of this README describes that history.
+
+---
+
 
 ![SparkGLM GLM-5.3-Flash EXL3 banner](assets/glm.png)
 
