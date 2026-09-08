@@ -39,6 +39,7 @@ staggered C4 workload: ours mixed vs Mia's default skip, then skip vs skip.
 Both show SparkGLM on top. Context, drafts and settings are disclosed.
 
 Latest NVFP4 is on main; latest EXL3 stays available on the exl3 branch.
+SparkGLM runs independently; LLooM integration is optional.
 Source, exact settings and results: https://github.com/Enntity/sparkglm
 
 EXL3 checkpoint credit: Brandon M. Music's ShapleyMCG (2026), “ShapleyMCG:

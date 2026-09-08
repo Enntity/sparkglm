@@ -17,6 +17,8 @@ RUNTIME_PATHS = (
     "start.sh",
     "start-exl3.sh",
     "scripts/appliance.py",
+    "scripts/standalone.py",
+    "runtime/",
     "profiles/",
     "scripts/boot-shape-warmup.sh",
 )

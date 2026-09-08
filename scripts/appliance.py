@@ -34,7 +34,7 @@ def build(cache: Path, profile: str = 'nvfp4') -> str:
         raise RuntimeError('Build on the Spark leader (Linux ARM64), not a Mac or x86 machine.')
     available = next(int(x.split()[1]) for x in Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:'))
     if available < 32 * 1024**2:
-        raise RuntimeError('Native compilation needs 32 GiB MemAvailable. Stop resident models through LLooM before building.')
+        raise RuntimeError('Native compilation needs 32 GiB MemAvailable. Stop resident models through their runtime manager before building.')
     manifest = json.loads((ROOT / ('profiles/build-exl3.json' if profile == 'exl3' else 'profiles/build.json')).read_text())
     previous = None
     for layer in manifest['layers']:

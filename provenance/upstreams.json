@@ -260,10 +260,11 @@
       "id": "lloom-managed-recipe",
       "repository": "https://github.com/Enntity/lloom",
       "revision": "75e08ca0923e7eb58f087b53032c82f88175ea3a",
-      "relationship": "Adapted SparkGLM managed recipe metadata with the measured September 8 settings; entrypoint remains supplied by LLooM and hash checked.",
+      "relationship": "Adapted SparkGLM managed recipe metadata with the measured September 8 settings; entrypoint remains supplied by LLooM and hash checked. Standalone entrypoint copied byte-for-byte from the same measured adapter; it executes vLLM directly and has no LLooM dependency.",
       "covered_paths": [
         "profiles/nvfp4.json",
-        "profiles/exl3.json"
+        "profiles/exl3.json",
+        "runtime/entrypoint.sh"
       ],
       "notice_ids": [
         "MIT-LLooM"
@@ -271,6 +272,13 @@
     }
   ],
   "path_rules": [
+    {
+      "patterns": [
+        "runtime/entrypoint.sh"
+      ],
+      "license_expression": "MIT AND Apache-2.0",
+      "reason": "Measured launcher copied from LLooM, retaining inherited Mia and SparkGLM notices"
+    },
     {
       "patterns": [
         "profiles/nvfp4.json",
