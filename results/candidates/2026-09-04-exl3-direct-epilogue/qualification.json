@@ -1,0 +1,222 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-04-exl3-direct-epilogue",
+  "title": "Direct grouped EXL3 epilogues rejected by operator screen",
+  "date": "2026-09-05",
+  "state": "rejected",
+  "qualification_level": "G0",
+  "target": "Exact grouped M64 prefill; 32K staggered C2 wall time after GPU qualification",
+  "change": {
+    "baseline_ref": "fef5152ef20159b33c461989284942620d077037",
+    "candidate_ref": "c2979fdc7b383fa0344951ff50d89388b07419cb",
+    "working_tree_clean": false,
+    "provenance": [
+      "Original SparkGLM warp-owned epilogue schedule and G0/G1 tooling; no external epilogue implementation copied.",
+      "Hadamard arithmetic retained from ExLlamaV3 c5d9c657966ffeeaa9353f0cc899f18629da4a13 through the published helper.",
+      "Unchanged M64 pipeline derives from Reederey 0c03250cd7176a2fef9cbbf9329fed08c8750e7d."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10; single-GPU TP2-local operator",
+    "python": "3.12 (container)",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:b2a9d2cc18ec601883a1a5583c6378a46fbafb311133923d239c5778144e778c",
+      "sha256:a540e78823c7d683ece79e228437d970b50779efd4ee323db9672e915e9e80d6",
+      "sha256:e6394dc1ec4e6b8e5571b8d0bc9fef5287e1c66079263b471edf5efb7332c93c"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "reference_cuda_sha256": "fee047d2ae88090095bf27916fe0c6fe9ea0c6a29fc8b4e60622a3e16a03f918",
+      "candidate_cuda_sha256": "753d56897a312db01e7968efa9365e596c472571671a3e4b20b95d34271fcf35",
+      "changed_path": "exl3-fat-kernel/exl3_fat_gemm.cu",
+      "default_changed": false,
+      "coalesced_cuda_sha256": "42a7f127d216ec1d6fd9879e737c329d0109bcaa4dc3793157876c12b21f21bb",
+      "paired_repetitions": 3,
+      "shapes_per_arm": 14,
+      "warmups": 10,
+      "iterations_per_sample": 40,
+      "samples": 7,
+      "clock_lock": false,
+      "weights": "synthetic dummy trellises; no checkpoint",
+      "build_context": "b650255 plus uncommitted build/harness/follow-up changes; receipts bind source and binary identities"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source-locked transforms, row ownership/alignment, compact scratch offsets, build controls, repository static and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "fail",
+      "summary": "All 18 completed arm runs pass tested arithmetic/graph/red-zone checks, but both variants fail predeclared performance screen. Direct latency +5.88% / +6.02% vs preserved/rebuilt controls; coalesced +2.39% vs rebuilt control. Sanitizers not run after screening failure."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "active_shape_geomean_grouped_latency_change_percent",
+      "scope": "operator-only; positive is slower",
+      "direct_vs_preserved": 5.881230589888409,
+      "direct_vs_rebuilt": 6.020503939417177,
+      "coalesced_vs_rebuilt": 2.3853453671946134
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "787ad43ffc6e41c00d1afe4164fe4725dc7f7b952a47ceea7c6b372924c517f4"
+    },
+    {
+      "path": "coalesced-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "bf54cbb85cf840f61e0f8f7749229c9a289bce1bc4b978cfdf76e9f1de1ab3fc"
+    },
+    {
+      "path": "preserved-control-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "685fbc5f4364bab528e738df09f27dbbde7f09f4ce6679e053b468b3714915f2"
+    },
+    {
+      "path": "raw/candidate-profile.json",
+      "kind": "raw-receipt",
+      "sha256": "66437ced2aaffdde0fbc92f48deccdadf52de91fc2a293ea68693f144e4ffeff"
+    },
+    {
+      "path": "raw/coalesced/candidate-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "52f0137a2dade7cd26c5873d0fcb424d1a7e5d15df429da71d91dcd58ad0dce1"
+    },
+    {
+      "path": "raw/coalesced/candidate-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "69bb262a37fb178b2a38fb31dc6dd9d605bdc3a7a12bce9d5a23c3b9de30280d"
+    },
+    {
+      "path": "raw/coalesced/candidate-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "f8e3b5de0205f1430177323ee8c582fb209b551cb336b4bbc0c84f940abe59ea"
+    },
+    {
+      "path": "raw/coalesced/reference-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "57220c40d9af8b3738098565348bc453fcfca79004187dae85ce027056ca7613"
+    },
+    {
+      "path": "raw/coalesced/reference-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "c71281dcc92a3289ec2938f031b31520801b5fde9d0fcc90f7123597956a47e1"
+    },
+    {
+      "path": "raw/coalesced/reference-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "694485201688a9bdc48ba68ee3c453be1192c09b391d7389ea9a940f26609d04"
+    },
+    {
+      "path": "raw/preserved-control/candidate-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "fb75bae0f35df1136de398c34288319571f24c8460c23e799662109b00ca9989"
+    },
+    {
+      "path": "raw/preserved-control/candidate-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "cb6f684d639479919fe67e9c79079041697e6483c7c09fc77f4d46c6bd9ba4b0"
+    },
+    {
+      "path": "raw/preserved-control/candidate-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "c882a0c4b31f145e09d75060d3b3c2f630105b63b6f95121845284eeea76c4e2"
+    },
+    {
+      "path": "raw/preserved-control/reference-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "53ba35254ad986bf9df67e2e3b3d667c6a1a3edf9c6d7562223bee42ce8f42eb"
+    },
+    {
+      "path": "raw/preserved-control/reference-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "a5a6722d81e9b66156c722e3f48adf0d9842a502cc1a4469805a096d783ec99a"
+    },
+    {
+      "path": "raw/preserved-control/reference-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "2de60df962a2dca7ff4f8616055e679917ccdc8bfff5a49bd070f27d72ecbff5"
+    },
+    {
+      "path": "raw/rebuilt-control/candidate-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "8c1142d91689abfa1918889c4f465329a5135b4497f1577700b1befdda6f38c3"
+    },
+    {
+      "path": "raw/rebuilt-control/candidate-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "eea388fadd9e30836a25246e0ee7d6393efa29bc013d6c032f21d48cd630663e"
+    },
+    {
+      "path": "raw/rebuilt-control/candidate-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "8008e61265141f79c8b0b16a10063ec5f15f72fd54829ab923556612d0623857"
+    },
+    {
+      "path": "raw/rebuilt-control/reference-pair-1.json",
+      "kind": "raw-receipt",
+      "sha256": "c30d3742e55cf64601241ec728302906dcd85bc1e45aba2bc454052caca54688"
+    },
+    {
+      "path": "raw/rebuilt-control/reference-pair-2.json",
+      "kind": "raw-receipt",
+      "sha256": "04ef42926b18404d8b2b04b26839ea54a3ceb40d0bd64fbda6a01d4b497fce23"
+    },
+    {
+      "path": "raw/rebuilt-control/reference-pair-3.json",
+      "kind": "raw-receipt",
+      "sha256": "fe8ca97c27c9686e0db98f72f4bcb35cc127146a656924eddc1bd9e52f7b8e28"
+    },
+    {
+      "path": "raw/reference-profile.json",
+      "kind": "raw-receipt",
+      "sha256": "a9024dafbfbff2c0979e7238c585af335394dbcc6db1a19c21f020e785adb4d2"
+    },
+    {
+      "path": "rebuilt-control-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "a42d189677266d97463156f6afde27a8271afb94b7f41bcd6f4ca9b69703bff7"
+    }
+  ],
+  "limitations": [
+    "Rejected synthetic warm-cache operator screens, not endpoint throughput or model quality.",
+    "No sanitizer, tinyGLM, full-model, or G2-G5 qualification; failed speed screen prevented advancement.",
+    "No locked GPU clocks or confidence-bounded sub-percent claim. All pairs retained.",
+    "Build/harness/follow-up were tested before commit; source, harness, image and binary hashes are retained.",
+    "Diagnostic phase profiler perturbs timings and is not a speed baseline."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

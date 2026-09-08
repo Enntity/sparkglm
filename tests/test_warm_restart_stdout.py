@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_json_command_substitutions_skip_sitecustomize() -> None:
-    source = (ROOT / "start.sh").read_text()
+    source = (ROOT / "start-exl3.sh").read_text()
     marker = '$(python3 -S -c \'import json,os'
     assert source.count(marker) == 2
 

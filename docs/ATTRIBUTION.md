@@ -22,6 +22,12 @@ in `LICENSES/` or file-level SPDX identifiers.
 
 ### Original SparkGLM boundaries
 
+The prepared [direct-epilogue experiment](../research/experiments/exl3-direct-epilogue/README.md)
+changes grouped output ownership around the existing ExLlamaV3-derived Hadamard
+helper and Reederey-derived M64 pipeline. Its copied arithmetic remains credited
+to those pinned sources; the schedule and gating tools are original SparkGLM
+work. It has no GPU qualification or measured speed claim yet.
+
 The following are original project work built on the foundations above:
 
 - The GPU-resident grouped-prefill task planner and phase-wide execution
@@ -117,3 +123,22 @@ The inherited XGrammar correctness work also includes Flora Feng (`sfeng33`),
 Chauncey Jiang (`chaunceyjiang`), and Zbigniew Majewski (`knapcio`). Public X
 handles were not verified for those contributors, so GitHub identities are the
 authoritative attribution.
+
+## NVFP4 TP2 candidate
+
+Copied from https://github.com/loud1990/GLM-5.3-Flash-NVFP4-MXFP8-2x-DGX-Sparks
+at `d00b2ffa70e0ccbfd582088ab32448b01bfe9c67`: MXFP8 DFlash2 model and
+installer, rank entrypoints, derivative Dockerfile and Humming profile.
+Mia MIT notice is retained in the experiment LICENSE; the draft model retains
+its vLLM Apache header. Original SparkGLM additions are offline preparation,
+checkpoint/image pins, local artifact checks, and regression tests. No new
+quantization or GPU kernel is claimed. See the experiment README for limits.
+
+## Managed public default
+
+The managed recipe in `profiles/nvfp4.json` adapts the SparkGLM integration in
+https://github.com/Enntity/lloom at
+`75e08ca0923e7eb58f087b53032c82f88175ea3a`, with the measured September 8 settings.
+The MIT notice is retained in `LICENSES/MIT-LLooM.txt`. The installer is original
+Apache-2.0 orchestration and calls LLooM's existing commands. Its installed
+entrypoint is hash checked against the measured version, not copied here.

@@ -21,8 +21,7 @@ approximation on both arms and disclose it.
 
 - No checked-in result currently gives this release candidate post-policy G5
   qualification.
-- The retained performance campaign is `legacy`: it predates the exact 16K/32K
-  prompt calibration, complete G3 matrix, and current G4 semantic requirements.
+- Earlier campaigns remain `legacy`. The September 7–8 candidate bundles retain newer operator, tinyGLM, full-model, semantic and capacity evidence; see [current status](../results/CURRENT.md).
 - The root Docker build is now statically checked for complete build-context
   inputs, but a clean ARM64/SM121 image build and two-rank boot still require
   the DGX Spark hardware gate.
@@ -86,3 +85,18 @@ approximation on both arms and disclose it.
 are useful provenance and negative evidence, not alternate supported install
 paths. Atlas code remains AGPL-3.0-only and never becomes Apache merely because
 it is stored in this repository.
+
+## NVFP4 default preview
+
+The September 8 maintainer-selected default has a 524288-token window and
+9 GiB KV per rank. A near-full-window cold prefill took 341.8 seconds; two
+cached continuations took about two seconds. Cache reuse helps repeated tool
+turns but not unseen context. Under four-client 64K contention, cached waits
+ranged 7.4–151.3 seconds and preemptions occurred. Four active sequences does
+not guarantee four fully resident maximum-window prompts.
+
+Memory headroom remains narrow: the 512K test sampled only 2.737 GiB minimum
+available on the leader. Sampling can miss peaks. The preceding 1M/11 GiB
+trial failed and required worker recovery; no 1M NVFP4 claim is made. The
+small semantic probe found arithmetic failures. This is bounded research
+evidence, not a general quality, exactness, or endurance certification.

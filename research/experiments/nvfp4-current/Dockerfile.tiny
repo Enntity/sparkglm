@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+ARG BASE_IMAGE=sparkglm-release:video-clean
+FROM ${BASE_IMAGE}
+COPY research/experiments/nvfp4-current/tiny_init.py /usr/local/lib/python3.12/dist-packages/sparkglm_nvfp4_tiny.py
+RUN printf '%s\n' 'import os; os.environ.get("SPARKGLM_NVFP4_TINY") == "1" and __import__("sparkglm_nvfp4_tiny")' > /usr/local/lib/python3.12/dist-packages/sparkglm_nvfp4_tiny.pth
+ARG SPARKGLM_SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=${SPARKGLM_SOURCE_REVISION}

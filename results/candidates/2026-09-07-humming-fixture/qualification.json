@@ -1,0 +1,118 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-humming-fixture",
+  "title": "Humming NVFP4 checkpoint fixture screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Screen optional Humming backend before full-model time",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "6cfa8f9f37e7180af418b82d26b69408fdcea88b",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original synthetic API probe; existing SparkGLM FlashInfer/CUTLASS implementation. No model tensors copied."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10, standalone single GPU",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:17f7f5e6729a61885cf459268cae8a14e88a9702d2e257b38ce141db458782bb",
+      "sha256:4a04c25357e08e892e0cb7f45475c19d9b5c6e70bfab573810aa36a58d615535"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "fixture": "tinyglm-nvfp4",
+      "moe_backend": "humming",
+      "prefill_tokens": 7168,
+      "speculation": "none",
+      "activation_fallback": "FP8 E4M3 for requested FP4 in installed Humming schema",
+      "repetitions": 3
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source and managed plan checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Not qualified by the bounded fixture screen."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Three warmed repetitions were deterministic and completed; initial C4 warmup was nondeterministic. A full cross-backend numeric/quality contract remains outstanding."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Not qualified by the bounded fixture screen."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Not qualified by the bounded fixture screen."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Not qualified by the bounded fixture screen."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "decode_c1 tiny output throughput",
+      "value": 138.19281715861356,
+      "unit": "tok/s",
+      "samples": 3
+    },
+    {
+      "name": "mixed_c4 tiny output throughput",
+      "value": 265.78607143447874,
+      "unit": "tok/s",
+      "samples": 3
+    },
+    {
+      "name": "long_c2 tiny output throughput",
+      "value": 78.12499997520206,
+      "unit": "tok/s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "99722378131bff470b99681c831b77f6beea811f1bd6555b3649f9b98f1b5a28"
+    },
+    {
+      "path": "raw/measured.json",
+      "kind": "raw-receipt",
+      "sha256": "c4230a2ddff10f11e8194daecbb251bc9a552099e7f4af72590451698bb2d3d6"
+    },
+    {
+      "path": "raw/warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "02aa67b4e4e3a5514a55fd7d96a575f01ca4eaf914b52923163f56970bf0e07e"
+    }
+  ],
+  "limitations": [
+    "No Humming operator golden or general quality qualification.",
+    "Timing varies markedly in the short fixture; no full-model speed claim.",
+    "Humming activation fallback differs from native W4A4.",
+    "G3/G4/G5 not run."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

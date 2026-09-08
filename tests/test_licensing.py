@@ -129,7 +129,7 @@ def main() -> int:
     assert resolved_expression(".github/FUNDING.yml", manifest) == "MIT"
     assert spdx_files >= 25
 
-    start = (ROOT / "start.sh").read_text()
+    start = (ROOT / "start-exl3.sh").read_text()
     env = (ROOT / ".env.example").read_text()
     for name, revision in (
         ("MODEL_REVISION", "25a44fdbf16862a46b7cc9921142c6c81350af2f"),

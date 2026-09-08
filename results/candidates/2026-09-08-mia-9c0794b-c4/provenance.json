@@ -1,0 +1,40 @@
+{
+  "upstream": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+  "commit": "9c0794b68d7fc124f79104409ab434769503fb31",
+  "image": "sha256:f301bb941416d40a0080fb2505a275caf7c71eb4d94471dd4539f0d0b2edbde2",
+  "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+  "target_reuse": "120 existing local shards hardlinked per rank",
+  "draft_revision": "bf582e4eacc1810f76656d1811693ff6c6737d2a",
+  "draft_sha256": "b038e1d9d1e7833fa3880c2c0135ba9b673013f03da1b29fb831931584759dac",
+  "settings": {
+    "mixed_prefill": "skip",
+    "E3": true,
+    "temp_rows": 32,
+    "context": 850000,
+    "gpu_util": 0.85,
+    "prefill_chunk": 7168,
+    "max_seqs": 4,
+    "draft_tp": 2,
+    "draft_k": 7,
+    "adaptive_k": "off",
+    "dense_fp8": "off",
+    "spinwait": "stock",
+    "indexer": "rightsize",
+    "cg_estimate": 1
+  },
+  "infrastructure_adaptations": [
+    "LLooM owns both Docker ranks",
+    "Host fabric addresses, interfaces and GID index",
+    "Local model paths and isolated compilation caches",
+    "Upstream inner launch scripts copied unchanged"
+  ],
+  "workload": {
+    "requests": 4,
+    "stagger_ms": 1000,
+    "prompt_tokens_requested": 16000,
+    "output_tokens": 400,
+    "temperature": 0,
+    "thinking": false,
+    "runs": 3
+  }
+}

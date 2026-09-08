@@ -1,0 +1,164 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-08-nvfp4-c4-video",
+  "title": "Staggered C4 NVFP4 512K video comparison",
+  "date": "2026-09-08",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "Historical C4 video workload, 16K prose and 400 output tokens",
+  "change": {
+    "baseline_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "candidate_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "working_tree_clean": false,
+    "provenance": []
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 524288,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 2048,
+      "max_num_seqs": 4,
+      "e3": false,
+      "e3_policy": null,
+      "exl3_temp_rows": null,
+      "moe_backend": "flashinfer_cutlass",
+      "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+      "prompt_tokens_target": 16000,
+      "output_tokens": 400,
+      "stagger_ms": 1000,
+      "prompt_style": "field-guide",
+      "cache_namespace": "unique per repetition"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe checks plus capture and renderer verification; historical comparison is not a matched G3 promotion gate."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "Baseline \u00b7 Mia EXL3 capture wall",
+      "value": 95.212421,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "Previous \u00b7 SparkGLM EXL3 capture wall",
+      "value": 86.14865,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "Current \u00b7 SparkGLM NVFP4 capture wall",
+      "value": 83.868935,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "db340039461eb1a11b33c496c6422d08ede81750c0cc3499dedb496c5bf73639"
+    },
+    {
+      "path": "raw/final-metrics.prom",
+      "kind": "raw-evidence",
+      "sha256": "6c99c168a882af1d512fe1ce25233be86ce3aac3fde79d846849c2ffef51660e"
+    },
+    {
+      "path": "raw/panel-0.json",
+      "kind": "raw-receipt",
+      "sha256": "6e8c857faf8155babf90975a22976e66b5d4f267dea3b72b88031bf578a49c1c"
+    },
+    {
+      "path": "raw/panel-1.json",
+      "kind": "raw-receipt",
+      "sha256": "25be5bdb289ab137ab9672edb02e4ee439baf55fdea8b8bf8935707aed3a55af"
+    },
+    {
+      "path": "raw/panel-2.json",
+      "kind": "raw-receipt",
+      "sha256": "55c44abd560f17b1d261b68da2fd3c0b490794621cc5cd636155291dafbb824b"
+    },
+    {
+      "path": "raw/sparkglm-c4-current-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "5acee0a1e9a118a3bd757be3a5e1edbdbbf51d7db4e568ffa77368f22f4572ac"
+    },
+    {
+      "path": "raw/sparkglm-c4-current-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "174139c8c2d9015cae090278139e6095a76aaa651086eca9a524a787497cc209"
+    },
+    {
+      "path": "raw/sparkglm-c4-current-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "6668d568ca5e6935957f169bf0784cb1df384cf93fc93d2dbe77560d5f7c5886"
+    },
+    {
+      "path": "render.py",
+      "kind": "raw-evidence",
+      "sha256": "7badb6278625879f93100f41f26e314fceebb56a47dd890a7cf87758dd5b2158"
+    },
+    {
+      "path": "video.json",
+      "kind": "raw-receipt",
+      "sha256": "02ffacd355b630fed30597b84c97517eb9dde9a1881278a876bf47547637bc8c"
+    }
+  ],
+  "limitations": [
+    "Historical baseline and previous video captures are reused, not rerun on the current host state.",
+    "Current median selected by wall time from three runs: 77.555632, 86.849264, 83.868935 seconds.",
+    "Previous build and current use identical prompt text and reported token counts; baseline differs by two prompt tokens per request due to salt.",
+    "Configurations and quantizations differ; this is end-to-end progress, not isolated kernel evidence.",
+    "Current cumulative preemption counter rose from 3 at an in-run snapshot to 13 after the captures; at least ten preemptions occurred during the observed interval.",
+    "Visual token counters apportion exact final usage across observed text deltas; text arrival times are actual SSE measurements.",
+    "All 12 current requests delivered 400 tokens without API error; broad semantic quality was not evaluated."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

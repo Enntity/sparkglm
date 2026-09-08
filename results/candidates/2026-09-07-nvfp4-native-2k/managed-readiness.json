@@ -1,0 +1,21 @@
+{
+  "lloom_source_revision": "75e08ca0923e7eb58f087b53032c82f88175ea3a",
+  "readiness_path": "/v1/models",
+  "observed_runtimes": {
+    "glm53-flash-exl3-cluster": {
+      "status": "stopped",
+      "healthy": false,
+      "healthModel": "glm-5.3-flash-exl3",
+      "activeRequests": 0
+    },
+    "sparkglm-nvfp4-cluster": {
+      "status": "running",
+      "healthy": true,
+      "healthModel": "sparkglm-nvfp4",
+      "activeRequests": 0
+    }
+  },
+  "gateway_canary_pass": true,
+  "profile_installation": "Persisted and checksum-verified on both nodes while runtimes were stopped.",
+  "transition": "An attempted live readiness-profile update restarted the pair and failed a memory preflight. Both runtimes were then stopped through LLooM; the unchanged serving configuration completed a clean managed start, warmup and attributed gateway canary."
+}

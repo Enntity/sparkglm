@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _source() -> str:
-    return (ROOT / "start.sh").read_text()
+    return (ROOT / "start-exl3.sh").read_text()
 
 
 def test_worker_death_detection_wired() -> None:

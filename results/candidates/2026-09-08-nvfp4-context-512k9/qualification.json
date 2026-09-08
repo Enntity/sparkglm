@@ -1,0 +1,397 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-08-nvfp4-context-512k9",
+  "title": "NVFP4 512K context with 9 GiB cache",
+  "date": "2026-09-08",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "512K single request and 64K concurrent gateway tools",
+  "change": {
+    "baseline_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "candidate_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "working_tree_clean": false,
+    "provenance": []
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 524288,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 2048,
+      "max_num_seqs": 4,
+      "e3": false,
+      "e3_policy": null,
+      "exl3_temp_rows": null,
+      "moe_backend": "flashinfer_cutlass",
+      "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source and publication checks; scoped live receipts retained separately, not full G3/G4 qualification."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "523264 tokens client 0 turn 0 TTFT",
+      "value": 341.75789086098666,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "523264 tokens client 0 turn 1 TTFT",
+      "value": 1.9349061429966241,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "523264 tokens client 0 turn 2 TTFT",
+      "value": 2.0677048140205443,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 1 turn 0 TTFT",
+      "value": 42.72583405699697,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 1 turn 1 TTFT",
+      "value": 32.71729467398836,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 1 turn 2 TTFT",
+      "value": 151.21244413900422,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64511 tokens client 2 turn 0 TTFT",
+      "value": 124.35532702700584,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64511 tokens client 2 turn 1 TTFT",
+      "value": 31.130940233008005,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64511 tokens client 2 turn 2 TTFT",
+      "value": 14.864506185986102,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 3 turn 0 TTFT",
+      "value": 85.56543174100807,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 3 turn 1 TTFT",
+      "value": 117.62062778501422,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 3 turn 2 TTFT",
+      "value": 151.35441303800326,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 4 turn 0 TTFT",
+      "value": 164.25227513798745,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 4 turn 1 TTFT",
+      "value": 31.244478161999723,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "64512 tokens client 4 turn 2 TTFT",
+      "value": 7.384237051010132,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "head minimum available RAM",
+      "value": 2.7370567321777344,
+      "unit": "GiB",
+      "samples": 1
+    },
+    {
+      "name": "worker minimum available RAM",
+      "value": 7.678371429443359,
+      "unit": "GiB",
+      "samples": 1
+    },
+    {
+      "name": "64K four-client cumulative preemptions",
+      "value": 2,
+      "unit": "count",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "3adcb87a7ff91765b0fbc473cce6afb44a66806445e39520a4a9eb67ff965d23"
+    },
+    {
+      "path": "raw/512k.json",
+      "kind": "raw-receipt",
+      "sha256": "58de3f601cd14aa79910be4ca94272d759fb8753695860f10e777f1d010bfbb6"
+    },
+    {
+      "path": "raw/capacity.log",
+      "kind": "raw-evidence",
+      "sha256": "7802675d41b6aceee6089db89507a787e6b5576aac344d6bc9848abf97a41392"
+    },
+    {
+      "path": "raw/head-memory.json",
+      "kind": "raw-receipt",
+      "sha256": "914394774da311cd8070d06af4810e2482f2594f8e131b7770382a3b896d9c41"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "a30cc2b63b3dbe876670e53aabbb003661dfa037ed3f259a2ccc39527dd88aac"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "315399838fc5faf50ea501ebc2352595bda326ceec1889c9c20a76a6b389b2f4"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "790640c594f173db78f4724bff064ffec0e2b50bdf1b1c5b400eeea4db4ad2b7"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "eee35327a1cb0ca9b0780252283cd280f205a0280d63fd36efd9870d45699212"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "28cc34e5bd8b222671a1fbf7f35e6d610d5175722f99dfad9bc2c22b970eef13"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "09e23ffd8bee86ccb1aa10a87f229ea78a0e80f7dca0a89c1e048b9f2ff66e1f"
+    },
+    {
+      "path": "raw/sparkglm-512k9-512.json",
+      "kind": "raw-receipt",
+      "sha256": "58de3f601cd14aa79910be4ca94272d759fb8753695860f10e777f1d010bfbb6"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "1b1cd5ed2978cc2ce2ed0f1cc13ab94bd2c884bdaca467c9d7a3f0609f8a6a7e"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "dc3ef5b47488885d09b11dfce942f3950959bb6ce8042b985b90d08a5f42d734"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "ed5cf2abba41cc4606f640cc690d787acfddae49936180ba24d5fc109d02f4ef"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "b15b92072b145754b4d85c9dbe1f8bf71673b4abb7f202e8f5a2fc5cee1be2fa"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "a25a7abd24ccf1dc080282f917a2f771e9b35a7c457e05c424ecec8ed71a5e96"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "ed5cf2abba41cc4606f640cc690d787acfddae49936180ba24d5fc109d02f4ef"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-0.json",
+      "kind": "raw-receipt",
+      "sha256": "c6121e7c824145e2be50077e413dac3dc451ffed16fa6cf34d2f3eb7fec84836"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "17b2e458da4bad4cb395dba7ba4a6db9609b901e39ae24bbd5831647fc2291c7"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f882180edfb8efda86aaabc0a59f837edf53d9fa99067e7c1dc6bf21ad6fe90c"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "604d3f35595da7e575878980dd0afe16b18cde916d96628a96ed03ba26ea1f64"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "17b2e458da4bad4cb395dba7ba4a6db9609b901e39ae24bbd5831647fc2291c7"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "4fce461a658c727ffa76ec87a8e25d0c62908dbaf3f7eda178e1206e3826e8bf"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "604d3f35595da7e575878980dd0afe16b18cde916d96628a96ed03ba26ea1f64"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-1.json",
+      "kind": "raw-receipt",
+      "sha256": "b1ef4034b14bb685da57de23acb38f9cda8e005ede2d74ef98a13cfc6fe921c0"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "5a53fa486dc19d0974c481bf9e295fb1365e5753bcacb94c453072fafaff695f"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "9629243d22f8992a705b82911110fc5a7a538bfdeded16800b9841671605b901"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "d87f2c025611d2baf6feb1590db7768794dd7761cdf0b0bbc779ad4aff98c696"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "5a53fa486dc19d0974c481bf9e295fb1365e5753bcacb94c453072fafaff695f"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "1033720ca4f873c2dd8db7ec17480c3b102b23f6a4f31be917253d84739f4735"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "15a6d57ebe98dcd18ef067f43770249540c092151499be34f03abe51e695780b"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-2.json",
+      "kind": "raw-receipt",
+      "sha256": "0bc26b2dcdc6b0d2fa94a4438ad59d4ed6564c80b4677acc5f75c81c32ce0464"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "c6392d76a7cff750020b6fb525dc9eb79461b4173dc3d38ad31e20ec8b8fdf6a"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "42ebf012b29c0dc0599b28b41a33b839052526feabd313beeaf57d43d7a7015b"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "fb1938ce877c9ed58108caf724175d8fe5ad4f998f997bff45e2c1cee917b88e"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "c6392d76a7cff750020b6fb525dc9eb79461b4173dc3d38ad31e20ec8b8fdf6a"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "edfc48235e2ff5da3b1c857374239841aeb45acd6e7ebc12fa486ff95d962800"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "87ef079524feda60abc802989c3abdd0347d6325e1ecd66aa1db1febba57f52c"
+    },
+    {
+      "path": "raw/sparkglm-512k9-64-3.json",
+      "kind": "raw-receipt",
+      "sha256": "f7c4d3c708bebabbf36c09d4af8889892d56b0701043ff809e7fa51079ae76e9"
+    },
+    {
+      "path": "raw/worker-memory.json",
+      "kind": "raw-receipt",
+      "sha256": "a0df1947bede4406ccf07da09e2c809daea67a5db255bd7598733ccbceabb342"
+    }
+  ],
+  "limitations": [
+    "One 512K sequence and four concurrent 64K sequences, each with two cached tool continuations; not endurance or broad quality qualification.",
+    "512K means a 524288 total-token cap; cold prompt is 523264 tokens to reserve output and continuation space.",
+    "1M with 11 GiB failed and worker required physical power recovery; previous boot recorded NVIDIA memory allocation failures.",
+    "No public default promotion. Head memory reserve remains narrow.",
+    "Four-client 64K run had two preemptions and cached TTFT up to 151.35 seconds; not a low-latency concurrency qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -1,190 +1,104 @@
-# Run SparkGLM on two DGX Sparks
+# Run SparkGLM: NVFP4 on two DGX Sparks
 
-This is the **current serving recipe**, not the archived Atlas experiment.
-Run the commands below on the **head Spark** unless stated otherwise.
+The default on `main` is the maintainer-selected **NVFP4 research preview**:
+512K context (524,288 tokens), 9 GiB KV per rank, native FlashInfer CUTLASS,
+MXFP8 DFlash2 TP2 with seven draft tokens, 2K prefill chunks, four active
+sequences, and mixed scheduling. This is the configuration recorded in the
+September 8 mixed video. `--skip` reproduces the other video setting.
 
-The default is the posted-video profile: GLM-5.3-Flash EXL3, TP2, mixed
-scheduling, grouped prefill, cooperative decode, and DFlash2 k=7. This is a
-research preview, not a G5-qualified production release.
+This is a source install. No prebuilt image or complete G5 endurance/general
+quality certification is claimed. See [results](results/CURRENT.md),
+[limitations](docs/KNOWN_LIMITATIONS.md), and [model licenses](docs/LICENSING.md).
 
-## 1. Check the requirements
+## Prepare the cluster
 
-- Two DGX Spark GB10 machines, connected over CX7/RoCE, with their GPUs and
-  unified memory available. Stop other full-model servers through their own
-  management system first.
-- Docker with NVIDIA GPU support, usable without sudo, on both machines.
-- Key-based SSH from head to worker; Git, Python 3, curl, rsync, and the
-  Hugging Face CLI (`hf`) on the head.
-- At least 180 GiB free per node for model downloads alone; leave additional
-  room for the roughly 21 GB runtime image, native build intermediates, and
-  caches. The first installation builds native code locally. It is not a
-  quick prebuilt-image install.
-- **Check [licenses](docs/LICENSING.md) before downloading.** The separately
-  fetched default DFlash2 checkpoint is CC BY-NC-ND 4.0
-  (non-commercial/no-derivatives). Set `SPEC_METHOD=mtp` or `none` in
-  `.env` before the first launch if those terms do not fit. Those profiles
-  do not inherit the video's performance. The target/quant have separate terms.
-- The target EXL3/TR3 quant is **ShapleyMCG source-available**, with attribution
-  requirements for published results and named-party/channel exclusions.
-  Disabling DFlash2 does not remove those terms. Read the
-  [quant notice and citation](docs/QUANT_ATTRIBUTION.md) before benchmarking.
-- Read [known limitations](docs/KNOWN_LIMITATIONS.md), particularly the
-  sparse-MLA candidate-set approximation. We do not claim exact inference.
+Use two Linux ARM64 DGX Sparks with working NVIDIA Container Toolkit, Docker,
+Python 3 with venv, Git, rsync, and passwordless SSH from leader to worker.
+Use the same user/home and LLooM install path on both nodes. Configure LLooM's
+[direct two-node cluster](https://github.com/Enntity/lloom/blob/main/docs/clusters.md)
+and verify its fabric addresses, interface, and RoCE mapping before installing.
+This launcher uses that existing cluster configuration; it does not invent
+network settings or change application aliases.
 
-There is currently **no published, qualified SparkGLM prebuilt image**.
-Do not substitute Mia's image and assume it contains SparkGLM's changes.
-[Image-publication status](docs/IMAGE_RELEASE.md) describes that separate gate.
+Install LLooM from source on **both** nodes at the revision in
+[`profiles/build.json`](profiles/build.json), using its documented `npm ci`
+and `npm link` steps. For example, on each node:
 
-## 2. Clone and configure
+```bash
+git clone https://github.com/Enntity/lloom.git
+cd lloom
+git checkout 2cc2f0df9ddcb1bb7fe60f7bd6934d2a9de1e4f2
+npm ci
+npm link
+```
+
+Configure and run its gateway service following the LLooM instructions. The launcher checks the SparkGLM entrypoint hash on both
+nodes. LLooM owns admission, worker-first startup, readiness, routing and stop.
+
+Allow at least 32 GiB **MemAvailable** on the leader for native compilation:
+stop resident full models through LLooM first. Reserve ample disk for roughly
+200 GB of target weights, the draft, Docker source/build layers, and the
+second local weight copy on the worker; 190 GB is not enough for a fresh build.
+Weights remain separately downloaded, pinned publisher artifacts.
+
+## Install and start
+
+Run on the Spark leader:
 
 ```bash
 git clone https://github.com/Enntity/sparkglm.git
 cd sparkglm
-cp .env.example .env
+./start.sh plan
+./start.sh --worker USER@WORKER
 ```
 
-If `hf` is missing, install it in a local environment:
+Replace `USER@WORKER` with the SSH destination. `--model-root /path/to/models`
+selects the same absolute directory on both nodes; the default is
+`~/.lloom/models`. `--lloom-root /path/to/lloom` overrides executable-based
+installation discovery.
+
+The installer builds the pinned source layers in order, copies the immutable
+image to the worker, downloads pinned models through LLooM, copies those local
+weights to the worker, installs an additive managed recipe, and starts it.
+Existing models/default aliases remain registered. Reinstalling stops only
+the selected SparkGLM runtime before replacing its configuration; clients using it will be interrupted.
+A successful install ends with LLooM runtime status. Call the configured LLooM
+gateway using model **`sparkglm-nvfp4`** and your gateway authentication.
+
+For an image you already built and qualified, avoid rebuilding with:
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install huggingface_hub
-hf --help
+./start.sh --worker USER@WORKER --image sha256:YOUR_FULL_IMAGE_ID
 ```
 
-Edit `.env`; the example is a template, not universal network configuration:
-
-| Setting | What to supply |
-| --- | --- |
-| `HEAD_IP`, `WORKER_IP` | Reachable addresses assigned to your two Sparks |
-| `WORKER_USER` | Worker account, if different from the head account |
-| `HEAD_CX7_IF`, `WORKER_CX7_IF` | Each node's actual CX7 network interface |
-| `HEAD_CX7_IB`, `WORKER_CX7_IB` | Each node's actual RoCE HCA |
-| `HEAD_GID`, `WORKER_GID` | Each HCA's populated RoCEv2 GID index, if different from `NCCL_IB_GID_INDEX` |
-
-On **each node**, inspect interfaces with:
-
-```bash
-ip -br a
-ls /sys/class/infiniband
-docker info
-nvidia-smi
-```
-
-For the chosen HCA, inspect its `ports/1/gids/` files under
-`/sys/class/infiniband/`. Choose the entry corresponding to that node's
-fabric IP; an all-zero entry is not usable. The launcher's preflight validates
-the selections and prints the GID tables on failure. Verify key-based SSH
-to the worker before launch. Do not copy another kit's interface names blindly.
-
-Keep `IMAGE=sparkglm:local` and the performance settings unchanged for the
-reference profile. Keep `.env` private. Existing `.env` files are preserved
-across upgrades, so compare them with `.env.example` rather than overwriting
-them.
-
-### Coming from Mia or an older SparkGLM checkout?
-
-**Both recipes currently use `glm53-exl3-head` and `glm53-exl3-worker`.**
-Our `stop`/`restart` targets those names; changing only the API port does not
-make the deployments independent.
-
-1. Save the old recipe revision, private configuration, and image identity.
-2. Stop the old deployment using its original launcher or fleet manager.
-3. Create a fresh SparkGLM `.env`. Transfer network/account settings and,
-   when useful, the existing model-cache location—not the old image or
-   performance defaults.
-4. Launch SparkGLM using this guide. The pinned matching weights can be reused;
-   do not delete the cache.
-5. To roll back, stop SparkGLM, then start the preserved old recipe/configuration.
-
-Do not run both full models simultaneously on the pair. For already cached
-`brandonmusic` weights, see `MODEL_CACHE_NAME` in `.env.example` to avoid
-a duplicate download.
-
-## 3. Build and launch
-
-```bash
-./start.sh
-```
-
-A fresh checkout builds the root Dockerfile automatically. `BUILD=1 ./start.sh`
-forces a rebuild. The launcher checks both hosts, builds the image, sends the
-same image to rank 1, downloads and syncs missing pinned weights, then starts
-TP2. Do not use `SKIP_BUILD=1` to bypass an unbuilt or mismatched reference.
-
-Stop resident models before compilation: the default build guard requires
-at least 32 GiB available unified RAM. First build, download, weight loading,
-graph capture, and initial JIT can all take time. Subsequent starts reuse
-matching images, weights, and persistent JIT caches.
-
-Progress and troubleshooting:
-
-| Stage | Where to look / what to expect |
-| --- | --- |
-| Native compilation | `tail -f logs/build-sm121.log`; no model is serving yet |
-| Download/sync | Launcher output; `./download.sh` optionally stages weights on the head only |
-| Weight load/graph capture | `./start.sh logs` and `./start.sh logs worker` |
-| HTTP healthy, still warming | Short shape warmup, then mandatory four-stream 16K capacity check |
-| Fully ready | Wait for the launcher's final `is UP` banner, not just `/health` |
-
-The long capacity check must pass for the default four-stream profile.
-Failure is not proof of a bad model: inspect worker logs, available memory,
-cache capacity, and networking. Do not skip it merely to claim a healthy
-four-stream appliance. A failed warmup may leave containers running; inspect
-them with `./start.sh status`, then use `./start.sh stop` if abandoning the
-attempt.
-
-## 4. Get a streamed answer
-
-The default API is head-local at `http://127.0.0.1:8888/v1`, with model ID
-`GLM-5.3-Flash-EXL3`. On the head:
-
-```bash
-curl --fail --no-buffer http://127.0.0.1:8888/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "GLM-5.3-Flash-EXL3",
-    "messages": [{"role": "user", "content": "Explain a hash table in three sentences."}],
-    "stream": true,
-    "max_tokens": 256,
-    "chat_template_kwargs": {"enable_thinking": false}
-  }'
-```
-
-You should see SSE `data:` events, followed by `[DONE]`. These are raw
-streaming API events, not a chat UI. This is a functional smoke test, not a
-throughput benchmark.
-
-If you set `VLLM_API_KEY`, add an `Authorization: Bearer` header using that
-key. A custom `PORT` changes the example URL.
-
-To use the endpoint from a laptop, prefer an SSH tunnel to the head while
-keeping the API on loopback. Alternatively, set `API_HOST=0.0.0.0` **and**
-configure `VLLM_API_KEY`, then restart. Use that wildcard rather than binding
-only a LAN address: the current launcher's readiness probes use loopback.
-Protect the
-host-networked TP/RoCE fabric and diagnostic endpoints from untrusted clients;
-API authentication is not a firewall.
-
-## Everyday commands
+Both rank identities are checked. For separately built and qualified rank images, add `--worker-image sha256:WORKER_IMAGE_ID`. Use the `check` command with these image arguments to validate the installed adapter, image identities and LLooM setup plan without downloading weights or changing runtime configuration. A different image is your own experiment,
+not automatically the recorded source. To reproduce skip scheduling, add
+`--skip` to the install command. It retains our existing 3584-token remaining
+prefill bypass and zero max-wait setting. Changing scheduling requires reinstall;
+`start` simply starts the already installed profile.
 
 ```bash
 ./start.sh status
-./start.sh logs
-./start.sh logs worker
 ./start.sh stop
-./start.sh restart
+./start.sh start
 ```
 
-Restart after configuration changes. Native compilation is needed only when
-the recipe/image changes, not on every start. Avoid skip flags until you
-understand which checks or transfers they bypass.
+The build pins retain the measured EXL3 foundation and intermediate adapter
+layers, then add the measured NVFP4/MXFP8 support. E3 remains inactive for
+NVFP4. Public source snapshots preserve original tree bytes; the
+[revision map](provenance/2026-09-08-publication-map.json) connects them to
+historical measurement SHAs. Rebuilding is not a claim of bit-identical images.
 
-## Where to go next
+## EXL3 and research
 
-- [Contribute or run tinyGLM](CONTRIBUTING.md).
-- [Exact video profile and source identity](docs/PUBLISHED_VIDEO_CONFIGURATION.md).
-- [Evidence and limitations](results/CURRENT.md).
-- [Credits](docs/ATTRIBUTION.md) and [source provenance](docs/PROVENANCE.md).
-- [Historical Mia guide](docs/upstream/MIA_RECIPE_README.md), retained for
-  upstream credit and reference, not a second SparkGLM installation procedure.
+The latest EXL3 work is preserved on the
+[`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3), including the
+corrected concurrent E3 policy, 32-row threshold, and 1M profile.
+Use `./start.sh --profile exl3 --worker USER@WORKER` from `main` to build and install that latest EXL3 profile through LLooM. It has its own runtime identity; stop the active full model first. The old standalone launcher is retained
+as `start-exl3.sh`; it reproduces the older video foundation, **not** the latest
+E3 profile. Its historical instructions are in
+[EXL3_QUICKSTART.md](docs/EXL3_QUICKSTART.md).
+
+For experiments, use [METHODOLOGY.md](docs/METHODOLOGY.md): model-free operator
+checks, tinyGLM integration, matched full-model workloads, and semantic checks.
+Do not equate synthetic fixture success with model quality or capacity.

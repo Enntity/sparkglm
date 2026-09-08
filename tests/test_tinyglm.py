@@ -76,7 +76,7 @@ def test_explicit_candidate_image_survives_reference_env() -> None:
         (root / ".env").write_text("IMAGE=sparkglm:local\n")
         (root / "scripts/make_tinyglm.py").write_text(
             'print("/fixture/snapshots/tinyglm-v1-e16-v256-l32768")\n')
-        start = root / "start.sh"
+        start = root / "start-exl3.sh"
         start.write_text('#!/usr/bin/env bash\nprintf "%s %s %s\\n" "$IMAGE" "$MODEL_REVISION" "$SPARKGLM_TINY_DUMMY"\n')
         start.chmod(0o755)
         env = dict(os.environ)

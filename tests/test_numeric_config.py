@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-START = ROOT / "start.sh"
+START = ROOT / "start-exl3.sh"
 
 
 def guard_source() -> str:

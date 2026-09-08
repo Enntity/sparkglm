@@ -1,0 +1,254 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-nvfp4-native-2k",
+  "title": "Native NVFP4 with 2K prefill chunks full TP2 screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Measure the complete independently tuned TP2 configuration",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original benchmark campaign using installed vLLM operators and previously recorded MXFP8 support."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 65536,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 2048,
+      "max_num_seqs": 4,
+      "e3": false,
+      "e3_policy": null,
+      "exl3_temp_rows": null,
+      "moe_backend": "auto",
+      "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Operator evidence is retained in the corresponding earlier E3, Marlin or native NVFP4 bundle; no new operator math here."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "See corresponding preceding tiny integration bundle; full speculative model is tested here."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Retained full-model matrices; exploratory campaign, not a complete matched promotion gate."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "Bounded failures: arithmetic_91_89. Broader quality qualification remains incomplete."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance or release qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k median wall",
+      "value": 21.24840220808983,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c1-32k median wall",
+      "value": 29.24464074987918,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c2-16k median wall",
+      "value": 34.86887237476185,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c2-32k median wall",
+      "value": 53.47843012493104,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c4-16k median wall",
+      "value": 57.21181329200044,
+      "unit": "s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "b8276ec122ba139087b6bd3248765783f90171e9a8e29e6eda4a11d21e001578"
+    },
+    {
+      "path": "managed-readiness.json",
+      "kind": "raw-receipt",
+      "sha256": "15581cfaf98a938b6f320e2380a0e4857657fb10144e9550823aea0e3b8d7abb"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b5ade5b1d9b82364a387c2c7457b571a860d349b5ad94cd6b4edcb55303f3716"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1f3ea49a9edafa20f30bc842a8c85e96f165aeabaaf2bc8c7164753d685e928e"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d125a99a9fa141886970013ad96d30928cfef58a2f35fb157bc1a9256c3b7337"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b280b943b5aa97f71849c75ebdc05ad7765b5aa5b554016f57bc10b4a4ce477a"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "3a240c024150fbbb6f880a5fdc6b7535fc884e84495de462ca182cfa26a1e9aa"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "bf1717bdae53c30b3d1109e1343a83731a27d41b815b1b7215ed4a46c4ebbb12"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "ee0cfe23eef84b0af8a4bd6e0d92d1aba421488249c5dd00d3c1a2d845438bde"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "062ef806c02260d099234f7637cb198d9527f1bf4070b58a0676243707e06fc4"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "2e87b9238f7eb38d74aaaffdc23d8c996778bdb1deddf2c59086cffd7fb53b24"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "181b8bea731e5be4998888e26d7da3e703db0eaafc166e9e9e91c13507c6226c"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "2852ade7a07f622617c1fa317b7a6b2f4cdb730e75446def2118efa23134feaf"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "32361c6e995cd9763f3c413a343ae73b0e35fb54152b0dd5f2a359479e12c37a"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "4b63ccebedc56421bef1c3b7d49420b76a1c7651a80fdba7947bd1e4892e681d"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "bebf672f8c2528f2d49f0b502a7aaafec0b89fe579cd6ecc17eeb2bbe703f08d"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "e807376cdc7d6b79808ebe24fdffae436319225be0d6204a846fe91d26a2fd4f"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "ec4bb2e779ee5f876e4e64d8c5bca915e77b398379205b6f1ac83e959e9bbb11"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "7358725abe368aad7ab1689624185380860c510f7456a4f7add17406e756184a"
+    },
+    {
+      "path": "raw/gateway-canary.log",
+      "kind": "raw-receipt",
+      "sha256": "3444e35a72596cf6934d142e9e8ef2a0d6c0d99d96f4381c5945aa8bee33f5f9"
+    },
+    {
+      "path": "raw/head-image-identity.log",
+      "kind": "raw-receipt",
+      "sha256": "003f8c81b142f1d482669927c4a05fceeb9a43ee670ef712720c6e515b3cf459"
+    },
+    {
+      "path": "raw/head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "b694c7dc57891f7c4ac0122a5ea9859c012f7358ffef13c7e9c50d6bce41f46b"
+    },
+    {
+      "path": "raw/health-transition-failure.log",
+      "kind": "raw-receipt",
+      "sha256": "7ef8ec92e778fb23dc22734572902ce529790c479db8cc8f41ecfb66b633092a"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "0ee9c4e669899d53931f0314fab8ee3026d0b4c3bdabb0718732513891795c44"
+    },
+    {
+      "path": "raw/shape-warmup.log",
+      "kind": "raw-receipt",
+      "sha256": "ca8bf367938ee1535b10c392080050f8d3d3e402b5cf4d2a5f403fedfb9fc4d1"
+    },
+    {
+      "path": "raw/worker-image-identity.log",
+      "kind": "raw-receipt",
+      "sha256": "ee59621e53f4d998b71abef173df7e5a7ee0906b5a9c551a4632f9b7a9cce8f4"
+    },
+    {
+      "path": "raw/worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "6895e667d35f0041dba3a5b21e216f53433c281c538b0185753bc2025bbf48bf"
+    }
+  ],
+  "limitations": [
+    "Independently tuned configuration; not an isolated kernel comparison.",
+    "Bounded semantic failures remain; broader quality and endurance qualification incomplete.",
+    "Separate-in-time measurements and one-repetition screens do not establish universal maximum performance."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

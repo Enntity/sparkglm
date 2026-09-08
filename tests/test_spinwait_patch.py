@@ -152,7 +152,7 @@ def test_recipe_wiring() -> None:
         (ROOT / name).is_file() for name in ("start.sh", "Dockerfile", ".env.example")
     ):
         return
-    start = (ROOT / "start.sh").read_text()
+    start = (ROOT / "start-exl3.sh").read_text()
     dockerfile = (ROOT / "Dockerfile").read_text()
     env_example = (ROOT / ".env.example").read_text()
     required_start = (

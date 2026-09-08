@@ -1,0 +1,211 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-08-mia-9c0794b-c4",
+  "title": "Mia 9c0794b as-shipped staggered C4",
+  "date": "2026-09-08",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Pinned upstream E3 EXL3 default skip workload through LLooM",
+  "change": {
+    "baseline_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "candidate_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "working_tree_clean": false,
+    "provenance": []
+  },
+  "environment": {
+    "upstream": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+    "commit": "9c0794b68d7fc124f79104409ab434769503fb31",
+    "image": "sha256:f301bb941416d40a0080fb2505a275caf7c71eb4d94471dd4539f0d0b2edbde2",
+    "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "target_reuse": "120 existing local shards hardlinked per rank",
+    "draft_revision": "bf582e4eacc1810f76656d1811693ff6c6737d2a",
+    "draft_sha256": "b038e1d9d1e7833fa3880c2c0135ba9b673013f03da1b29fb831931584759dac",
+    "settings": {
+      "mixed_prefill": "skip",
+      "E3": true,
+      "temp_rows": 32,
+      "context": 850000,
+      "gpu_util": 0.85,
+      "prefill_chunk": 7168,
+      "max_seqs": 4,
+      "draft_tp": 2,
+      "draft_k": 7,
+      "adaptive_k": "off",
+      "dense_fp8": "off",
+      "spinwait": "stock",
+      "indexer": "rightsize",
+      "cg_estimate": 1
+    },
+    "infrastructure_adaptations": [
+      "LLooM owns both Docker ranks",
+      "Host fabric addresses, interfaces and GID index",
+      "Local model paths and isolated compilation caches",
+      "Upstream inner launch scripts copied unchanged"
+    ],
+    "workload": {
+      "requests": 4,
+      "stagger_ms": 1000,
+      "prompt_tokens_requested": 16000,
+      "output_tokens": 400,
+      "temperature": 0,
+      "thinking": false,
+      "runs": 3
+    },
+    "image_digests": [
+      "sha256:f301bb941416d40a0080fb2505a275caf7c71eb4d94471dd4539f0d0b2edbde2"
+    ]
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "Mia C4 wall run 1",
+      "value": 135.489874,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "Mia C4 wall run 2",
+      "value": 128.1759,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "Mia C4 wall run 3",
+      "value": 123.534565,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "4dc8e2fa0abcfa34b06dd9f4d8d56bf475a8c75232b2541382f4238ef0210d24"
+    },
+    {
+      "path": "comparison.json",
+      "kind": "raw-evidence",
+      "sha256": "36b98329befcef8073457753fec2b56730517c7513e756c322c9e672bde9fba2"
+    },
+    {
+      "path": "provenance.json",
+      "kind": "raw-evidence",
+      "sha256": "a68aa9a660fe3781a02d8f2a01abde96454046d7fc2848009fe2b30a296194f6"
+    },
+    {
+      "path": "raw/mia-c4-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "e591a848a216d563f4c07914fb4e5f2ac2b206992bebc43c0c8ac825d9d6a22e"
+    },
+    {
+      "path": "raw/mia-c4-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "63ae5c561d83fc61a9a69ab436ecfe26033091dbb645b3be6dfc5e9973ba9954"
+    },
+    {
+      "path": "raw/mia-c4-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "d543ae3086f34e6bbf08dcfd2749b3bc88997eda0055ddd79c203143e654a809"
+    },
+    {
+      "path": "raw/mia-engine-evidence.txt",
+      "kind": "raw-evidence",
+      "sha256": "bd5fb350309f786812390e82a588a0f7eb95afac4741706ebfb68b22cf80b9b8"
+    },
+    {
+      "path": "raw/mia-final.prom",
+      "kind": "raw-evidence",
+      "sha256": "ef8bd8b3286ab4cca5eb9a6a6f22191da4fca840c52570e084e5c66f9d843793"
+    },
+    {
+      "path": "raw/mia-gateway-1788899932.json",
+      "kind": "raw-evidence",
+      "sha256": "e2beeb33a40fbedc26eca322cbbf3ab26bcfcf2c0ef5949ae8a3c15ca66c9791"
+    },
+    {
+      "path": "raw/mia-gateway-1788899998.json",
+      "kind": "raw-evidence",
+      "sha256": "2863cc1a496840d5585650726adb06e1efb66f56e0f7dffbe8586b5d4ff83228"
+    },
+    {
+      "path": "raw/mia-gateway-1788900063.json",
+      "kind": "raw-evidence",
+      "sha256": "f5a7791285695f4c5b42f7586a95eaa1cb297d20c9935e9b1d698a39e5edcc6d"
+    },
+    {
+      "path": "raw/mia-gateway-1788900136.json",
+      "kind": "raw-evidence",
+      "sha256": "83b24c8db6adc32cbc80d8ef259404b4a4bb54eb0c32a7f51c2cbd9560e26994"
+    },
+    {
+      "path": "raw/mia-gateway-1788900192.json",
+      "kind": "raw-evidence",
+      "sha256": "4405dd31401773d7c91aee8258f5ef858b488ddf6c6910b48788e3ba77409458"
+    },
+    {
+      "path": "raw/mia-pre-c4.prom",
+      "kind": "raw-evidence",
+      "sha256": "c853d8a7afab45c8a7854d1fb613d484070333627baddb551ae633c7358fa0f3"
+    },
+    {
+      "path": "raw/mia-warmup-direct.log",
+      "kind": "raw-evidence",
+      "sha256": "236bcd64f1714da30ef29f1ae77aca6efaf4f0686fc1524930b3067ecfb21b18"
+    },
+    {
+      "path": "render.py",
+      "kind": "raw-evidence",
+      "sha256": "1fb50cddfa08e6e3865573a6e3d67f58ade537d10da4620b1d8464499f11e35d"
+    },
+    {
+      "path": "video.json",
+      "kind": "raw-evidence",
+      "sha256": "07f67c40eba5b9cb55082b022b9ec75fa416ed5814c17c307c739889c4730450"
+    }
+  ],
+  "limitations": [
+    "As-shipped upstream recipe, not a matched scheduler or isolated kernel comparison.",
+    "NVFP4 median is the earlier same-day capture, not a simultaneous rerun.",
+    "Upstream boot warmup completed 20/20; gateway attempts did not expose /tokenize, so full warmup used the LLooM-managed backend directly. All measured C4 traffic used LLooM.",
+    "All 12 requests produced 400 tokens without API error; semantic quality and tool use were not evaluated.",
+    "Token animation apportions exact final usage across real SSE text deltas.",
+    "Target and draft differ from NVFP4; new BF16 DFlash2 weights were pinned to current upstream.",
+    "850K configured and admitted; long-context workload not tested in this C4 capture."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

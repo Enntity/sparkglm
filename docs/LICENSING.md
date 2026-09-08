@@ -35,7 +35,7 @@ by the root Apache license, and none is committed here. The launcher downloads
 immutable revisions from their publishers:
 
 - the primary and fallback EXL3/TR3 checkpoints use the ShapleyMCG License 1.0;
-- the default DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
+- the original EXL3 DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
   non-commercial and no-derivatives restrictions;
 - the underlying GLM model uses the GLM-5.3 License.
 
@@ -54,7 +54,7 @@ before use or redistribution. This is a disclosure of the publisher's terms,
 not an endorsement of allegations in its historical schedule or a legal
 determination of their scope. Do not assume ordinary permissive-license rights.
 
-The default matches the published-video configuration; it does not imply that
+The historical EXL3 default matches its published-video configuration; it does not imply that
 the drafter's terms fit every operator. Select
 `SPEC_METHOD=mtp` or `SPEC_METHOD=none` instead of DFlash2 when its terms do
 not. SparkGLM does not copy DFlash2 weights or claim that Apache-2.0 changes
@@ -84,3 +84,18 @@ source obligations of the image contents, not merely this repository.
 This is the repository's engineering policy, not legal advice. A public binary
 or hosted commercial service may need an additional legal review of all
 downloaded and containerized components.
+
+## NVFP4 default model pins
+
+The new default downloads RedHatAI/GLM-5.3-Flash-NVFP4 at
+`240131d6a447c8d89acd428c5ddfc85598651744` and
+local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8 at
+`610aa967a92bfeb97e3d848dcb8693553e8b6a55`. Their publisher terms and underlying
+model/draft terms apply separately from this repository. Quantizing a draft
+does not remove its upstream non-commercial/no-derivatives restrictions.
+Do not assume the code's Apache license grants commercial rights to the draft.
+The default launcher reproduces these pinned artifacts; alternative drafters
+require separate compatibility and performance qualification.
+
+The ShapleyMCG notice still applies to the historical EXL3 results and the
+EXL3 arm of comparisons; it is not attribution for the Red Hat NVFP4 quant.

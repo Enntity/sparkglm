@@ -1,3 +1,28 @@
+# September 8 public-default video configurations
+
+The current default is [profiles/nvfp4.json](../profiles/nvfp4.json), with build
+pins in [profiles/build.json](../profiles/build.json). It uses the same measured
+serving source as the NVFP4 videos: original `45b03d696ad2ac865d576f9d6c08ad86ff126b49`,
+public snapshot `cef734ddbb34645ab9f7c9139a51802d9966e5bf`. Source identities map in
+[the publication ledger](../provenance/2026-09-08-publication-map.json).
+
+Both videos place SparkGLM above Mia, run at 1x elapsed time, and retain each
+configuration's median-of-three capture. One pairs our mixed setting with Mia's
+default skip; the other pairs our skip with Mia's default skip. Our skip gate
+retains its 3584-token remaining-prefill bypass; the two implementations are
+not identical. See [current evidence](../results/CURRENT.md) for workload,
+capacity, preemption, and throughput definitions. Raw events and renderer
+provenance are retained in the candidate bundles; generated MP4s are not Git
+source artifacts.
+
+Mia's upstream source was built as presented at
+`9c0794b68d7fc124f79104409ab434769503fb31`, retaining default skip scheduling and
+the new pinned draft. Shared target weights were reused locally; differing
+draft weights were downloaded separately. Mia's work is the foundation for
+this comparison, and our separate aim is improved concurrent responsiveness.
+
+## Historical EXL3 video foundation
+
 # Posted four-stream video configuration
 
 The build target is the implementation used for the final current-best

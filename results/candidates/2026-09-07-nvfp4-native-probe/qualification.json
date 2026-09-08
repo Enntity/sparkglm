@@ -1,0 +1,108 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-nvfp4-native-probe",
+  "title": "Native GB10 FP4 capability probe, full qualification outstanding",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "Establish native FP4 execution capability before full quantization comparison",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "c5f0f95",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original synthetic API probe; existing SparkGLM FlashInfer/CUTLASS implementation. No model tensors copied."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10, standalone single GPU",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "m": 64,
+      "hidden": 4096,
+      "intermediate": 1024,
+      "experts": 8,
+      "topk": 8,
+      "weight_activation_format": "NVFP4 W4A4",
+      "relative_l2_screen_limit": 0.3,
+      "cosine_screen_min": 0.96,
+      "default_changed": false
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Standalone native FP4 profiler evidence and loose finite-output screen only; full G1 quantized-reference and graph contract outstanding."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "native_fp4_execution",
+      "scope": "standalone capability, not model performance",
+      "value": true
+    },
+    {
+      "name": "relative_l2_vs_unquantized_bf16",
+      "value": 0.26535558700561523,
+      "scope": "synthetic loose screen, not quality bound"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "kind": "human-report",
+      "sha256": "816af42a148c1f4fa605e81ae4fe71ec9dbbf884d04a3410dc51366664fe2e9a"
+    },
+    {
+      "path": "SHA256SUMS",
+      "kind": "raw-receipt",
+      "sha256": "c0af148b3deabe82a2927c9560ef041fe1d95516c36b6a4a62644901038b818d"
+    },
+    {
+      "path": "probe.json",
+      "kind": "raw-receipt",
+      "sha256": "fc8852c28364c05577ca06d0d304dc38c558f85454455045246db0f33c0c9381"
+    }
+  ],
+  "limitations": [
+    "No throughput claim; profiler instrumentation excluded from benchmarking.",
+    "No full-model dispatch, graph, quality or capacity qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-nvfp4-full-screen",
+  "title": "Native NVFP4 first full-model TP2 screen",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G2",
+  "target": "Screen full-model native NVFP4 correctness and performance before independent tuning",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "b09c986",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original LLooM profile over preserved reference image; current compressed-tensors NVFP4 checkpoint. No kernel replacement in this screen."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 65536,
+      "kv_cache_bytes_per_rank": 8589934592,
+      "reported_kv_tokens": 66164,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 7168,
+      "max_num_seqs": 4,
+      "moe_backend": "auto; FlashInfer CUTLASS selected",
+      "image_source_revision": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+      "harness_source_revision": "53753c24a36f1e381854c68485e2efff38221201"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source and publication checks passed for this experiment branch."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Native kernel and tiny fixture evidence retained in ../2026-09-07-nvfp4-managed; same preserved engine/kernel."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Native kernel and tiny fixture evidence retained in ../2026-09-07-nvfp4-managed; same preserved engine/kernel."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "One exploratory frozen matrix completed. Three-pair qualification and tuned cache profile remain outstanding."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "15/16 bounded semantics passed; 91x89 arithmetic failed as on EXL3 reference. Managed gateway streamed tool call and attribution passed. No general quality claim."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k wall",
+      "value": 17.170626082923263,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c1-32k wall",
+      "value": 50.95742354122922,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-16k wall",
+      "value": 47.278580042067915,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-32k wall",
+      "value": 53.448048000223935,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c4-16k wall",
+      "value": 78.01879445882514,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "1d15758baeb8813b6e24cc6d2dc1c83ba611afeb2a9d17081fab297dcc71c8f3"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "db32d06bb418a1e6e541124993fd241d4ba1e8f641e2ad6de49e2538ad4b7efe"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "ba4c1f8e58c1643d3b36d34ccb4da9cd217e2441a93729e490d458a33bebc675"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "81ca8a0405b59d217afd2aecd345cf757ab3be76ed08f8fc7c1ab5f62a7b7700"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "858eb3ec493bb790ac70dcb93de4dc0157c0da9458a72993a8661128fe1ba369"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "dd573d51bec87a6ace2805d6cb3246d6551600711a40804975d5f6b8a8cd4642"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "f57ce3219707e88e3ee89c5e8e754961456adfbdb549dfa896ad290f60d4094b"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "2148a6b3c3eb31c6f3dd5c2cbae16f7a75548262fe494565b17b847426731a0b"
+    },
+    {
+      "path": "raw/gateway-canary.json",
+      "kind": "raw-receipt",
+      "sha256": "e2de6d7907ce66f903dcb3c38d4b56b8e68ea73576a8c175545cd0cc1653f3f3"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "f756eeeb38238dd49a62dbef5a67775dc037ae05cfd0671ac49f7e9587d128dc"
+    },
+    {
+      "path": "raw/shape-warmup.log",
+      "kind": "raw-receipt",
+      "sha256": "796e9c650725d7d35e309dc9dbefe2ee5155728a8e6d88e96467cf60f25c9ba2"
+    }
+  ],
+  "limitations": [
+    "One screening repetition; not a full G3 or a performance winner.",
+    "Context/cache differ from prior EXL3 reference; compare complete tuned configurations, not isolated kernel speed.",
+    "Arithmetic failure remains; bounded serving checks do not establish general quantization quality.",
+    "G5 not run; experimental configuration only."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

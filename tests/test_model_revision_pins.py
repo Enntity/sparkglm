@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = (ROOT / "start.sh").read_text()
+SOURCE = (ROOT / "start-exl3.sh").read_text()
 
 
 def function(name: str) -> str:

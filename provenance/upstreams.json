@@ -41,6 +41,11 @@
       "id": "MIT-DeepGEMM",
       "path": "LICENSES/MIT-DeepGEMM.txt",
       "sha256": "6c73a30c14a2938abaa6afe98ebb19e6d81dac5bd4ace0cb05c61c20afa37b85"
+    },
+    {
+      "id": "MIT-LLooM",
+      "path": "LICENSES/MIT-LLooM.txt",
+      "sha256": "a06dae38964c738b85e5f1c32bfc8b3ef015419aae37ca0e430f703bdf547e85"
     }
   ],
   "notices": [
@@ -63,7 +68,10 @@
       "relationship": "base recipe, with verbatim and modified files",
       "covered_paths": [
         "Dockerfile",
-        "start.sh",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.incremental",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.control",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.followup",
+        "start-exl3.sh",
         "start-tp4.sh",
         ".env.example",
         ".env.tp4.example",
@@ -114,6 +122,7 @@
       "relationship": "adapted EXL3 arithmetic foundations",
       "covered_paths": [
         "overlay/exl3.py",
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh",
         "overlay/exl3_decode_moe.cu",
@@ -132,6 +141,7 @@
       ],
       "relationship": "adapted M64 cp.async fat-GEMM pipeline",
       "covered_paths": [
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh"
       ]
@@ -231,9 +241,54 @@
         "patches/video/native.patch",
         "scripts/build-video-native.sh"
       ]
+    },
+    {
+      "id": "loud1990-nvfp4-tp2",
+      "repository": "https://github.com/loud1990/GLM-5.3-Flash-NVFP4-MXFP8-2x-DGX-Sparks",
+      "revision": "d00b2ffa70e0ccbfd582088ab32448b01bfe9c67",
+      "license_expression": "MIT AND Apache-2.0",
+      "notice_ids": [
+        "MIT-Mia",
+        "Apache-2.0"
+      ],
+      "relationship": "copied MXFP8 DFlash2 model and installer; extracted rank entrypoints and adapted pinned derivative recipe and settings",
+      "covered_paths": [
+        "research/experiments/nvfp4-tp2/**"
+      ]
+    },
+    {
+      "id": "lloom-managed-recipe",
+      "repository": "https://github.com/Enntity/lloom",
+      "revision": "75e08ca0923e7eb58f087b53032c82f88175ea3a",
+      "relationship": "Adapted SparkGLM managed recipe metadata with the measured September 8 settings; entrypoint remains supplied by LLooM and hash checked.",
+      "covered_paths": [
+        "profiles/nvfp4.json",
+        "profiles/exl3.json"
+      ],
+      "notice_ids": [
+        "MIT-LLooM"
+      ]
     }
   ],
   "path_rules": [
+    {
+      "patterns": [
+        "profiles/nvfp4.json",
+        "profiles/exl3.json"
+      ],
+      "license_expression": "MIT",
+      "reason": "Adapted LLooM managed recipe metadata"
+    },
+    {
+      "patterns": [
+        "research/experiments/nvfp4-tp2/head.sh",
+        "research/experiments/nvfp4-tp2/worker.sh",
+        "research/experiments/nvfp4-tp2/Dockerfile",
+        "research/experiments/nvfp4-tp2/overlay/patch_dflash2.py"
+      ],
+      "license_expression": "MIT",
+      "reason": "Mia/loud1990 serving recipe copied or adapted with MIT notice retained locally."
+    },
     {
       "patterns": [
         "LICENSES/MIT-DeepGEMM.txt"
@@ -251,7 +306,10 @@
     },
     {
       "patterns": [
-        "Dockerfile"
+        "Dockerfile",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.incremental",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.control",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.followup"
       ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "Mia MIT recipe containing direct Apache-2.0 vLLM compatibility modifications"
@@ -259,6 +317,7 @@
     {
       "patterns": [
         "overlay/exl3.py",
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh",
         "overlay/exl3_decode_moe.cu",
@@ -320,7 +379,7 @@
         ".env.example",
         ".env.tp4.example",
         ".github/FUNDING.yml",
-        "start.sh",
+        "start-exl3.sh",
         "download.sh",
         "ablit/**",
         "assets/glm.png",

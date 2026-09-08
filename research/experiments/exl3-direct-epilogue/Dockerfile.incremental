@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT AND Apache-2.0
+# Build-only adaptation of the pinned Mia/ExLlamaV3 recipe in the root Dockerfile.
+# Preserve its notices and revision pins; this is an unqualified local candidate.
+ARG BASE_IMAGE=sparkglm:local
+FROM ${BASE_IMAGE}
+
+COPY scripts/check_video_source_parity.py /opt/glm53/check_video_source_parity.py
+COPY provenance/video-source-parity.json /opt/glm53/video-source-parity.json
+RUN python3 /opt/glm53/check_video_source_parity.py --kind python \
+      --manifest /opt/glm53/video-source-parity.json --root /usr/local/lib/python3.12/dist-packages \
+    && python3 /opt/glm53/check_video_source_parity.py --kind exl3 \
+      --manifest /opt/glm53/video-source-parity.json --root /opt/glm53
+
+COPY research/experiments/exl3-direct-epilogue/patch.py /opt/glm53/direct-epilogue.py
+COPY research/experiments/exl3-direct-epilogue/sources.json /opt/glm53/direct-epilogue-sources.json
+RUN python3 /opt/glm53/direct-epilogue.py --apply /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu \
+    && python3 /opt/glm53/check_video_source_parity.py --kind exl3 \
+      --manifest /opt/glm53/video-source-parity.json --root /opt/glm53 \
+      --candidate-manifest /opt/glm53/direct-epilogue-sources.json
+
+# No vLLM/CUDA-core rebuild and no model download. Keep source/object files in
+# this experimental image for incremental follow-ups; do not publish the image.
+RUN set -eu; \
+    mkdir /opt/sparkglm-exl3-build; \
+    curl -fsSL https://github.com/turboderp-org/exllamav3/archive/c5d9c657966ffeeaa9353f0cc899f18629da4a13.tar.gz \
+      | tar -xz -C /opt/sparkglm-exl3-build --strip-components=1; \
+    python3 /opt/glm53/patch_exl3_ext_aarch64.py /opt/sparkglm-exl3-build/exllamav3/exllamav3_ext; \
+    python3 /opt/glm53/patch_exl3_fat_kernel.py /opt/sparkglm-exl3-build/exllamav3/exllamav3_ext /opt/glm53/exl3-fat-kernel; \
+    cd /opt/sparkglm-exl3-build; \
+    CPATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    CPLUS_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    C_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=8 \
+      pip install --no-deps --no-build-isolation --no-cache-dir .; \
+    python3 -c 'import torch, exllamav3_ext; assert hasattr(exllamav3_ext, "exl3_grouped_prefill_k4")'
+
+ARG SPARKGLM_SOURCE_REVISION=unknown
+LABEL org.enntity.sparkglm.build-profile="candidate-incremental" \
+      org.opencontainers.image.revision=${SPARKGLM_SOURCE_REVISION}

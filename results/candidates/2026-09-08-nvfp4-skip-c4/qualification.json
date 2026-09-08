@@ -1,0 +1,214 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-08-nvfp4-skip-c4",
+  "title": "SparkGLM NVFP4 skip versus Mia skip C4",
+  "date": "2026-09-08",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Same staggered C4 workload, NVFP4 skip policy, stacked video",
+  "change": {
+    "baseline_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "candidate_ref": "69794a914cb43dbdd55971bbd157d8759dc5bcc0",
+    "working_tree_clean": false,
+    "provenance": []
+  },
+  "environment": {
+    "change": "GLM53_MIXED_PREFILL_CHUNK: 0 -> skip; only inference-setting change",
+    "gateway_model": "sparkglm-nvfp4-skip",
+    "engine_commit": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+    "image_digests": [
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e"
+    ],
+    "context": 524288,
+    "kv_bytes_per_rank": 9663676416,
+    "prefill_chunk": 2048,
+    "max_seqs": 4,
+    "spinwait_ms": 16,
+    "draft": "local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8",
+    "draft_k": 7,
+    "draft_tp": 2,
+    "scheduler_notes": "Existing NVFP4 gate keeps its default 3584-token remaining-prefill bypass and max-wait=0. Only MIXED_PREFILL_CHUNK changes. This is our skip mode, not an identical scheduler implementation to Mia.",
+    "baseline_mia_commit": "9c0794b68d7fc124f79104409ab434769503fb31",
+    "baseline_mia_median_run": 2,
+    "target_weights_reused": true,
+    "draft_weights_reused": true
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "NVFP4 skip C4 wall run 1",
+      "value": 117.416358,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "NVFP4 skip C4 wall run 2",
+      "value": 116.122222,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "NVFP4 skip C4 wall run 3",
+      "value": 110.048569,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "f2935d152c1a018de329d22bcfd1ab3503c17c1de62d8af6ce52bfe5970d8aa2"
+    },
+    {
+      "path": "comparison-mixed-stacked.json",
+      "kind": "raw-evidence",
+      "sha256": "3040ea43171193472ee14dc5d6b23b14db99092f86d4821cb773d4906577c2e7"
+    },
+    {
+      "path": "comparison.json",
+      "kind": "raw-evidence",
+      "sha256": "b366d71d06fcffcd78650eab7737432e14b20497e1c58e651540d2b632b07232"
+    },
+    {
+      "path": "provenance.json",
+      "kind": "raw-evidence",
+      "sha256": "61d399ff90488e278d2b0746d5d748ac289686a04bd255946447c1cea72ea39e"
+    },
+    {
+      "path": "raw/mia-c4-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "e591a848a216d563f4c07914fb4e5f2ac2b206992bebc43c0c8ac825d9d6a22e"
+    },
+    {
+      "path": "raw/mia-c4-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "63ae5c561d83fc61a9a69ab436ecfe26033091dbb645b3be6dfc5e9973ba9954"
+    },
+    {
+      "path": "raw/mia-c4-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "d543ae3086f34e6bbf08dcfd2749b3bc88997eda0055ddd79c203143e654a809"
+    },
+    {
+      "path": "raw/nv-skip-c4-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "1d4f63601e4fabe17f060d3d4550462b19765f251f40bbe818e994cdb64e156a"
+    },
+    {
+      "path": "raw/nv-skip-c4-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "1d299bbcf1f89e6a0cccdfbc8e6d8eef4514dcd5e831035ebaa4718fc6ccf677"
+    },
+    {
+      "path": "raw/nv-skip-c4-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "47102c8ca087cdf9bd5af8de5c5147ff51cb99857ffd80ea2cdcd4b811dffad3"
+    },
+    {
+      "path": "raw/nv-skip-final.prom",
+      "kind": "raw-evidence",
+      "sha256": "821313ed41ebfaca9dd5afcb0cc41ae533bccd11534f0bd116ee896c6986c792"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788904739.json",
+      "kind": "raw-evidence",
+      "sha256": "d97a5a9f97887a619a33ceb86dd6b8ec0c6e80854e6088ce5d4050089bda1781"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788904775.json",
+      "kind": "raw-evidence",
+      "sha256": "5b5303865979433cff3c145f7b538093cc9d0b34997df9a5192316b62a01f91b"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788904827.json",
+      "kind": "raw-evidence",
+      "sha256": "0c9d092ba7ac99dd8ec90ceb4e58aa217202c6892600a1b959277bb337e3be64"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788904913.json",
+      "kind": "raw-evidence",
+      "sha256": "884454c4c4ed25cd3605f367b68d9bc8ecf54756024b29634344eeb1e342ede3"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788904970.json",
+      "kind": "raw-evidence",
+      "sha256": "01a4827f1e56d3375b2b7fd803bb49d2a7e607ae33ad118589b8ffd1194a6276"
+    },
+    {
+      "path": "raw/nv-skip-gateway-1788905063.json",
+      "kind": "raw-evidence",
+      "sha256": "beebf0bee5a87392dd9a55a2067db93759b89e778a1630c8e403e08c8edb6c85"
+    },
+    {
+      "path": "raw/nv-skip-pre.prom",
+      "kind": "raw-evidence",
+      "sha256": "ce44bc8476d0b569d6260825fdf3839142aa2f647afb92f77c89cb7221f9e546"
+    },
+    {
+      "path": "raw/nvfp4-mixed-archived-median.json",
+      "kind": "raw-evidence",
+      "sha256": "6668d568ca5e6935957f169bf0784cb1df384cf93fc93d2dbe77560d5f7c5886"
+    },
+    {
+      "path": "render-mixed-stacked.py",
+      "kind": "raw-evidence",
+      "sha256": "ddb252edf9a1c3870123cfabc52944e2207418efe25aa583808290f91655a1e3"
+    },
+    {
+      "path": "render.py",
+      "kind": "raw-evidence",
+      "sha256": "4c1e36a61ce46c639676f24c7b9930fc60a70bdf355f422463b074673a729a9a"
+    },
+    {
+      "path": "videos.json",
+      "kind": "raw-evidence",
+      "sha256": "7897ca4dc7c7308a2a82b6082614f0f1bd3911783b1e1daf9a32fe742acf4d8f"
+    }
+  ],
+  "limitations": [
+    "Only GLM53_MIXED_PREFILL_CHUNK changes from 0 to skip in the current NVFP4 recipe. Gateway/runtime identities and isolated runtime state differ for managed installation.",
+    "Our existing scheduler retains its default 3584-token remaining-prefill bypass and max-wait=0. Both implementations use skip, but they are not identical scheduler code.",
+    "Mia skip and NVFP4 mixed captures are archived same-day medians, not simultaneous reruns.",
+    "Context allocation, prefill chunks, target/draft quantization, kernels and spinwait still differ between implementations.",
+    "All 12 new requests delivered 400 tokens without API error. Semantic and tool quality were not evaluated.",
+    "Animated token counts apportion exact server usage over real SSE text deltas; no elapsed time is trimmed."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
