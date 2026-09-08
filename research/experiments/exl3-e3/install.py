@@ -13,7 +13,7 @@ if hashlib.sha256(target.read_bytes()).hexdigest() != '7eb1aa9bd0a61f62a0bfa6f76
 anchor='''        expert_offsets = torch.cumsum(expert_count, dim=0).sub(expert_count)
         scratch = _grouped_prefill_scratch('''
 insert='''        if (os.environ.get("SPARKGLM_EXL3_E3", "0") == "1"
-                and xh.shape[0] >= 2048):
+                and xh.shape[0] >= 4096):
             from sparkglm_e3 import apply as apply_e3
             apply_e3(xh, out, counts, token_sorted, weight_sorted,
                      ptrs, int(temps[2].shape[2]), cap, limit)

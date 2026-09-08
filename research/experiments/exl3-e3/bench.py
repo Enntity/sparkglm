@@ -19,10 +19,10 @@ from exl3_grouped_prefill_ab import make_matrix, ptrs, HIDDEN, INTERMEDIATE
 from tables import build_grouped_fat_tables
 
 
-def case(count_list, seed, iterations, repeats, cap):
+def case(count_list, seed, iterations, repeats, cap, token_count=None):
     device = 'cuda'
     torch.manual_seed(seed)
-    tokens = max(max(count_list), cap + 1)
+    tokens = token_count or max(max(count_list), cap + 1)
     n_exp, total = len(count_list), sum(count_list)
     x = (torch.randn(tokens, HIDDEN, device=device) * 0.05).half()
     counts = torch.tensor(count_list, dtype=torch.int64, device=device)

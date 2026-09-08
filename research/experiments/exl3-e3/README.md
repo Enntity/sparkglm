@@ -34,7 +34,12 @@ Apache-2.0 and calls the existing SparkGLM matrix fixture.
 The universal dispatch screen failed on small shapes; see
 [the recorded screen](../../../results/candidates/2026-09-07-e3-screen/README.md).
 `Dockerfile.runtime` adds an original source-hash-locked adapter, disabled unless
-`SPARKGLM_EXL3_E3=1`. It preserves reference dispatch below 2048 input tokens and
+`SPARKGLM_EXL3_E3=1`. It preserves reference dispatch below 4096 input tokens and
 excludes the nonlocal sentinel from E3 pointer tables. This is a new hypothesis,
 not a passed performance gate. Kernel code and extracted tables remain MIT;
 the adapter and insertion tooling are original Apache-2.0.
+
+The top-8 cardinality follow-up rejected the 2048-token threshold (3–7%
+planner regression). The next policy raises the threshold to 4096; balanced
+4096 rows were neutral and 7168 rows improved in the first screen. This
+threshold change requires its own integration evidence.
