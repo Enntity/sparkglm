@@ -238,20 +238,31 @@
       ]
     },
     {
-      "id": "mia-e3",
-      "repository": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
-      "revision": "2c0ebe55a91ac8c0868cd6cba264e14bce93c66b",
-      "license_expression": "MIT",
+      "id": "loud1990-nvfp4-tp2",
+      "repository": "https://github.com/loud1990/GLM-5.3-Flash-NVFP4-MXFP8-2x-DGX-Sparks",
+      "revision": "d00b2ffa70e0ccbfd582088ab32448b01bfe9c67",
+      "license_expression": "MIT AND Apache-2.0",
       "notice_ids": [
-        "MIT-Mia"
+        "MIT-Mia",
+        "Apache-2.0"
       ],
-      "relationship": "verbatim E3 CUDA and additive builder; extracted device-table construction; original comparison harness",
+      "relationship": "copied MXFP8 DFlash2 model and installer; extracted rank entrypoints and adapted pinned derivative recipe and settings",
       "covered_paths": [
-        "research/experiments/exl3-e3/**"
+        "research/experiments/nvfp4-tp2/**"
       ]
     }
   ],
   "path_rules": [
+    {
+      "patterns": [
+        "research/experiments/nvfp4-tp2/head.sh",
+        "research/experiments/nvfp4-tp2/worker.sh",
+        "research/experiments/nvfp4-tp2/Dockerfile",
+        "research/experiments/nvfp4-tp2/overlay/patch_dflash2.py"
+      ],
+      "license_expression": "MIT",
+      "reason": "Mia/loud1990 serving recipe copied or adapted with MIT notice retained locally."
+    },
     {
       "patterns": [
         "LICENSES/MIT-DeepGEMM.txt"
@@ -406,24 +417,6 @@
       ],
       "license_expression": "LicenseRef-GLM-5.3",
       "reason": "retained model/template license text"
-    },
-    {
-      "patterns": [
-        "research/experiments/exl3-e3/*.cu",
-        "research/experiments/exl3-e3/*.cuh",
-        "research/experiments/exl3-e3/tables.py",
-        "research/experiments/exl3-e3/build_exl3_fat_moe_ext.py",
-        "research/experiments/exl3-e3/LICENSE"
-      ],
-      "license_expression": "MIT",
-      "reason": "Pinned Mia E3 sources and table extraction"
-    },
-    {
-      "patterns": [
-        "research/experiments/exl3-e3/Dockerfile"
-      ],
-      "license_expression": "MIT AND Apache-2.0",
-      "reason": "Original integration of the MIT additive module build"
     }
   ],
   "non_redistributed_artifacts": [

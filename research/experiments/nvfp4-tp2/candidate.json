@@ -1,0 +1,80 @@
+{
+  "schema": "sparkglm.nvfp4-candidate/v1",
+  "status": "prepared-unqualified",
+  "upstream": {
+    "repository": "https://github.com/loud1990/GLM-5.3-Flash-NVFP4-MXFP8-2x-DGX-Sparks",
+    "revision": "d00b2ffa70e0ccbfd582088ab32448b01bfe9c67"
+  },
+  "base_image": "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks@sha256:9bb1557a4234fce63d59599e44d10747eabd742beb337eebf9e7070be8a0fd58",
+  "models": {
+    "target": {
+      "repository": "RedHatAI/GLM-5.3-Flash-NVFP4",
+      "revision": "378ca54585c46542bad1f3cb3ed0d73ae51cdb62",
+      "config_sha256": "55ca556ad40a4720e6cf8b366a94926756a3c6d4f29e8552f6c79ecf87f3166c"
+    },
+    "draft": {
+      "repository": "local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8",
+      "revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+      "config_sha256": "288f2a24fe883d17fc8220415113f845a6e36d2fe39e710f66c29c1b512573b9"
+    }
+  },
+  "profile": {
+    "QUANTIZATION": "none",
+    "TP": "2",
+    "NNODES": "2",
+    "MOE_BACKEND": "humming",
+    "SPEC_METHOD": "dflash",
+    "DFLASH_TOKENS": "7",
+    "DFLASH_DRAFT_TP": "1",
+    "CUDAGRAPH_MODE": "FULL_AND_PIECEWISE",
+    "MAX_CUDAGRAPH_CAPTURE_SIZE": "24",
+    "EXTRA_ARGS": "--cudagraph-capture-sizes 1 2 4 6 8 12 18 24",
+    "ENFORCE_EAGER": "0",
+    "MAX_MODEL_LEN": "262144",
+    "MAX_NUM_SEQS": "4",
+    "MAX_NUM_BATCHED_TOKENS": "1024",
+    "GPU_MEM_UTIL": "0.88",
+    "KV_CACHE_DTYPE": "fp8",
+    "LANGUAGE_MODEL_ONLY": "1",
+    "SERVED_MODEL_NAME": "sparkglm-nvfp4-candidate",
+    "PORT": "8889",
+    "MASTER_PORT": "29531",
+    "MODEL_DIR": "/models/target",
+    "DFLASH_MODEL_DIR": "/models/draft",
+    "MTP_TOKENS": "0",
+    "CHAT_TEMPLATE": "/models/target/chat_template.jinja"
+  },
+  "files": [
+    {
+      "upstream_path": "overlay/qwen3_dflash2.py",
+      "path": "overlay/qwen3_dflash2.py",
+      "sha256": "2378c821ec4eddca3d740b85a76544639551b916a31441ed5981122fe1c9d917",
+      "relationship": "copied verbatim"
+    },
+    {
+      "upstream_path": "overlay/patch_dflash2.py",
+      "path": "overlay/patch_dflash2.py",
+      "sha256": "50baee2a939f6b87462ed54bcc362a3768c4c09625534d58a645f01e6fc101b7",
+      "relationship": "copied verbatim"
+    },
+    {
+      "upstream_path": "LICENSE",
+      "path": "LICENSE",
+      "sha256": "2e5336cb270776d13538f8da3cfefef4d8c53ad5cdf5c211a085e62cdc095c0a",
+      "relationship": "copied verbatim"
+    },
+    {
+      "upstream_path": "start.sh",
+      "path": "head.sh",
+      "sha256": "80a3121c8ddbb498bc25a8c6b62c71738c4026deaca028999220c0a53740e671",
+      "relationship": "inner-script extraction; API bind made configurable, loopback default"
+    },
+    {
+      "upstream_path": "start.sh",
+      "path": "worker.sh",
+      "sha256": "0746ff4e8f8f923ffac42a79d164f2958bc80b25336f94ae78ea85dcddeb6974",
+      "relationship": "verbatim inner-script extraction"
+    }
+  ],
+  "target_revision_reason": "Aug28 ModelOpt mixed-precision config used by upstream-era recipe; Sep4 current config switches to compressed-tensors and is not assumed compatible."
+}

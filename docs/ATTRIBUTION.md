@@ -124,11 +124,12 @@ Chauncey Jiang (`chaunceyjiang`), and Zbigniew Majewski (`knapcio`). Public X
 handles were not verified for those contributors, so GitHub identities are the
 authoritative attribution.
 
-## E3 comparison experiment
+## NVFP4 TP2 candidate
 
-`research/experiments/exl3-e3/` copies the MiaAI-Lab E3 CUDA kernels and additive
-builder, and extracts its device-table construction, from
-https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks at
-`2c0ebe55a91ac8c0868cd6cba264e14bce93c66b` under MIT. Its notice is retained
-alongside the experiment. The benchmark is original Apache-2.0 work. These
-sources are an unqualified candidate, not the reference serving path.
+Copied from https://github.com/loud1990/GLM-5.3-Flash-NVFP4-MXFP8-2x-DGX-Sparks
+at `d00b2ffa70e0ccbfd582088ab32448b01bfe9c67`: MXFP8 DFlash2 model and
+installer, rank entrypoints, derivative Dockerfile and Humming profile.
+Mia MIT notice is retained in the experiment LICENSE; the draft model retains
+its vLLM Apache header. Original SparkGLM additions are offline preparation,
+checkpoint/image pins, local artifact checks, and regression tests. No new
+quantization or GPU kernel is claimed. See the experiment README for limits.

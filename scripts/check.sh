@@ -17,6 +17,7 @@ QUICK_TESTS=(
     tests/test_licensing.py
     tests/test_local_links.py
     tests/test_model_revision_pins.py
+    tests/test_nvfp4_candidate.py
     tests/test_numeric_config.py
     tests/test_publication_privacy.py
     tests/test_spinwait_patch.py

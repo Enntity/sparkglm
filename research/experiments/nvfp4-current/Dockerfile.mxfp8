@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Add the already pinned MIT MXFP8 compatibility layer to either SparkGLM arm.
+ARG BASE_IMAGE=sparkglm-release:video-clean
+FROM ${BASE_IMAGE}
+COPY research/experiments/nvfp4-tp2/overlay/qwen3_dflash2.py /opt/glm53/qwen3_dflash2.py
+COPY research/experiments/nvfp4-tp2/overlay/patch_dflash2.py /opt/glm53/patch_dflash2.py
+RUN python3 -S /opt/glm53/patch_dflash2.py \
+    && python3 -S -m py_compile \
+      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen3_dflash.py \
+      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen3_dflash2.py
+ARG SPARKGLM_SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=${SPARKGLM_SOURCE_REVISION}
