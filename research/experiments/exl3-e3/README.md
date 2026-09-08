@@ -70,3 +70,16 @@ E3 numerical kernels. The focused CPU regression checks reservation, reuse,
 reference fallthrough, and forbidden growth during graph capture. It requires
 fresh TP2 integration evidence before recommendation; source checks alone do
 not establish a performance gain.
+
+The [completed corrected-profile campaign](../../../results/candidates/2026-09-07-e3-profilefix-full/RESULT.md)
+retains three full matrices for concurrent dispatch, 32 expert temporary rows,
+7168-token chunks, and the BF16 DFlash2 draft. This is the EXL3 finalist from
+this campaign; bounded arithmetic failures still prevent a general-quality
+or release claim. The corrected broad-policy retest failed its tiny throughput
+guard and did not receive another full-model load.
+
+Build `Dockerfile` over the verified non-MXFP8 reference, then apply
+`Dockerfile.runtime` to that E3 image. Pin both resulting image IDs and source
+revision. LLooM materialization uses `--e3 --e3-policy concurrent
+--exl3-temp-rows 32 --prefill-tokens 7168` with the ordinary BF16 draft.
+Stop the active appliance runtime before replacing its managed profile.

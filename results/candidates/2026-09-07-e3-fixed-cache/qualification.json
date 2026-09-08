@@ -1,0 +1,207 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-fixed-cache",
+  "title": "E3 fixed-cache control",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G2",
+  "target": "Resolve the observed tiny-model regression before further full-model time",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "ca0be02d1d60378482dd1c2e11ed434071c02aa0",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original allocation control and evidence. Copied Mia E3 numerical kernels at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b are unchanged."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2 tinyGLM",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:c149aec063e8c92423bcae2b1d8015c265ba4c9862089f21136745fc6c516533",
+      "sha256:dbf26d78fc36a55fe1598dcd52e5ad9aa8cec120bcbd7743cc20c8107afa7da5"
+    ],
+    "configuration": {
+      "kv_cache_gib": 4,
+      "context_tokens": 32768,
+      "prefill_tokens": 7168,
+      "candidate_expert_threshold": 32,
+      "reference_expert_threshold": 128,
+      "candidate_e3_policy": "concurrent",
+      "speculation": "none",
+      "measured_repetitions": 9
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Unchanged numerical kernels; production-dimension, graph, redzone and sanitizer evidence retained in ../2026-09-07-e3-concurrent-screen."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Nine warmed repetitions preserve reference token hashes, complete all streams, and pass throughput, wall and TTFT guards. Raw warmup outcomes are retained."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "fixed4g-reference decode_c1 throughput",
+      "value": 206.35487703299535,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-reference mixed_c4 throughput",
+      "value": 372.2408758796459,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-reference long_c2 throughput",
+      "value": 75.58887726852602,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-off decode_c1 throughput",
+      "value": 233.36718487377473,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-off mixed_c4 throughput",
+      "value": 386.75829979317814,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-off long_c2 throughput",
+      "value": 78.77104854828451,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-on decode_c1 throughput",
+      "value": 245.3499612133595,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-on mixed_c4 throughput",
+      "value": 387.6678956434038,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "fixed4g-on long_c2 throughput",
+      "value": 79.92965770874784,
+      "unit": "tokens/s",
+      "samples": 9
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "934ae332d17b9b329d532f4c0799801f3881d59c6e90558d306ac633facd7b72"
+    },
+    {
+      "path": "checks.json",
+      "kind": "raw-receipt",
+      "sha256": "7f37e0b206fd0ca85e9df680a1f5e3c3ba3635add3acb1fab3f0442a3c1126b1"
+    },
+    {
+      "path": "raw/fixed4g-off-head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "0fa2aac219bab09eb61fc2ace643073b56ce6bffec6f8bf123ea1daa1a4155e9"
+    },
+    {
+      "path": "raw/fixed4g-off-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "00ec875f835290fd9976392587ad5f4b9e668d492958690fe4589879dd9b19be"
+    },
+    {
+      "path": "raw/fixed4g-off-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "dc6ef00f345e7b3b8bfcecc56667daa105c24253e6b6e644478f2121fa4efd28"
+    },
+    {
+      "path": "raw/fixed4g-off-worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "ee823cfdbabab53e52345527ea92cd2d006be2d06a994e34252172898f757dc3"
+    },
+    {
+      "path": "raw/fixed4g-on-head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "662b38277fcf733c3d6b19bd6168be82f46e49927b4235329ed31317383effe8"
+    },
+    {
+      "path": "raw/fixed4g-on-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "7524dea57d27dba9dcaad361c8b876ba8cee9d2de80b9787e1dc156884475c3f"
+    },
+    {
+      "path": "raw/fixed4g-on-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "e345084cb62c79a55d86743773fadcf074f2bc4531c63d143049ba4ca48ccb92"
+    },
+    {
+      "path": "raw/fixed4g-on-worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "abd384f6924edd5b677743878f0c7f589688a1aec369be79f3333258052aa58f"
+    },
+    {
+      "path": "raw/fixed4g-reference-head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "bc2d3e3bb39d04df5a79ec93a425c903a8e214e3d8f55a612e53f3ea0f13ae57"
+    },
+    {
+      "path": "raw/fixed4g-reference-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "e4b7a885fb4443e74f8726d939695bed89b004b187a6e83ca3e45a7f9b72b5ec"
+    },
+    {
+      "path": "raw/fixed4g-reference-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "1bf2308e85e1c4a0233a0b13ee1f4c940aaeb8af2cc63c4637e35d6796605004"
+    },
+    {
+      "path": "raw/fixed4g-reference-worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "cfb94afc276fddd6a0d9a72a2d8154e74a62c44617ae45c08a58947cc36991f2"
+    }
+  ],
+  "limitations": [
+    "Tiny integration only; full-model performance and semantics remain separate.",
+    "Reference and candidate expert thresholds differ; this is not a pure kernel A/B.",
+    "Earlier failed and noisy experiments remain retained; no default promotion is implied."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

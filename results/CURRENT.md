@@ -7,11 +7,26 @@
   isolated latency.
 - [Concurrent E3 and 32-row screens](candidates/2026-09-07-e3-concurrent-screen/qualification.json)
   preserve passing operator checks and the tiny-model decode regression.
+- [Fixed-cache controls](candidates/2026-09-07-e3-fixed-cache/RESULT.md) and the
+  [corrected profiling adapter](candidates/2026-09-07-e3-profilefix/RESULT.md)
+  pass the subsequent G2 checks. The adapter now accounts for both E3 and
+  reference scratch before automatic cache sizing; full-model qualification
+  remains separate.
+- [Corrected concurrent E3 full TP2 campaign](candidates/2026-09-07-e3-profilefix-full/RESULT.md)
+  retains three warmed matrices at 32 temporary expert rows and 7168-token
+  chunks. Completion and isolation passed; two bounded arithmetic cases failed.
+  This is the best completed EXL3 tuning candidate so far, not a promoted default.
+- [Corrected broad-policy retest](candidates/2026-09-07-e3-broad-profilefix-retest/RESULT.md)
+  still fails the tiny long-C2 throughput guard. The bounded screen does not
+  justify another full-model load; concurrent-only remains the EXL3 finalist.
 - [Cooperative decode through 32 tokens](candidates/2026-09-07-decode32-screen/RESULT.md)
   found small mixed gains; the serving limit remains 16.
 - [MXFP8 draft support](../research/experiments/mxfp8-draft/README.md)
   is self-contained and opt-in. The inherited loader uses actual draft TP2;
   a TP1 flag does not create an independent draft group.
+- Full EXL3/MXFP8 screens at [7K chunks](candidates/2026-09-07-exl3-mxfp8-7k/RESULT.md)
+  and [1K chunks](candidates/2026-09-07-exl3-mxfp8-1k/RESULT.md) retain their
+  timings and additional arithmetic failure. Neither is a promoted default.
 
 These experiments do not change the reconstructable default below. Final
 appliance comparisons may independently tune each path, while preserving

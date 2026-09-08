@@ -4,10 +4,13 @@ The selected EXL3 experiment is the complete Mia E3 arithmetic schedule at
 MIT revision `2c0ebe55a91ac8c0868cd6cba264e14bce93c66b`, including the SiLU
 precision correction. The upstream comparison was against its E2 host loop;
 SparkGLM already has grouped M64 prefill and cooperative K4 decode, so that
-reported speedup is not transferable. Our operator screens rejected universal
-dispatch and the 2048-token threshold. The current opt-in adapter starts at
-4096 input tokens and keeps the existing decode path. See the checksummed
-screen and managed-integration records under `results/candidates`.
+reported speedup is not transferable. The initial operator screens rejected universal
+dispatch and the 2048-token threshold at the original expert-row setting.
+The later 32-row expert threshold has separate passing operator evidence from
+2048 input tokens; other row thresholds retain the 4096 guard. The corrected
+concurrent adapter reserves both scratch paths during profiling and keeps
+solo prefill on the reference path. See the checksummed fixed-cache controls,
+profiling correction, and full-model records under `results/candidates`.
 
 The pinned kernel, builder and extracted tables retain MIT attribution. Later
 upstream licensing changes do not alter the identity of the copied source;
@@ -19,15 +22,18 @@ The current NVFP4 experiment uses the September 7
 It is a different format from the earlier prepared ModelOpt/Humming recipe.
 The implementation and qualification live on `experiment/nvfp4-tp2`, under
 `research/experiments/nvfp4-current`. Routed expert layers 3–44 use group-16
-W4A4; layer 45 uses FP8. Automatic per-layer backend selection is necessary:
-forcing one incompatible backend across the mixed checkpoint is not a valid
-way to demonstrate native FP4. Keep SwiGLU clamping and verify actual GPU
-kernel symbols, numerical behavior and real-model quality separately.
+W4A4; the FP8 layer 45 belongs to next-token prediction metadata and is not
+executed by the DFlash2 target forward. It therefore does not require a mixed
+FP8 MoE backend in this serving path. Preserve backend compatibility and
+SwiGLU clamping, and verify actual GPU kernel symbols, numerical behavior and
+real-model quality separately. Native W4A4 and Marlin W4A16 are distinct
+complete arithmetic paths, even when they consume the same packed weights.
 
 Other upstream changes require their own hypotheses. Compact NoPE cache,
-decode context parallelism, an MXFP8 drafter, and replacing DFlash2 with MTP
-all change the comparison beyond the routed-expert arithmetic. They are not
-silently included in this experiment. Clock caps and library version bumps
+decode context parallelism, and replacing DFlash2 with MTP
+change the comparison beyond the routed-expert arithmetic. They are not
+silently included in this experiment. MXFP8 draft support now has separate
+explicit screens on both branches; it is not part of the pure EXL3/E3 image. Clock caps and library version bumps
 also need a demonstrated gain against this appliance's existing baseline.
 
 One correctness detail is especially easy to backport incorrectly:

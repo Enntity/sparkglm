@@ -1,0 +1,169 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-profilefix",
+  "title": "E3 corrected profiling integration",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G2",
+  "target": "Resolve the observed tiny-model regression before further full-model time",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "2da74aa817ea86b1a0881698c8990b38152c9bb3",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original allocation control and evidence. Copied Mia E3 numerical kernels at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b are unchanged."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2 tinyGLM",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:9d13f6bb9001cfeab3e101b2921186436eb7e9c81a3303c5612e1045cd3408f4",
+      "sha256:93859badde073db3c17e2f1e82bcbcfede9b9490e9b571e226de774a67c9e725"
+    ],
+    "configuration": {
+      "kv_cache_gib": "automatic",
+      "context_tokens": 32768,
+      "prefill_tokens": 7168,
+      "candidate_expert_threshold": 32,
+      "reference_expert_threshold": 128,
+      "candidate_e3_policy": "concurrent",
+      "speculation": "none",
+      "measured_repetitions": 9
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Unchanged numerical kernels; production-dimension, graph, redzone and sanitizer evidence retained in ../2026-09-07-e3-concurrent-screen."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Nine warmed repetitions preserve reference token hashes, complete all streams, and pass throughput, wall and TTFT guards. Raw warmup outcomes are retained."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "reference decode_c1 throughput",
+      "value": 232.71852829585285,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "reference mixed_c4 throughput",
+      "value": 386.2252368752814,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "reference long_c2 throughput",
+      "value": 78.71734193246658,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "profilefix decode_c1 throughput",
+      "value": 248.91636899519267,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "profilefix mixed_c4 throughput",
+      "value": 383.7831386258066,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "profilefix long_c2 throughput",
+      "value": 79.19432566952992,
+      "unit": "tokens/s",
+      "samples": 9
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "a41793447c56e19cdc3254c7bd71675b27656bc0d8a3f3a4625f0ee03dfaaf77"
+    },
+    {
+      "path": "checks.json",
+      "kind": "raw-receipt",
+      "sha256": "588429db6c868ca5ba95e4578399960800c3ae933e56c8933581aab3856ae8bf"
+    },
+    {
+      "path": "raw/profilefix-head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "e2f9f712612dd637a1c0a8ae1380ea93b430a87a4418bddd79df6ff80d44a122"
+    },
+    {
+      "path": "raw/profilefix-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "c18033f17a0d9d1fe1542b3a62ae453f4781414305a95382a83d41c6bedd95f3"
+    },
+    {
+      "path": "raw/profilefix-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "d41a1f7402b525762e805a9f68ff16805829079f3fba45fc6218792f2e9a72bc"
+    },
+    {
+      "path": "raw/profilefix-worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "02feb24bc90d20bf2186b6b1905b550ce95b1bddc343fb79c6c2a53c2cb47e69"
+    },
+    {
+      "path": "raw/reference-head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "2d45140cc5eeaa3cc8ccfec19a5fde0e68b39ff516730663cff2a2de49992a6b"
+    },
+    {
+      "path": "raw/reference-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "46099ce78ad98567147127eed5d8a80008a94a79b8f9e8282c894fdde39d9761"
+    },
+    {
+      "path": "raw/reference-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "a3b52011f7e8c70e4fd77d53d8ad37b32fbba0f92c268819d93be1e75e6d9a1b"
+    },
+    {
+      "path": "raw/reference-worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "7ee5f8e852f8b849a84de205c36564d880bcf81e0dfa02f64f78854756665100"
+    }
+  ],
+  "limitations": [
+    "Tiny integration only; full-model performance and semantics remain separate.",
+    "Reference and candidate expert thresholds differ; this is not a pure kernel A/B.",
+    "Earlier failed and noisy experiments remain retained; no default promotion is implied."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

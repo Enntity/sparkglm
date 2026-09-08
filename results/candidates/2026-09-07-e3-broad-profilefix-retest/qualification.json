@@ -1,0 +1,160 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-broad-profilefix-retest",
+  "title": "Corrected broad E3 policy retest",
+  "date": "2026-09-07",
+  "state": "rejected",
+  "qualification_level": "G1",
+  "target": "Check whether corrected profiling and 32-row dispatch justify another broad-policy full-model load",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "2da74aa817ea86b1a0881698c8990b38152c9bb3",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original allocation control and evidence. Copied Mia E3 numerical kernels at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b are unchanged."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2 tinyGLM",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:9d13f6bb9001cfeab3e101b2921186436eb7e9c81a3303c5612e1045cd3408f4",
+      "sha256:93859badde073db3c17e2f1e82bcbcfede9b9490e9b571e226de774a67c9e725"
+    ],
+    "configuration": {
+      "kv_cache_gib": "automatic",
+      "context_tokens": 32768,
+      "prefill_tokens": 7168,
+      "candidate_expert_threshold": 32,
+      "reference_expert_threshold": 128,
+      "candidate_e3_policy": "large",
+      "speculation": "none",
+      "measured_repetitions": 3,
+      "reference_repetitions": 9
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Unchanged numerical kernels; production-dimension, graph, redzone and sanitizer evidence retained in ../2026-09-07-e3-concurrent-screen."
+    },
+    {
+      "id": "G2",
+      "status": "fail",
+      "summary": "Three warmed deterministic repetitions preserve reference tokens and complete all streams; median long-C2 throughput regresses beyond the five-percent guard."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "This bundle contains integration evidence only."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "reference decode_c1 throughput",
+      "value": 232.71852829585285,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "reference mixed_c4 throughput",
+      "value": 386.2252368752814,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "reference long_c2 throughput",
+      "value": 78.71734193246658,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "candidate decode_c1 throughput",
+      "value": 239.8312936845273,
+      "unit": "tokens/s",
+      "samples": 3
+    },
+    {
+      "name": "candidate mixed_c4 throughput",
+      "value": 382.9095810193067,
+      "unit": "tokens/s",
+      "samples": 3
+    },
+    {
+      "name": "candidate long_c2 throughput",
+      "value": 72.56864904941408,
+      "unit": "tokens/s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "aaeafac3852d3d16b56eeaec69f42039ee620e2e1882ed2fa9504847d43ca46c"
+    },
+    {
+      "path": "checks.json",
+      "kind": "raw-receipt",
+      "sha256": "e2d88111107ac5b3dfca72b5502ebce3e30595f7718716443cf098f834152904"
+    },
+    {
+      "path": "raw/candidate-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "4ed363fb7d62dd1b85c431ce9426f068f3414ec457b4035e752667dd425e0712"
+    },
+    {
+      "path": "raw/candidate-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "b7e37dbb02803bd8ba2cb98d2e147d424324a1001b241887ad00f98e61ff3dd2"
+    },
+    {
+      "path": "raw/gate.log",
+      "kind": "raw-receipt",
+      "sha256": "0c2e54ceeef844c994cabeef00ffa7c3b77f44f20bb4d2b7477319fbf7147856"
+    },
+    {
+      "path": "raw/head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "a1a850667372c9a65e4f33f44361f038b7bf7e6f2fb68ab78e113696eace842b"
+    },
+    {
+      "path": "raw/reference-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "46099ce78ad98567147127eed5d8a80008a94a79b8f9e8282c894fdde39d9761"
+    },
+    {
+      "path": "raw/worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "902f90494d27a2f5a26e10f0047123563583d98bbe97aab1fcdacfbdb9bc3cfc"
+    }
+  ],
+  "limitations": [
+    "Three candidate repetitions versus nine reference repetitions; screening evidence only.",
+    "No full-model performance or quality claim.",
+    "Broad policy remains rejected for this campaign; concurrent policy has separate evidence."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
