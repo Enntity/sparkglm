@@ -1,0 +1,21 @@
+WARNING 09-08 06:26:25 [marlin_utils_fp4.py:354] Your GPU does not have native support for FP4 computation but FP4 quantization is being used. Weight-only FP4 compression will be used leveraging the Marlin kernel. This may degrade performance for compute-heavy workloads.
+{
+  "rows": 65,
+  "experts": 16,
+  "top_k": 8,
+  "hidden": 4096,
+  "intermediate": 1024,
+  "clamp": 10,
+  "quantized_reference_relative_l2": 0.003098126733675599,
+  "clamp_effect_relative_l2": 0.8751192688941956,
+  "graph_replay": true,
+  "redzones": true,
+  "cuda_kernels": [
+    "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<c10::BFloat16, at::native::func_wrapper_t<c10::BFloat16, at::native::sum_functor<c10::BFloat16, float, c10::BFloat16>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, c10::BFloat16, 4, 8> >(at::native::ReduceOp<c10::BFloat16, at::native::func_wrapper_t<c10::BFloat16, at::native::sum_functor<c10::BFloat16, float, c10::BFloat16>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, c10::BFloat16, 4, 8>)",
+    "void marlin_moe_wna16::Marlin<1125899906909960l, 562949953487106l, 1125899906909960l, 2814749767172868l, 128, 3, 8, 4, false, 4, 1, false>(int4 const*, int4 const*, int4*, int4*, int4 const*, float const*, int4 const*, float const*, int4 const*, int const*, int const*, int const*, int const*, float const*, int, bool, int, int, int, int, int*, bool, bool, bool)",
+    "void vllm::act_and_mul_kernel<c10::BFloat16, __nv_bfloat162, &(c10::BFloat16 vllm::silu_kernel<c10::BFloat16>(c10::BFloat16 const&, float)), &(__nv_bfloat162 vllm::packed_silu_kernel<__nv_bfloat162>(__nv_bfloat162 const&, float)), true, true, true, true>(c10::BFloat16*, c10::BFloat16 const*, int, float, float, float)",
+    "void vllm::moe::moe_align_block_size_small_batch_expert_kernel<int, 256>(int const*, int*, int*, int*, int*, int, int, unsigned long, int, int, bool)"
+  ]
+}
+USDT:2026-09-08 06:26:25 1:1 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-09-08 06:26:25 1:1 SyncActivityProfilerHandler.cpp:59] profiler_stop

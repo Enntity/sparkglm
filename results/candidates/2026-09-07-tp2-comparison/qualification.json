@@ -1,0 +1,892 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-tp2-comparison",
+  "title": "Independently tuned complete TP2 appliance comparison",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Compare best screened complete configurations without hiding capacity or quality differences",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "multiple immutable images; see individual arm records",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original comparison of retained synthetic benchmark receipts; no new upstream code."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "configuration": {
+      "reference": {
+        "target": "EXL3",
+        "draft": "BF16",
+        "prefill_tokens": 7168,
+        "context_tokens": 1000000,
+        "kv": "automatic",
+        "e3": false,
+        "image_digests": [
+          "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+          "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66"
+        ],
+        "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+        "draft_revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "nvfp4-1k": {
+        "target": "NVFP4",
+        "draft": "MXFP8",
+        "prefill_tokens": 1024,
+        "context_tokens": 65536,
+        "kv": "9 GiB per rank",
+        "e3": false,
+        "image_digests": [
+          "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+          "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+        ],
+        "target_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+        "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+      },
+      "exl3-7k": {
+        "target": "EXL3",
+        "draft": "MXFP8",
+        "prefill_tokens": 7168,
+        "context_tokens": 65536,
+        "kv": "automatic",
+        "e3": false,
+        "image_digests": [
+          "sha256:c149aec063e8c92423bcae2b1d8015c265ba4c9862089f21136745fc6c516533",
+          "sha256:dbf26d78fc36a55fe1598dcd52e5ad9aa8cec120bcbd7743cc20c8107afa7da5"
+        ],
+        "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+        "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+      },
+      "exl3-1k": {
+        "target": "EXL3",
+        "draft": "MXFP8",
+        "prefill_tokens": 1024,
+        "context_tokens": 65536,
+        "kv": "automatic",
+        "e3": false,
+        "image_digests": [
+          "sha256:c149aec063e8c92423bcae2b1d8015c265ba4c9862089f21136745fc6c516533",
+          "sha256:dbf26d78fc36a55fe1598dcd52e5ad9aa8cec120bcbd7743cc20c8107afa7da5"
+        ],
+        "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+        "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+      },
+      "e3-fixed": {
+        "runtime_owner": "LLooM",
+        "context_tokens": 1000000,
+        "kv_cache_bytes_per_rank": "automatic",
+        "target_tp": 2,
+        "draft_tp": 2,
+        "draft_tokens": 7,
+        "prefill_tokens": 7168,
+        "max_num_seqs": 4,
+        "e3": true,
+        "e3_policy": "concurrent",
+        "exl3_temp_rows": 32,
+        "moe_backend": "auto",
+        "image_source_revision": "2da74aa817ea86b1a0881698c8990b38152c9bb3",
+        "image_digests": [
+          "sha256:9d13f6bb9001cfeab3e101b2921186436eb7e9c81a3303c5612e1045cd3408f4",
+          "sha256:93859badde073db3c17e2f1e82bcbcfede9b9490e9b571e226de774a67c9e725"
+        ],
+        "target_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+        "draft_revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "nv-marlin": {
+        "runtime_owner": "LLooM",
+        "context_tokens": 65536,
+        "kv_cache_bytes_per_rank": 9663676416,
+        "target_tp": 2,
+        "draft_tp": 2,
+        "draft_tokens": 7,
+        "prefill_tokens": 1024,
+        "max_num_seqs": 4,
+        "e3": false,
+        "e3_policy": null,
+        "exl3_temp_rows": null,
+        "moe_backend": "marlin",
+        "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+        "image_digests": [
+          "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+          "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+        ],
+        "target_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+        "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+      },
+      "nvfp4-2k": {
+        "runtime_owner": "LLooM",
+        "context_tokens": 65536,
+        "kv_cache_bytes_per_rank": 9663676416,
+        "target_tp": 2,
+        "draft_tp": 2,
+        "draft_tokens": 7,
+        "prefill_tokens": 2048,
+        "max_num_seqs": 4,
+        "e3": false,
+        "e3_policy": null,
+        "exl3_temp_rows": null,
+        "moe_backend": "auto",
+        "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+        "image_digests": [
+          "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+          "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+        ],
+        "target_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+        "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+      }
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "See individual arm records; this aggregation does not promote their qualification."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "See individual arm records; this aggregation does not promote their qualification."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "See individual arm records; this aggregation does not promote their qualification."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "See individual arm records; this aggregation does not promote their qualification."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "See individual arm records; this aggregation does not promote their qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "reference c1-16k median wall",
+      "value": 24.510582250077277,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "reference c1-32k median wall",
+      "value": 35.60865570791066,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "reference c2-16k median wall",
+      "value": 40.01754870917648,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "reference c2-32k median wall",
+      "value": 60.9033556249924,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "reference c4-16k median wall",
+      "value": 78.54245400009677,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-1k c1-16k median wall",
+      "value": 23.279327624943107,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-1k c1-32k median wall",
+      "value": 31.015258042141795,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-1k c2-16k median wall",
+      "value": 38.78776825033128,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-1k c2-32k median wall",
+      "value": 53.396325750276446,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-1k c4-16k median wall",
+      "value": 63.79065174981952,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "exl3-7k c1-16k median wall",
+      "value": 24.154752749949694,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-7k c1-32k median wall",
+      "value": 35.387486040592194,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-7k c2-16k median wall",
+      "value": 40.62633525021374,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-7k c2-32k median wall",
+      "value": 61.6243326254189,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-7k c4-16k median wall",
+      "value": 74.02203937526792,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-1k c1-16k median wall",
+      "value": 26.96569904172793,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-1k c1-32k median wall",
+      "value": 34.4273689170368,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-1k c2-16k median wall",
+      "value": 49.410424917005,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-1k c2-32k median wall",
+      "value": 66.80954620800912,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "exl3-1k c4-16k median wall",
+      "value": 85.961854333058,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "e3-fixed c1-16k median wall",
+      "value": 23.370576958172023,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "e3-fixed c1-32k median wall",
+      "value": 34.62409137515351,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "e3-fixed c2-16k median wall",
+      "value": 36.84576033335179,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "e3-fixed c2-32k median wall",
+      "value": 55.90612808428705,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "e3-fixed c4-16k median wall",
+      "value": 67.3121855002828,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nv-marlin c1-16k median wall",
+      "value": 28.540617084130645,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "nv-marlin c1-32k median wall",
+      "value": 31.248450624756515,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "nv-marlin c2-16k median wall",
+      "value": 37.69686812488362,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "nv-marlin c2-32k median wall",
+      "value": 60.14693454094231,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "nv-marlin c4-16k median wall",
+      "value": 63.44901108276099,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "nvfp4-2k c1-16k median wall",
+      "value": 21.24840220808983,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-2k c1-32k median wall",
+      "value": 29.24464074987918,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-2k c2-16k median wall",
+      "value": 34.86887237476185,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-2k c2-32k median wall",
+      "value": 53.47843012493104,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvfp4-2k c4-16k median wall",
+      "value": 57.21181329200044,
+      "unit": "s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "ea7c69ef790a4c78f8b3fc5b0242edefbe70b455f2943f48afd8c2cd2f5c8cf4"
+    },
+    {
+      "path": "configuration.json",
+      "kind": "raw-receipt",
+      "sha256": "3df951be583f4e19d5154aba7f4eaaccc606a4f197a7c3ac2cfa963365b3d9bf"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b24d3f160ec5852229d6a43e322a4bcd325a6b4a1048d49b478252ee178c5786"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "b18a1021122d5a20f575369eb5aa1148f0e218b03accf9b3f0f050ebc3f2946a"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "ccfdca15fe8a8774b620cdf75892d019e2eeeac968805fa9f76b31f62459ec87"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "46df993bed1781eb5ccb5c12d44f2c802fe708fbb0bdb886453b08d6a7422fff"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "e60967de72c584ae8e110801952b5f425501c07c41c39affd034d7d9c295ffca"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "299088b5402406718c0eca040a8b41b28ca82f2d4c6686d1ef1be06d71241ae1"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "0471a5e2a0b9f67d6e7802d6c4eecdf4e814ec7a85fe04f7e647a07b4aaf4e70"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "b1d5f0aa0fa837ca872cd34568fb539b8d170f1aad5d4ee86ba46532b40af061"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d9f13ec45827f3659de2bbf4fbcc6fc50063104390b2f2dd33a4b362de8da86a"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7ee082aa170d525c70a74889d0c6bade79f4d49858a84b9e271a2be45e26efa5"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "a0d174df0725a1fabbb0d49d115409f7670265be9f0ca265309726a797517505"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "ba3b0a5e67ebb97c55049266b974cbf412b6d0e40e564d091c7be19348ca0679"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "c6ccd400a407ef1b83a740996fa89aa54ef8a4dbb654705d5fb3ac34a9d8885a"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "0cd7f759ff4d34011d975f98917e7865777dee7126d35274f7cc8f0088e5402b"
+    },
+    {
+      "path": "raw/e3-fixed/candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "9f7a2ac10043e69b7597034367a20e57cb592201793880f296b5345e262157ce"
+    },
+    {
+      "path": "raw/e3-fixed/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "d9b053d47f920f46468f07c2af8f6d6813b7208f898277a231e9425fbbc455ed"
+    },
+    {
+      "path": "raw/exl3-1k/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "90be8a9ff2fbf808d8931c52fb6377df7ede56abd19a1f918a528d14254c5874"
+    },
+    {
+      "path": "raw/exl3-1k/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "146aa0f6bb131d72c62e506f3ead12a83a32ee86d380bc4ed50ee6ee5775c903"
+    },
+    {
+      "path": "raw/exl3-1k/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "82101186f5301f5a500d7fe32423585abb63a3e37ddd69928db5f7ffb63edb09"
+    },
+    {
+      "path": "raw/exl3-1k/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7e6cd27bb671ccd32d68f6a47510fc73d679b3f9bf81e44f66db18cfc10ebcde"
+    },
+    {
+      "path": "raw/exl3-1k/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "1d8445fc5735f2ccc0e2188ee7cac899830d34f52df94a7c5be9419bbd85b52f"
+    },
+    {
+      "path": "raw/exl3-1k/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "904bf2be31948badce5176cb1087f32c8160fbc690c36a5c75c7eef2a73c4392"
+    },
+    {
+      "path": "raw/exl3-7k/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7483dce403a03f235cc7495120565f8d2069fb2620a3ef5ae0901d9a153fb9c5"
+    },
+    {
+      "path": "raw/exl3-7k/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a5029919501e27b1f558428eb8d5ebfb7765ba8be81f6ecbd707b12048c16546"
+    },
+    {
+      "path": "raw/exl3-7k/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "ca8ecb8489afb4e985025db69e2f97680c5ace51efeef6e462ceda80816ef501"
+    },
+    {
+      "path": "raw/exl3-7k/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a44e649733b51f2a588a11c5cf25fb83247d515349f5222282086b1c3c8829b1"
+    },
+    {
+      "path": "raw/exl3-7k/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "794bd13f977868d0bca90feb5329e820bc3f7dae032e3cc1c5158655f940b819"
+    },
+    {
+      "path": "raw/exl3-7k/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "91213d24d4a0fd3a707a4b3955147e7b863780a0768111027785d4ae7d41c40c"
+    },
+    {
+      "path": "raw/nv-marlin/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "66c98e31bb7380601882fbcecc3fabf4108bef2e044912ccec5f84cb04aad4d4"
+    },
+    {
+      "path": "raw/nv-marlin/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7afa0ddf814b6caee97fe66f74bb43afe0c9e33df3e89b0d793f31c7af2e326d"
+    },
+    {
+      "path": "raw/nv-marlin/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "bac9b9132e1998d77335277f17d2df3ad3940de3f7ceb185be10ce6aabded9d3"
+    },
+    {
+      "path": "raw/nv-marlin/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a59929c9238f088dda9d941d4b1e1d7a23b50738e4dccefab4323534d683a6b9"
+    },
+    {
+      "path": "raw/nv-marlin/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "19290a853f18e263e3a3e7cd237c018a81851e3d6f5941bd08f94cff9c496a8f"
+    },
+    {
+      "path": "raw/nv-marlin/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "b68c7abbe5dc7e89e3f7615ae352e19fa065a1d150442f347dade20d67e4c611"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "0281aca97043eadd7caeb6bf4a66e0f6c89edda957b67c2d1a6cdf533612a784"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "d68ef63dd998f4a813c45a9e73446012002a989dfdcc3c27364230c9456a1f12"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "af291af93c74afa4d3396692cc1371c38f3671260fe0a8869f3c10e12c10fac9"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "c77035ddbc75b45d33fdb5d7bcc477ca1c1300651f50934a406adde1aadea5c7"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1061ce03771426505506aed01c61a96572321929fdc9c617c625414f4fedd7c1"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "618e4d38bbe8d5031d0d63523cdb4e7d2cd0030bb7015456fa7c4845c3a4f606"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "397ef2f5de3fb9caa126b4596d453678b0da7ab5d3018cdc680d6eb0a454efc5"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "6589479abe5a8bac86725322e2042f315416e86de5a87cd9b518446feb39c868"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "c9339e56ae3fac51f235deee021aa0f20b11b64278c9d5a9c5286b5c13977070"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "9f49aeedb3775e3ff14cf8fceb7a60310d7b230c21281fe51b52953344a0798f"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "435a5538ba8bf893c8e332f576c604e640f7cfbf520d32d83d7df8960a930979"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "b94023ccc00ffe051ca0b669013659b9749b785bbbe6e74b940dc16e1a9f0ef1"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8b06dbc07d4b3653a0cbe798f51980faaffc4ea818134b204637af267d43d461"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "fe9b31fe494ac6cdb983281728ee6b2144fcce467de941c7ea32527978354f09"
+    },
+    {
+      "path": "raw/nvfp4-1k/candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "75d2e58b2b114e1ce60d3ce5f7062b48647346febbb6011d3a967ab9022f64e0"
+    },
+    {
+      "path": "raw/nvfp4-1k/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "90fdb0597b897994d261e357353bdd1be286ebea90241e7d96f84501c558cf61"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b5ade5b1d9b82364a387c2c7457b571a860d349b5ad94cd6b4edcb55303f3716"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1f3ea49a9edafa20f30bc842a8c85e96f165aeabaaf2bc8c7164753d685e928e"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d125a99a9fa141886970013ad96d30928cfef58a2f35fb157bc1a9256c3b7337"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b280b943b5aa97f71849c75ebdc05ad7765b5aa5b554016f57bc10b4a4ce477a"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "3a240c024150fbbb6f880a5fdc6b7535fc884e84495de462ca182cfa26a1e9aa"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "bf1717bdae53c30b3d1109e1343a83731a27d41b815b1b7215ed4a46c4ebbb12"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "ee0cfe23eef84b0af8a4bd6e0d92d1aba421488249c5dd00d3c1a2d845438bde"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "062ef806c02260d099234f7637cb198d9527f1bf4070b58a0676243707e06fc4"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "2e87b9238f7eb38d74aaaffdc23d8c996778bdb1deddf2c59086cffd7fb53b24"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "181b8bea731e5be4998888e26d7da3e703db0eaafc166e9e9e91c13507c6226c"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "2852ade7a07f622617c1fa317b7a6b2f4cdb730e75446def2118efa23134feaf"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "32361c6e995cd9763f3c413a343ae73b0e35fb54152b0dd5f2a359479e12c37a"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "4b63ccebedc56421bef1c3b7d49420b76a1c7651a80fdba7947bd1e4892e681d"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "bebf672f8c2528f2d49f0b502a7aaafec0b89fe579cd6ecc17eeb2bbe703f08d"
+    },
+    {
+      "path": "raw/nvfp4-2k/candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "e807376cdc7d6b79808ebe24fdffae436319225be0d6204a846fe91d26a2fd4f"
+    },
+    {
+      "path": "raw/nvfp4-2k/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "0ee9c4e669899d53931f0314fab8ee3026d0b4c3bdabb0718732513891795c44"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "27325d83adb0134720ad9dd447f6a55944ba5a21c4b95fcb2730ae80efba8177"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "41e2c2d7b4f4007a709c55d15469c1b341223ce9d181bde7a4d663a54f785742"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d3a39daf751e0e39d8727c5fa9003e013f5cd00a80bdc924d210e6b5323e7735"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "dd1dc560e1d503dd8a32813f085119735a07e25923803ae67f2991764eb0163e"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "630a523160795a93149e000012af57cb48c165e308563d78bf0538091e0b8ccd"
+    },
+    {
+      "path": "raw/reference/full-baseline-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "5bf4f3f138f151aba3120644e1b6f9584b208ef2cf1727e06c90d129a2f966f3"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "838b46c8f695a02c276ee594191b40b4bf61cca977bb1e4a18c5660f9bd0f3e5"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "53635596deb851e70c3e7247aed6affebc87400be51aa3c5e03e97a685083afe"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "cbd6df5e1a43732947f49feeb521d714d2237a3dff859356c8c0f0789cc5ba77"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "770518d3a5e2799a8127ebf9263169fcc76ad932ae120b2da0fbd294fa4f9c08"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "4ba307171a099cb0ad359d6def29e310559263067f3e874f4697285adb5b4232"
+    },
+    {
+      "path": "raw/reference/full-baseline-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "1af34935f7cf9b57e0739a07bfe08b4494c9b91f489b77e35e99ea7b7b96bbde"
+    },
+    {
+      "path": "raw/reference/full-baseline-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8e341cf0837bb8d021c0b015e3726c48396e1bc74587de64323e11cec8f6f8f9"
+    },
+    {
+      "path": "raw/reference/full-baseline-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "bd3426bd8f18b08938610e82746b9e96c549f80bb04e43fce4254e728cc1bad2"
+    },
+    {
+      "path": "raw/reference/full-baseline-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "c745d8d26fade9be9dae4e50f5e5a611a3049b54ebc031e3901424d941f4f906"
+    },
+    {
+      "path": "raw/reference/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "5b97c93c181a27f1852c602c77899aebb3a94b09e6738ccd37a3287a4238c77e"
+    },
+    {
+      "path": "raw/thermal-e3-fixed-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "53369ddccd05778c31b3620be9eddbdca34c81cd9d6217111bff765c32f1eaf3"
+    },
+    {
+      "path": "raw/thermal-e3-fixed-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "e7acef421fd613715cd1b89f5e1a0cef7cf4973f9a1a928fc3d7c3aaaa699b54"
+    },
+    {
+      "path": "raw/thermal-exl3-1k-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "ce2d63bcf98da20609a11187611e6596971fd4c204607bf85b0e2f2513e33139"
+    },
+    {
+      "path": "raw/thermal-exl3-1k-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "c35665cc3e03387aa0ebf97b67f38bfe0186c7080eacfa2992bb6ef0742ed923"
+    },
+    {
+      "path": "raw/thermal-exl3-7k-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "5852b5e6587f9ee33aa123fb60faba0c01283ba361fbcbb9c6aef7fe0753da33"
+    },
+    {
+      "path": "raw/thermal-exl3-7k-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "ffcac569cf3138915b06cb082723c97cd52a365d2bfe99eafbc314ebf3a50fa0"
+    },
+    {
+      "path": "raw/thermal-nv-marlin-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "e1b0691011ddd9c192b1017f049e183f2e1a32300f5333e110c6a649bccc5e97"
+    },
+    {
+      "path": "raw/thermal-nv-marlin-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "f61a0fa6ba9a6f76ac6d07bbad57f86ec1bb21b2288dfcf861cd564e416be3e8"
+    },
+    {
+      "path": "raw/thermal-nvfp4-1k-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "553cd75bfd834e8b4c5d82cfbe43e7ee5416cd36dc7a10d71519acefeed53582"
+    },
+    {
+      "path": "raw/thermal-nvfp4-1k-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "8833547bab76d5fcef0fd2ea8d90c4021ef2aaf5216547954c6a8e30ec7ce64d"
+    },
+    {
+      "path": "raw/thermal-nvfp4-2k-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "174257942e9f4f088b693d008a62eb820c9d45df85a74164c8834d56f0c7a56b"
+    },
+    {
+      "path": "raw/thermal-nvfp4-2k-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "32e60d1a845001b1914d7513bf743f674c86dc426bd47a2f38963fdfafdc1ba9"
+    },
+    {
+      "path": "raw/thermal-reference-head.csv",
+      "kind": "raw-receipt",
+      "sha256": "c512bf6793b8dcaf3d13b54aa66320211c8e89bf44b314ae822052b06acfec44"
+    },
+    {
+      "path": "raw/thermal-reference-worker.csv",
+      "kind": "raw-receipt",
+      "sha256": "b84b9d5ccf9cbb92ac09cdcdb647445c59135ad857c95cbbbe8ff5f1e2c524ce"
+    },
+    {
+      "path": "thermal-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "fefbc6dc4f7bf94e40b025cca7e625a2a899ec08a07b793e7cc74715a4624bee"
+    }
+  ],
+  "limitations": [
+    "Different settings and context capacities; not a pure kernel comparison.",
+    "Arms are separated in time; one-repetition screens are not qualified winners.",
+    "Bounded arithmetic failures and incomplete broader quality/endurance qualification remain."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

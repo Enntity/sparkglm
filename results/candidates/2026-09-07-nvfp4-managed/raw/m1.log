@@ -1,0 +1,21 @@
+USDT:2026-09-08 03:17:59 48:48 SyncActivityProfilerHandler.cpp:52] profiler_start
+USDT:2026-09-08 03:17:59 48:48 SyncActivityProfilerHandler.cpp:59] profiler_stop
+{
+  "gpu": "NVIDIA GB10",
+  "rows": 1,
+  "experts": 16,
+  "top_k": 8,
+  "graph_replay": true,
+  "relative_l2": 0.26590749621391296,
+  "cosine": 0.9651060104370117,
+  "quantized_reference_relative_l2": 0.0016747888876125216,
+  "clamp_effect_relative_l2": 2.4594078063964844,
+  "cuda_kernels": [
+    "_ZN7cutlass13device_kernelINS_4gemm6kernel13GemmUniversalINS1_17GroupProblemShapeIN4cute5tupleIJlllEEEEENS1_10collective13CollectiveMmaINS1_47MainloopSm120ArrayTmaWarpSpecializedBlockScaledILi2ELi3ENS6_IJNS5_1CILi1EEESD_SD_EEENS1_59KernelPtrArrayTmaWarpSpecializedCooperativeBlockScaledSm120ILi3EEEEENS6_IJNSC_ILi128EEESI_NSC_ILi256EEEEEENS6_IJNS_12float_e2m1_tENS_13float_ue4m3_tEEEENS6_IJPNS6_IJlSD_NSC_ILi0EEEEEEPNS5_6LayoutINS6_IJNS6_IJNS6_IJNSC_ILi32EEENSC_ILi4EEEEEEiEEENS6_IJNS6_IJNSC_ILi16EEEST_EEEiEEENS6_IJSD_iEEEEEENS6_IJSY_NS6_IJNS6_IJSO_SD_EEENSC_ILi512EEEEEENS6_IJSO_iEEEEEEEEEEESN_S18_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_5SM12011BLOCKSCALED19SM120_16x8x64_TN_VSISL_SL_fSM_Li16EEEEEENSR_INS6_IJST_NSC_ILi2EEESD_EEENS6_IJSD_ST_SO_EEEEENS6_IJSI_NSR_INS6_IJNSC_ILi8EEES1G_S1G_EEENS6_IJSD_SW_S1K_EEEEENSC_ILi64EEEEEEEENS6_IJNS5_13SM90_TMA_LOADES1R_EEENS6_IJNS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi4EEENSR_INS6_IJS1K_SJ_EEENS6_IJSJ_SD_EEEEEEENSR_INS6_IJNS6_IJSU_SD_EEENS6_IJSX_SD_ST_EEEEEENS6_IJNS6_IJSX_S12_EEENS6_IJS11_ST_S12_EEEEEEEEEEENS6_IJNS5_9Copy_AtomIJNS5_17SM75_U32x4_LDSM_NENS_15integer_subbyteILi4ELb0EEEEEENS2A_IJNS5_13UniversalCopyISM_SM_EESM_EEEEEENS5_8identityES1S_S29_S2I_S2J_EENS_8epilogue10collective18CollectiveEpilogueINS2L_30Sm90PtrArrayTmaWarpSpecializedILi3ELi2ELi4ELb1ELb0ELi2EEEJSK_NS6_IJS1O_SS_EEENS_10bfloat16_tESQ_S2R_SQ_NS2L_6fusion15FusionCallbacksINS2L_31Sm120PtrArrayTmaWarpSpecializedILi3ELi2ELi4ELb1ELb0ELi2EEENS2S_17LinearCombinationIS2R_fS2R_fLNS_15FloatRoundStyleE2EEESK_S2Q_JEEES1R_NS1T_INS1U_ILi2ELi4ELi3EEENS1W_ILi16EEENSR_INS6_IJS1K_SS_EEENS6_IJSS_SD_EEEEEEENS5_17SM75_U32x2_LDSM_NENS5_14SM90_TMA_STOREES35_NS5_17SM90_U32x2_STSM_NENS2A_IJS38_NS_6half_tEEEEvEEEvvEEEEvNT_6ParamsE",
+    "void tensorrt_llm::kernels::cutlass_kernels::computeStridesTmaWarpSpecializedKernel<__nv_fp4_e2m1, __nv_fp4_e2m1, __nv_bfloat16, __nv_bfloat16>(long const*, tensorrt_llm::kernels::cutlass_kernels::TmaWarpSpecializedGroupedGemmInput, tensorrt_llm::kernels::cutlass_kernels::TmaWarpSpecializedGroupedGemmInput, long, long, long, long, long, long, long, __nv_fp4_e2m1 const*, __nv_fp4_e2m1 const*, __nv_fp4_e2m1 const*, __nv_fp4_e2m1 const*, float const*, float const*, unsigned char const*, unsigned char const*, tensorrt_llm::kernels::cutlass_kernels::QuantParams, __nv_bfloat16 const*, __nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16*, float const*, int const*)",
+    "void tensorrt_llm::kernels::cutlass_kernels::doActivationKernel<__nv_fp4_e2m1, __nv_bfloat16, __nv_bfloat16, tensorrt_llm::kernels::cutlass_kernels::SwigluBiasAdaptor, (tensorrt_llm::kernels::cutlass_kernels::TmaWarpSpecializedGroupedGemmInput::FpXBlockScalingType)1, false, std::integral_constant<bool, false> >(__nv_fp4_e2m1*, __nv_bfloat16 const*, float const*, __nv_bfloat16 const*, bool, long const*, int, long, float const*, bool, unsigned char*, tensorrt_llm::kernels::cutlass_kernels::ActivationParams)",
+    "void tensorrt_llm::kernels::cutlass_kernels::expandInputRowsKernel<__nv_fp4_e2m1, __nv_fp4_e2m1, (tensorrt_llm::kernels::cutlass_kernels::TmaWarpSpecializedGroupedGemmInput::FpXBlockScalingType)1, false, false, std::integral_constant<bool, false> >(__nv_fp4_e2m1 const*, __nv_fp4_e2m1*, float const*, float*, int const*, long, long, long, float const*, bool, long const*, unsigned char*, unsigned char const*, bool, long, __nv_fp4_e2m1 const*)",
+    "void tensorrt_llm::kernels::cutlass_kernels::finalizeMoeRoutingKernel<__nv_bfloat16, __nv_bfloat16, __nv_bfloat16, (tensorrt_llm::kernels::cutlass_kernels::ScaleMode)1>(__nv_bfloat16 const*, __nv_bfloat16*, __nv_bfloat16 const*, float const*, int const*, int const*, long, long, long, int, int)",
+    "void tensorrt_llm::kernels::cutlass_kernels::fusedBuildExpertMapsSortFirstTokenKernel<32, 8, 5>(int const*, int*, int*, long*, long, int, int, int, int)"
+  ]
+}

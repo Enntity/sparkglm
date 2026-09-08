@@ -1,0 +1,232 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-nvfp4-mxfp8-1k",
+  "title": "Native NVFP4 with MXFP8 draft tuned TP2 screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Measure independently tuned complete TP2 configuration",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original tuning and benchmark evidence. MXFP8 support copied from reviewed loud1990 revision d00b2ffa70e0ccbfd582088ab32448b01bfe9c67, preserved in research/experiments. E3 disabled."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 65536,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 1024,
+      "max_num_seqs": 4,
+      "e3": false,
+      "moe_backend": "auto",
+      "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Preserved target kernel checks exist in prior bundles; independent MXFP8 numeric qualification not complete."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Target tiny fixture evidence exists; no speculative tiny fixture qualification."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Exploratory retained full matrices; independently tuned settings, no matched three-pair qualification."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "Bounded semantics includes arithmetic failure; raw results retained."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance or release qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k median wall",
+      "value": 23.279327624943107,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c1-32k median wall",
+      "value": 31.015258042141795,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c2-16k median wall",
+      "value": 38.78776825033128,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c2-32k median wall",
+      "value": 53.396325750276446,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "c4-16k median wall",
+      "value": 63.79065174981952,
+      "unit": "s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "4ef2ac3deb18ec2ec1adc01318a8d0150c0ef0bac2351bca70e93f397be7e880"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "0281aca97043eadd7caeb6bf4a66e0f6c89edda957b67c2d1a6cdf533612a784"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "d68ef63dd998f4a813c45a9e73446012002a989dfdcc3c27364230c9456a1f12"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "af291af93c74afa4d3396692cc1371c38f3671260fe0a8869f3c10e12c10fac9"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "c77035ddbc75b45d33fdb5d7bcc477ca1c1300651f50934a406adde1aadea5c7"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "1061ce03771426505506aed01c61a96572321929fdc9c617c625414f4fedd7c1"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "618e4d38bbe8d5031d0d63523cdb4e7d2cd0030bb7015456fa7c4845c3a4f606"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "397ef2f5de3fb9caa126b4596d453678b0da7ab5d3018cdc680d6eb0a454efc5"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "6589479abe5a8bac86725322e2042f315416e86de5a87cd9b518446feb39c868"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "c9339e56ae3fac51f235deee021aa0f20b11b64278c9d5a9c5286b5c13977070"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "9f49aeedb3775e3ff14cf8fceb7a60310d7b230c21281fe51b52953344a0798f"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "435a5538ba8bf893c8e332f576c604e640f7cfbf520d32d83d7df8960a930979"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "b94023ccc00ffe051ca0b669013659b9749b785bbbe6e74b940dc16e1a9f0ef1"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8b06dbc07d4b3653a0cbe798f51980faaffc4ea818134b204637af267d43d461"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "fe9b31fe494ac6cdb983281728ee6b2144fcce467de941c7ea32527978354f09"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "75d2e58b2b114e1ce60d3ce5f7062b48647346febbb6011d3a967ab9022f64e0"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "398ebcbbe409759e56009eceb652287cf171ed1aec58015471ec74a042365987"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "7676931219fa3b75423880ce556de3e31010763443d2221046f4d822c8eb5fab"
+    },
+    {
+      "path": "raw/gateway-canary.json",
+      "kind": "raw-receipt",
+      "sha256": "4bac6c1d98b946df0312689bf97968d8f003c4e516db9d45d0665bac1557db90"
+    },
+    {
+      "path": "raw/head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "119f37659e4b1e93d35d44e15b044f61cb1841377d7d0e02e6620b750d00b32e"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "90fdb0597b897994d261e357353bdd1be286ebea90241e7d96f84501c558cf61"
+    },
+    {
+      "path": "raw/shape-warmup.log",
+      "kind": "raw-receipt",
+      "sha256": "2dd1ad7a2015906da992ca8560edc38d9dcfa73a97553e3c372af38c615eaea1"
+    },
+    {
+      "path": "raw/worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "fce51a0ec2104acbbed258cbe7d704475268b69fbcba2906b5cad398de9fe5d6"
+    }
+  ],
+  "limitations": [
+    "Independently tuned configuration, not an isolated kernel comparison.",
+    "MXFP8 draft integration remains experimental.",
+    "Arithmetic failure remains and no broad quality or endurance qualification is claimed."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

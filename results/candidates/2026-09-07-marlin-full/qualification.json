@@ -1,0 +1,194 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-marlin-full",
+  "title": "NVFP4 Marlin W4A16 full TP2 screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Measure the complete independently tuned TP2 configuration",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original benchmark campaign using installed vLLM operators and previously recorded MXFP8 support."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4"
+    ],
+    "model_revision": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 65536,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 1024,
+      "max_num_seqs": 4,
+      "e3": false,
+      "e3_policy": null,
+      "exl3_temp_rows": null,
+      "moe_backend": "marlin",
+      "image_source_revision": "45b03d696ad2ac865d576f9d6c08ad86ff126b49"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Operator evidence is retained in the corresponding earlier E3, Marlin or native NVFP4 bundle; no new operator math here."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "See corresponding preceding tiny integration bundle; full speculative model is tested here."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Retained full-model matrices; exploratory campaign, not a complete matched promotion gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded failures: none. Broader quality qualification remains incomplete."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance or release qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k median wall",
+      "value": 28.540617084130645,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c1-32k median wall",
+      "value": 31.248450624756515,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-16k median wall",
+      "value": 37.69686812488362,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-32k median wall",
+      "value": 60.14693454094231,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c4-16k median wall",
+      "value": 63.44901108276099,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "1b6772c8c39df232ca7a36b3e227d5dd7bd5f1300d6d0dadfbfde3efe852b667"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "66c98e31bb7380601882fbcecc3fabf4108bef2e044912ccec5f84cb04aad4d4"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7afa0ddf814b6caee97fe66f74bb43afe0c9e33df3e89b0d793f31c7af2e326d"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "bac9b9132e1998d77335277f17d2df3ad3940de3f7ceb185be10ce6aabded9d3"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a59929c9238f088dda9d941d4b1e1d7a23b50738e4dccefab4323534d683a6b9"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "19290a853f18e263e3a3e7cd237c018a81851e3d6f5941bd08f94cff9c496a8f"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "16fc6bfdf1e4411a0ee3894fa3eb1ecf02d90e0c7a76b5a1b624ea15dcdffd2b"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "630fad97c5d4153540c88d26ce5d4e8ad996ac126eb9a4ae7b22f8a7b710e577"
+    },
+    {
+      "path": "raw/gateway-canary.log",
+      "kind": "raw-receipt",
+      "sha256": "9bfd333d7745b990d81b9145480636e5837cc055ae9bb213803fdb920bc4784a"
+    },
+    {
+      "path": "raw/head-image-identity.log",
+      "kind": "raw-receipt",
+      "sha256": "003f8c81b142f1d482669927c4a05fceeb9a43ee670ef712720c6e515b3cf459"
+    },
+    {
+      "path": "raw/head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "905aef802b632c14032196b42e3c12a2a483b06ba97f35fbf866282141b8ac97"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "b68c7abbe5dc7e89e3f7615ae352e19fa065a1d150442f347dade20d67e4c611"
+    },
+    {
+      "path": "raw/shape-warmup.log",
+      "kind": "raw-receipt",
+      "sha256": "63f34e15539904b0f2265b02f5126ab605c9f57975e6381069b20ef3ebea29ff"
+    },
+    {
+      "path": "raw/worker-image-identity.log",
+      "kind": "raw-receipt",
+      "sha256": "ee59621e53f4d998b71abef173df7e5a7ee0906b5a9c551a4632f9b7a9cce8f4"
+    },
+    {
+      "path": "raw/worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "1e498baee3e7c2a2bf0f322ccd425bd9fa0a5b1367779a57071d64c99c06f4bf"
+    }
+  ],
+  "limitations": [
+    "Independently tuned configuration; not an isolated kernel comparison.",
+    "Bounded semantic failures remain; broader quality and endurance qualification incomplete.",
+    "Separate-in-time measurements and one-repetition screens do not establish universal maximum performance."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

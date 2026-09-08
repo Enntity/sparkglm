@@ -1,0 +1,145 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-nvfp4-managed",
+  "title": "Native NVFP4 managed TP2 fixture",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G2",
+  "target": "Qualify native clamped W4A4 and TP2 integration before full-model performance tuning",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original synthetic API probe; existing SparkGLM FlashInfer/CUTLASS implementation. No model tensors copied."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10, standalone single GPU",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:17f7f5e6729a61885cf459268cae8a14e88a9702d2e257b38ce141db458782bb",
+      "sha256:4a04c25357e08e892e0cb7f45475c19d9b5c6e70bfab573810aa36a58d615535"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "fixture_source": "6cfa8f9f37e7180af418b82d26b69408fdcea88b",
+      "probe_source": "b9c28fa",
+      "fixture_backend": "FLASHINFER_CUTLASS",
+      "tp": 2,
+      "fixture_repetitions": 3,
+      "speculation": "none"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Declared quantized numerical reference, sparse-routing boundaries, changed-input graph replay and CUDA memcheck passed; native FP4 profiler symbols retained."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Warmed three-repetition TP2 fixture completed with stable signatures. Initial warmup mismatch remains retained; no cross-format dummy token contract."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "23d4fdc48ce5d5bcd8b429202e7d35f46b5b08abe3154549474882958e1e6c01"
+    },
+    {
+      "path": "raw/m1.log",
+      "kind": "raw-evidence",
+      "sha256": "e15e075f066ed9d73ed54f0ae50b11c786df41857baf58a54fc877c4aca0e2d1"
+    },
+    {
+      "path": "raw/m17.log",
+      "kind": "raw-evidence",
+      "sha256": "383f112449e81fa182691c8d0967530df053686b68c4e8b8be7890ffe0c9ccbf"
+    },
+    {
+      "path": "raw/m257.log",
+      "kind": "raw-evidence",
+      "sha256": "403db811fa4b121cc518823adc501868df291905e504b4378cf8fcaf23460159"
+    },
+    {
+      "path": "raw/m65-memcheck.log",
+      "kind": "raw-evidence",
+      "sha256": "ca078e87561c33d1368d3e6f28cfdf90bd3c53158e14aad2b2df821e051cc37d"
+    },
+    {
+      "path": "raw/m65.log",
+      "kind": "raw-evidence",
+      "sha256": "767c55010b4132f15a409fba3fb9e7eee55e9f88975e6191598619c8366550e2"
+    },
+    {
+      "path": "raw/sparkglm-mxfp8-head-verification.json",
+      "kind": "raw-receipt",
+      "sha256": "fcd563990264f46e6e968b282f19717bddf8d27289e2fde9760cda15c1aeafb5"
+    },
+    {
+      "path": "raw/sparkglm-mxfp8-worker-verification.json",
+      "kind": "raw-receipt",
+      "sha256": "fcd563990264f46e6e968b282f19717bddf8d27289e2fde9760cda15c1aeafb5"
+    },
+    {
+      "path": "raw/sparkglm-nvfp4-kernel-probe-v2.log",
+      "kind": "raw-evidence",
+      "sha256": "ac993598a00d28c35b9ce0ccce469ecb21bb9a28c0f0ba89e50574960fbaf87f"
+    },
+    {
+      "path": "raw/sparkglm-nvfp4-kernel-probe-v3.log",
+      "kind": "raw-evidence",
+      "sha256": "a4c126d13aca7928fe21bdfbba2f3614f05d2631233430d94dce476947bcdb20"
+    },
+    {
+      "path": "raw/sparkglm-nvfp4-tiny-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "bd23c9e43fce6833e7d7aa296d2a3518846a8e84911b83d43b8428621d1d0e17"
+    },
+    {
+      "path": "raw/sparkglm-nvfp4-tiny-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "887f76eadcdf3e64be245e665781cd4b8f7da6f0fdb02e63a8feb4d68af046ba"
+    }
+  ],
+  "limitations": [
+    "Full-model performance and quality are not qualified.",
+    "Initial warmup showed mixed-C4 output nondeterminism; warmed measured run was stable.",
+    "Operator cases cover H4096/I1024 with 8/16 experts and M1..257, not every production shape.",
+    "Synthetic BF16-relative quantization error is not a model quality metric.",
+    "MXFP8 and Humming are prepared alternatives, not qualified by this native NVFP4 fixture."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

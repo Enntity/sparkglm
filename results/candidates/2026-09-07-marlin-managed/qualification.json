@@ -1,0 +1,196 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-marlin-managed",
+  "title": "NVFP4 Marlin production-shape and TP2 fixture checks",
+  "date": "2026-09-07",
+  "state": "candidate",
+  "qualification_level": "G2",
+  "target": "Qualify the W4A16 alternative before a full-model screen",
+  "change": {
+    "baseline_ref": "6cfa8f9f37e7180af418b82d26b69408fdcea88b",
+    "candidate_ref": "same immutable tiny image, Marlin override and original numerical probe",
+    "working_tree_clean": false,
+    "provenance": [
+      "Original API probe; installed vLLM NVFP4 conversion and Marlin APIs are dependencies, not copied code. No serving kernel changes."
+    ]
+  },
+  "environment": {
+    "capture_platform": "GB10 single-GPU operator probes and two-Spark TP2 tiny fixture",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:17f7f5e6729a61885cf459268cae8a14e88a9702d2e257b38ce141db458782bb",
+      "sha256:4a04c25357e08e892e0cb7f45475c19d9b5c6e70bfab573810aa36a58d615535"
+    ],
+    "configuration": {
+      "backend": "marlin",
+      "compute": "NVFP4 weights, BF16 activations",
+      "operator_experts": 288,
+      "operator_hidden": 4096,
+      "operator_intermediate_per_rank": 1024,
+      "top_k": 8,
+      "clamp": 10,
+      "seed": 20260907,
+      "probe_sha256": "746d4fff691b681d503e0365e549cc6e025ffdca3bb1decabb857c0eb9c243c2"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, attribution, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Independent packed-E2M1/group-scale reference; clamp 10; M1/17/64/65/257/2048 at E288, top8 H4096/I1024; changed-input graph replay and redzones; M65/E16 memcheck zero errors."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Three warmed TP2 fixture repetitions complete and deterministic. W4A16 deliberately differs from W4A4; the added numerical golden validates that contract instead of cross-backend token equality."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Full-model and release qualification remain outstanding."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Full-model and release qualification remain outstanding."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Full-model and release qualification remain outstanding."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "M1 quantized reference L2",
+      "value": 0.003195477882400155,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "M17 quantized reference L2",
+      "value": 0.0030655302107334137,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "M2048 quantized reference L2",
+      "value": 0.003097294131293893,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "M257 quantized reference L2",
+      "value": 0.0030992750544101,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "M64 quantized reference L2",
+      "value": 0.003101702081039548,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "M65 quantized reference L2",
+      "value": 0.0031022203620523214,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "tiny decode_c1 aggregate",
+      "value": 231.0091595488847,
+      "unit": "tokens/s",
+      "samples": 3
+    },
+    {
+      "name": "tiny mixed_c4 aggregate",
+      "value": 385.0914092777289,
+      "unit": "tokens/s",
+      "samples": 3
+    },
+    {
+      "name": "tiny long_c2 aggregate",
+      "value": 79.67796825162193,
+      "unit": "tokens/s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "782f061fa550ddf0963573330d23250f07de009d2f055f9afcf97110fa979e62"
+    },
+    {
+      "path": "raw/m1.log",
+      "kind": "raw-receipt",
+      "sha256": "028b58825282a3e72e4fa1d6e1796de61eb449c48419c94a8b7160a9acb21a8a"
+    },
+    {
+      "path": "raw/m17.log",
+      "kind": "raw-receipt",
+      "sha256": "a23aa2197a5526c7ba1359b3923d7d6d84149f31014e45101ddb448938efe0c3"
+    },
+    {
+      "path": "raw/m2048.log",
+      "kind": "raw-receipt",
+      "sha256": "c4ec930cd56a4680ee3dead55c7ce1e069758e5de4c2ec9cdfa04616d7958d95"
+    },
+    {
+      "path": "raw/m257.log",
+      "kind": "raw-receipt",
+      "sha256": "e2ecee220f8eeefd22c6bbfa891813b98aa03bb0eaffb014987dad30ede84830"
+    },
+    {
+      "path": "raw/m64.log",
+      "kind": "raw-receipt",
+      "sha256": "909d8815f7616c3e0833e9f3ba689261a80f1eadbb4fd72b2572207a36163938"
+    },
+    {
+      "path": "raw/m65.log",
+      "kind": "raw-receipt",
+      "sha256": "bf559faa9f2499ef8af88d1f1ee063bc09607a6da887740a5989f7b2d3aa2e2d"
+    },
+    {
+      "path": "raw/memcheck.log",
+      "kind": "raw-receipt",
+      "sha256": "c21c62ee67786a91ec2a6c9136b54cda08ba6450023402334db0f28eb0066c34"
+    },
+    {
+      "path": "raw/probe-v1-immutable-config-error.log",
+      "kind": "raw-receipt",
+      "sha256": "66a3549e49c7f79a64c31b2e6deacf66b803808bf0419acad06ea912e90c4396"
+    },
+    {
+      "path": "raw/probe-v2.log",
+      "kind": "raw-receipt",
+      "sha256": "33bb0c14deea3549c1b33e5457c8278ce5fd56748013dae2f47e612bc0665160"
+    },
+    {
+      "path": "raw/tiny-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "bbed5f69923d25727d40d2a2febeb9ad0328362c31b50f65bc6af3d166543f07"
+    },
+    {
+      "path": "raw/tiny-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "6a2cc9d218f64ea3904c3938d31bd3418ad93671119db3e9fbb2b099ab8ebf6d"
+    }
+  ],
+  "limitations": [
+    "Synthetic operator/fixture evidence only; real-model performance and quality not yet established.",
+    "W4A16 is a deliberate computation change; it does not preserve native-W4A4 token hashes.",
+    "No default promotion or endurance qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -5,6 +5,13 @@ No Spark was contacted, no checkpoint downloaded, and no image was built or
 deployed during preparation. This is a source candidate for later hardware
 qualification, not a measured replacement for EXL3.
 
+September 7 hardware follow-up: the inherited DFlash loader ignores the
+independent draft TP1 flag and keeps the target TP2 group. LLooM now rejects
+that misleading request. The installed Humming input schema also falls back
+to FP8 activations, so this copied profile is not proof of native FP4 compute.
+The separately tested current compressed-tensors path uses actual draft TP2;
+see the [tuned native NVFP4 results](../../../results/candidates/2026-09-07-nvfp4-mxfp8-1k/RESULT.md).
+
 ## Selection
 
 The starting point is
@@ -39,7 +46,7 @@ Their short counting-prompt results are not real-agent throughput guarantees.
 - `Dockerfile` is upstream's small derivative, with the formerly floating Mia
   base pinned by digest and the rank entrypoints included.
 - `candidate.json` retains the Humming profile: TP2, FP8 KV, MXFP8 DFlash2 K7
-  with draft TP1, full/piecewise graphs, four sequences, 1,024 batch tokens,
+  with a requested draft TP1 flag, full/piecewise graphs, four sequences, 1,024 batch tokens,
   262,144 context, utilization 0.88, text-only. Checkpoint auto-detection is
   deliberate: the selected August 28 target declares ModelOpt mixed precision.
   Do not force `modelopt_fp4` or `exl3`.

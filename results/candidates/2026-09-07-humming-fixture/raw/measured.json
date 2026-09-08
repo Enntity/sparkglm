@@ -1,0 +1,408 @@
+{
+  "schema": 1,
+  "created_at": "2026-09-08T04:10:23.331285+00:00",
+  "endpoint": "http://127.0.0.1:18890",
+  "model": "sparkglm-tiny-nvfp4",
+  "repetitions": 3,
+  "cases": [
+    {
+      "name": "decode_c1",
+      "concurrency": 1,
+      "prompt_tokens": 128,
+      "output_tokens": 256,
+      "stagger_ms": 0,
+      "runs": [
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 1,
+          "prompt_tokens": 128,
+          "output_tokens": 256,
+          "stagger_ms": 0,
+          "wall_s": 1.166278458200395,
+          "aggregate_tok_s": 219.50161061451496,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 128,
+              "completion_tokens": 256,
+              "ttft_s": 0.05074270814657211,
+              "wall_s": 1.1634836671873927,
+              "decode_tok_s": 230.06252975595618,
+              "token_ids_count": 256,
+              "token_ids_sha256": "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 1,
+          "prompt_tokens": 128,
+          "output_tokens": 256,
+          "stagger_ms": 0,
+          "wall_s": 1.8524841251783073,
+          "aggregate_tok_s": 138.19281715861356,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 128,
+              "completion_tokens": 256,
+              "ttft_s": 0.04924920899793506,
+              "wall_s": 1.851835833862424,
+              "decode_tok_s": 142.01814019298243,
+              "token_ids_count": 256,
+              "token_ids_sha256": "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 1,
+          "prompt_tokens": 128,
+          "output_tokens": 256,
+          "stagger_ms": 0,
+          "wall_s": 2.34727512486279,
+          "aggregate_tok_s": 109.06263065986543,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 128,
+              "completion_tokens": 256,
+              "ttft_s": 0.04080383386462927,
+              "wall_s": 2.346391959115863,
+              "decode_tok_s": 111.0345760356067,
+              "token_ids_count": 256,
+              "token_ids_sha256": "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "aggregate_tok_s_median": 138.19281715861356,
+        "wall_s_median": 1.8524841251783073,
+        "ttft_s_median": 0.04924920899793506,
+        "signatures": [
+          [
+            "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+          ],
+          [
+            "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+          ],
+          [
+            "3bbd597d5a06686e8ade3e6ed4f27d217b441b007e3e2eee082df1fab7552e26"
+          ]
+        ],
+        "deterministic": true
+      }
+    },
+    {
+      "name": "mixed_c4",
+      "concurrency": 4,
+      "prompt_tokens": 4096,
+      "output_tokens": 128,
+      "stagger_ms": 250,
+      "runs": [
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 4,
+          "prompt_tokens": 4096,
+          "output_tokens": 128,
+          "stagger_ms": 250,
+          "wall_s": 1.9263612921349704,
+          "aggregate_tok_s": 265.78607143447874,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.14436070760712028,
+              "wall_s": 1.3333862079307437,
+              "decode_tok_s": 107.65118154754592,
+              "token_ids_count": 128,
+              "token_ids_sha256": "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.16576441563665867,
+              "wall_s": 1.3319549579173326,
+              "decode_tok_s": 109.75907912070298,
+              "token_ids_count": 128,
+              "token_ids_sha256": "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f"
+            },
+            {
+              "stream": 2,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.15127683291211724,
+              "wall_s": 1.2483186251483858,
+              "decode_tok_s": 116.67741457604635,
+              "token_ids_count": 128,
+              "token_ids_sha256": "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e"
+            },
+            {
+              "stream": 3,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.11866274988278747,
+              "wall_s": 1.169077165890485,
+              "decode_tok_s": 121.85666728231764,
+              "token_ids_count": 128,
+              "token_ids_sha256": "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 4,
+          "prompt_tokens": 4096,
+          "output_tokens": 128,
+          "stagger_ms": 250,
+          "wall_s": 2.0857063326984644,
+          "aggregate_tok_s": 245.4803880935529,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.07871416723355651,
+              "wall_s": 1.2812645840458572,
+              "decode_tok_s": 106.44044375228785,
+              "token_ids_count": 128,
+              "token_ids_sha256": "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.15350366570055485,
+              "wall_s": 1.2920961249619722,
+              "decode_tok_s": 112.41950441427575,
+              "token_ids_count": 128,
+              "token_ids_sha256": "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f"
+            },
+            {
+              "stream": 2,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.16322741704061627,
+              "wall_s": 1.3578425841405988,
+              "decode_tok_s": 107.14747604513474,
+              "token_ids_count": 128,
+              "token_ids_sha256": "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e"
+            },
+            {
+              "stream": 3,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.1289195418357849,
+              "wall_s": 1.3291936670430005,
+              "decode_tok_s": 106.64230554657841,
+              "token_ids_count": 128,
+              "token_ids_sha256": "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 4,
+          "prompt_tokens": 4096,
+          "output_tokens": 128,
+          "stagger_ms": 250,
+          "wall_s": 1.4721153331920505,
+          "aggregate_tok_s": 347.79883644701164,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.057020542211830616,
+              "wall_s": 0.7719853753224015,
+              "decode_tok_s": 179.02978450438627,
+              "token_ids_count": 128,
+              "token_ids_sha256": "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.0838080421090126,
+              "wall_s": 0.7648777500726283,
+              "decode_tok_s": 187.93964627015544,
+              "token_ids_count": 128,
+              "token_ids_sha256": "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f"
+            },
+            {
+              "stream": 2,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.08679862506687641,
+              "wall_s": 0.7401476670056581,
+              "decode_tok_s": 195.9136568413205,
+              "token_ids_count": 128,
+              "token_ids_sha256": "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e"
+            },
+            {
+              "stream": 3,
+              "prompt_tokens": 4096,
+              "completion_tokens": 128,
+              "ttft_s": 0.08458004100248218,
+              "wall_s": 0.7156420829705894,
+              "decode_tok_s": 202.8326717303477,
+              "token_ids_count": 128,
+              "token_ids_sha256": "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "aggregate_tok_s_median": 265.78607143447874,
+        "wall_s_median": 1.9263612921349704,
+        "ttft_s_median": 0.12379114585928619,
+        "signatures": [
+          [
+            "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a",
+            "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f",
+            "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e",
+            "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+          ],
+          [
+            "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a",
+            "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f",
+            "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e",
+            "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+          ],
+          [
+            "2e8500292642dc84f5aec6d3a6d2b4def0982367be1c4a4cfbd5db56254af90a",
+            "be5cf7b05ca170456371f24b70381a4de95696593850be8821d29b510e0c820f",
+            "76d1a975a41b309809e8190cb9196418440e6e41e00f748c1f3ab9074f23344e",
+            "a5ee3b1a3aa14f2653e2283660bd101b036dc74f076dd907e9b57b6cbd803337"
+          ]
+        ],
+        "deterministic": true
+      }
+    },
+    {
+      "name": "long_c2",
+      "concurrency": 2,
+      "prompt_tokens": 16384,
+      "output_tokens": 32,
+      "stagger_ms": 500,
+      "runs": [
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 2,
+          "prompt_tokens": 16384,
+          "output_tokens": 32,
+          "stagger_ms": 500,
+          "wall_s": 0.8143270420841873,
+          "aggregate_tok_s": 78.59250238847343,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.17183704115450382,
+              "wall_s": 0.3134197499603033,
+              "decode_tok_s": 226.01630008288993,
+              "token_ids_count": 32,
+              "token_ids_sha256": "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.16114870877936482,
+              "wall_s": 0.2991206250153482,
+              "decode_tok_s": 231.9312572659213,
+              "token_ids_count": 32,
+              "token_ids_sha256": "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 2,
+          "prompt_tokens": 16384,
+          "output_tokens": 32,
+          "stagger_ms": 500,
+          "wall_s": 0.8213151250965893,
+          "aggregate_tok_s": 77.92380542422543,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.1693566250614822,
+              "wall_s": 0.3181896251626313,
+              "decode_tok_s": 215.00608049459686,
+              "token_ids_count": 32,
+              "token_ids_sha256": "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.16691841697320342,
+              "wall_s": 0.31000329181551933,
+              "decode_tok_s": 223.64348457700382,
+              "token_ids_count": 32,
+              "token_ids_sha256": "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+            }
+          ]
+        },
+        {
+          "model": "sparkglm-tiny-nvfp4",
+          "concurrency": 2,
+          "prompt_tokens": 16384,
+          "output_tokens": 32,
+          "stagger_ms": 500,
+          "wall_s": 0.8192000002600253,
+          "aggregate_tok_s": 78.12499997520206,
+          "streams": [
+            {
+              "stream": 0,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.1514484160579741,
+              "wall_s": 0.29433845775201917,
+              "decode_tok_s": 223.94842650069432,
+              "token_ids_count": 32,
+              "token_ids_sha256": "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc"
+            },
+            {
+              "stream": 1,
+              "prompt_tokens": 16384,
+              "completion_tokens": 32,
+              "ttft_s": 0.18024608306586742,
+              "wall_s": 0.3147182082757354,
+              "decode_tok_s": 237.96753379228772,
+              "token_ids_count": 32,
+              "token_ids_sha256": "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+            }
+          ]
+        }
+      ],
+      "summary": {
+        "aggregate_tok_s_median": 78.12499997520206,
+        "wall_s_median": 0.8192000002600253,
+        "ttft_s_median": 0.1681375210173428,
+        "signatures": [
+          [
+            "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc",
+            "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+          ],
+          [
+            "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc",
+            "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+          ],
+          [
+            "8536615e9b4bba9b16e15b04d17534cdf8b15da069fb4b02fc5f3b967bb605dc",
+            "9636080e5b680e2b2e259dd68bfcee16716533b473933f5f5bbc9ee11b0834c5"
+          ]
+        ],
+        "deterministic": true
+      }
+    }
+  ]
+}

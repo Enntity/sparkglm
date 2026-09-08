@@ -95,6 +95,15 @@ precision, KV budget, graph sizes, scheduler policy, prompt bytes, arrival
 offsets, generation parameters, and warmup. Record actual tokenizer counts;
 fixture arguments such as `--prompt-tokens 16384` are not authoritative.
 
+For selecting the fastest complete TP2 appliance, additionally compare each
+path at its independently tuned settings. That comparison may change the
+quantization, draft, context, KV allocation, chunking, and graph policy. Record
+every difference and the resulting context/concurrency capability. It answers
+which complete configuration serves the workload fastest; it does not isolate
+a kernel's effect. Keep the frozen workload, repetition discipline, and
+correctness/operational protections. Matched settings are diagnostic controls,
+not a ceiling on the final configuration search.
+
 Use `--exact-prompt-tokens` and retain the endpoint's tokenizer counts; the
 benchmark now calibrates through `/tokenize`. Approximate fixture sizes and
 whitespace counts are never valid substitutes for the recorded actual count.
