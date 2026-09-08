@@ -58,10 +58,10 @@ case "${1:-build}" in
         export GLM53_BOOT_LONG_C4=0
         export ABLIT=0
         export EXTRA_ARGS="--load-format dummy --generation-config vllm ${EXTRA_ARGS:-}"
-        exec "$SCRIPT_DIR/start.sh" "$command"
+        exec "$SCRIPT_DIR/start-exl3.sh" "$command"
         ;;
     status|logs|stop)
-        exec "$SCRIPT_DIR/start.sh" "$@"
+        exec "$SCRIPT_DIR/start-exl3.sh" "$@"
         ;;
     *)
         echo "usage: scripts/tinyglm.sh [build|start|restart|status|logs|stop]" >&2

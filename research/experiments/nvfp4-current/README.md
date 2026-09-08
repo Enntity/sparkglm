@@ -1,3 +1,9 @@
+> Historical September 7 campaign notes. The September 8 public install now
+> selects the same measured serving source at 512K/9 GiB; see
+> [the current default](../../../SPARKGLM.md) and
+> [capacity evidence](../../../results/candidates/2026-09-08-nvfp4-context-512k9/RESULT.md).
+> Earlier bring-up descriptors below remain historical experiments.
+
 # Current NVFP4 candidate
 
 The final measured configuration for this campaign is native W4A4 with the
