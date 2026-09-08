@@ -142,3 +142,9 @@ https://github.com/Enntity/lloom at
 The MIT notice is retained in `LICENSES/MIT-LLooM.txt`. The installer is original
 Apache-2.0 orchestration and calls LLooM's existing commands. Its installed
 entrypoint is hash checked against the measured version, not copied here.
+
+The standalone `runtime/entrypoint.sh` is a byte-for-byte copy of that measured
+MIT/Apache launcher (also published in LLooM at
+`2cc2f0df9ddcb1bb7fe60f7bd6934d2a9de1e4f2`). It executes the selected image's
+vLLM and patchers directly. It does not invoke, install, or depend on LLooM.
+The standalone Docker/SSH orchestrator is original Apache-2.0 code.

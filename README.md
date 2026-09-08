@@ -6,7 +6,7 @@ SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA
 DGX Spark GB10 systems**, building on MiaAI-Lab's excellent two-Spark work.
 `main` now defaults to our measured **NVFP4** path: native CUTLASS W4A4,
 MXFP8 DFlash2, 512K context, 9 GiB KV per rank, 2K chunks and mixed scheduling.
-LLooM controls the locally built runtime. The latest EXL3 work remains on the
+SparkGLM runs independently with Docker and SSH; LLooM integration is optional. The latest EXL3 work remains on the
 [`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3).
 
 > **Source research preview:** this is the maintainer-selected measured default,
