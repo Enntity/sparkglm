@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT AND Apache-2.0
+# Control rebuild using the candidate's retained pinned ExLlamaV3 build tree.
+# Same toolchain and flags; restores only the reference CUDA source.
+ARG BASE_IMAGE=sparkglm-candidate:direct-epilogue
+FROM ${BASE_IMAGE}
+COPY overlay/exl3_fat_gemm.cu /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu
+RUN python3 /opt/glm53/check_video_source_parity.py --kind exl3 \
+      --manifest /opt/glm53/video-source-parity.json --root /opt/glm53 \
+    && cp /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu \
+      /opt/sparkglm-exl3-build/exllamav3/exllamav3_ext/quant/exl3_fat_gemm.cu
+RUN cd /opt/sparkglm-exl3-build && \
+    CPATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    CPLUS_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    C_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=8 \
+      pip install --no-deps --no-build-isolation --no-cache-dir .
+LABEL org.enntity.sparkglm.build-profile="reference-exl3-rebuilt-control"

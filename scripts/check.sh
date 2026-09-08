@@ -10,6 +10,7 @@ QUICK_TESTS=(
     tests/test_benchmark_contract.py
     tests/test_chat_template.py
     tests/test_commit_provenance.py
+    tests/test_direct_epilogue.py
     tests/test_image_recipe.py
     tests/test_indexer_workspace.py
     tests/test_kpool_tail_slotmap.py

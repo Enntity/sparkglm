@@ -22,6 +22,12 @@ in `LICENSES/` or file-level SPDX identifiers.
 
 ### Original SparkGLM boundaries
 
+The prepared [direct-epilogue experiment](../research/experiments/exl3-direct-epilogue/README.md)
+changes grouped output ownership around the existing ExLlamaV3-derived Hadamard
+helper and Reederey-derived M64 pipeline. Its copied arithmetic remains credited
+to those pinned sources; the schedule and gating tools are original SparkGLM
+work. It has no GPU qualification or measured speed claim yet.
+
 The following are original project work built on the foundations above:
 
 - The GPU-resident grouped-prefill task planner and phase-wide execution
@@ -117,3 +123,12 @@ The inherited XGrammar correctness work also includes Flora Feng (`sfeng33`),
 Chauncey Jiang (`chaunceyjiang`), and Zbigniew Majewski (`knapcio`). Public X
 handles were not verified for those contributors, so GitHub identities are the
 authoritative attribution.
+
+## E3 comparison experiment
+
+`research/experiments/exl3-e3/` copies the MiaAI-Lab E3 CUDA kernels and additive
+builder, and extracts its device-table construction, from
+https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks at
+`2c0ebe55a91ac8c0868cd6cba264e14bce93c66b` under MIT. Its notice is retained
+alongside the experiment. The benchmark is original Apache-2.0 work. These
+sources are an unqualified candidate, not the reference serving path.

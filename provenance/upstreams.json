@@ -63,6 +63,9 @@
       "relationship": "base recipe, with verbatim and modified files",
       "covered_paths": [
         "Dockerfile",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.incremental",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.control",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.followup",
         "start.sh",
         "start-tp4.sh",
         ".env.example",
@@ -114,6 +117,7 @@
       "relationship": "adapted EXL3 arithmetic foundations",
       "covered_paths": [
         "overlay/exl3.py",
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh",
         "overlay/exl3_decode_moe.cu",
@@ -132,6 +136,7 @@
       ],
       "relationship": "adapted M64 cp.async fat-GEMM pipeline",
       "covered_paths": [
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh"
       ]
@@ -231,6 +236,19 @@
         "patches/video/native.patch",
         "scripts/build-video-native.sh"
       ]
+    },
+    {
+      "id": "mia-e3",
+      "repository": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+      "revision": "2c0ebe55a91ac8c0868cd6cba264e14bce93c66b",
+      "license_expression": "MIT",
+      "notice_ids": [
+        "MIT-Mia"
+      ],
+      "relationship": "verbatim E3 CUDA and additive builder; extracted device-table construction; original comparison harness",
+      "covered_paths": [
+        "research/experiments/exl3-e3/**"
+      ]
     }
   ],
   "path_rules": [
@@ -251,7 +269,10 @@
     },
     {
       "patterns": [
-        "Dockerfile"
+        "Dockerfile",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.incremental",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.control",
+        "research/experiments/exl3-direct-epilogue/Dockerfile.followup"
       ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "Mia MIT recipe containing direct Apache-2.0 vLLM compatibility modifications"
@@ -259,6 +280,7 @@
     {
       "patterns": [
         "overlay/exl3.py",
+        "research/experiments/exl3-direct-epilogue/patch.py",
         "overlay/exl3_fat_gemm.cu",
         "overlay/exl3_fat_gemm.cuh",
         "overlay/exl3_decode_moe.cu",
@@ -384,6 +406,24 @@
       ],
       "license_expression": "LicenseRef-GLM-5.3",
       "reason": "retained model/template license text"
+    },
+    {
+      "patterns": [
+        "research/experiments/exl3-e3/*.cu",
+        "research/experiments/exl3-e3/*.cuh",
+        "research/experiments/exl3-e3/tables.py",
+        "research/experiments/exl3-e3/build_exl3_fat_moe_ext.py",
+        "research/experiments/exl3-e3/LICENSE"
+      ],
+      "license_expression": "MIT",
+      "reason": "Pinned Mia E3 sources and table extraction"
+    },
+    {
+      "patterns": [
+        "research/experiments/exl3-e3/Dockerfile"
+      ],
+      "license_expression": "MIT AND Apache-2.0",
+      "reason": "Original integration of the MIT additive module build"
     }
   ],
   "non_redistributed_artifacts": [

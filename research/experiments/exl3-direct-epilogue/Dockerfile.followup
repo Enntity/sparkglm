@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT AND Apache-2.0
+# Isolated follow-up; reuse the pinned compiler tree from the initial candidate.
+ARG BASE_IMAGE=sparkglm-candidate:direct-epilogue
+FROM ${BASE_IMAGE}
+COPY overlay/exl3_fat_gemm.cu /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu
+COPY research/experiments/exl3-direct-epilogue/patch.py /opt/glm53/direct-epilogue.py
+COPY research/experiments/exl3-direct-epilogue/sources-coalesced.json /opt/glm53/direct-epilogue-sources.json
+RUN python3 /opt/glm53/direct-epilogue.py --coalesced --apply /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu \
+    && python3 /opt/glm53/check_video_source_parity.py --kind exl3 \
+      --manifest /opt/glm53/video-source-parity.json --root /opt/glm53 \
+      --candidate-manifest /opt/glm53/direct-epilogue-sources.json \
+    && cp /opt/glm53/exl3-fat-kernel/exl3_fat_gemm.cu \
+      /opt/sparkglm-exl3-build/exllamav3/exllamav3_ext/quant/exl3_fat_gemm.cu
+RUN cd /opt/sparkglm-exl3-build && \
+    CPATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    CPLUS_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    C_INCLUDE_PATH=/usr/local/lib/python3.12/dist-packages/nvidia/cu13/include \
+    TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=8 \
+      pip install --no-deps --no-build-isolation --no-cache-dir .
+LABEL org.enntity.sparkglm.build-profile="candidate-coalesced-epilogue"
