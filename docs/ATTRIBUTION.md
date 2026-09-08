@@ -133,3 +133,12 @@ Mia MIT notice is retained in the experiment LICENSE; the draft model retains
 its vLLM Apache header. Original SparkGLM additions are offline preparation,
 checkpoint/image pins, local artifact checks, and regression tests. No new
 quantization or GPU kernel is claimed. See the experiment README for limits.
+
+## Managed public default
+
+The managed recipe in `profiles/nvfp4.json` adapts the SparkGLM integration in
+https://github.com/Enntity/lloom at
+`75e08ca0923e7eb58f087b53032c82f88175ea3a`, with the measured September 8 settings.
+The MIT notice is retained in `LICENSES/MIT-LLooM.txt`. The installer is original
+Apache-2.0 orchestration and calls LLooM's existing commands. Its installed
+entrypoint is hash checked against the measured version, not copied here.

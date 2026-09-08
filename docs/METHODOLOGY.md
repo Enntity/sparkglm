@@ -22,6 +22,17 @@ An experiment may be retained at any level, including a failed experiment.
 Only a qualified change may alter the recommended defaults or support a public
 performance claim.
 
+## Maintainer-selected source preview (September 8)
+
+The maintainer explicitly selected the measured NVFP4 configuration as the
+public source-install default, retaining EXL3 as a separate branch. This is a
+preview-default decision under the existing research-preview distribution,
+not promotion to a G5-certified release. Existing qualification records keep
+their original states and levels. New experimental knobs still require their
+normal gates; the default selection does not qualify unrelated experiments.
+See [the current evidence](../results/CURRENT.md) for the measured gains and
+bounded semantic, memory, preemption and endurance limitations.
+
 ## Change states
 
 - **experiment**: exploratory work, normally disabled and kept under

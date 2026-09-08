@@ -1,0 +1,22 @@
+{
+  "change": "GLM53_MIXED_PREFILL_CHUNK: 0 -> skip; only inference-setting change",
+  "gateway_model": "sparkglm-nvfp4-skip",
+  "engine_commit": "45b03d696ad2ac865d576f9d6c08ad86ff126b49",
+  "image_digests": [
+    "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+    "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e"
+  ],
+  "context": 524288,
+  "kv_bytes_per_rank": 9663676416,
+  "prefill_chunk": 2048,
+  "max_seqs": 4,
+  "spinwait_ms": 16,
+  "draft": "local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8",
+  "draft_k": 7,
+  "draft_tp": 2,
+  "scheduler_notes": "Existing NVFP4 gate keeps its default 3584-token remaining-prefill bypass and max-wait=0. Only MIXED_PREFILL_CHUNK changes. This is our skip mode, not an identical scheduler implementation to Mia.",
+  "baseline_mia_commit": "9c0794b68d7fc124f79104409ab434769503fb31",
+  "baseline_mia_median_run": 2,
+  "target_weights_reused": true,
+  "draft_weights_reused": true
+}

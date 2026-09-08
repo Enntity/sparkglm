@@ -1,16 +1,29 @@
 # SparkGLM
 
-![SparkGLM GLM-5.3-Flash EXL3 banner](assets/glm.png)
+![SparkGLM GLM-5.3-Flash banner](assets/glm.png)
 
-SparkGLM is an open research project for running **GLM-5.3-Flash on exactly two
-NVIDIA DGX Spark GB10 systems**. The current runnable path is an opinionated
-vLLM/EXL3 appliance derived from MiaAI-Lab's two-Spark recipe. The repository
-also preserves the earlier Atlas-native implementation and the experiments
-that succeeded, failed, or changed the direction of the project.
+SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA
+DGX Spark GB10 systems**, building on MiaAI-Lab's excellent two-Spark work.
+`main` now defaults to our measured **NVFP4** path: native CUTLASS W4A4,
+MXFP8 DFlash2, 512K context, 9 GiB KV per rank, 2K chunks and mixed scheduling.
+LLooM controls the locally built runtime. The latest EXL3 work remains on the
+[`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3).
 
-> **Source research preview:** the default reproduces the posted-video source
-> configuration, not a production-certified appliance. No prebuilt image or
-> complete G5 qualification is claimed.
+> **Source research preview:** this is the maintainer-selected measured default,
+> not a production certification. No prebuilt image or complete G5 qualification
+> is claimed. [Install](SPARKGLM.md) · [results](results/CURRENT.md) ·
+> [video configurations](docs/PUBLISHED_VIDEO_CONFIGURATION.md).
+
+In the earlier frozen matched suite, NVFP4 reduced 16K/32K C1 TTFT from
+11.1/21.5 seconds to 8.9/17.1 seconds versus our reference EXL3 configuration;
+C4/16K total wall fell from 78.54 to 57.21 seconds. Those NVFP4 runs used 64K
+context. The newer videos use 512K and a separate staggered field-guide
+workload; see the [full evidence and caveats](results/CURRENT.md).
+
+NVFP4 trades additional resident weight/scale memory for faster native
+prefill arithmetic. 512K is the tested window on our two Sparks, not a promise
+of four simultaneous full-window requests. EXL3 still offers more memory
+headroom and retains a tested 1M configuration.
 
 The EXL3/TR3 checkpoint used for the included benchmark results was produced
 using **ShapleyMCG by Brandon M. Music**. Its source-available license is separate
@@ -58,17 +71,15 @@ kept as explicitly legacy evidence rather than retroactively certified.
 ## Start here
 
 - **Check the component licenses before downloading:** read
-  [docs/LICENSING.md](docs/LICENSING.md). The default reproduces the published
-  four-stream video's DFlash2 configuration. Its separately downloaded
+  [docs/LICENSING.md](docs/LICENSING.md). The default uses the measured MXFP8 DFlash2 configuration. Its separately downloaded
   checkpoint is CC BY-NC-ND 4.0 and therefore non-commercial/no-derivatives;
-  use `SPEC_METHOD=mtp` or `none` when those terms do not fit.
+  use a separately qualified alternative when those terms do not fit.
 - **Run the current engine:** follow the build and two-node launch process in
   [SPARKGLM.md](SPARKGLM.md). It is the authoritative installation guide;
   the retained upstream README is historical reference.
-  Stop any resident full model before `BUILD=1`: native EXL3 compilation and a
+  Stop any resident full model before building: native EXL3 compilation and a
   loaded checkpoint compete for the GB10's unified memory. The launcher now
-  refuses a build below 32 GiB `MemAvailable` unless the operator deliberately
-  sets `BUILD_MIN_MEM_GIB=0`.
+  refuses a build below 32 GiB `MemAvailable` .
 - **Reproduce what we showed:** the fresh-checkout defaults and their exact
   historical evidence are mapped in
   [the published-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md).
@@ -91,7 +102,7 @@ kept as explicitly legacy evidence rather than retroactively certified.
 
 | Path | Status | Purpose |
 | --- | --- | --- |
-| repository root | current candidate | Two-Spark vLLM + EXL3 serving recipe and optimized kernels |
+| repository root | current candidate | NVFP4 default installer, optional latest EXL3 profile, and shared engine foundation |
 | `benchmarks/` | test harnesses | Reproducible endpoint, tinyGLM, and kernel A/B programs |
 | `results/` | canonical evidence | Indexed qualification records, reports, raw receipts, limitations, and rejected work |
 | `research/current-engine-history/` | provenance | Accepted commit mailbox without unsafe historical git objects |
@@ -104,17 +115,12 @@ available.
 
 ## Evidence status
 
-There is not yet a post-policy G3/G4/G5 qualification for this release
-candidate. The repository contains valuable pre-policy measurements, but they
-are labeled `legacy` because several use approximate prompt generators,
-partial matrices, or fewer semantic checks than the current method requires.
-They guide hypotheses; they do not certify today's default.
-
-The strongest retained signals were work-conserving mixed scheduling, the
-inherited M64 fat-expert pipeline, grouped prefill, and cooperative decode.
-Their exact numbers, revisions, raw receipts, and limitations live in
-[the results map](docs/RESULTS.md). Do not add their percentages together or
-describe a tinyGLM/kernel result as full-model endpoint performance.
+The current evidence includes checksum-bound operator, tinyGLM, full-model
+comparison, semantic and context-capacity runs. The selected source preview
+has **no complete G5 endurance certification**. See [current status](results/CURRENT.md)
+for workload definitions and the bounded quality and memory limitations.
+Earlier pre-policy campaigns remain explicitly labeled `legacy`; do not add
+percentages across experiments or equate kernel speed with endpoint speed.
 
 ## What is not included
 
@@ -135,9 +141,8 @@ The optimized path is intentionally narrow:
 - 2x NVIDIA DGX Spark / GB10 / SM121
 - GLM-5.3-Flash
 - TP=2
-- EXL3/TR3 K4 routed experts
-- DFlash2 k=7 by default to match the published video; MTP and no-speculation
-  overrides remain available
+- NVFP4 compressed-tensors target; latest EXL3 remains an explicit option
+- MXFP8 DFlash2 k=7, target and draft both TP2
 - medium and long staggered workloads, not only short synthetic decode
 
 Fallbacks and rollback knobs remain because a fast unsupported shape is a bug,
@@ -145,12 +150,12 @@ not an optimization.
 
 Important defaults include work-conserving
 `GLM53_MIXED_PREFILL_CHUNK=0`, the GB10-selected 16 ms TP spin window, and the
-`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. The posted-current-build target
-also enables grouped prefill and cooperative EXL3 decode. Their retained
-evidence and incomplete current qualification are stated explicitly in
-[the posted-video configuration](docs/PUBLISHED_VIDEO_CONFIGURATION.md) and
-[known limitations](docs/KNOWN_LIMITATIONS.md); both retain immediate rollback
-switches in `.env.example`.
+`rightsize` mode for `GLM53_INDEXER_WORKSPACE`. The NVFP4 profile adds native
+CUTLASS MoE, 2K chunks and the measured 512K/9 GiB budget. The EXL3 profile
+selects corrected concurrent E3 with 32-row temporary expert buffers.
+See [video settings](docs/PUBLISHED_VIDEO_CONFIGURATION.md) and
+[known limitations](docs/KNOWN_LIMITATIONS.md). Legacy `.env` knobs apply only
+to `start-exl3.sh`; the managed default uses the explicit installer options.
 
 ## Licensing
 
@@ -171,12 +176,12 @@ upstreams:
 
 Read [LICENSE](LICENSE), [NOTICE](NOTICE), and
 [docs/LICENSING.md](docs/LICENSING.md) before redistribution. The default
-DFlash2 checkpoint is fetched separately under CC BY-NC-ND 4.0; use
-`SPEC_METHOD=mtp` or `none` when those terms do not fit the deployment.
-Those switches do not change the target EXL3/TR3 checkpoint's ShapleyMCG
-License 1.0: it requires attribution for published results and includes a
-named-party/channel exclusion. It is source-available, not OSI open source.
-Read [the model licensing boundary](docs/LICENSING.md#model-boundary) before use.
+draft is fetched separately; its upstream non-commercial/no-derivatives
+terms still matter. Alternative drafters require separate qualification.
+The EXL3/TR3 checkpoint's ShapleyMCG License 1.0 requires attribution for
+published results and includes a named-party/channel exclusion. It is
+source-available, not OSI open source. Read
+[the model licensing boundary](docs/LICENSING.md#model-boundary) before use.
 
 ## Publication gate
 

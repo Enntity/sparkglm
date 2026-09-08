@@ -183,7 +183,7 @@ def test_mode_enum_matches_launcher_enum() -> None:
     block) over the same values and requires the accept/reject verdicts to
     match ``_glm53_workspace_mode`` exactly.
     """
-    start = ROOT / "start.sh"
+    start = ROOT / "start-exl3.sh"
     if not start.is_file():
         return
     source = start.read_text()
@@ -778,7 +778,7 @@ def test_live_container_copy_if_enabled() -> None:
 # 5. recipe wiring
 # --------------------------------------------------------------------------
 def test_recipe_wiring_if_present() -> None:
-    start = ROOT / "start.sh"
+    start = ROOT / "start-exl3.sh"
     dockerfile = ROOT / "Dockerfile"
     readme = ROOT / "README.md"
     if not start.is_file() or not dockerfile.is_file():

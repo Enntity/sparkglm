@@ -1,3 +1,48 @@
+# Current public default: NVFP4 512K research preview
+
+As of September 8, the maintainer selected the measured NVFP4 mixed recipe as
+the public install default. This does not upgrade any recorded gate or claim
+G5 certification. The prior preview status below is retained as history.
+
+| Frozen matched suite (three retained repetitions) | Reference EXL3 | Updated EXL3 | NVFP4 |
+| --- | ---: | ---: | ---: |
+| C1 16K TTFT, seconds | 11.056 | 10.949 | 8.911 |
+| C1 32K TTFT, seconds | 21.519 | 24.884 | 17.113 |
+| C4 16K complete wall, seconds | 78.54 | 67.31 | 57.21 |
+
+[Checksum-bound comparison](candidates/2026-09-07-tp2-comparison/RESULT.md).
+These compare complete tuned configurations: EXL3 used 1M context, NVFP4 64K.
+TTFT includes first-token work; it is not a raw prefill-kernel throughput test.
+Bounded semantic results were 15/16 reference, 14/16 updated EXL3, 15/16 native
+NVFP4, and 16/16 slower Marlin. They do not establish broad quality equivalence.
+
+The subsequent **512K / 9 GiB** profile passed a 523,264-token cold prompt
+(TTFT 341.758s) and two cached tool continuations (~1.9/2.1s).
+C4 at 64K each passed all 12 turns, but cached latency under contention ranged
+7.4–151.3s with preemption. [Capacity evidence](candidates/2026-09-08-nvfp4-context-512k9/RESULT.md).
+The previous 1M attempt failed with insufficient memory; 512K is a deliberate
+headroom tradeoff, not a full-window concurrency guarantee.
+
+The **separate staggered video workload** uses four ~16K field-guide prompts,
+arrivals 0/1/2/3s, and 400 output tokens per request. Median of three:
+
+| Recorded configuration | Complete wall | Output tokens / complete wall |
+| --- | ---: | ---: |
+| NVFP4 mixed, 512K | 83.869s | 19.08 tok/s |
+| NVFP4 skip, 512K | 116.122s | 13.78 tok/s |
+| Mia 9c0794b default skip, 850K | 128.176s | 12.48 tok/s |
+
+All 12 requests per configuration completed. The NVFP4 mixed campaign had
+preemptions; neither skip campaign did. Capacities, drafters, chunks, and
+scheduler implementations differ. These are complete recipe comparisons,
+not an isolated quantization experiment or criticism of Mia's work.
+
+Bundles: [mixed](candidates/2026-09-08-nvfp4-c4-video/RESULT.md),
+[skip](candidates/2026-09-08-nvfp4-skip-c4/RESULT.md),
+[Mia as presented](candidates/2026-09-08-mia-9c0794b-c4/RESULT.md).
+
+---
+
 # Current qualification status
 
 ## September 7 TP2 experiments

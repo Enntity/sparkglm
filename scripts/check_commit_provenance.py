@@ -15,6 +15,9 @@ RUNTIME_PATHS = (
     "overlay/",
     "patches/",
     "start.sh",
+    "start-exl3.sh",
+    "scripts/appliance.py",
+    "profiles/",
     "scripts/boot-shape-warmup.sh",
 )
 HEADINGS = ("Provenance:", "Original work:", "Verification:")

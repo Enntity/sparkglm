@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_max_num_seqs_inline_override_wins() -> None:
-    source = (ROOT / "start.sh").read_text()
+    source = (ROOT / "start-exl3.sh").read_text()
     marker = "# ----------------------------- configuration -------------------------------"
     preamble, separator, _rest = source.partition(marker)
     assert separator, "start.sh configuration marker is missing"
@@ -42,7 +42,7 @@ def test_max_num_seqs_inline_override_wins() -> None:
 
 
 def _run_preamble(env_file: str, caller: dict[str, str], probe: str) -> str:
-    source = (ROOT / "start.sh").read_text()
+    source = (ROOT / "start-exl3.sh").read_text()
     marker = "# ----------------------------- configuration -------------------------------"
     preamble, separator, _rest = source.partition(marker)
     assert separator, "start.sh configuration marker is missing"
@@ -159,7 +159,7 @@ def test_decode_coop_overrides_win_and_defaults_are_materialized() -> None:
         },
         probe,
     ) == "COOP=1 MAX=16"
-    source = (ROOT / "start.sh").read_text()
+    source = (ROOT / "start-exl3.sh").read_text()
     assert 'EXL3_DECODE_COOP_K4="${EXL3_DECODE_COOP_K4:-1}"' in source
     assert (
         'EXL3_DECODE_COOP_MAX_TOKENS="${EXL3_DECODE_COOP_MAX_TOKENS:-16}"'

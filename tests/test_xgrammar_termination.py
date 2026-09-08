@@ -378,7 +378,7 @@ def test_installed_copy_if_present() -> None:
 
 
 def test_recipe_wiring_if_present() -> None:
-    start = ROOT / "start.sh"
+    start = ROOT / "start-exl3.sh"
     dockerfile = ROOT / "Dockerfile"
     if not start.is_file() or not dockerfile.is_file():
         return

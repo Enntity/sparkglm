@@ -20,7 +20,7 @@ NETWORKS = [ipaddress.ip_network((base, bits)) for base, bits in (
 # The original serving kit's documented example network, not lab addresses.
 EXAMPLE_IPS = {ipaddress.ip_address(0x0A000000 + n) for n in range(1, 5)}
 EXAMPLE_PATHS = {
-    '.env.example', '.env.tp4.example', 'start.sh', 'start-tp4.sh',
+    '.env.example', '.env.tp4.example', 'start.sh', 'start-exl3.sh', 'start-tp4.sh',
     'docs/upstream/MIA_RECIPE_README.md', 'tests/test_numeric_config.py',
 }
 SECRET = re.compile(
