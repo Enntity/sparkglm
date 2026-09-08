@@ -1,5 +1,22 @@
 # Current qualification status
 
+## September 7 TP2 experiments
+
+- [Managed full-model E3 comparison](candidates/2026-09-07-e3-managed/qualification.json)
+  retains the broad E3 policy as rejected: concurrent gains did not protect
+  isolated latency.
+- [Concurrent E3 and 32-row screens](candidates/2026-09-07-e3-concurrent-screen/qualification.json)
+  preserve passing operator checks and the tiny-model decode regression.
+- [Cooperative decode through 32 tokens](candidates/2026-09-07-decode32-screen/RESULT.md)
+  found small mixed gains; the serving limit remains 16.
+- [MXFP8 draft support](../research/experiments/mxfp8-draft/README.md)
+  is self-contained and opt-in. The inherited loader uses actual draft TP2;
+  a TP1 flag does not create an independent draft group.
+
+These experiments do not change the reconstructable default below. Final
+appliance comparisons may independently tune each path, while preserving
+quality and reporting the complete configuration and context capacity.
+
 The root build targets the final posted-video engine and configuration,
 including grouped prefill and cooperative decode. See the
 [runtime mapping](../docs/PUBLISHED_VIDEO_CONFIGURATION.md).

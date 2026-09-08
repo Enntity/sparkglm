@@ -1,0 +1,109 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-decode32-screen",
+  "title": "Cooperative decode 32-token bounded operator screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Measure incremental cooperative decode opportunity above the current 16-token default",
+  "change": {
+    "baseline_ref": "8d65c5e",
+    "candidate_ref": "working-tree",
+    "working_tree_clean": false,
+    "provenance": [
+      "Original extension of the preserved EXL3 operator benchmark; no new serving code or default change."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10, standalone single GPU",
+    "python": "3.12 container",
+    "configuration": {
+      "experts": 288,
+      "hidden_size": 4096,
+      "intermediate_size": 1024,
+      "synthetic_clamp": 75,
+      "candidate_max_tokens": 32,
+      "serving_default_max_tokens": 16
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, provenance, and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded numerical and changed-input graph screen passed; sanitizer and production clamp qualification not run."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "stock/cooperative M17",
+      "value": 0.963,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "stock/cooperative M31",
+      "value": 1.025,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "stock/cooperative M32",
+      "value": 1.037,
+      "unit": "ratio",
+      "samples": 1
+    },
+    {
+      "name": "stock/cooperative M33",
+      "value": 1.004,
+      "unit": "ratio",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "c310f2cc388b2f94fefaebc29e31f2d6ce7e7d2e5c224885e6d324db0a7c7cb8"
+    },
+    {
+      "path": "g1.log",
+      "kind": "raw-receipt",
+      "sha256": "b30053ff7e70fdbcd9f281e70d8ba08c5babd1a08368a7867eb45756fc9da2f8"
+    }
+  ],
+  "limitations": [
+    "Synthetic operator screen only; clamp 75 differs from real GLM clamp 10.",
+    "Small mixed gains; default remains 16.",
+    "No sanitizer, TP2 integration, full-model performance, or quality qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

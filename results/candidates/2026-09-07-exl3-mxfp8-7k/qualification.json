@@ -1,0 +1,182 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-exl3-mxfp8-7k",
+  "title": "EXL3 with MXFP8 draft tuned TP2 screen",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Measure independently tuned complete TP2 configuration",
+  "change": {
+    "baseline_ref": "672df9e4155fa1fa12f6dc63dbd41f0fa7272ab7",
+    "candidate_ref": "ca0be02d1d60378482dd1c2e11ed434071c02aa0",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original tuning and benchmark evidence. MXFP8 support copied from reviewed loud1990 revision d00b2ffa70e0ccbfd582088ab32448b01bfe9c67, preserved in research/experiments. E3 disabled."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:c149aec063e8c92423bcae2b1d8015c265ba4c9862089f21136745fc6c516533",
+      "sha256:dbf26d78fc36a55fe1598dcd52e5ad9aa8cec120bcbd7743cc20c8107afa7da5"
+    ],
+    "model_revision": "25a44fdbf16862a46b7cc9921142c6c81350af2f",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "context_tokens": 65536,
+      "kv_cache_bytes_per_rank": "automatic",
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "prefill_tokens": 7168,
+      "max_num_seqs": 4,
+      "e3": false,
+      "moe_backend": "auto",
+      "image_source_revision": "ca0be02d1d60378482dd1c2e11ed434071c02aa0"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Preserved target kernel checks exist in prior bundles; independent MXFP8 numeric qualification not complete."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Target tiny fixture evidence exists; no speculative tiny fixture qualification."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Exploratory retained full matrices; independently tuned settings, no matched three-pair qualification."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "Bounded semantic failures: arithmetic_123_47, arithmetic_91_89. All raw results retained."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance or release qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k median wall",
+      "value": 24.154752749949694,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c1-32k median wall",
+      "value": 35.387486040592194,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-16k median wall",
+      "value": 40.62633525021374,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c2-32k median wall",
+      "value": 61.6243326254189,
+      "unit": "s",
+      "samples": 1
+    },
+    {
+      "name": "c4-16k median wall",
+      "value": 74.02203937526792,
+      "unit": "s",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "01a30578476dae5c17272ad27838b7a8e65d2c31348a5d213f83c52b814f063e"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7483dce403a03f235cc7495120565f8d2069fb2620a3ef5ae0901d9a153fb9c5"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a5029919501e27b1f558428eb8d5ebfb7765ba8be81f6ecbd707b12048c16546"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "ca8ecb8489afb4e985025db69e2f97680c5ace51efeef6e462ceda80816ef501"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a44e649733b51f2a588a11c5cf25fb83247d515349f5222282086b1c3c8829b1"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "794bd13f977868d0bca90feb5329e820bc3f7dae032e3cc1c5158655f940b819"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "2c6cc5e58bb36c874cfba57fc9eccb8c284833d16fdf66763258d0fcf8684057"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "5e0c49b7019a24ed1a33b8f78ec0a6faa8a1e96adab963db89a8282335fccf32"
+    },
+    {
+      "path": "raw/gateway-canary.json",
+      "kind": "raw-receipt",
+      "sha256": "157d488794344dee8ceb34ef37e853c35fa465b6aba46ea1d1a8ce4b40edde2f"
+    },
+    {
+      "path": "raw/head-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "24828bcfca5f3442470b4ffad95c761d095c7b5ec19dc6e341f2382de599332c"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "91213d24d4a0fd3a707a4b3955147e7b863780a0768111027785d4ae7d41c40c"
+    },
+    {
+      "path": "raw/shape-warmup.log",
+      "kind": "raw-receipt",
+      "sha256": "dc9b844123841061c430b957a445f47b8020531851dcfa402d0c0edb70fe0512"
+    },
+    {
+      "path": "raw/worker-selection.log",
+      "kind": "raw-receipt",
+      "sha256": "5c340c8727c82bf18df9a7ca696eb4cb1317c6cce22c2beddee0adaac96f4fd3"
+    }
+  ],
+  "limitations": [
+    "Independently tuned configuration, not an isolated kernel comparison.",
+    "MXFP8 draft integration remains experimental.",
+    "Arithmetic failure remains and no broad quality or endurance qualification is claimed."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

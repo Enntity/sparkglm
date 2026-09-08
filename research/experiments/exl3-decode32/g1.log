@@ -1,0 +1,15 @@
+WARNING 09-08 04:39:31 [exl3.py:113] SPARKGLM_TINY_DUMMY=1: initialized synthetic EXL3 trellis weights; outputs are intentionally meaningless
+INFO 09-08 04:39:31 [exl3.py:551] exl3 e2 diag schema=2 configured_tier=legacy effective_tier=legacy tier_reason=none_requested shared_suh=1 shared_suh_layers=1/1 sym_exl3_moe=1 sym_fat_gemm=1 sym_fat_gemm_scatter=1 sym_fat_gemm_pair=1 sym_fat_swiglu_had=1 fat_pair_enabled=1 fat_fused_activation_enabled=1 fat_tile_m=64 cap=12.1 cap_ok=1 tp_rank=-1 tp_size=1 prefill_layer_calls=0 thin_calls=0 row_tile_calls=0 fallback_calls=kernel=0,batched=0,sorted=0,legacy=0 fallback_reasons=none fat_expert_runs=0 direct_calls=0 pair_calls=0 fused_activation_calls=0 scatter_calls=0 fat_layers=0 fat_expert_slots=0 max_rows=0 fused_temps_allocs=0 fused_temps_bytes=0 fat_scratch_allocs=0 fat_scratch_bytes=0 fat_scratch_peak_bytes=0
+WARNING 09-08 04:39:31 [exl3.py:1270] EXL3 cooperative decode candidate enabled: K4 H4096 I1024 max_tokens=32 scratch=7.50 MiB
+INFO 09-08 04:39:31 [exl3.py:1995] EXL3 MCG trellis engaged for routed experts: bits=4 experts_local=288 hidden=4096 intermediate_local=1024 fused_moe=exl3_moe concurrency=6 (no BF16 expert reconstruct at load)
+tokens baseline_ms candidate_ms speedup max_abs mean_abs cosine
+     1      0.4385       0.4743   0.925  0.0000  0.00000 1.00000
+     2      0.6394       0.7332   0.872  0.0000  0.00000 1.00000
+     4      1.0216       1.0720   0.953  0.0000  0.00000 1.00000
+     8      1.6809       1.5974   1.052  0.0000  0.00000 0.99999
+    16      2.7657       2.7361   1.011  0.0000  0.00000 1.00000
+    17      2.9357       3.0492   0.963  0.0000  0.00000 1.00000
+    31      4.9958       4.8761   1.025  0.0000  0.00000 0.99999
+    32      5.1921       5.0091   1.037  0.0000  0.00000 1.00000
+    33      5.3060       5.2829   1.004  0.0000  0.00000 1.00000
+EXL3 cooperative decode A/B: PASS

@@ -1,0 +1,91 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-screen",
+  "title": "Universal E3 dispatch rejected",
+  "date": "2026-09-07",
+  "state": "rejected",
+  "qualification_level": "G0",
+  "target": "32K staggered C2 wall time; protect C1, C4, deterministic integration and semantics",
+  "change": {
+    "baseline_ref": "0fca203",
+    "candidate_ref": "6769921bc0f1e9a66a7b5a94dec233267f541bf5",
+    "working_tree_clean": true,
+    "provenance": [
+      "Copied MIT Mia E3 at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b; original 4096-token policy, source-locked adapter, kernel probes and LLooM integration."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10 single-GPU TP2-local operator",
+    "python": "3.11.6",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:710215ddbd7e29985d92ca99de852ffee3402ad3e3b26bf7adf0fc6763c85d71",
+      "sha256:36e23ace1ef4763b4763ec57708152bd33f85bbec25c62f2204ff3a29c491027"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "default_changed": false,
+      "synthetic_routes": true
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed"
+    },
+    {
+      "id": "G1",
+      "status": "fail",
+      "summary": "Numerical screen passed; universal dispatch failed small-shape performance. Sanitizer and G2 not run for this rejected policy."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "kind": "human-report",
+      "sha256": "57877f5cdfb8fef2525f83396f94e5d8da6e2e8c69aae2ce1d48272ef1470d6f"
+    },
+    {
+      "path": "SHA256SUMS",
+      "kind": "raw-receipt",
+      "sha256": "1dab5c3d888c5cfbf0b28d6491bcdd8edffada04d2d0d163c02455d7eb259096"
+    },
+    {
+      "path": "g1-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "2e2ccfb4ddce3cc2dd0f02e32a06fc7aafd4c624c469c008009088e611975089"
+    }
+  ],
+  "limitations": [
+    "Operator screen only; no full-model claim."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

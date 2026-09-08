@@ -10,11 +10,14 @@ QUICK_TESTS=(
     tests/test_benchmark_contract.py
     tests/test_chat_template.py
     tests/test_commit_provenance.py
+    tests/test_direct_epilogue.py
+    tests/test_e3_concurrent_policy.py
     tests/test_image_recipe.py
     tests/test_indexer_workspace.py
     tests/test_kpool_tail_slotmap.py
     tests/test_licensing.py
     tests/test_local_links.py
+    tests/test_mxfp8_draft_sources.py
     tests/test_model_revision_pins.py
     tests/test_numeric_config.py
     tests/test_publication_privacy.py

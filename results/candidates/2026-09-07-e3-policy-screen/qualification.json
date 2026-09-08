@@ -1,0 +1,91 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-policy-screen",
+  "title": "E3 2048 threshold rejected; 4096 hypothesis retained",
+  "date": "2026-09-07",
+  "state": "rejected",
+  "qualification_level": "G0",
+  "target": "32K staggered C2 wall time; protect C1, C4, deterministic integration and semantics",
+  "change": {
+    "baseline_ref": "0fca203",
+    "candidate_ref": "80b85461737059fd00ba8c7eedafd9749e267628",
+    "working_tree_clean": true,
+    "provenance": [
+      "Copied MIT Mia E3 at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b; original 4096-token policy, source-locked adapter, kernel probes and LLooM integration."
+    ]
+  },
+  "environment": {
+    "capture_platform": "DGX Spark GB10 single-GPU TP2-local operator",
+    "python": "3.11.6",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:710215ddbd7e29985d92ca99de852ffee3402ad3e3b26bf7adf0fc6763c85d71",
+      "sha256:36e23ace1ef4763b4763ec57708152bd33f85bbec25c62f2204ff3a29c491027"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "default_changed": false,
+      "synthetic_routes": true
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed"
+    },
+    {
+      "id": "G1",
+      "status": "fail",
+      "summary": "Top-8 cardinality arithmetic passed; 2048 threshold failed performance. Follow-up >=4096 qualification is tracked separately in 2026-09-07-e3-managed."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "README.md",
+      "kind": "human-report",
+      "sha256": "70fbaeb6e3acf15301c976031ccda215f0b5678c5b33ad632ba4c04d7b6cd549"
+    },
+    {
+      "path": "SHA256SUMS",
+      "kind": "raw-receipt",
+      "sha256": "0d620fb86b14ad49ba21b5412ac50e934568132adac4e1d3c0aca568cf196bda"
+    },
+    {
+      "path": "g1-policy-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7b69c5e3a033e445c91d8ce8346e5c5073497c403e7ce1bff9c1b40f7d2ad2f8"
+    }
+  ],
+  "limitations": [
+    "Operator screen only; no full-model claim."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

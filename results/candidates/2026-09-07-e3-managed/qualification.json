@@ -1,0 +1,371 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-managed",
+  "title": "Broad E3 large-prefill policy rejected by full-model screen",
+  "date": "2026-09-07",
+  "state": "rejected",
+  "qualification_level": "G2",
+  "target": "32K staggered C2 wall time; protect C1, C4, deterministic integration and semantics",
+  "change": {
+    "baseline_ref": "0fca203",
+    "candidate_ref": "80b85461737059fd00ba8c7eedafd9749e267628",
+    "working_tree_clean": true,
+    "provenance": [
+      "Copied MIT Mia E3 at 2c0ebe55a91ac8c0868cd6cba264e14bce93c66b; original 4096-token policy, source-locked adapter, kernel probes and LLooM integration."
+    ]
+  },
+  "environment": {
+    "capture_platform": "2x DGX Spark GB10, TP2; client macOS",
+    "python": "3.11.6",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:710215ddbd7e29985d92ca99de852ffee3402ad3e3b26bf7adf0fc6763c85d71",
+      "sha256:36e23ace1ef4763b4763ec57708152bd33f85bbec25c62f2204ff3a29c491027"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "e3_min_input_tokens": 4096,
+      "default_changed": false,
+      "tiny_fixture": "tinyglm-v1-e16-v256-l32768",
+      "tiny_repetitions": 3,
+      "candidate_serving_source_sha256": "38264d7b54835c0eaf731c0602a709586d0de0ed1e8f762aa7bfc55ac39dbfb0",
+      "candidate_extension_sha256": "2d76cf9c2f77085efe293ed1878d9cfc8de4f049080036b9d7d57786205d8b02"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed for committed candidate source."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Reference-relative boundary, graph replay, top-8 cardinality and CUDA memcheck passed; universal and 2048 policies were rejected separately, retained policy starts at4096."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Isolated warmed three-repetition tinyGLM comparison passed token equality, determinism and protected performance. Background-load warmup anomaly is retained as a limitation."
+    },
+    {
+      "id": "G3",
+      "status": "fail",
+      "summary": "Three alternating pairs completed; primary 32K C2 median is noisy and 16K C1 regresses. C4 gains motivate a separate narrower policy; broad dispatch is rejected."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "Bounded serving functions passed, but arithmetic failures and output nondeterminism remain. Final E3 and reference each fail 91x89; earlier E3 also failed 123x47. No general quality pass."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k paired wall speed ratio",
+      "value": 0.9072119948138064,
+      "unit": "ratio",
+      "samples": 3
+    },
+    {
+      "name": "c1-32k paired wall speed ratio",
+      "value": 1.035809973075576,
+      "unit": "ratio",
+      "samples": 3
+    },
+    {
+      "name": "c2-16k paired wall speed ratio",
+      "value": 1.0019615938753823,
+      "unit": "ratio",
+      "samples": 3
+    },
+    {
+      "name": "c2-32k paired wall speed ratio",
+      "value": 1.0447040725884609,
+      "unit": "ratio",
+      "samples": 3
+    },
+    {
+      "name": "c4-16k paired wall speed ratio",
+      "value": 1.2596390479569333,
+      "unit": "ratio",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "bc3fc56954323b412fd90646189ea22d59b9d33ce75246aa95e778d578ffee33"
+    },
+    {
+      "path": "raw/full-baseline-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "27325d83adb0134720ad9dd447f6a55944ba5a21c4b95fcb2730ae80efba8177"
+    },
+    {
+      "path": "raw/full-baseline-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "41e2c2d7b4f4007a709c55d15469c1b341223ce9d181bde7a4d663a54f785742"
+    },
+    {
+      "path": "raw/full-baseline-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d3a39daf751e0e39d8727c5fa9003e013f5cd00a80bdc924d210e6b5323e7735"
+    },
+    {
+      "path": "raw/full-baseline-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "dd1dc560e1d503dd8a32813f085119735a07e25923803ae67f2991764eb0163e"
+    },
+    {
+      "path": "raw/full-baseline-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "630a523160795a93149e000012af57cb48c165e308563d78bf0538091e0b8ccd"
+    },
+    {
+      "path": "raw/full-baseline-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "5bf4f3f138f151aba3120644e1b6f9584b208ef2cf1727e06c90d129a2f966f3"
+    },
+    {
+      "path": "raw/full-baseline-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "838b46c8f695a02c276ee594191b40b4bf61cca977bb1e4a18c5660f9bd0f3e5"
+    },
+    {
+      "path": "raw/full-baseline-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "53635596deb851e70c3e7247aed6affebc87400be51aa3c5e03e97a685083afe"
+    },
+    {
+      "path": "raw/full-baseline-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "cbd6df5e1a43732947f49feeb521d714d2237a3dff859356c8c0f0789cc5ba77"
+    },
+    {
+      "path": "raw/full-baseline-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "770518d3a5e2799a8127ebf9263169fcc76ad932ae120b2da0fbd294fa4f9c08"
+    },
+    {
+      "path": "raw/full-baseline-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "4ba307171a099cb0ad359d6def29e310559263067f3e874f4697285adb5b4232"
+    },
+    {
+      "path": "raw/full-baseline-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "1af34935f7cf9b57e0739a07bfe08b4494c9b91f489b77e35e99ea7b7b96bbde"
+    },
+    {
+      "path": "raw/full-baseline-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8e341cf0837bb8d021c0b015e3726c48396e1bc74587de64323e11cec8f6f8f9"
+    },
+    {
+      "path": "raw/full-baseline-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "bd3426bd8f18b08938610e82746b9e96c549f80bb04e43fce4254e728cc1bad2"
+    },
+    {
+      "path": "raw/full-baseline-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "c745d8d26fade9be9dae4e50f5e5a611a3049b54ebc031e3901424d941f4f906"
+    },
+    {
+      "path": "raw/full-baseline-server-manifest-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "044be758b34f7b0a2e4ead35d048616ba3177522e9b2a839569e8f9cb6633828"
+    },
+    {
+      "path": "raw/full-baseline-server-manifest-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "fd78b9036b0c4686ce68ec90e5ec8e291031b3d51b2f42fe4fd8af2d016c4209"
+    },
+    {
+      "path": "raw/full-baseline-server-manifest-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "bf712de1f8617558930cc27fee1b3ffc89de9ea7890f9b4ac7078ddbd54e396d"
+    },
+    {
+      "path": "raw/full-baseline-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "bf712de1f8617558930cc27fee1b3ffc89de9ea7890f9b4ac7078ddbd54e396d"
+    },
+    {
+      "path": "raw/full-candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a4eede4cfd67065c39119b9f95d82ce2016c1c3047599c1d8b8eeae1725bcc1a"
+    },
+    {
+      "path": "raw/full-candidate-c1-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "b15a38bcc912aae141c7e18e6bba25e353d8a1c295bc0b370bca114af362822d"
+    },
+    {
+      "path": "raw/full-candidate-c1-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "d263b922c67692e4c8244d7d6ad8595813898349ee3256fe052cd9ea1a1a7438"
+    },
+    {
+      "path": "raw/full-candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7846651c373bfe10b2e057e354a042fe326d40b0460d7d274773be6a6d47a868"
+    },
+    {
+      "path": "raw/full-candidate-c1-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "c31259109c61d2ef353abe05a190f60e5026b946c3cbf7a411231bd080a7be29"
+    },
+    {
+      "path": "raw/full-candidate-c1-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "cbad52f535c885026092f2fc375277152e1e052c27cad50ff29dc1e59535ba34"
+    },
+    {
+      "path": "raw/full-candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "c492842cabfea5fda991f3dae4f82edba817d0aed24ed3f0e854cc078785993f"
+    },
+    {
+      "path": "raw/full-candidate-c2-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "5d535889fd067d32496ee35f568b9053abb941a01dd852013d65b2b8beca4bd5"
+    },
+    {
+      "path": "raw/full-candidate-c2-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "48d906fca7c2a32faae7242b025b919411e5e157e0a85db3c189be24c49f488e"
+    },
+    {
+      "path": "raw/full-candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "900ddc7a1abc7d1507d474d91e659d5c62b013d755ce58cd657188b9e96f5358"
+    },
+    {
+      "path": "raw/full-candidate-c2-32k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "b84160877b2c56f64cf86482ac682b6212713b82dc764ca45f8063e23e4d3dad"
+    },
+    {
+      "path": "raw/full-candidate-c2-32k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "b1f68cc2441f87e131e403e49e2cd12ea272f90bf0b82ea5c64ee84bec7fc4c9"
+    },
+    {
+      "path": "raw/full-candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "8f9ade2b96edc4763476aa04bc802c80b2083195bbf84ed71c1420da2712518d"
+    },
+    {
+      "path": "raw/full-candidate-c4-16k-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "7e7d305dcab8f281a48ea0693266438af01833438befc0e4d0efd016d90ae3f5"
+    },
+    {
+      "path": "raw/full-candidate-c4-16k-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "0b6b0bfa6cd11482f72d3e4a0c8e70afb8f297b4aab4fa378db6064e09934c4f"
+    },
+    {
+      "path": "raw/full-candidate-server-manifest-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "4f63c2a2cb28e48c0a9b8b4aa6c5a28c6032c435e0a5affdc10c940e82e8f5f0"
+    },
+    {
+      "path": "raw/full-candidate-server-manifest-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "2b7346ddd848dd8782a22c6da349fdbc70cfc0729452c0092d05fc84af12ba7d"
+    },
+    {
+      "path": "raw/full-candidate-server-manifest-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "fd881dc7c0366621719c741b94e992647ba9fbf72ac4f3ac940919fb73cf906b"
+    },
+    {
+      "path": "raw/full-candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "fd881dc7c0366621719c741b94e992647ba9fbf72ac4f3ac940919fb73cf906b"
+    },
+    {
+      "path": "raw/gateway-attribution.json",
+      "kind": "raw-receipt",
+      "sha256": "095a1b29b52916003c753e9243c9b850e1ab7bb6d4cea95ce6a17a1c01a5e227"
+    },
+    {
+      "path": "raw/sparkglm-e3-managed-canary.json",
+      "kind": "raw-receipt",
+      "sha256": "e5f143ac961f4c3c396fe0640cad6b77d6896bcd40149efc2599d3cbbe9bff7e"
+    },
+    {
+      "path": "raw/sparkglm-e3-memcheck.log",
+      "kind": "raw-receipt",
+      "sha256": "87bdeaa475b3797a93c73746ac6600774d4ff08bcee25569c7e44bb0531e839b"
+    },
+    {
+      "path": "raw/sparkglm-e3-policy-memcheck.json",
+      "kind": "raw-receipt",
+      "sha256": "43bdf1d1b120d9e00c6268480198400ee8d630bd6cc3ad7eb231214b70c5569f"
+    },
+    {
+      "path": "raw/sparkglm-e3-semantics-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "3368490952e2300c20fe30ff625acbfe271f662feb513f20be1453ac362e0c9e"
+    },
+    {
+      "path": "raw/sparkglm-e3-semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "0af2fe07f021d4460a696eb597601b11f72e2723f8301c847a900b9ae3f66ab1"
+    },
+    {
+      "path": "raw/sparkglm-paired-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "999edccad8478be1f096898436a3c22f663b5c0df7ca9c3aa92f41fe91cb2125"
+    },
+    {
+      "path": "raw/sparkglm-reference-semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "5b97c93c181a27f1852c602c77899aebb3a94b09e6738ccd37a3287a4238c77e"
+    },
+    {
+      "path": "raw/sparkglm-tiny-baseline-initial.json",
+      "kind": "raw-receipt",
+      "sha256": "b847c595f800f670526d0981fe63f6be4848658700ad4d4db6921da36e06d7ce"
+    },
+    {
+      "path": "raw/sparkglm-tiny-baseline.json",
+      "kind": "raw-receipt",
+      "sha256": "e2c5f72f47d2489fca489babeedf1f601ca5b2061ac4ccdd1e79c32577692e16"
+    },
+    {
+      "path": "raw/sparkglm-tiny-candidate-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "3f7ece5bba52fd69d093664973f6a222a8084c6aa18ad3517a90b2acc6b3ef50"
+    },
+    {
+      "path": "raw/sparkglm-tiny-candidate.json",
+      "kind": "raw-receipt",
+      "sha256": "4a10577b79e99df42ed6fba31fd242016629ae4e1a63a9633a78e9528fa859fc"
+    }
+  ],
+  "limitations": [
+    "Broad policy is rejected; no default promotion or G5 release.",
+    "Automatic KV allocation differed under the same total GPU-memory policy; this is not equal explicit KV bytes.",
+    "Bounded arithmetic failures and output nondeterminism remain; final semantic scores match the reference but do not certify general quality.",
+    "Background-load tinyGLM signature anomaly remains retained.",
+    "Client manifests record harness source identity; immutable rank image identities establish serving source."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -1,0 +1,17 @@
+boot-shape-warmup: sweeping DFlash2 k=7 / sampler / kpool shapes
+  ladder s=1: tokenize 1/1 -> BLOCK 16 fired (2s)
+  ladder s=24: tokenize 24/24 -> BLOCK 32 fired (1s)
+  ladder s=56: tokenize 56/56 -> BLOCK 64 fired (4s)
+  ladder s=120: tokenize 120/120 -> BLOCK 128 fired (1s)
+  ladder s=248: tokenize 248/248 -> BLOCK 256 fired (1s)
+  arm c1: C=1 x ~32 tok, profile=bounded, think=false, 2s
+  arm think-c1: C=1 x ~16 tok, profile=bounded, think=true, 1s
+  arm short-c1: C=1 x ~8 tok, profile=serve-default, think=false, 3s
+  arm samp-k: C=1 x ~8 tok, profile=sampling-k, think=false, 1s
+  arm samp-p: C=1 x ~8 tok, profile=sampling-p, think=false, 1s
+  arm samp-kp: C=1 x ~8 tok, profile=sampling-kp, think=false, 1s
+  arm short-c2: C=2 x ~8 tok, profile=serve-default, think=false, 5s
+  arm samp-kp-c3: C=3 x ~8 tok, profile=sampling-kp, think=false, 1s
+  arm short-c4: C=4 x ~8 tok, profile=serve-default, think=false, 6s
+  sampler-cache postcondition: SKIPPED (GLM53_WARMUP_TRITON_CACHE_DIR unset or not a directory)
+boot-shape-warmup: 20/20 requests ok in 30s

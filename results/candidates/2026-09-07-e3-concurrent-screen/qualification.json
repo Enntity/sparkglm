@@ -1,0 +1,249 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-07-e3-concurrent-screen",
+  "title": "Concurrent E3 threshold screen: numerically valid, tiny decode regresses",
+  "date": "2026-09-07",
+  "state": "experiment",
+  "qualification_level": "G1",
+  "target": "Improve concurrent prefill while protecting C1; investigate smaller expert threshold",
+  "change": {
+    "baseline_ref": "0fca203",
+    "candidate_ref": "ca0be02d1d60378482dd1c2e11ed434071c02aa0",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original CPU metadata policy and threshold selection over pinned MIT E3 source; MXFP8 support layer from NVFP4 branch commit 45b03d696ad2ac865d576f9d6c08ad86ff126b49 is present but drafter disabled in these fixtures."
+    ]
+  },
+  "environment": {
+    "capture_platform": "2x DGX Spark GB10, TP2; client macOS",
+    "python": "3.11.6",
+    "image_digests": [
+      "sha256:730b15d4a094131d29c032a74660236151ae67dd33f49dc7bb1e6b6098d1ce66",
+      "sha256:79d05aa022c09d33a2f388bcad2824e09c5694353fc1cbda041d84712a2df71a",
+      "sha256:5af869f4bed90c28dfff208dfd9eee1069ef5eb4e31e4d46c233a4cb885338e6",
+      "sha256:c149aec063e8c92423bcae2b1d8015c265ba4c9862089f21136745fc6c516533",
+      "sha256:dbf26d78fc36a55fe1598dcd52e5ad9aa8cec120bcbd7743cc20c8107afa7da5"
+    ],
+    "model_revision": null,
+    "quant_revision": null,
+    "drafter_revision": null,
+    "configuration": {
+      "runtime_owner": "LLooM",
+      "default_changed": false,
+      "policy": "concurrent CPU attention metadata; solo reference",
+      "expert_threshold": 32,
+      "e3_min_input_tokens": 2048,
+      "candidate_prefill_tokens": 16384,
+      "reference_prefill_tokens": 7168,
+      "tiny_fixture": "tinyglm-v1-e16-v256-l32768",
+      "final_repetitions_per_arm": 9,
+      "candidate_source_sha256": "f6b3b248a8ab01e7b84103d285d11b2702afcc73a94b607358a7f8eddd66e58e",
+      "extension_sha256": "2d76cf9c2f77085efe293ed1878d9cfc8de4f049080036b9d7d57786205d8b02"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source, attribution and publication checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "H4096/I1024 top-8 E288 balanced/skewed M2048/4096/7168 and cap32 boundaries passed numerical tolerance, changed-input graph replay and redzones. CUDA memcheck completed with zero errors."
+    },
+    {
+      "id": "G2",
+      "status": "fail",
+      "summary": "All measured tokens identical to reference and nine-run output deterministic. Candidate tiny C1 median throughput remains about 7 percent below the nine-run reference; not eligible for promotion. Earlier cold warmup nondeterminism and all failed screens are retained."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Full-model tuning is not qualified by this fixture."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Full-model tuning is not qualified by this fixture."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Full-model tuning is not qualified by this fixture."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "decode_c1 tiny throughput ratio",
+      "value": 0.9261749204662304,
+      "unit": "ratio",
+      "samples": 9
+    },
+    {
+      "name": "mixed_c4 tiny throughput ratio",
+      "value": 1.0614827309628874,
+      "unit": "ratio",
+      "samples": 9
+    },
+    {
+      "name": "long_c2 tiny throughput ratio",
+      "value": 0.9754002240600652,
+      "unit": "ratio",
+      "samples": 9
+    },
+    {
+      "name": "E3-off nine decode_c1 aggregate",
+      "value": 226.6806018110351,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "E3-off nine mixed_c4 aggregate",
+      "value": 375.28823500744875,
+      "unit": "tokens/s",
+      "samples": 9
+    },
+    {
+      "name": "E3-off nine long_c2 aggregate",
+      "value": 71.48954899048347,
+      "unit": "tokens/s",
+      "samples": 9
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "E3_OFF_CONTROL.md",
+      "kind": "human-report",
+      "sha256": "4c7f78d867cbae1cbd6ed8d3ff5107db6e7c9b78a8f121713961f6b8464eb468"
+    },
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "3b73e54d64c41abcd9659312e7a2128ce814fbbec88341d914fcd01ca5c6546e"
+    },
+    {
+      "path": "raw/cap32-head-source-hashes.txt",
+      "kind": "raw-receipt",
+      "sha256": "a3753d236d47779afff42efaba445afb9582ef3fd1262988dd43ad95519a15fc"
+    },
+    {
+      "path": "raw/cap32-worker-source-hashes.txt",
+      "kind": "raw-receipt",
+      "sha256": "a3753d236d47779afff42efaba445afb9582ef3fd1262988dd43ad95519a15fc"
+    },
+    {
+      "path": "raw/e3-cap32-g1.json",
+      "kind": "raw-receipt",
+      "sha256": "3a6de2524e1083338660798c911fe4e7b71ee4916ba1118f147e6835fa7fe5a9"
+    },
+    {
+      "path": "raw/e3-cap32-memcheck.json",
+      "kind": "raw-receipt",
+      "sha256": "6d4e2a4017dde24ad1e87f557941f7fe44bda28a23cb8398313d33bab3e89284"
+    },
+    {
+      "path": "raw/e3-cap32-memcheck.log",
+      "kind": "raw-receipt",
+      "sha256": "5dc549091d24a0ebf781b9c5c377cecd391fa1d79d235cf73cb3a07e9ea0b9c7"
+    },
+    {
+      "path": "raw/e3-cap32-nine-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "1ef36fc91089fc5f4dd8d1ef98df23bd621c71ee45e3651c9eeef45f3177a203"
+    },
+    {
+      "path": "raw/e3-cap32-nine-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "692c52963494eb571c8f03b57ce1ac104108223ab68f34f4b940d6ed99ad09a6"
+    },
+    {
+      "path": "raw/e3-concurrent-cap128-head-policy.log",
+      "kind": "raw-receipt",
+      "sha256": "34d0a9d123607bdae86345a8f08698399fa63afc78f2f61be7873efae53a5c69"
+    },
+    {
+      "path": "raw/e3-concurrent-cap128-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "f26acfbb88fe208e65c4278f299fdabc9b2a32b08a43893c6636f78072756488"
+    },
+    {
+      "path": "raw/e3-concurrent-cap128-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "93430c5507a38e4addac5c48f135df7a7a4e08469457474e4f5b47affb20ecd5"
+    },
+    {
+      "path": "raw/e3-concurrent-cap128-worker-policy.log",
+      "kind": "raw-receipt",
+      "sha256": "34d0a9d123607bdae86345a8f08698399fa63afc78f2f61be7873efae53a5c69"
+    },
+    {
+      "path": "raw/e3-concurrent-cap32-16k-head-policy.log",
+      "kind": "raw-receipt",
+      "sha256": "34d0a9d123607bdae86345a8f08698399fa63afc78f2f61be7873efae53a5c69"
+    },
+    {
+      "path": "raw/e3-concurrent-cap32-16k-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "21aef3412a8d9f448fca735a1804ecbd0405c8deee5ae0e81f801f11f53328ef"
+    },
+    {
+      "path": "raw/e3-concurrent-cap32-16k-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "7fe463fd8bb798782ff17d7f7fb50e00765ccfa5812b14d5b0b5a9462963a3ac"
+    },
+    {
+      "path": "raw/e3-concurrent-cap32-16k-worker-policy.log",
+      "kind": "raw-receipt",
+      "sha256": "34d0a9d123607bdae86345a8f08698399fa63afc78f2f61be7873efae53a5c69"
+    },
+    {
+      "path": "raw/e3-off-nine-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "9ab9cf8e4770d5b2702a6379384b98e8625f1701ef9a1f3ebaf1e3aafa142654"
+    },
+    {
+      "path": "raw/e3-off-nine-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "9e6710bd3c8cbff1ae5b9981b96cb2a6037a2b3f5bd5b41bb89842bfab515aaf"
+    },
+    {
+      "path": "raw/earlier-reference.json",
+      "kind": "raw-receipt",
+      "sha256": "e2c5f72f47d2489fca489babeedf1f601ca5b2061ac4ccdd1e79c32577692e16"
+    },
+    {
+      "path": "raw/fresh-reference-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "651a69be9e159c685ce894ded207fd95836ae75c0f7cbbac2d274a6bd08657ac"
+    },
+    {
+      "path": "raw/fresh-reference-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "142f1526677c371cb748b886b30ee08dbc265a344db5a18c7ce93a388701699e"
+    },
+    {
+      "path": "raw/reference-nine-measured.json",
+      "kind": "raw-receipt",
+      "sha256": "312e343e8d653f05a7c13e6bd1275913cbe85e0dd29cbcef7b27668ec4fc0a45"
+    },
+    {
+      "path": "raw/reference-nine-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "358dd95d01353495a22976d43f4eaafc691f04f6246d59956cf50c1b61f894f1"
+    }
+  ],
+  "limitations": [
+    "G2 tiny decode throughput guard fails; experiment stays disabled by default.",
+    "Initial cold warmup can be nondeterministic, including on the unchanged reference; measured repetitions were stable.",
+    "This compares tuned fixture configurations (cap32 and 16K chunks against cap128 and 7168), not a single isolated setting.",
+    "MXFP8 draft inference is not exercised by a speculation-disabled fixture.",
+    "No G3/G4/G5 qualification.",
+    "Identical-image E3-off control recovers C1 decode but regresses long C2; combined cap32/16K settings remain unqualified. See E3_OFF_CONTROL.md."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

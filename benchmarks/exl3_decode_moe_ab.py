@@ -12,7 +12,7 @@ import types
 import torch
 
 
-def make_layer(device: torch.device):
+def make_layer(device: torch.device, max_tokens: int = 16, experts: int = 16):
     from vllm.model_executor.layers.quantization.exl3 import (
         Exl3Config,
         Exl3MoEMethod,
@@ -20,13 +20,13 @@ def make_layer(device: torch.device):
 
     os.environ["SPARKGLM_TINY_DUMMY"] = "1"
     os.environ["EXL3_DECODE_COOP_K4"] = "1"
-    os.environ["EXL3_DECODE_COOP_MAX_TOKENS"] = "16"
+    os.environ["EXL3_DECODE_COOP_MAX_TOKENS"] = str(max_tokens)
     moe = types.SimpleNamespace(swiglu_limit=75.0)
     method = Exl3MoEMethod(moe, Exl3Config())
     layer = torch.nn.Module()
     method.create_weights(
         layer,
-        num_experts=16,
+        num_experts=experts,
         hidden_size=4096,
         intermediate_size_per_partition=1024,
         params_dtype=torch.float16,
@@ -69,19 +69,22 @@ def time_ms(layer, x, ids, weights, *, candidate: bool, repeats: int) -> list[fl
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repeats", type=int, default=25)
+    parser.add_argument("--max-tokens", type=int, choices=(16,32), default=16)
+    parser.add_argument("--experts", type=int, choices=(16,288), default=16)
+    parser.add_argument("--graph", action="store_true")
     args = parser.parse_args()
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is required")
     torch.manual_seed(7)
     device = torch.device("cuda:0")
-    layer = make_layer(device)
+    layer = make_layer(device, args.max_tokens, args.experts)
     failed = False
     print("tokens baseline_ms candidate_ms speedup max_abs mean_abs cosine", flush=True)
-    for tokens in (1, 2, 4, 8, 16, 32):
+    for tokens in (1, 2, 4, 8, 16, 17, 31, 32, 33):
         x = torch.randn(tokens, 4096, dtype=torch.float16, device=device)
         row = torch.arange(tokens, device=device)[:, None]
         slot = torch.arange(8, device=device)[None, :]
-        ids = ((row * 5 + slot * 3) % 16).to(torch.long)
+        ids = ((row * 5 + slot * 3) % args.experts).to(torch.long)
         raw = torch.rand(tokens, 8, dtype=torch.float32, device=device)
         weights = torch.softmax(raw, dim=-1).half()
         baseline = one_call(layer, x, ids, weights, candidate=False)
@@ -97,6 +100,24 @@ def main() -> None:
         bound = max(0.15, 0.08 * scale)
         if not torch.isfinite(candidate).all() or max_abs >= bound or cosine < 0.995:
             failed = True
+        if args.graph:
+            for _ in range(3):
+                one_call(layer, x, ids, weights, candidate=True)
+            graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(graph):
+                captured = one_call(layer, x, ids, weights, candidate=True)
+            graph.replay()
+            torch.cuda.synchronize()
+            torch.testing.assert_close(captured, candidate, rtol=1e-4, atol=1e-4)
+            original = x.clone()
+            x.zero_()
+            graph.replay()
+            torch.cuda.synchronize()
+            assert torch.count_nonzero(captured) == 0, "stale graph output"
+            x.copy_(original)
+            graph.replay()
+            torch.cuda.synchronize()
+            torch.testing.assert_close(captured, candidate, rtol=1e-4, atol=1e-4)
         baseline_ms = statistics.median(time_ms(
             layer, x, ids, weights, candidate=False, repeats=args.repeats
         ))
