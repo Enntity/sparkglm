@@ -73,7 +73,7 @@ def materialize(image: str, skip: bool = False, profile: str = 'nvfp4') -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--profile', choices=['nvfp4', 'exl3'], default='nvfp4', help='NVFP4 is the default; EXL3 selects the latest concurrent E3 profile')
+    parser.add_argument('--profile', choices=['nvfp4', 'nvfp4-nvidia', 'exl3'], default='nvfp4', help='NVFP4 is the default; EXL3 selects the latest concurrent E3 profile')
     parser.add_argument('command', nargs='?', default='install', choices=['plan', 'build', 'check', 'install', 'start', 'stop', 'status'])
     parser.add_argument('--worker', help='SSH destination of the LLooM worker; required for install')
     parser.add_argument('--image', help='Reuse a qualified local immutable image instead of rebuilding')

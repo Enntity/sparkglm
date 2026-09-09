@@ -46,3 +46,14 @@ for member in exl3['models'][0]['settings']['placement']['members']:
     args = member['runtimeSettings']['bootstrap']['createArgs']
     for expected in ('SPARKGLM_EXL3_E3=1', 'SPARKGLM_EXL3_E3_POLICY=concurrent', 'EXL3_TEMP_ROWS_FUSED=32', 'MAX_NUM_BATCHED_TOKENS=7168'):
         assert expected in args, expected
+
+# ModelOpt must remain isolated from the compressed-tensors default.
+nvidia = module.materialize(image, profile='nvfp4-nvidia')
+assert nvidia['models'][0]['gatewayModel'] == 'sparkglm-nvfp4-nvidia'
+assert nvidia['models'][0]['settings']['port'] == 8892
+for member in nvidia['models'][0]['settings']['placement']['members']:
+    args = member['runtimeSettings']['bootstrap']['createArgs']
+    assert 'QUANTIZATION=modelopt_fp4' in args
+    assert 'MODEL_DIR=/models/nvidia--GLM-5.3-Flash-NVFP4' in args
+    assert 'QUANTIZATION=compressed-tensors' not in args
+assert module.materialize(image)['models'][0]['model'].startswith('RedHatAI/')

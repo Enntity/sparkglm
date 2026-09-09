@@ -86,3 +86,10 @@ See [LLooM integration](docs/LLOOM_INSTALL.md) for its cluster prerequisites and
 immutable-image recipe. SparkGLM does not install LLooM even in this mode.
 Choose one lifecycle owner; stop the active standalone or managed runtime
 before switching. This changes management, not the measured inference recipe.
+
+## Experimental NVIDIA checkpoint
+
+The optional `--profile nvfp4-nvidia` selects the separately pinned NVIDIA
+ModelOpt checkpoint and its own runtime ID. It does not replace the Red Hat
+default. Read the [experiment and qualification status](research/experiments/nvfp4-nvidia/README.md)
+before installation.

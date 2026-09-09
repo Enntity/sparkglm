@@ -265,17 +265,31 @@
       "covered_paths": [
         "profiles/nvfp4.json",
         "profiles/exl3.json",
-        "runtime/entrypoint.sh"
+        "runtime/entrypoint.sh",
+        "research/experiments/nvfp4-nvidia/tiny-entrypoint.sh"
       ],
       "notice_ids": [
         "MIT-LLooM"
+      ]
+    },
+    {
+      "id": "nvidia-glm53-nvfp4",
+      "repository": "https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93",
+      "license_expression": "MIT",
+      "notice_ids": [],
+      "relationship": "External checkpoint reference and metadata-informed original profile; no weights or NVIDIA code copied. Publisher license remains external.",
+      "covered_paths": [
+        "profiles/nvfp4-nvidia.json",
+        "research/experiments/nvfp4-nvidia/**"
       ]
     }
   ],
   "path_rules": [
     {
       "patterns": [
-        "runtime/entrypoint.sh"
+        "runtime/entrypoint.sh",
+        "research/experiments/nvfp4-nvidia/tiny-entrypoint.sh"
       ],
       "license_expression": "MIT AND Apache-2.0",
       "reason": "Measured launcher copied from LLooM, retaining inherited Mia and SparkGLM notices"

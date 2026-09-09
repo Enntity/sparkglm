@@ -148,3 +148,11 @@ MIT/Apache launcher (also published in LLooM at
 `2cc2f0df9ddcb1bb7fe60f7bd6934d2a9de1e4f2`). It executes the selected image's
 vLLM and patchers directly. It does not invoke, install, or depend on LLooM.
 The standalone Docker/SSH orchestrator is original Apache-2.0 code.
+
+## NVIDIA NVFP4 optional checkpoint
+
+[ NVIDIA GLM-5.3-Flash NVFP4](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4)
+at `423acf37583782c51c142d145aef733d72943d93` supplies external ModelOpt checkpoint
+metadata for the original optional profile and synthetic loader fixture. No
+NVIDIA code or weights are copied. The publisher labels this checkpoint MIT;
+model and draft terms remain separate from SparkGLM code licensing.
