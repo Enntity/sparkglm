@@ -1,6 +1,6 @@
 # SparkGLM
 
-![SparkGLM GLM-5.3-Flash banner](assets/glm.png)
+![SparkGLM — GLM-5.3-Flash NVFP4 on two DGX Sparks](assets/sparkglm-nvfp4.png)
 
 SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA
 DGX Spark GB10 systems**, building on MiaAI-Lab's excellent two-Spark work.
