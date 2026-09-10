@@ -1,0 +1,297 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-10-nvidia-262k-cache12",
+  "title": "NVIDIA 262K context with 12 GiB KV cache",
+  "date": "2026-09-10",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Screen the requested cache/context tradeoff with guarded host memory, C4 timing and a near-limit context probe",
+  "change": {
+    "baseline_ref": "943213d69463adcfbd54c6be923fb05991113be0",
+    "candidate_ref": "943213d69463adcfbd54c6be923fb05991113be0",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original measurement using existing SparkGLM capture and context probes; no serving code or model tensors changed."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "transport": "direct head loopback, same as retained baseline",
+    "source_revision": "943213d69463adcfbd54c6be923fb05991113be0",
+    "engine_revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+    "target_revision": "423acf37583782c51c142d145aef733d72943d93",
+    "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "ranks": {
+      "head": {
+        "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+        "configuration": {
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPEC_METHOD": "dflash",
+          "DFLASH_TOKENS": "7",
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "12884901888",
+          "MAX_MODEL_LEN": "262144",
+          "MAX_NUM_SEQS": "4",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "GLM53_MIXED_PREFILL_CHUNK": "0"
+        }
+      },
+      "worker": {
+        "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+        "configuration": {
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPEC_METHOD": "dflash",
+          "DFLASH_TOKENS": "7",
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "12884901888",
+          "MAX_MODEL_LEN": "262144",
+          "MAX_NUM_SEQS": "4",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "GLM53_MIXED_PREFILL_CHUNK": "0"
+        }
+      }
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "baseline median C4 wall",
+      "value": 90.500192,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "candidate median C4 wall",
+      "value": 85.271109,
+      "unit": "s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "db53b4ee913935454c7ee35de817a6360416ebc27a65ab997c58bffcaff444db"
+    },
+    {
+      "path": "capture.py",
+      "kind": "raw-evidence",
+      "sha256": "c2eb79128931809dd2844a814549af345ee7008d1bcccb7fb2e56510356a9bf8"
+    },
+    {
+      "path": "comparison.json",
+      "kind": "raw-evidence",
+      "sha256": "1f0b7facc3aee16f64c23a003e01503f21624f4b7f549d960e8dd2233c50b584"
+    },
+    {
+      "path": "context_probe.py",
+      "kind": "raw-evidence",
+      "sha256": "aec11d2f49e42a0deb1a82ff3292f0503789792f1c5201d20c1912b08a13e3cb"
+    },
+    {
+      "path": "environment.json",
+      "kind": "raw-evidence",
+      "sha256": "cb25c88a364350db9af82e27a3b50b485074eac73d9b2e9557c59e3956764454"
+    },
+    {
+      "path": "memory_guard.py",
+      "kind": "raw-evidence",
+      "sha256": "9bda06446b618253c9311f77d9b213caeb9a045874695552b74043ca6a263692"
+    },
+    {
+      "path": "raw/baseline-r0.json",
+      "kind": "raw-evidence",
+      "sha256": "37758d89fb34541453e0d5aa745c77709e235218fb877e83199c65fa22d72e96"
+    },
+    {
+      "path": "raw/baseline-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "d0044173e7b8c78f45515d156f7aea5248a326b6928c909c6a2138c841065875"
+    },
+    {
+      "path": "raw/baseline-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "3edad34751b8afaac0509e623808333c1f1718fa02ed4d5cd7d9129b9f834f9e"
+    },
+    {
+      "path": "raw/baseline-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "5072329495f2209a80ff6eb3daa218c636c4e2e7d638f00602f32efdba3c28dc"
+    },
+    {
+      "path": "raw/candidate-r0.json",
+      "kind": "raw-evidence",
+      "sha256": "1ea83d67f4d910ad0f52e9629b15dffa0b534ecad834c2c17839f1eb63180410"
+    },
+    {
+      "path": "raw/candidate-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "59ccc6e0b48392bec7adcc693400526f5fbcca67b07f8d78679cee3275536ae2"
+    },
+    {
+      "path": "raw/candidate-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "d0d836f54391d414355cd38882f660f2a5671e483585c43dfb97ed579951c904"
+    },
+    {
+      "path": "raw/candidate-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "d70fac540ba0ca2a9bf749bb8efb3671aab9bac959ec9043492ccc214f89e1e9"
+    },
+    {
+      "path": "raw/context-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f89bc05e32157351804543af1e633b0d221327a392954048f774a336c9bfa0c4"
+    },
+    {
+      "path": "raw/context.json",
+      "kind": "raw-evidence",
+      "sha256": "8b428e3b1b082dc700e6cf6d3b365bd99807cf86abf3cfe058f25c3ca507f4e1"
+    },
+    {
+      "path": "raw/head-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "c9fc65f7fe17a4aa74b06db7468d633a8747695d96d7f879c6985f942925ad42"
+    },
+    {
+      "path": "raw/metrics-r0-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "02adb3361b24a381575efce29b0043fc8b674a26a7ada6f8c1c560156f510617"
+    },
+    {
+      "path": "raw/metrics-r0-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "fffb258adc22ca3b787002f023f589fc99d45f206517ff5dbdcabf29209c3b1a"
+    },
+    {
+      "path": "raw/metrics-r1-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "4810871a4c4b7b566a26c8d0421fa6285b27b18bb4103840b2113a567549082c"
+    },
+    {
+      "path": "raw/metrics-r1-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "02adb3361b24a381575efce29b0043fc8b674a26a7ada6f8c1c560156f510617"
+    },
+    {
+      "path": "raw/metrics-r2-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "d221f43d53588fa0db1f6b46eef9bf57dc665f0bec7701b9bf3ec2477f4c35d3"
+    },
+    {
+      "path": "raw/metrics-r2-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "4810871a4c4b7b566a26c8d0421fa6285b27b18bb4103840b2113a567549082c"
+    },
+    {
+      "path": "raw/metrics-r3-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "07c478a31d031e1e8b5eeac0ac02ba1329ee03e0aafdb5980bf88f4438d7fd1c"
+    },
+    {
+      "path": "raw/metrics-r3-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "d221f43d53588fa0db1f6b46eef9bf57dc665f0bec7701b9bf3ec2477f4c35d3"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-evidence",
+      "sha256": "1207760a638b1bed046ce4bd7966212103de8a2dbe11a8c48939d4fe3d13422a"
+    },
+    {
+      "path": "raw/startup-memory.log",
+      "kind": "raw-evidence",
+      "sha256": "e354606489b1f6aa915b27d6599ac4d7dccd01aeaa1925e2c6c10b082a4599f6"
+    },
+    {
+      "path": "raw/worker-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "16a6d486d75f4e763cc8565fc9b11f86fbb089a82bf37e39e4981538fa5bb84a"
+    },
+    {
+      "path": "semantic_gate.py",
+      "kind": "raw-evidence",
+      "sha256": "fb8c5cfc1fb43949b24106306bc34031ba6f38da1f2d8f65cd46f7e6c41e423b"
+    }
+  ],
+  "limitations": [
+    "Previous-night baseline, not alternating paired G3.",
+    "Context and cache changed together.",
+    "First three median TTFTs worsened.",
+    "Host swap occupancy increased; paging rates not measured.",
+    "Memory sampling is not an OOM guarantee.",
+    "Bounded semantics still fails two arithmetic cases.",
+    "No endurance or default promotion."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
