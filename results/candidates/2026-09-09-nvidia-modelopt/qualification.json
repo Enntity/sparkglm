@@ -1,0 +1,263 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-09-nvidia-modelopt",
+  "title": "NVIDIA ModelOpt NVFP4 checkpoint integration",
+  "date": "2026-09-09",
+  "state": "experiment",
+  "qualification_level": "G2",
+  "target": "Qualify an optional NVIDIA checkpoint without changing the Red Hat default",
+  "change": {
+    "baseline_ref": "35d2baf7867b6f58df7cf1a181540ca80f2ff006",
+    "candidate_ref": "cbf6e9009a86bc9350e5950a8ea5501481f653e1",
+    "working_tree_clean": false,
+    "provenance": [
+      "Original profile and probes; synthetic initializer and launcher adapted from existing SparkGLM code. External NVIDIA checkpoint pinned separately."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two NVIDIA DGX Spark GB10 systems, TP2",
+    "python": "3.12 container",
+    "image_digests": [
+      "sha256:37cf5c3c9d70dd431a746b61ab537a87bd815424aebc94f1e10b0dc7a9b2e0c0",
+      "sha256:8a24c8d635f6dc8dc8b3a300a1af0e6c1fc14b0becbfff98cce6b5b08718ec23"
+    ],
+    "model_revision": "423acf37583782c51c142d145aef733d72943d93",
+    "configuration": {
+      "fixture": "tinyglm-modelopt-v1",
+      "tp": 2,
+      "context_tokens": 32768,
+      "kv_cache_bytes_per_rank": 2147483648,
+      "draft": "none",
+      "quantization": "modelopt_fp4",
+      "moe_backend": "flashinfer_cutlass"
+    },
+    "full_model_comparison_plan": {
+      "primary_metric": "C2 32K total wall time",
+      "protected_metrics": [
+        "completion",
+        "TTFT",
+        "C4 fairness",
+        "visible SSE gaps",
+        "bounded semantics",
+        "KV memory"
+      ],
+      "target_tp": 2,
+      "draft_tp": 2,
+      "draft_tokens": 7,
+      "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+      "context_tokens": 524288,
+      "kv_cache_bytes_per_rank": 9663676416,
+      "prefill_tokens": 2048,
+      "max_num_seqs": 4,
+      "inference_path": "authenticated LLooM gateway; exact counts from private backend tokenizer"
+    },
+    "run_order": [
+      "baseline-r1",
+      "candidate-r1"
+    ],
+    "mtp_preflight_ref": "4ca54bc"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "scripts/check.sh all passed."
+    },
+    {
+      "id": "G1",
+      "status": "pass",
+      "summary": "Dense ModelOpt FP4 numerical and graph screen plus existing clamped MoE numerical/profiler screen passed."
+    },
+    {
+      "id": "G2",
+      "status": "pass",
+      "summary": "Three repetitions each of C1 decode, mixed C4 and long C2 completed deterministically on TP2."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "One matched full-model screen completed; three alternating retained pairs required for G3 were not run."
+    },
+    {
+      "id": "G4",
+      "status": "fail",
+      "summary": "Bounded semantics: NVIDIA 14/16, Red Hat 15/16. NVIDIA missed two thinking-disabled arithmetic cases; other semantic/operational fixtures passed."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No endurance or release qualification."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "c1-16k_wall_seconds_single_screen",
+      "baseline": 20.408754989039153,
+      "candidate": 22.791723553964403,
+      "unit": "seconds",
+      "scope": "One matched pair, not a performance qualification"
+    },
+    {
+      "name": "c1-32k_wall_seconds_single_screen",
+      "baseline": 26.585218356049154,
+      "candidate": 29.12307882803725,
+      "unit": "seconds",
+      "scope": "One matched pair, not a performance qualification"
+    },
+    {
+      "name": "c2-16k_wall_seconds_single_screen",
+      "baseline": 30.877014319004957,
+      "candidate": 33.52096546301618,
+      "unit": "seconds",
+      "scope": "One matched pair, not a performance qualification"
+    },
+    {
+      "name": "c2-32k_wall_seconds_single_screen",
+      "baseline": 55.191421351977624,
+      "candidate": 50.73863826401066,
+      "unit": "seconds",
+      "scope": "One matched pair, not a performance qualification"
+    },
+    {
+      "name": "c4-16k_wall_seconds_single_screen",
+      "baseline": 61.21193537599174,
+      "candidate": 62.53420911502326,
+      "unit": "seconds",
+      "scope": "One matched pair, not a performance qualification"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "8b1d6c44b5b8d3d576abe15072dff3b1062d5211cdf5872e603b0dc52f9632ac"
+    },
+    {
+      "path": "raw/baseline-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "de9ded055675960f143bfee0e1ef2588ccd86731f127bac8652260252cfc9da6"
+    },
+    {
+      "path": "raw/baseline-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "d41f510970b936d80f80efa561184374362a3afe84a05411ade37afdd2fba50a"
+    },
+    {
+      "path": "raw/baseline-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "a158faef2131d71c3a96cf9f3681bd32be0b7aa6f6ab5e3df5777b4460ec9dff"
+    },
+    {
+      "path": "raw/baseline-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "107e79a862c50f1c6cd67ec7658150e1eee07896389e8bbc0db2075a04a37754"
+    },
+    {
+      "path": "raw/baseline-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "9f83a70a639d704e7a293a5ed2d647afaf1749de10f2eeee2ce1a29b2787091f"
+    },
+    {
+      "path": "raw/baseline-semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "e2061d2c2bd16d63b200dc82b9cb2e0478eae1660dc0a399ff19e7411fa5ce17"
+    },
+    {
+      "path": "raw/baseline-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "2c0b653d3bedab62d600889e12a0222b5c830f84fb07a1d9929e49c7b881d3cd"
+    },
+    {
+      "path": "raw/candidate-c1-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "b9527b833b1b2cc08e2cd86157f8ad6c36975974148691c7181c8bc3e477d56e"
+    },
+    {
+      "path": "raw/candidate-c1-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "e4715d3c8ff0edcbffb6e0dcfb15c1a6b89320c7a1240ae88b62c1e3d491e42b"
+    },
+    {
+      "path": "raw/candidate-c2-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "fa61ad5c436b73544a547344b80357c241a62392b60c751d870c4829f34362c8"
+    },
+    {
+      "path": "raw/candidate-c2-32k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "f1aca5197be496d8b653b44f976ec6e44b6df6b2728c4318fb5ae0c0f9fd1e3c"
+    },
+    {
+      "path": "raw/candidate-c4-16k-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "66d9de97276865d0a450330749bb42e2690e9401cea38343b4a07d06e51fd219"
+    },
+    {
+      "path": "raw/candidate-semantics.json",
+      "kind": "raw-receipt",
+      "sha256": "2e359b9f9980c3c4f16f3a9916df4f1f3afe935c4bdd3bafe222ab0f2e277f20"
+    },
+    {
+      "path": "raw/candidate-server-manifest.json",
+      "kind": "raw-receipt",
+      "sha256": "6358f2ecb7cf368b283464b0acf95848ffe34c9e64f9794d86079205b63739d8"
+    },
+    {
+      "path": "raw/candidate-spec-metrics.txt",
+      "kind": "raw-evidence",
+      "sha256": "88d1b5eeb924db180e38d53d49089189ff011017b1b74585c79c4c0bbc82150f"
+    },
+    {
+      "path": "raw/candidate-startup-kernels.log",
+      "kind": "raw-evidence",
+      "sha256": "446a1d8eb136a2f721b327676ce4ab020cc90d39374aa7962a6bf71444e06ef8"
+    },
+    {
+      "path": "raw/checkpoint-head-verified.json",
+      "kind": "raw-receipt",
+      "sha256": "78a1fd978623f61dea0acb0a0292a8c912d72b63e2adb3f4636ca8ab16ec0447"
+    },
+    {
+      "path": "raw/checkpoint-worker-verified.json",
+      "kind": "raw-receipt",
+      "sha256": "08af8af27da56dbf7726cf069e7f768d818e641a8467cb5c68429602dc6dfe32"
+    },
+    {
+      "path": "raw/linear-probe.json",
+      "kind": "raw-receipt",
+      "sha256": "27e219660ce9dd91249aa70ce89dfb554174fa0e5e728187110422b86181b5d2"
+    },
+    {
+      "path": "raw/moe-probe.json",
+      "kind": "raw-receipt",
+      "sha256": "7a389e68f25c895593af866995e364c9252c96d72f1a7c3a19c273713201cb2e"
+    },
+    {
+      "path": "raw/mtp-preflight.json",
+      "kind": "raw-receipt",
+      "sha256": "d6116530c123f0c8e585f12e68e66d3f16d9a0b3649f74753ccb4308ddc8a202"
+    },
+    {
+      "path": "raw/restoration.json",
+      "kind": "raw-receipt",
+      "sha256": "124a7bc51a41a97070161eac2e322cb17c6bc63b615fac162884fae05a712b73"
+    },
+    {
+      "path": "raw/tinyglm-gate.json",
+      "kind": "raw-receipt",
+      "sha256": "0f95d53f456d2c82624dc21bf39d350244325384d3c53e9db05c424ea73cf8f9"
+    }
+  ],
+  "limitations": [
+    "One retained paired workload screen, not G3 performance qualification.",
+    "Bounded arithmetic failures prevent quality gate passage.",
+    "Configured 512K context is not tested maximum-context capacity.",
+    "MTP only received a header/source compatibility preflight; no generation benchmark.",
+    "No default promotion or endurance certification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

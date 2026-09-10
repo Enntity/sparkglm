@@ -40,6 +40,9 @@ does not certify a rebuilt image or the configured 512K context limit.
 Gate status and measured limitations must be recorded in a checksum-bound
 result bundle before claiming full-model compatibility or performance.
 NVIDIA's GB200 model-card quality measurements are not GB10 qualification.
+The [integration result](../../../results/candidates/2026-09-09-nvidia-modelopt/RESULT.md)
+records successful full-model DFlash serving and streaming, mixed single-run
+timings, and bounded arithmetic failures; it is not default qualification.
 
 The model is fetched separately under its publisher's terms. The existing
 draft's separate non-commercial/no-derivatives terms still apply. No weights,
