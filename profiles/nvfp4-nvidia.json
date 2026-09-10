@@ -3,9 +3,9 @@
   "schemaVersion": 1,
   "profile": "https://lloom.dev/profiles/interchange/v1",
   "id": "linux-nvidia-dgx-spark-2x-sparkglm-nvfp4-nvidia",
-  "name": "SparkGLM NVIDIA NVFP4 TP2 (experimental)",
+  "name": "SparkGLM NVIDIA NVFP4 512K / 11 GiB TP2",
   "version": 1,
-  "summary": "Opt-in NVIDIA ModelOpt checkpoint integration. Qualification is recorded separately; Red Hat remains the default.",
+  "summary": "Maintainer-selected source-preview default: NVIDIA ModelOpt, DFlash2, 512K context and 11 GiB FP8 KV per rank. Startup and gateway verified; no G5 certification.",
   "license": {
     "id": "MIT",
     "name": "Recipe metadata and launcher"
@@ -179,7 +179,7 @@
         "contextWindow": 524288,
         "maxOutputTokens": 131072,
         "maxActiveRequests": 4,
-        "memoryGb": 113,
+        "memoryGb": 115,
         "priority": 180,
         "keepWarm": false,
         "startupTimeoutMs": 7200000,
@@ -208,7 +208,7 @@
               "order": 10,
               "healthStrategy": "container",
               "resources": {
-                "memoryGb": 113
+                "memoryGb": 115
               },
               "runtimeSettings": {
                 "adapter": "docker",
@@ -368,7 +368,7 @@
                     "-e",
                     "QUANTIZATION=modelopt_fp4",
                     "-e",
-                    "KV_CACHE_MEMORY_BYTES=9663676416",
+                    "KV_CACHE_MEMORY_BYTES=11811160064",
                     "-e",
                     "SPARKGLM_MXFP8_DRAFT=1",
                     "-e",
@@ -386,7 +386,7 @@
               "role": "head",
               "order": 20,
               "resources": {
-                "memoryGb": 113
+                "memoryGb": 115
               },
               "runtimeSettings": {
                 "adapter": "docker",
@@ -561,7 +561,7 @@
                     "-e",
                     "QUANTIZATION=modelopt_fp4",
                     "-e",
-                    "KV_CACHE_MEMORY_BYTES=9663676416",
+                    "KV_CACHE_MEMORY_BYTES=11811160064",
                     "-e",
                     "SPARKGLM_MXFP8_DRAFT=1",
                     "-e",

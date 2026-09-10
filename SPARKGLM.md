@@ -1,7 +1,7 @@
 # Run SparkGLM independently on two DGX Sparks
 
 SparkGLM installs and serves directly with **Docker and SSH**. It does not
-install or require LLooM. NVFP4 is the default: 524288-token context, 9 GiB KV
+install or require LLooM. NVIDIA NVFP4 is the default: 524288-token context, 11 GiB KV
 per rank, native FlashInfer CUTLASS, MXFP8 DFlash2 TP2 k7, 2K chunks and mixed
 scheduling. `--skip` selects the recorded NVFP4 comparison option;
 `--profile exl3` selects the latest concurrent E3 EXL3 profile with 1M context.
@@ -47,10 +47,10 @@ worker then leader. `--model-root /path/to/models` reuses your existing weight
 location; `--image sha256:FULL_IMAGE_ID` reuses a qualified local build.
 No daemon or package manager beyond Docker is required for serving.
 
-The default endpoint is `http://HEAD_FABRIC_IP:8890/v1`, model
-`sparkglm-nvfp4`. A successful start checks the exact model identity. Its
-standalone containers are named `sparkglm-standalone-nvfp4-head` and
-`sparkglm-standalone-nvfp4-worker`; use `docker logs` on their respective nodes
+The default endpoint is `http://HEAD_FABRIC_IP:8892/v1`, model
+`sparkglm-nvfp4-nvidia`. A successful start checks the exact model identity. Its
+standalone containers are named `sparkglm-standalone-nvfp4-nvidia-head` and
+`sparkglm-standalone-nvfp4-nvidia-worker`; use `docker logs` on their respective nodes
 for startup diagnostics. The default readiness budget is two hours because a
 first source build/model load is not a quick prebuilt-image installation.
 
@@ -89,9 +89,9 @@ before switching. This changes management, not the measured inference recipe.
 
 ## Experimental NVIDIA checkpoint
 
-The optional `--profile nvfp4-nvidia` selects the separately pinned NVIDIA
-ModelOpt checkpoint and its own runtime ID. It does not replace the Red Hat
-default. Read the [experiment and qualification status](research/experiments/nvfp4-nvidia/README.md)
+The default `--profile nvfp4-nvidia` selects the pinned NVIDIA
+ModelOpt checkpoint and its own runtime ID. Use `--profile nvfp4` for the
+older Red Hat 512K/9 GiB profile. Read the [experiment and qualification status](research/experiments/nvfp4-nvidia/README.md)
 before installation.
 
 Use [the NVIDIA package guide](docs/NVIDIA_PACKAGE.md) and `./start-nvidia.sh`

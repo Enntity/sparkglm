@@ -29,7 +29,7 @@ def remote(worker: str, *args: str, capture: bool = False) -> str:
     return run('ssh', '-o', 'BatchMode=yes', worker, shlex.join(args), capture=capture)
 
 
-def build(cache: Path, profile: str = 'nvfp4') -> str:
+def build(cache: Path, profile: str = 'nvfp4-nvidia') -> str:
     if platform.system() != 'Linux' or platform.machine() not in ('aarch64', 'arm64'):
         raise RuntimeError('Build on the Spark leader (Linux ARM64), not a Mac or x86 machine.')
     available = next(int(x.split()[1]) for x in Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:'))
@@ -59,7 +59,7 @@ def build(cache: Path, profile: str = 'nvfp4') -> str:
     return run('docker', 'image', 'inspect', '--format', '{{.Id}}', previous, capture=True)
 
 
-def materialize(image: str, skip: bool = False, profile: str = 'nvfp4') -> dict:
+def materialize(image: str, skip: bool = False, profile: str = 'nvfp4-nvidia') -> dict:
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
         raise ValueError('Use a full immutable Docker image ID: sha256: plus 64 hex digits.')
     recipe = json.loads((ROOT / 'profiles' / (profile + '.json')).read_text())
@@ -73,7 +73,7 @@ def materialize(image: str, skip: bool = False, profile: str = 'nvfp4') -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--profile', choices=['nvfp4', 'nvfp4-nvidia', 'exl3'], default='nvfp4', help='NVFP4 is the default; EXL3 selects the latest concurrent E3 profile')
+    parser.add_argument('--profile', choices=['nvfp4', 'nvfp4-nvidia', 'exl3'], default='nvfp4-nvidia', help='NVIDIA NVFP4 is the default; EXL3 selects the latest concurrent E3 profile')
     parser.add_argument('command', nargs='?', default='install', choices=['plan', 'build', 'check', 'install', 'start', 'stop', 'status'])
     parser.add_argument('--worker', help='SSH destination of the LLooM worker; required for install')
     parser.add_argument('--image', help='Reuse a qualified local immutable image instead of rebuilding')

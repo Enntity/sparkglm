@@ -4,7 +4,9 @@ Selected for the maintainer's NVIDIA-weight configuration on September 9.
 This source package reuses the tested native FP4 serving path and does not
 include the experimental MTP loader or numerical diagnostic patches.
 NVIDIA is a checkpoint preference, not a demonstrated quality improvement.
-The public main branch's historical Red Hat default is unchanged by this branch.
+The maintainer selected this package as the source-preview default on
+September 10 with 512K context and 11 GiB cache per rank. The historical
+Red Hat profile remains available with `--profile nvfp4`.
 
 ## Run
 
@@ -30,6 +32,9 @@ is `./start-nvidia.sh --lloom` with its documented installation arguments.
 Do not install a second lifecycle owner over an active model.
 The served model ID is `sparkglm-nvfp4-nvidia`; the profile specifies port 8892.
 
+The historical comparisons below used 9 GiB per rank; they are not new
+benchmarks of the 11 GiB source default.
+
 ## Pinned configuration
 
 | Component | Selected value |
@@ -41,7 +46,7 @@ The served model ID is `sparkglm-nvfp4-nvidia`; the profile specifies port 8892.
 | Draft revision | `610aa967a92bfeb97e3d848dcb8693553e8b6a55` |
 | Target / draft parallelism | TP2 / TP2 on two GB10 Sparks |
 | Speculative tokens | 7 |
-| KV | FP8, 9 GiB per rank |
+| KV | FP8, 11 GiB per rank |
 | Configured maximum context | 524288 tokens; NVIDIA full-window capacity unqualified |
 | Concurrent sequences / prefill chunk | 4 / 2048 tokens |
 | Scheduling | Mixed prefill/decode, CUDA graphs and prefix cache enabled |

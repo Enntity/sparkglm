@@ -4,8 +4,10 @@
 
 SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA
 DGX Spark GB10 systems**, building on MiaAI-Lab's excellent two-Spark work.
-`main` now defaults to our measured **NVFP4** path: native CUTLASS W4A4,
-MXFP8 DFlash2, 512K context, 9 GiB KV per rank, 2K chunks and mixed scheduling.
+`main` now defaults to the selected **NVIDIA NVFP4** path: native CUTLASS W4A4,
+MXFP8 DFlash2, 512K context, 11 GiB KV per rank, 2K chunks and mixed scheduling.
+The 11 GiB setting has a successful startup and gateway smoke check; throughput
+and repeated-start qualification remain pending.
 SparkGLM runs independently with Docker and SSH; LLooM integration is optional. The latest EXL3 work remains on the
 [`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3).
 
@@ -154,7 +156,7 @@ not an optimization.
 Important defaults include work-conserving
 `GLM53_MIXED_PREFILL_CHUNK=0`, the GB10-selected 16 ms TP spin window, and the
 `rightsize` mode for `GLM53_INDEXER_WORKSPACE`. The NVFP4 profile adds native
-CUTLASS MoE, 2K chunks and the measured 512K/9 GiB budget. The EXL3 profile
+CUTLASS MoE, 2K chunks and the selected 512K/11 GiB budget. The EXL3 profile
 selects corrected concurrent E3 with 32-row temporary expert buffers.
 See [video settings](docs/PUBLISHED_VIDEO_CONFIGURATION.md) and
 [known limitations](docs/KNOWN_LIMITATIONS.md). Legacy `.env` knobs apply only

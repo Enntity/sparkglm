@@ -44,8 +44,8 @@ with patch.object(standalone,'command',foreign):
 assert all('rm' not in x and 'stop' not in x for x in calls)
 plan=json.loads(subprocess.check_output([str(ROOT/'start.sh'),'plan'],text=True))
 assert plan['manager']=='standalone'
-assert plan['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4'
+assert plan['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4-nvidia'
 optional=json.loads(subprocess.check_output([str(ROOT/'start.sh'),'--lloom','plan'],text=True))
-assert optional['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4'
+assert optional['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4-nvidia'
 assert (ROOT/'runtime/entrypoint.sh').read_bytes().startswith(b'#!/usr/bin/env bash')
 print('Standalone command parity, ownership isolation and optional LLooM dispatch PASS')

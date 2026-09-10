@@ -1,3 +1,15 @@
+# Current source-preview default: NVIDIA 512K / 11 GiB
+
+Selected by the maintainer on September 10. NVIDIA ModelOpt NVFP4, MXFP8
+DFlash2 depth 7, TP2, FP8 KV, 524288 context, 11 GiB cache per rank, four
+sequences and 2048-token prefill chunks. One startup and authenticated gateway
+canary passed. This is not G5 promotion and does not establish 11 GiB throughput
+or repeated startup reliability.
+
+[Startup evidence and limits](candidates/2026-09-10-nvidia-512k-cache11-live/RESULT.md).
+The earlier package and Red Hat measurements below retain their original
+settings; they are not benchmarks of this 11 GiB default.
+
 # Selected NVIDIA package, September 9
 
 The NVIDIA + DFlash2 package is available on the package branch with
@@ -8,7 +20,7 @@ bounded package-selection evidence, not G3/G5 promotion or a quality claim.
 [Full comparison and all samples](candidates/2026-09-09-nvidia-redhat-video/RESULT.md).
 The existing main-branch default and historical measurements follow below.
 
-# Current public default: NVFP4 512K research preview
+# Historical September 8 default: Red Hat NVFP4 512K research preview
 
 As of September 8, the maintainer selected the measured NVFP4 mixed recipe as
 the public install default. This does not upgrade any recorded gate or claim
