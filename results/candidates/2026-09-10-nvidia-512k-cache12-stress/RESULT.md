@@ -1,11 +1,21 @@
 # NVIDIA NVFP4: 512K context / 12 GiB KV bounded stress
 
-The requested configuration completed the capacity and serving reliability
-screens with zero endpoint preemptions, OOMs or engine failures. It is a usable
-experimental configuration with tight head-node memory margins. This single
-load and approximately 21.4 minutes of workload do not establish G5 appliance
-qualification, endurance, or repeated cold-start reliability. Defaults remain
-unchanged.
+**Not reliable enough as an appliance at 512K/12 GiB.** The initial bounded
+stress run completed capacity and serving reliability screens with zero endpoint
+preemptions, OOMs or engine failures. A subsequent managed reload of the same
+image pair, target, context and cache setting dropped head available RAM to
+**0.80 GiB** and triggered the 1.5 GiB guard before API readiness. This supersedes
+the initial favorable assessment: the configuration has insufficient cold-start
+margin on this host. It is rejected for unattended appliance use at this setting;
+the successful performance measurements below remain valid for their run.
+
+The failed reload used the normal gateway-facing managed containers rather than
+the temporary direct-backend serving name/port. An earlier attempt with stale
+9 GiB worker bootstrap was caught and stopped before full loading; both ranks
+were verified at 12 GiB for the recorded failure. No CUDA OOM is asserted: the
+memory guard intervened. See [reload receipt](raw/managed-reload.json).
+
+This is not G5 qualification. Defaults remain unchanged.
 
 ## Traditional comparison
 
