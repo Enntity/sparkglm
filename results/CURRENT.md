@@ -1,3 +1,13 @@
+# Selected NVIDIA package, September 9
+
+The NVIDIA + DFlash2 package is available on the package branch with
+[its own launcher and exact pins](../docs/NVIDIA_PACKAGE.md). Fresh traditional
+C4 video medians: NVIDIA 90.500s, Red Hat 89.243s, three retained runs each.
+The 1.41% wall-time difference is smaller than the run-to-run spread. This is
+bounded package-selection evidence, not G3/G5 promotion or a quality claim.
+[Full comparison and all samples](candidates/2026-09-09-nvidia-redhat-video/RESULT.md).
+The existing main-branch default and historical measurements follow below.
+
 # Current public default: NVFP4 512K research preview
 
 As of September 8, the maintainer selected the measured NVFP4 mixed recipe as

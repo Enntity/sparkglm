@@ -1,0 +1,317 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-09-nvidia-redhat-video",
+  "title": "NVIDIA versus Red Hat traditional C4 video",
+  "date": "2026-09-09",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "Measure the chosen NVIDIA DFlash2 package against Red Hat with the traditional four-stream video workload",
+  "change": {
+    "baseline_ref": "f4e54e8",
+    "candidate_ref": "f4e54e8",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original capture measurements; renderer adapted from the September 8 SparkGLM comparison."
+    ]
+  },
+  "environment": {
+    "captured_at": "2026-09-10T06:55:09.294240+00:00",
+    "transport": "direct head loopback, same endpoint/model ID for both arms",
+    "package_source": "f4e54e8",
+    "engine_revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+    "arms": {
+      "redhat": {
+        "head": {
+          "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+          "state": "exited",
+          "started_at": "2026-09-10T06:15:31.545547212Z",
+          "configuration": {
+            "DFLASH_DRAFT_TP": "2",
+            "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+            "DFLASH_TOKENS": "7",
+            "GLM53_INDEXER_WORKSPACE": "rightsize",
+            "GLM53_MIXED_PREFILL_CHUNK": "0",
+            "GLM53_SPINWAIT_MS": "16",
+            "GPU_MEMORY_UTILIZATION": "0.87",
+            "KV_CACHE_DTYPE": "fp8",
+            "KV_CACHE_MEMORY_BYTES": "9663676416",
+            "MAX_MODEL_LEN": "524288",
+            "MAX_NUM_BATCHED_TOKENS": "2048",
+            "MAX_NUM_SEQS": "4",
+            "MODEL_DIR": "/models/RedHatAI--GLM-5.3-Flash-NVFP4",
+            "MOE_BACKEND": "flashinfer_cutlass",
+            "QUANTIZATION": "compressed-tensors",
+            "SPARKGLM_MXFP8_DRAFT": "1",
+            "SPEC_METHOD": "dflash"
+          }
+        },
+        "worker": {
+          "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+          "state": "exited",
+          "started_at": "2026-09-10T06:15:30.880900792Z",
+          "configuration": {
+            "DFLASH_DRAFT_TP": "2",
+            "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+            "DFLASH_TOKENS": "7",
+            "GLM53_INDEXER_WORKSPACE": "rightsize",
+            "GLM53_MIXED_PREFILL_CHUNK": "0",
+            "GLM53_SPINWAIT_MS": "16",
+            "GPU_MEMORY_UTILIZATION": "0.87",
+            "KV_CACHE_DTYPE": "fp8",
+            "KV_CACHE_MEMORY_BYTES": "9663676416",
+            "MAX_MODEL_LEN": "524288",
+            "MAX_NUM_BATCHED_TOKENS": "2048",
+            "MAX_NUM_SEQS": "4",
+            "MODEL_DIR": "/models/RedHatAI--GLM-5.3-Flash-NVFP4",
+            "MOE_BACKEND": "flashinfer_cutlass",
+            "QUANTIZATION": "compressed-tensors",
+            "SPARKGLM_MXFP8_DRAFT": "1",
+            "SPEC_METHOD": "dflash"
+          }
+        }
+      },
+      "nvidia": {
+        "head": {
+          "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+          "state": "running",
+          "started_at": "2026-09-10T06:31:45.408586859Z",
+          "configuration": {
+            "DFLASH_DRAFT_TP": "2",
+            "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+            "DFLASH_TOKENS": "7",
+            "GLM53_INDEXER_WORKSPACE": "rightsize",
+            "GLM53_MIXED_PREFILL_CHUNK": "0",
+            "GLM53_SPINWAIT_MS": "16",
+            "GPU_MEMORY_UTILIZATION": "0.87",
+            "KV_CACHE_DTYPE": "fp8",
+            "KV_CACHE_MEMORY_BYTES": "9663676416",
+            "MAX_MODEL_LEN": "524288",
+            "MAX_NUM_BATCHED_TOKENS": "2048",
+            "MAX_NUM_SEQS": "4",
+            "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+            "MOE_BACKEND": "flashinfer_cutlass",
+            "QUANTIZATION": "modelopt_fp4",
+            "SPARKGLM_MXFP8_DRAFT": "1",
+            "SPEC_METHOD": "dflash"
+          }
+        },
+        "worker": {
+          "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+          "state": "running",
+          "started_at": "2026-09-10T06:31:44.711889075Z",
+          "configuration": {
+            "DFLASH_DRAFT_TP": "2",
+            "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+            "DFLASH_TOKENS": "7",
+            "GLM53_INDEXER_WORKSPACE": "rightsize",
+            "GLM53_MIXED_PREFILL_CHUNK": "0",
+            "GLM53_SPINWAIT_MS": "16",
+            "GPU_MEMORY_UTILIZATION": "0.87",
+            "KV_CACHE_DTYPE": "fp8",
+            "KV_CACHE_MEMORY_BYTES": "9663676416",
+            "MAX_MODEL_LEN": "524288",
+            "MAX_NUM_BATCHED_TOKENS": "2048",
+            "MAX_NUM_SEQS": "4",
+            "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+            "MOE_BACKEND": "flashinfer_cutlass",
+            "QUANTIZATION": "modelopt_fp4",
+            "SPARKGLM_MXFP8_DRAFT": "1",
+            "SPEC_METHOD": "dflash"
+          }
+        }
+      }
+    },
+    "harness_sha256": {
+      "._launch.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+      "launch.py": "e71be685f83d1c8d79e7b58c4ef5536d5d366c2ce6810189af0d5c6999c3fa54",
+      "._campaign.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+      "manifest.py": "6764cb8f99f2be3c289cbcd4eaff47d00dc26462af0fb5f0840059ad0d363b94",
+      "semantic_gate.py": "fb8c5cfc1fb43949b24106306bc34031ba6f38da1f2d8f65cd46f7e6c41e423b",
+      "campaign.py": "76ff9b3a169b1d71815f6318269895f4a9e214fca11e1505bbe3c7fc756a6677",
+      "four_stream_video.py": "c2eb79128931809dd2844a814549af345ee7008d1bcccb7fb2e56510356a9bf8",
+      "._four_stream_video.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+      "._semantic_gate.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d"
+    },
+    "model_revisions": {
+      "nvidia": "423acf37583782c51c142d145aef733d72943d93",
+      "redhat": "240131d6a447c8d89acd428c5ddfc85598651744",
+      "draft": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe checks and media validation."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "No additional qualification claimed by this bounded video comparison."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No additional qualification claimed by this bounded video comparison."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No additional qualification claimed by this bounded video comparison."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No additional qualification claimed by this bounded video comparison."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No additional qualification claimed by this bounded video comparison."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "redhat median complete wall",
+      "value": 89.243079,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "nvidia median complete wall",
+      "value": 90.500192,
+      "unit": "s",
+      "samples": 3
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "e502a96fe3face7d49325aee85714e874a244149bb244176d2f2d4ac13949d54"
+    },
+    {
+      "path": "capture.py",
+      "kind": "raw-evidence",
+      "sha256": "c2eb79128931809dd2844a814549af345ee7008d1bcccb7fb2e56510356a9bf8"
+    },
+    {
+      "path": "comparison.csv",
+      "kind": "raw-evidence",
+      "sha256": "784180ceec2e25cfa72f754147e96e9179fad27e948537b553dbe1ef8efac0f4"
+    },
+    {
+      "path": "comparison.json",
+      "kind": "raw-evidence",
+      "sha256": "0455b70fad76d7e80ab9c2561919c6542582ae2c40dcc47d79c4b1f183bb7dd0"
+    },
+    {
+      "path": "environment.json",
+      "kind": "raw-evidence",
+      "sha256": "d88184f82a13b91d506b2614be399cd36fb7c38a4825dcbefd27c17e87545eb9"
+    },
+    {
+      "path": "panels.json",
+      "kind": "raw-evidence",
+      "sha256": "c6350a113ef984ea96946ef05858930d90879d3797a3ca53ce4802a0948c400e"
+    },
+    {
+      "path": "raw/nvidia-counters-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "2e9450b609c0cc8fc671989d826d046e1ee98683e84647b58381ccb17994131d"
+    },
+    {
+      "path": "raw/nvidia-counters-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "e6545ad4212190746d9ecd49e91a14c0b9a1f648e6ad7c7549407802c60ad822"
+    },
+    {
+      "path": "raw/nvidia-semantics.json",
+      "kind": "raw-evidence",
+      "sha256": "15651e09146c0ceede8b07bc2a893191fbdb8ac34c39a1bffa543caf921e49ab"
+    },
+    {
+      "path": "raw/nvidia-video-r0.json",
+      "kind": "raw-evidence",
+      "sha256": "37758d89fb34541453e0d5aa745c77709e235218fb877e83199c65fa22d72e96"
+    },
+    {
+      "path": "raw/nvidia-video-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "d0044173e7b8c78f45515d156f7aea5248a326b6928c909c6a2138c841065875"
+    },
+    {
+      "path": "raw/nvidia-video-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "3edad34751b8afaac0509e623808333c1f1718fa02ed4d5cd7d9129b9f834f9e"
+    },
+    {
+      "path": "raw/nvidia-video-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "5072329495f2209a80ff6eb3daa218c636c4e2e7d638f00602f32efdba3c28dc"
+    },
+    {
+      "path": "raw/redhat-counters-after.txt",
+      "kind": "raw-evidence",
+      "sha256": "fc39ca58267e8d51fc7df84337092745d17ba5b5d1c4739c41fe3056c07238af"
+    },
+    {
+      "path": "raw/redhat-counters-before.txt",
+      "kind": "raw-evidence",
+      "sha256": "e6545ad4212190746d9ecd49e91a14c0b9a1f648e6ad7c7549407802c60ad822"
+    },
+    {
+      "path": "raw/redhat-semantics.json",
+      "kind": "raw-evidence",
+      "sha256": "e2d247e127753900af9406f267c12e3a47ad9b0efd15fdc9ac4298c5f5b44ef4"
+    },
+    {
+      "path": "raw/redhat-video-r0.json",
+      "kind": "raw-evidence",
+      "sha256": "ab6c82bbe0b5c14fe6586d58d6f001d6a5ae983ad3a189aba69c0b88687c5515"
+    },
+    {
+      "path": "raw/redhat-video-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "e61b9e460ab5947ee2e758960234b2ce1dc78479c05d3f987772fe5f60544fe8"
+    },
+    {
+      "path": "raw/redhat-video-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "f2e554ac6ddd3d80cfc27f429ed77f0e09fe7cd840af44f133b73a2cf8c824e6"
+    },
+    {
+      "path": "raw/redhat-video-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "6e54c590629771ba453ba7b1f0aafa176ca77a191fe01bf9045ca7e455524596"
+    },
+    {
+      "path": "render.py",
+      "kind": "raw-evidence",
+      "sha256": "e551d9632dd9cc49b242d2f479b0d153b39c873b934fa2043d37733b053fabe4"
+    },
+    {
+      "path": "semantic_gate.py",
+      "kind": "raw-evidence",
+      "sha256": "fb8c5cfc1fb43949b24106306bc34031ba6f38da1f2d8f65cd46f7e6c41e423b"
+    },
+    {
+      "path": "video.json",
+      "kind": "raw-evidence",
+      "sha256": "5d3ccb7b017694322899eb0f881fd8b3e8535dec5df4d8251c2ceeb43d78e3d5"
+    }
+  ],
+  "limitations": [
+    "Blocked checkpoint order, not alternating-pair G3.",
+    "Traditional field-guide video workload differs from the frozen isolation matrix.",
+    "Small bounded semantics panel; no broad quality advantage established.",
+    "Configured 512K context is not a validated NVIDIA full-window or concurrency claim.",
+    "Speculation and preemption counters include warmup and semantics.",
+    "No G5 endurance or release qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

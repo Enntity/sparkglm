@@ -89,3 +89,14 @@ each at 1x elapsed time, with all six results available beside the video.
 Run order is blocked by checkpoint to avoid repeated full-model loads; do not
 claim alternating-pair G3 qualification. Never relabel an older Red Hat/Mia
 video as NVIDIA footage. Capture results and media are recorded separately.
+
+### Completed video comparison
+
+The fresh three-run medians were NVIDIA **90.500 seconds** and Red Hat
+**89.243 seconds**, a **1.41% increase in NVIDIA wall time**. Individual runs
+vary more than this gap. All 24 retained requests completed. The new semantic
+panel again scored NVIDIA 14/16 versus Red Hat 15/16. This supports the selected
+package under the maintainer's bounded-performance tolerance; it does not
+establish a quality gain or formal performance equivalence.
+
+[All runs, capture method and video receipt](../results/candidates/2026-09-09-nvidia-redhat-video/RESULT.md).
