@@ -93,3 +93,6 @@ The optional `--profile nvfp4-nvidia` selects the separately pinned NVIDIA
 ModelOpt checkpoint and its own runtime ID. It does not replace the Red Hat
 default. Read the [experiment and qualification status](research/experiments/nvfp4-nvidia/README.md)
 before installation.
+
+Use [the NVIDIA package guide](docs/NVIDIA_PACKAGE.md) and `./start-nvidia.sh`
+to keep the NVIDIA profile selected across install, start, status and stop.

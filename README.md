@@ -39,6 +39,9 @@ from this repository's code licenses; see the required notice and citation in
 > still a model-semantic deviation—not “exact inference.” See
 > [known limitations](docs/KNOWN_LIMITATIONS.md).
 
+For the selected NVIDIA checkpoint package, see [NVIDIA + DFlash2](docs/NVIDIA_PACKAGE.md),
+including exact pins and the measured Red Hat comparison.
+
 ## Choose your path
 
 - **I want to run the model:** [two-Spark quickstart](SPARKGLM.md), from
