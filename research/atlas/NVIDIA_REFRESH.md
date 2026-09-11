@@ -1,5 +1,11 @@
 # NVIDIA ModelOpt Atlas experiment
 
+This page preserves the initial September 10 bring-up. The subsequent native
+MTP, long-context and prefill campaign is documented in the
+[September 11 handoff](NVIDIA_HANDOFF_2026-09-11.md). Its incremental patch must
+be applied after the initial patch below; the original measurements retain
+their original scope and are not results for the later engine.
+
 This disabled AGPL research patch refreshes the Atlas experiment from
 [Mango-kid/atlas](https://github.com/Mango-kid/atlas) revision
 `90b3584abc71b44b609637092b85d8423d8ff20f`. It does not change SparkGLM's

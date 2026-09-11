@@ -1,0 +1,1387 @@
+diff --git a/scripts/dev/glm_moe_chunk8192/README.md b/scripts/dev/glm_moe_chunk8192/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..8a31f023eab245758cfe23c7532067c33efe1c71
+--- /dev/null
++++ b/scripts/dev/glm_moe_chunk8192/README.md
+@@ -0,0 +1,60 @@
++<!-- SPDX-License-Identifier: AGPL-3.0-only -->
++# GLM 8K chunk canary
++
++Standalone comparison of the unchanged production M64 grouped NVFP4 kernel at
++8192 versus 4096+4096 rows, and 8196 versus 4096+4100 rows. This does not enable
++8K chunks in the engine or change the startup memory guards.
++
++Each uniform/skew fixture uses top-8 routing across 288 expert IDs, with full
++weights for 144 local experts and NULL pointers for the remote half. The gate
++shape is N=2048/K=4096 and down is N=4096/K=2048. Expert weights occupy 648 MiB.
++The combined proxy is twice the measured gate shape plus the measured down
++shape; it excludes routing, packing, communication, and other model work.
++
++The split and whole launches share canonical activation bytes and weights.
++Gate inputs use global-token views. Down inputs gather a canonical route-major
++buffer using an independently checked expert/global-token permutation. Host
++tests establish exact routing equivalence; native tests compare every local
++output bit, reject nonfinite outputs, and verify remote poison plus buffer
++guards. Five alternating rounds of five launches produce median CUDA timings.
++Three warmup pairs precede timing. A split sample includes both launches.
++
++Run the cheap host gate first:
++
++```sh
++c++ -std=c++17 -O2 -Wall -Wextra -Werror -DATLAS_HOST_ONLY -x c++ \
++  scripts/dev/glm_moe_chunk8192/bench.cu -o /tmp/atlas-moe-chunk8192-host
++/tmp/atlas-moe-chunk8192-host --host-test
++```
++
++Native CUDA 13 build and run, only during a coordinated idle Spark window:
++
++```sh
++nvcc -O3 -std=c++17 -gencode=arch=compute_121a,code=sm_121a --fmad=false \
++  -Xcompiler=-ffp-contract=off -Xptxas=-v \
++  scripts/dev/glm_moe_chunk8192/bench.cu -o /tmp/atlas-moe-chunk8192
++/tmp/atlas-moe-chunk8192 --run 1.15
++```
++
++The default minimum weighted gain is 1.15x for every fixture. Exit 3 rejects
++the first fixture below that threshold; nonzero oracle failures stop earlier.
++Device allocations are capped at 3 GiB, with 9 GiB free required before any
++allocation to retain space for host oracle copies and a 4 GiB reserve. Compiler
++and run containers should be capped at 8 CPUs and 6 GiB without swap.
++
++## Native result (2026-09-11)
++
++The first uniform 8192 fixture passed exact-bit and nonfinite checks but failed
++the 1.15x speed gate. Gate: 8.849748 ms for two 4K chunks versus 8.189664 ms
++for 8K (1.081x). Down: 8.484154 versus 8.083155 ms (1.050x). The weighted
++proxy was 26.183649 versus 24.462482 ms, or **1.070x**. The harness exited 3
++as intended; skew and tail native cases were not run. No 8K engine integration
++is justified by this result. Host route checks cover all four fixtures.
++
++Compilation used CUDA 13 and the explicit architecture-specific gencode above.
++The generic sm_121 target, including nvcc's generic fallback from `-arch=sm_121a`,
++cannot assemble the production block-scaled MMA instructions. Failed builds
++are retained as compile receipts, not performance evidence. Tested production
++kernel SHA256: `bad2afc59183a4b46fd094864ef88ae428517a23dee0d00f1d9e87de7503b33b`.
++The bench SHA256 is `3e0fe4ec78a3c9d2e37e8878f1a0198e5f413bba52cf5990310ad77706638e76`.
++Logs are in the research experiment's `prefill-parity/moe-chunk8192-r1/`.
+diff --git a/scripts/dev/glm_moe_chunk8192/bench.cu b/scripts/dev/glm_moe_chunk8192/bench.cu
+new file mode 100644
+index 0000000000000000000000000000000000000000..952d0cf4fc46b72a42b21ffc9da48e1e848cc065
+--- /dev/null
++++ b/scripts/dev/glm_moe_chunk8192/bench.cu
+@@ -0,0 +1,261 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++// Standalone chunk-size canary. Production M64 only; synthetic data, no checkpoint.
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <numeric>
++#include <vector>
++#ifndef ATLAS_HOST_ONLY
++#include <cuda_runtime.h>
++#include "../../../kernels/gb10/deepseek-v4-flash/nvfp4/moe_w4a16_grouped_gemm.cu"
++#endif
++
++static void require(bool ok, const char* message) {
++    if (!ok) { std::fprintf(stderr, "FAIL: %s\n", message); std::exit(2); }
++}
++static unsigned mix(unsigned x) {
++    x ^= x >> 16; x *= 0x7feb352d; x ^= x >> 15; x *= 0x846ca68b;
++    return x ^ (x >> 16);
++}
++struct Routing {
++    std::array<int, 289> offsets{};
++    std::vector<int> ids;
++    int max_rows = 0;
++};
++static Routing routing(int rows, bool skew, int first = 0) {
++    std::array<std::vector<int>, 288> groups;
++    for (int t = 0; t < rows; ++t) {
++        int token = t + first;
++        std::array<bool, 288> seen{};
++        for (int r = 0; r < 8; ++r) {
++            unsigned e = (skew && r == 0) ? unsigned(token % 8) : mix(token * 19 + r * 4001) % 288;
++            while (seen[e]) e = (e + 1) % 288;
++            seen[e] = true; groups[e].push_back(t);
++        }
++    }
++    Routing out;
++    for (int e = 0; e < 288; ++e) {
++        out.max_rows = std::max(out.max_rows, int(groups[e].size()));
++        out.ids.insert(out.ids.end(), groups[e].begin(), groups[e].end());
++        out.offsets[e + 1] = int(out.ids.size());
++    }
++    return out;
++}
++struct Fixture {
++    int rows;
++    Routing whole, lo, hi;
++    std::vector<int> split_to_whole, whole_to_split, split_ids;
++    Fixture(int count, bool skew): rows(count), whole(routing(count, skew)),
++        lo(routing(4096, skew)), hi(routing(count - 4096, skew, 4096)),
++        split_to_whole(count * 8, -1), whole_to_split(count * 8, -1) {
++        require(count == 8192 || count == 8196, "bounded 8K fixture");
++        split_ids = lo.ids; split_ids.insert(split_ids.end(), hi.ids.begin(), hi.ids.end());
++        for (int e = 0; e < 288; ++e) {
++            int cursor = whole.offsets[e];
++            for (int part = 0; part < 2; ++part) {
++                const auto& split = part ? hi : lo;
++                int first = part ? 4096 : 0, base = part ? int(lo.ids.size()) : 0;
++                for (int p = split.offsets[e]; p < split.offsets[e + 1]; ++p, ++cursor) {
++                    require(cursor < whole.offsets[e + 1], "split route extent");
++                    require(whole.ids[cursor] == first + split.ids[p], "same expert and GLOBAL token");
++                    split_to_whole[base + p] = cursor;
++                    require(whole_to_split[cursor] == -1, "unique route permutation");
++                    whole_to_split[cursor] = base + p;
++                }
++            }
++            require(cursor == whole.offsets[e + 1], "complete expert route permutation");
++        }
++    }
++};
++static void host_tests() {
++    for (int rows : {8192, 8196}) for (bool skew : {false, true}) {
++        Fixture f(rows, skew);
++        require(f.whole.ids.size() == size_t(rows * 8), "top8 extent");
++        std::vector<int> counts(rows), route_seen(rows * 8);
++        for (int e = 0; e < 288; ++e) {
++            std::vector<bool> seen(rows);
++            require(f.whole.offsets[e + 1] > f.whole.offsets[e], "all288 experts exercised");
++            for (int p = f.whole.offsets[e]; p < f.whole.offsets[e + 1]; ++p) {
++                int t = f.whole.ids[p];
++                require(t >= 0 && t < rows && !seen[t], "unique valid expert tokens");
++                seen[t] = true; ++counts[t];
++                int split = f.whole_to_split[p];
++                require(split >= 0 && split < rows * 8 && f.split_to_whole[split] == p, "inverse route permutation");
++                ++route_seen[split];
++                // Gate inputs use the actual global activation row, never a
++                // regenerated local row. Down inputs gather this same canonical route.
++                int first = split >= 4096 * 8 ? 4096 : 0;
++                int local = f.split_ids[split];
++                require(first + local == t, "global activation row preserved");
++                if (first) require(first + local != local, "second chunk cannot reset activation rows");
++            }
++        }
++        require(std::all_of(counts.begin(), counts.end(), [](int n) { return n == 8; }), "eight unique experts per token");
++        require(std::all_of(route_seen.begin(), route_seen.end(), [](int n) { return n == 1; }), "split mapping covers every route exactly once");
++    }
++    std::puts("PASS host:8192/8196 uniform/skew, top8,144 local+144 remote experts, exact GLOBAL activation/route permutation");
++}
++
++#ifndef ATLAS_HOST_ONLY
++#define CHECK(call) do { cudaError_t e = (call); if (e != cudaSuccess) { \
++    std::fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, cudaGetErrorString(e)); std::exit(1); } } while (0)
++constexpr size_t GiB = size_t(1) << 30;
++static size_t live = 0, peak = 0;
++template<class T> struct Buffer {
++    T* raw = nullptr; T* p; size_t count, bytes;
++    explicit Buffer(size_t n):count(n),bytes(n*sizeof(T)+256) {
++        require(bytes <= 3*GiB && live <= 3*GiB-bytes, "3GiB device allocation ceiling");
++        CHECK(cudaMalloc(&raw, bytes)); p = reinterpret_cast<T*>(reinterpret_cast<unsigned char*>(raw)+128);
++        CHECK(cudaMemset(raw, 0xa5, bytes)); live += bytes; peak = std::max(peak, live);
++    }
++    ~Buffer() { cudaFree(raw); live -= bytes; }
++    Buffer(const Buffer&) = delete;
++    void upload(const T* data) { CHECK(cudaMemcpy(p, data, count*sizeof(T), cudaMemcpyHostToDevice)); }
++    std::vector<T> read() const {
++        std::vector<T> out(count); CHECK(cudaMemcpy(out.data(), p, count*sizeof(T), cudaMemcpyDeviceToHost)); return out;
++    }
++    void guards() const {
++        std::array<unsigned char,128> a,b;
++        CHECK(cudaMemcpy(a.data(), raw, 128, cudaMemcpyDeviceToHost));
++        CHECK(cudaMemcpy(b.data(), p+count, 128, cudaMemcpyDeviceToHost));
++        for (int i=0;i<128;++i) require(a[i]==0xa5 && b[i]==0xa5, "device guard overwritten");
++    }
++};
++__global__ void fill(unsigned char* out, size_t bytes, bool scale, unsigned seed) {
++    for (size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x; i<bytes; i+=size_t(gridDim.x)*blockDim.x) {
++        unsigned x=unsigned(i)^seed; x^=x>>16; x*=0x7feb352d; x^=x>>15;
++        out[i]=scale ? static_cast<unsigned char>(0x20+(x%24)) : static_cast<unsigned char>(x);
++    }
++}
++__global__ void gather_rows(const unsigned char* canonical, unsigned char* split,
++                            const int* split_to_whole, size_t bytes, unsigned row_bytes) {
++    for (size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x; i<bytes; i+=size_t(gridDim.x)*blockDim.x) {
++        size_t row=i/row_bytes, col=i%row_bytes;
++        split[i]=canonical[size_t(split_to_whole[row])*row_bytes+col];
++    }
++}
++template<class F> static float event_time(F launch, cudaStream_t stream) {
++    cudaEvent_t a,b; CHECK(cudaEventCreate(&a)); CHECK(cudaEventCreate(&b));
++    CHECK(cudaEventRecord(a,stream));
++    for(int i=0;i<5;++i) launch();
++    CHECK(cudaEventRecord(b,stream)); CHECK(cudaEventSynchronize(b));
++    float ms; CHECK(cudaEventElapsedTime(&ms,a,b));
++    CHECK(cudaEventDestroy(a)); CHECK(cudaEventDestroy(b)); return ms/5;
++}
++static void resources() {
++    cudaFuncAttributes a{}; int ctas=0;
++    CHECK(cudaFuncGetAttributes(&a, moe_w4a4_grouped_gemm_prequant_t_k64_vecscale));
++    CHECK(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&ctas,moe_w4a4_grouped_gemm_prequant_t_k64_vecscale,128,0));
++    std::printf("production_M64 resources smem=%zu regs=%d CTAs_per_SM=%d\n",a.sharedSizeBytes,a.numRegs,ctas);
++}
++struct Timing { float split_ms, whole_ms; };
++static Timing run_case(int rows, bool skew, bool down) {
++    Fixture f(rows,skew);
++    const unsigned n=down?4096:2048, k=down?2048:4096;
++    const size_t wb=size_t(n)*k/2, sb=size_t(n)*k/16;
++    const int expanded=rows*8, a_rows=down?expanded:rows, second_base=4096*8;
++    Buffer<unsigned char> w(144*wb),s(144*sb),a(size_t(a_rows)*k/2),as(size_t(a_rows)*k/16);
++    Buffer<unsigned char> split_a(down?a.count:0),split_as(down?as.count:0);
++    Buffer<unsigned long long> wp(288),sp(288); Buffer<float> scale2(288);
++    Buffer<int> off_whole(289),off_lo(289),off_hi(289),ids_whole(expanded),ids_split(expanded),map(expanded);
++    Buffer<__nv_bfloat16> whole(size_t(expanded)*n),split(size_t(expanded)*n);
++    std::array<unsigned long long,288> wptr{},sptr{}; std::array<float,288> scales{};
++    for(int e=0;e<144;++e) {
++        wptr[e]=reinterpret_cast<unsigned long long>(w.p+e*wb);
++        sptr[e]=reinterpret_cast<unsigned long long>(s.p+e*sb);
++        scales[e]=0.31f+float(e%17)*0.07f;
++    }
++    wp.upload(wptr.data());sp.upload(sptr.data());scale2.upload(scales.data());
++    off_whole.upload(f.whole.offsets.data());off_lo.upload(f.lo.offsets.data());off_hi.upload(f.hi.offsets.data());
++    ids_whole.upload(f.whole.ids.data());ids_split.upload(f.split_ids.data());map.upload(f.split_to_whole.data());
++    fill<<<4096,256>>>(w.p,w.count,false,97);fill<<<4096,256>>>(s.p,s.count,true,13);
++    // Generate canonical activations ONCE. All split inputs are views/copies
++    // of these exact bytes; no second fill with reset local row indices.
++    fill<<<1024,256>>>(a.p,a.count,false,29);fill<<<1024,256>>>(as.p,as.count,true,51);
++    if(down) {
++        gather_rows<<<1024,256>>>(a.p,split_a.p,map.p,a.count,k/2);
++        gather_rows<<<1024,256>>>(as.p,split_as.p,map.p,as.count,k/16);
++    }
++    CHECK(cudaGetLastError());CHECK(cudaDeviceSynchronize());
++    cudaStream_t stream;CHECK(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
++    auto launch_whole=[&] {
++        dim3 grid((n+127)/128,(f.whole.max_rows+63)/64,288);
++        moe_w4a4_grouped_gemm_prequant_t_k64_vecscale<<<grid,128,0,stream>>>(
++            a.p,as.p,wp.p,sp.p,scale2.p,whole.p,off_whole.p,down?nullptr:ids_whole.p,288,n,k);
++        CHECK(cudaGetLastError());
++    };
++    auto launch_split=[&] {
++        for(int part=0;part<2;++part) {
++            int token_base=part?4096:0,route_base=part?second_base:0;
++            int max_rows=part?f.hi.max_rows:f.lo.max_rows;
++            auto* ap=down?split_a.p+size_t(route_base)*k/2:a.p+size_t(token_base)*k/2;
++            auto* asp=down?split_as.p+size_t(route_base)*k/16:as.p+size_t(token_base)*k/16;
++            dim3 grid((n+127)/128,(max_rows+63)/64,288);
++            moe_w4a4_grouped_gemm_prequant_t_k64_vecscale<<<grid,128,0,stream>>>(
++                ap,asp,wp.p,sp.p,scale2.p,split.p+size_t(route_base)*n,
++                part?off_hi.p:off_lo.p,down?nullptr:ids_split.p+route_base,288,n,k);
++            CHECK(cudaGetLastError());
++        }
++    };
++    CHECK(cudaMemset(whole.p,0xa5,whole.count*2));CHECK(cudaMemset(split.p,0x5a,split.count*2));
++    launch_whole();launch_split();CHECK(cudaStreamSynchronize(stream));
++    {
++        auto x=whole.read(),y=split.read();
++        const auto* xb=reinterpret_cast<const unsigned short*>(x.data());
++        const auto* yb=reinterpret_cast<const unsigned short*>(y.data());
++        size_t checked=0;
++        for(int e=0;e<288;++e) for(int p=f.whole.offsets[e];p<f.whole.offsets[e+1];++p) {
++            size_t xi=size_t(p)*n,yi=size_t(f.whole_to_split[p])*n;
++            for(unsigned col=0;col<n;++col) {
++                unsigned short a_bits=xb[xi+col],b_bits=yb[yi+col];
++                if(e<144) {
++                    if(a_bits!=b_bits || (a_bits&0x7f80)==0x7f80) {
++                        std::fprintf(stderr,"FAIL oracle rows=%d skew=%d down=%d expert=%d GLOBALtoken=%d col=%u whole=%04x split=%04x\n",
++                            rows,skew,down,e,f.whole.ids[p],col,a_bits,b_bits);std::exit(2);
++                    }
++                    ++checked;
++                } else require(a_bits==0xa5a5 && b_bits==0x5a5a,"remote row written");
++            }
++        }
++        require(checked>0,"oracle checked local output");
++    }
++    whole.guards();split.guards();w.guards();s.guards();a.guards();as.guards();split_a.guards();split_as.guards();
++    wp.guards();sp.guards();scale2.guards();off_whole.guards();off_lo.guards();off_hi.guards();ids_whole.guards();ids_split.guards();map.guards();
++    for(int i=0;i<3;++i){launch_whole();launch_split();}CHECK(cudaStreamSynchronize(stream));
++    std::vector<float> split_times,whole_times;
++    for(int r=0;r<5;++r) {
++        if(r%2) {whole_times.push_back(event_time(launch_whole,stream));split_times.push_back(event_time(launch_split,stream));}
++        else {split_times.push_back(event_time(launch_split,stream));whole_times.push_back(event_time(launch_whole,stream));}
++    }
++    std::sort(split_times.begin(),split_times.end());std::sort(whole_times.begin(),whole_times.end());
++    std::printf("PASS bitwise oracle rows=%d split=4096+%d skew=%d down=%d max_expert_rows=%d split_M64_ms=%.6f whole_M64_ms=%.6f gain=%.3f\n",
++        rows,rows-4096,skew,down,f.whole.max_rows,split_times[2],whole_times[2],split_times[2]/whole_times[2]);
++    CHECK(cudaStreamDestroy(stream));return {split_times[2],whole_times[2]};
++}
++#endif
++
++int main(int argc,char** argv) {
++    require(argc>=2 && argc<=3 && (!std::strcmp(argv[1],"--host-test") || !std::strcmp(argv[1],"--run")),"usage: bench --host-test | --run [minimum_gain]");
++    host_tests();if(!std::strcmp(argv[1],"--host-test"))return 0;
++#ifdef ATLAS_HOST_ONLY
++    require(false,"host-only binary cannot run CUDA");
++#else
++    float minimum_gain=argc==3?std::strtof(argv[2],nullptr):1.15f;
++    require(std::isfinite(minimum_gain) && minimum_gain>=1.0f,"finite minimum_gain>=1");
++    size_t free,total;CHECK(cudaMemGetInfo(&free,&total));
++    require(free>=9*GiB,"need9GiB free:3GiB device cap, host oracle copies and4GiB reserve");
++    resources();
++    float worst=1000;
++    for(int rows:{8192,8196}) for(bool skew:{false,true}) {
++        auto gate=run_case(rows,skew,false),down=run_case(rows,skew,true);
++        float split=2*gate.split_ms+down.split_ms,whole=2*gate.whole_ms+down.whole_ms,gain=split/whole;
++        worst=std::min(worst,gain);
++        std::printf("COMBINED rows=%d skew=%d 2gate_plus_down split_ms=%.6f whole_ms=%.6f gain=%.3f threshold=%.3f\n",rows,skew,split,whole,gain,minimum_gain);
++        if(gain<minimum_gain) {std::puts("REJECT: weighted chunk gain below threshold; fail fast");return 3;}
++    }
++    std::printf("PASS macro canary min_weighted_gain=%.3f peak_device_MiB=%.1f; engine integration pending\n",worst,double(peak)/(1<<20));
++#endif
++}
+diff --git a/scripts/dev/glm_moe_cutlass_transient/README.md b/scripts/dev/glm_moe_cutlass_transient/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c35dac058bcad4e5476dc7d71c11125b7b1d1ca5
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/README.md
+@@ -0,0 +1,91 @@
++# Standalone transient-SFB grouped CUTLASS benchmark
++
++No serving source or dispatch changes. Production collective, epilogue and
++grouped launch assembly are extracted from the pinned source by `generate.py`.
++The only launch modification adds a dry-run path and checked workspace writes.
++The actual production BF16-to-NVFP4 quantizer and M64 vector-scale kernel are
++included directly. CUTLASS receives those same packed activation bytes through
++a gather/SFA swizzle; its different BF16 quantizer is deliberately bypassed.
++
++The fixture uses 4100 tokens, top8 of288 experts,144 local expert matrices,
++including uniform and skewed routing. Each projection has distinct deterministic
++weights, original-native storage for CUTLASS and transposed storage for M64.
++Native layout preparation is outside timing, representing alternative resident
++layouts. Each timed projection includes BF16 activation quantization; CUTLASS
++also includes all activation gathering/SFA packing and a fresh72MiB SFB pack.
++The three projection cases are measured separately. Their weighted total removes
++one measured gate/up activation preparation to account for its reuse. This is a
++projection microbenchmark, not a chained FFN or a model correctness gate.
++
++One512MiB explicit workspace holds activation staging, argument arrays and the
++queried CUTLASS workspace. All sizes and `can_implement` are checked in a dry run
++before candidate workspace uploads/kernels. A one-byte-short test must reject.
++There is no process-global CUTLASS workspace or hidden512MiB wrapper allocation.
++The measured required workspace is printed for a later arena integration audit.
++
++Device allocations have128-byte red zones and a combined3GiB ceiling. The largest
++case is approximately2556MiB plus small pointer/metadata buffers. Host comparison
++temporarily holds512.5MiB of output copies. The initial7GiB free guard retains at
++least4GiB beyond the device ceiling. No checkpoint data or model process is used.
++
++The native gate requires exhaustive byte identity of A/SFA/B/SFB, untouched remote
++expert rows, finite outputs, relativeL2 <=0.004 and a per-output reduction bound.
++An independent FP64 quantized dot oracle samples96 outputs per projection, with
++one-half BF16 ULP plus an FP32 accumulation allowance. Output-bit differences are
++reported, not silently treated as identical. Median alternating-order CUDA event
++timings include preparation. Stop after all3 uniform projections if weighted
++speedup is below1.5x; otherwise also require1.5x for skew. A2x result is preferred.
++
++```sh
++python3 scripts/dev/glm_moe_cutlass_transient/generate.py
++c++ -std=c++17 -O2 -DATLAS_HOST_ONLY -x c++ \
++  scripts/dev/glm_moe_cutlass_transient/bench.cu -o /tmp/atlas-cutlass-host
++/tmp/atlas-cutlass-host --host-test
++
++nvcc -std=c++17 -O3 --fmad=false --expt-relaxed-constexpr \
++  -gencode=arch=compute_121a,code=sm_121a -Xptxas=-v \
++  -I/opt/cutlass/include -I/opt/cutlass/tools/util/include \
++  scripts/dev/glm_moe_cutlass_transient/bench.cu -o /tmp/atlas-cutlass-transient
++# Requires a separately authorized idle GPU window:
++/tmp/atlas-cutlass-transient --run
++```
++
++Production integration remains unimplemented: it would need transient owner
++capacity validation, batched SFB staging, native-original-only expert ownership,
++materialized post-SiLU BF16 or direct prequant down input, and shared-cache/MTP
++dispatch qualification. A successful microbenchmark alone does not authorize it.
++
++## Native result: rejected
++
++On Spark01, the reviewed native executable passed all three uniform projections:
++exhaustive operand-byte equality, unchanged workspace after dry-run rejection,
++134,135,808 bit-identical local BF16 outputs in total, and288 independent FP64
++dot checks. Combined inclusive time was14.038845ms for production M64 versus
++17.487295ms for CUTLASS (0.802803x). The1.5x fail-fast gate exited3 and skipped
++skew. Peak explicit device allocation was2556.796MiB. Actual queried workspace
++was38,580,480 bytes for gate/up and19,323,136 bytes for down, far below the
++explicit512MiB cap. No production integration was made.
++
++The subsequent uniform-only component diagnostic retained the same oracle and
++aggregate timing. It measured3.662451ms total SFB packing and12.010595ms total
++CUTLASS core plus metadata. Inclusive time was17.518621ms versus14.079632ms.
++Even hypothetically free SFB would leave13.856170ms, only1.016x. The transient
++pingpong K128 recipe is closed; old source archives and receipts are retained.
++
++## Final cooperative K256 alternative
++
++`cooperative.cu` includes the identical harness with only two collective changes:
++TileShape128x128x128 ->128x128x256 and Pingpong -> Cooperative schedule.
++StageCountAuto, epilogue, all operands, preparation costs, numerical gates and
++memory limits remain unchanged. The generator writes a separate collective
++header; the baseline header remains intact. Use the same nvcc command with
++`cooperative.cu` and a distinct executable, then `--uniform` to stop after the
++first three-projection gate regardless of its result. Exit3 still rejects below
++1.5x. This recipe is motivated by the local FlashInfer native probe's compiled
++cooperative K256 symbol, not evidence of the matched full-model kernel choice.
++
++Native cooperative K256 also rejected (exit3): all three uniform projections
++again passed identical operands,134,135,808 unchanged output bits and288 FP64
++dots. Inclusive production14.129487ms versus cooperative16.587219ms =0.851830x.
++SFB packing totaled3.631859ms; core plus metadata totaled11.183834ms. Even free
++SFB would only reach about1.091x. The family is closed without serving changes.
+diff --git a/scripts/dev/glm_moe_cutlass_transient/bench.cu b/scripts/dev/glm_moe_cutlass_transient/bench.cu
+new file mode 100644
+index 0000000000000000000000000000000000000000..c538b10d3d5b4b9fa0e8bba99eb7d6d65fd553c9
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/bench.cu
+@@ -0,0 +1,204 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <numeric>
++#include <vector>
++#ifndef ATLAS_HOST_ONLY
++#include <cuda_runtime.h>
++#include <cuda_bf16.h>
++#endif
++#include "common.cuh"
++#ifndef ATLAS_HOST_ONLY
++#include "../../../kernels/gb10/deepseek-v4-flash/nvfp4/moe_w4a16_grouped_gemm.cu"
++#include "../../../kernels/gb10/common/quantize_bf16_to_nvfp4.cu"
++#ifdef ATLAS_CUTLASS_COOPERATIVE_K256
++#include "collective_cooperative.cuh"
++#else
++#include "collective.cuh"
++#endif
++#include "staging.cuh"
++
++static double fp4(unsigned q) {
++    constexpr double lut[8]={0,.5,1,1.5,2,3,4,6};
++    return (q&8)?-lut[q&7]:lut[q&7];
++}
++static double fp8(unsigned b) {
++    int e=(b>>3)&15,m=b&7;
++    require(!(e==15 && m==7),"finite scale encoding");
++    double v=e?std::ldexp(1.0+m/8.0,e-7):m/512.0;
++    return b&128?-v:v;
++}
++static unsigned weight_byte(size_t i,unsigned seed,bool scale) {
++    unsigned x=unsigned(i)^seed;x^=x>>16;x*=0x7feb352d;x^=x>>15;
++    return scale?0x20+x%24:x&255;
++}
++static void independent(const std::vector<__nv_bfloat16>& x,
++    const std::vector<__nv_bfloat16>& y,const Routing& r,
++    const unsigned char* packed,const unsigned char* scales,int n,int k,bool down,
++    unsigned seed,const std::array<float,288>& scale2) {
++    double worst=0;
++    for(int test=0;test<96;++test) {
++        int e=(test*41)%144, row=r.offsets[e]+(test*13)%(r.offsets[e+1]-r.offsets[e]);
++        int tok=down?row:r.ids[row],col=(test*101+7)%n;
++        std::vector<unsigned char> a(k/2),s(k/16);
++        CHECK(cudaMemcpy(a.data(),packed+size_t(tok)*k/2,a.size(),cudaMemcpyDeviceToHost));
++        CHECK(cudaMemcpy(s.data(),scales+size_t(tok)*k/16,s.size(),cudaMemcpyDeviceToHost));
++        double sum=0,abs_sum=0;
++        for(int j=0;j<k;++j) {
++            unsigned aq=(a[j/2]>>(4*(j&1)))&15;
++            unsigned b=weight_byte(size_t(e)*n*k/2+size_t(j/2)*n+col,seed,false);
++            unsigned bq=(b>>(4*(j&1)))&15;
++            unsigned bs=weight_byte(size_t(e)*n*k/16+size_t(j/16)*n+col,seed+1,true);
++            double term=fp4(aq)*fp8(s[j/16])*fp4(bq)*fp8(bs);
++            sum+=term;abs_sum+=std::abs(term);
++        }
++        sum*=scale2[e];abs_sum*=scale2[e];
++        int exponent=0;std::frexp(std::abs(sum),&exponent);
++        double half_ulp=std::ldexp(1.0,exponent-9);
++        double bound=half_ulp+8e-6*abs_sum+1e-5;
++        for(double value:{double(__bfloat162float(x[size_t(row)*n+col])),double(__bfloat162float(y[size_t(row)*n+col]))}) {
++            worst=std::max(worst,std::abs(value-sum));
++            if(std::abs(value-sum)>bound) {
++                std::fprintf(stderr,"independent e=%d row=%d col=%d got=%.9g expected=%.9g bound=%.9g\n",e,row,col,value,sum,bound);
++                require(false,"FP64 dot oracle");
++            }
++        }
++    }
++    std::printf("PASS independent96 FP64 quantized dots max_abs_error=%.9g\n",worst);
++}
++struct Result {float baseline,cutlass,quant,stage,sfb,core;};
++static Result run_case(bool skew,int projection) {
++    constexpr int rows=4100;
++    bool down=projection==2;unsigned seed=97+projection*1009;
++    int n=down?4096:2048,k=down?2048:4096,expanded=rows*8,a_rows=down?expanded:rows;
++    size_t wb=size_t(n)*k/2,sb=size_t(n)*k/16;
++    Routing r=routing(rows,skew);
++    Buffer<unsigned char> wt(144*wb),st(144*sb),wn(144*wb),sn(144*sb),sfb(144*sb);
++    Buffer<__nv_bfloat16> input(size_t(a_rows)*k),old(size_t(expanded)*n),out(size_t(expanded)*n);
++    Buffer<unsigned char> a(size_t(a_rows)*k/2),as(size_t(a_rows)*k/16),workspace(512ull<<20);
++    Buffer<unsigned long long> wptr(288),sptr(288);Buffer<float> globals(288);
++    Buffer<int> offsets(289),ids(expanded);
++    Buffer<unsigned> operand_errors(1);
++    std::array<unsigned long long,288> wtp{},stp{},wnp{},sfp{};
++    std::array<float,288> scale2{};
++    for(int e=0;e<144;++e) {
++        wtp[e]=(unsigned long long)(wt.p+e*wb);stp[e]=(unsigned long long)(st.p+e*sb);
++        wnp[e]=(unsigned long long)(wn.p+e*wb);sfp[e]=(unsigned long long)(sfb.p+e*sb);
++        scale2[e]=.31f+float(e%17)*.07f;
++    }
++    cudaStream_t stream;CHECK(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
++    StagePlan plan(workspace.p,workspace.count,r,n,k);
++    require(plan.sfb_stride==sb,"actual SFB extent equals allocated stride");
++    size_t required=0;
++    require(launch_projection(plan.p,wnp.data(),sfp.data(),scale2.data(),out.p,n,k,
++        workspace.p,plan.p.cursor,workspace.count,stream,100000,true,&required)==0,"dry workspace plan and can_implement");
++    require(required<=workspace.count,"all staging and GEMM capacity prevalidated");
++    require(required>plan.p.cursor,"nonempty GEMM metadata/workspace extent");
++    require(launch_projection(plan.p,wnp.data(),sfp.data(),scale2.data(),out.p,n,k,
++        workspace.p,plan.p.cursor,required-1,stream,100000,true,nullptr)==-2,"one-byte-short workspace rejected before writes");
++    {
++        auto untouched=workspace.read();
++        require(std::all_of(untouched.begin(),untouched.end(),[](unsigned char x){return x==0xa5;}),
++            "full512MiB workspace untouched after both dry planning calls");
++    }
++    std::printf("plan projection=%d skew=%d local_experts=144 max_expert_rows=%d staging_bytes=%zu workspace_required=%zu cap=%zu SFB=%zu live_MiB=%.3f\n",
++        projection,skew,r.max_rows,plan.p.cursor,required,workspace.count,sfb.count,live/1048576.0);
++    // No candidate workspace writes or kernels precede the validated plan.
++    plan.upload(stream);wptr.upload(wtp.data());sptr.upload(stp.data());globals.upload(scale2.data());
++    offsets.upload(r.offsets.data());ids.upload(r.ids.data());
++    fill<<<4096,256,0,stream>>>(wt.p,wt.count,false,seed);fill<<<4096,256,0,stream>>>(st.p,st.count,true,seed+1);
++    fill_bf16<<<1024,256,0,stream>>>(input.p,input.count,29);
++    native_from_t<<<dim3((wb+255)/256,1,144),256,0,stream>>>(wt.p,wn.p,n,k/2);
++    native_from_t<<<dim3((sb+255)/256,1,144),256,0,stream>>>(st.p,sn.p,n,k/16);
++    CHECK(cudaGetLastError());CHECK(cudaStreamSynchronize(stream));
++    auto quant=[&] {quantize_bf16_to_nvfp4<<<a_rows,256,0,stream>>>(input.p,a.p,as.p,1.0f,a_rows,k);CHECK(cudaGetLastError());};
++    auto astage=[&] {plan.stage(a.p,as.p,down?nullptr:ids.p,offsets.p,r.max_rows,k,stream);};
++    auto bstage=[&] {stage_sfb<<<dim3((sb+255)/256,1,144),256,0,stream>>>(sn.p,sfb.p,n,k,sb);CHECK(cudaGetLastError());};
++    auto baseline=[&] {
++        quant();moe_w4a4_grouped_gemm_prequant_t_k64_vecscale<<<dim3((n+127)/128,(r.max_rows+63)/64,288),128,0,stream>>>(
++            a.p,as.p,wptr.p,sptr.p,globals.p,old.p,offsets.p,down?nullptr:ids.p,288,n,k);CHECK(cudaGetLastError());
++    };
++    auto core=[&] {
++        require(launch_projection(plan.p,wnp.data(),sfp.data(),scale2.data(),out.p,n,k,
++            workspace.p,plan.p.cursor,workspace.count,stream,100000,false,nullptr)==0,"CUTLASS launch");
++        CHECK(cudaGetLastError());
++    };
++    auto candidate=[&] {quant();astage();bstage();core();};
++    CHECK(cudaMemset(old.p,0xa5,old.count*2));CHECK(cudaMemset(out.p,0x5a,out.count*2));
++    baseline();candidate();CHECK(cudaStreamSynchronize(stream));
++    CHECK(cudaMemset(operand_errors.p,0,sizeof(unsigned)));
++    size_t verify_extent=std::max(wb,size_t(r.max_rows)*k/2);
++    verify_operands<<<dim3((verify_extent+255)/256,1,144),256,0,stream>>>(a.p,as.p,wt.p,st.p,wn.p,sn.p,sfb.p,
++        (unsigned char* const*)plan.p.dA,(unsigned char* const*)plan.p.dSFA,offsets.p,down?nullptr:ids.p,n,k,sb,operand_errors.p);
++    CHECK(cudaGetLastError());CHECK(cudaStreamSynchronize(stream));
++    require(operand_errors.read()[0]==0,"all quantized operand bytes and scales identical");
++    std::puts("PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection");
++    {
++        auto x=old.read(),y=out.read();double err2=0,ref2=0,maxerr=0;size_t changed=0,count=0;
++        auto* xb=(unsigned short*)x.data();auto* yb=(unsigned short*)y.data();
++        for(int e=0;e<288;++e) for(size_t i=size_t(r.offsets[e])*n;i<size_t(r.offsets[e+1])*n;++i) {
++            if(e>=144) {require(xb[i]==0xa5a5 && yb[i]==0x5a5a,"remote writes");continue;}
++            double xx=__bfloat162float(x[i]),yy=__bfloat162float(y[i]),diff=std::abs(xx-yy);
++            require(std::isfinite(xx)&&std::isfinite(yy),"finite outputs");
++            require(diff<=.008*std::max({std::abs(xx),std::abs(yy),1.0}),"per-element tight reduction bound");
++            err2+=diff*diff;ref2+=xx*xx;maxerr=std::max(maxerr,diff);changed+=xb[i]!=yb[i];++count;
++        }
++        double rel=std::sqrt(err2/std::max(ref2,1e-30));require(rel<=.004,"relative L2 <=0.004");
++        std::printf("PASS outputs count=%zu changed_bits=%zu relative_L2=%.9g max_abs=%.9g\n",count,changed,rel,maxerr);
++        independent(x,y,r,a.p,as.p,n,k,down,seed,scale2);
++    }
++    for(int i=0;i<3;++i) {baseline();candidate();}CHECK(cudaStreamSynchronize(stream));
++    std::array<float,5> bt{},ct{},qt{},at{},sf{},co{};
++    for(int t=0;t<5;++t) {
++        if(t&1) {ct[t]=event_time(candidate,stream);bt[t]=event_time(baseline,stream);}
++        else {bt[t]=event_time(baseline,stream);ct[t]=event_time(candidate,stream);}
++        qt[t]=event_time(quant,stream);at[t]=event_time(astage,stream);
++        sf[t]=event_time(bstage,stream);co[t]=event_time(core,stream);
++    }
++    auto median=[](auto x){std::sort(x.begin(),x.end());return x[2];};
++    Result result{median(bt),median(ct),median(qt),median(at),median(sf),median(co)};
++    std::printf("timing projection=%d skew=%d baseline_inclusive_ms=%.6f cutlass_inclusive_ms=%.6f speedup=%.6f quant_ms=%.6f A_gather_SFA_ms=%.6f\n",
++        projection,skew,result.baseline,result.cutlass,result.baseline/result.cutlass,result.quant,result.stage);
++    std::printf("components projection=%d skew=%d SFB_pack_ms=%.6f CUTLASS_core_with_metadata_ms=%.6f\n",
++        projection,skew,result.sfb,result.core);
++    wt.guards();st.guards();wn.guards();sn.guards();sfb.guards();input.guards();a.guards();as.guards();workspace.guards();old.guards();out.guards();
++    CHECK(cudaStreamDestroy(stream));return result;
++}
++#endif
++int main(int argc,char** argv) {
++    for(bool skew:{false,true}) {
++        auto r=routing(4100,skew);require(r.ids.size()==32800,"4100 top8 routes");
++        for(int e=0;e<144;++e) require(r.offsets[e+1]>r.offsets[e],"full144 active experts");
++    }
++    if(argc==2 && std::strcmp(argv[1],"--host-test")==0) {std::puts("PASS host4100 top8 full144 routing");return 0;}
++#ifndef ATLAS_HOST_ONLY
++    bool components=argc==2 && std::strcmp(argv[1],"--components")==0;
++    bool uniform=argc==2 && std::strcmp(argv[1],"--uniform")==0;
++    require(components || uniform || (argc==2 && std::strcmp(argv[1],"--run")==0),"explicit --run, --uniform or --components required");
++    size_t free,total;CHECK(cudaMemGetInfo(&free,&total));
++    require(free>=7*GiB,"7GiB free guard retains4GiB beyond3GiB fixture ceiling");
++    cudaDeviceProp prop{};CHECK(cudaGetDeviceProperties(&prop,0));
++    require(prop.major==12 && prop.minor==1,"GB10 sm121 only");
++    std::printf("device=%s free_MiB=%.3f\n",prop.name,free/1048576.0);
++    for(bool skew:{false,true}) {
++        auto gate=run_case(skew,0),up=run_case(skew,1),down=run_case(skew,2);
++        // All3 projection-inclusive times. The actual gate/up pair reuses its
++        // A quant/gather. Remove exactly one measured common preparation.
++        float old=gate.baseline+up.baseline+down.baseline-up.quant;
++        float candidate=gate.cutlass+up.cutlass+down.cutlass-up.quant-up.stage;
++        std::printf("COMBINED skew=%d baseline_ms=%.6f cutlass_ms=%.6f speedup=%.6f peak_MiB=%.3f\n",skew,old,candidate,old/candidate,peak/1048576.0);
++        std::printf("COMPONENT_SUM SFB_pack_ms=%.6f CUTLASS_core_with_metadata_ms=%.6f required_saving_for1p5_ms=%.6f\n",
++            gate.sfb+up.sfb+down.sfb,gate.core+up.core+down.core,candidate-old/1.5f);
++        if(components) {std::puts("DONE uniform-only component diagnostic; prior performance decision unchanged");return 0;}
++        if(old/candidate<1.5f) {std::puts("REJECT below1.5x fullthreeprojection threshold");return 3;}
++        if(uniform) {std::puts("PASS uniform-only1.5x gate; skew and model qualification pending");return 0;}
++    }
++    std::puts("PASS performance>=1.5x uniform and skew; model qualification remains pending");return 0;
++#else
++    return 2;
++#endif
++}
+diff --git a/scripts/dev/glm_moe_cutlass_transient/collective.cuh b/scripts/dev/glm_moe_cutlass_transient/collective.cuh
+new file mode 100644
+index 0000000000000000000000000000000000000000..3cbfb78b6e6acfec1a2e09578bab9c3191b83022
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/collective.cuh
+@@ -0,0 +1,242 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++// Single-launch Sm120 NVFP4 grouped GEMM for Holo MoE Phase-2.
++// Replaces the per-expert dense-collective loop (atlas_cutlass_nvfp4_grouped_gate_up)
++// with one GemmUniversalMode::kGrouped launch over all active experts.
++//
++// Style/types mirror the dense binding cutlass_nvfp4_gemm.cu: same Sm120 /
++// OpClassBlockScaledTensorOp / nv_float4_t<e2m1> / float_ue4m3_t SF collective,
++// same #ifdef arch guard, same extern "C" status-code convention. The only new
++// machinery here is the single-launch grouped host assembly (per-group problem
++// shapes / pointers / strides / SF-layouts) plus a per-group activation pack into
++// the grouped SFA atom.
++
++#include <cuda_bf16.h>
++#include <cuda_fp8.h>
++#include <cuda_runtime_api.h>
++#include <vector>
++
++#include "cute/tensor.hpp"
++#include "cutlass/bfloat16.h"
++#include "cutlass/cutlass.h"
++#include "cutlass/detail/sm100_blockscaled_layout.hpp"
++#include "cutlass/epilogue/collective/collective_builder.hpp"
++#include "cutlass/gemm/collective/collective_builder.hpp"
++#include "cutlass/gemm/device/gemm_universal_adapter.h"
++#include "cutlass/gemm/dispatch_policy.hpp"
++#include "cutlass/gemm/group_array_problem_shape.hpp"
++#include "cutlass/gemm/kernel/gemm_universal.hpp"
++#include "cutlass/layout/matrix.h"
++#include "cutlass/util/packed_stride.hpp"
++
++using namespace cute;
++
++#if defined(CUTLASS_ARCH_MMA_SM120_SUPPORTED) || defined(CUTLASS_ARCH_MMA_SM121_SUPPORTED)
++
++// ─── element + layout aliases (IDENTICAL to dense cutlass_nvfp4_gemm.cu:23-42) ───
++using ElementInput = cutlass::float_e2m1_t;
++using ElementA = cutlass::nv_float4_t<ElementInput>;
++using ElementB = cutlass::nv_float4_t<ElementInput>;
++using ElementC = cutlass::bfloat16_t;
++using ElementD = cutlass::bfloat16_t;
++using ElementSF = cutlass::float_ue4m3_t;
++using ElementAccumulator = float;
++using ElementCompute = float;
++
++// pointer-to-layout  ⇒  selects GROUPED (IsGroupedGemmKernel)
++using GmemLayoutA = cutlass::layout::RowMajor;
++using GmemLayoutB = cutlass::layout::ColumnMajor;
++using GmemLayoutC = cutlass::layout::RowMajor;  // dense path uses RowMajor C/D; keep it
++using GmemLayoutD = cutlass::layout::RowMajor;
++
++constexpr int AlignmentA = 32;  // = 128 / 4   (FP4 elems)
++constexpr int AlignmentB = 32;
++constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;  // = 8
++constexpr int AlignmentD = 128 / cutlass::sizeof_bits<ElementD>::value;  // = 8
++
++using ArchTag = cutlass::arch::Sm120;
++using OperatorClass = cutlass::arch::OpClassBlockScaledTensorOp;
++using TileShape = Shape<_128, _128, _128>;  // matches dense ThreadBlockShape
++using ClusterShape = Shape<_1, _1, _1>;
++
++// ─── EPILOGUE (plain LinearCombination; beta=0; per-expert scale2 via alpha_ptr) ───
++using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
++    ArchTag,
++    OperatorClass,
++    TileShape,
++    ClusterShape,
++    cutlass::epilogue::collective::EpilogueTileAuto,
++    ElementAccumulator,
++    ElementCompute,
++    ElementC,
++    GmemLayoutC*,  // trailing '*' ⇒ grouped
++    AlignmentC,
++    ElementD,
++    GmemLayoutD*,
++    AlignmentD,
++    cutlass::epilogue::collective::EpilogueScheduleAuto>::CollectiveOp;
++
++// ─── MAINLOOP (pointer-to-layout ⇒ grouped; all-TMA pingpong) ───
++using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
++    ArchTag,
++    OperatorClass,
++    ElementA,
++    GmemLayoutA*,
++    AlignmentA,
++    ElementB,
++    GmemLayoutB*,
++    AlignmentB,
++    ElementAccumulator,
++    TileShape,
++    ClusterShape,
++    cutlass::gemm::collective::StageCountAutoCarveout<
++        static_cast<int>(sizeof(typename CollectiveEpilogue::SharedStorage))>,
++    cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpong>::CollectiveOp;
++// Fallback if can_implement rejects pingpong on sm_121f:
++//   cutlass::gemm::collective::KernelScheduleAuto   (cooperative)
++
++using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
++    cutlass::gemm::GroupProblemShape<cute::Shape<int, int, int>>,
++    CollectiveMainloop,
++    CollectiveEpilogue>;
++using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
++
++// per-group internal types (pointer types at the Arguments boundary)
++using StrideA = typename Gemm::GemmKernel::InternalStrideA;
++using StrideB = typename Gemm::GemmKernel::InternalStrideB;
++using StrideC = typename Gemm::GemmKernel::InternalStrideC;
++using StrideD = typename Gemm::GemmKernel::InternalStrideD;
++using LayoutSFA = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFA;
++using LayoutSFB = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFB;
++using Sm1xxBlkScaledConfig =
++    typename Gemm::GemmKernel::CollectiveMainloop::Sm1xxBlkScaledConfig;
++using ProblemShape = cute::Shape<int, int, int>;
++
++static inline size_t align_up_(size_t x, size_t a) {
++  return (x + a - 1) & ~(a - 1);
++}
++
++
++struct GroupedAPrep {
++  int status = 0;                          // non-zero on failure
++  int G = 0;                               // active groups
++  std::vector<ProblemShape> host_shapes;   // {m_e, n, k} per group
++  std::vector<int> ms;                     // sorted-row start per group (C offset)
++  std::vector<int> me;                     // m_e per group
++  std::vector<int> eidx;                   // expert index per group (B/scale2 lookup)
++  ProblemShape* dShapes = nullptr;
++  const ElementA::DataType** dA = nullptr;
++  const ElementSF** dSFA = nullptr;
++  StrideA* dsA = nullptr;
++  LayoutSFA* dlSFA = nullptr;
++  size_t cursor = 0;                       // free ws offset after the A-side arrays
++};
++
++static int launch_projection(
++    const GroupedAPrep& a,
++    const unsigned long long* packed_ptrs,
++    const unsigned long long* sfb_ptrs,
++    const float* scale2_vals,
++    __nv_bfloat16* C_bf16,
++    int n,
++    int k,
++    unsigned char* ws,
++    size_t cursor_start,
++    size_t workspace_size,
++    cudaStream_t stream,
++    int tag, bool dry_run, size_t* required) {
++  int G = a.G;
++  if (G == 0) {
++    return 0;
++  }
++  std::vector<const ElementB::DataType*> hB(G);
++  std::vector<const ElementSF*> hSFB(G);
++  std::vector<const ElementC*> hC(G);
++  std::vector<ElementD*> hD(G);
++  std::vector<StrideB> sB(G);
++  std::vector<StrideC> sC(G);
++  std::vector<StrideD> sD(G);
++  std::vector<LayoutSFB> lSFB(G);
++  std::vector<float> alpha_host(G);
++  for (int g = 0; g < G; ++g) {
++    int e = a.eidx[g];
++    int m_e = a.me[g];
++    size_t ms = (size_t)a.ms[g];
++    hB[g] = reinterpret_cast<const ElementB::DataType*>(packed_ptrs[e]);
++    hSFB[g] = reinterpret_cast<const ElementSF*>(sfb_ptrs[e]);
++    hC[g] = reinterpret_cast<const ElementC*>(C_bf16 + ms * n);
++    hD[g] = reinterpret_cast<ElementD*>(C_bf16 + ms * n);
++    sB[g] = cutlass::make_cute_packed_stride(StrideB{}, {n, k, 1});
++    sC[g] = cutlass::make_cute_packed_stride(StrideC{}, {m_e, n, 1});
++    sD[g] = cutlass::make_cute_packed_stride(StrideD{}, {m_e, n, 1});
++    lSFB[g] =
++        Sm1xxBlkScaledConfig::tile_atom_to_shape_SFB(cute::make_shape(m_e, n, k, 1));
++    alpha_host[g] = scale2_vals[e];
++  }
++
++  size_t cursor = cursor_start;
++  auto put = [&](const void* src, size_t bytes) -> void* {
++    if (cursor > workspace_size || bytes > workspace_size - cursor) { std::fprintf(stderr, "metadata capacity exceeded\n"); std::abort(); }
++    void* dst = ws + cursor;
++    cursor = align_up_(cursor + bytes, 256);
++    if (!dry_run) CHECK(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, stream));
++    return dst;
++  };
++  auto* dB = (const ElementB::DataType**)put(hB.data(), G * sizeof(void*));
++  auto* dSFB = (const ElementSF**)put(hSFB.data(), G * sizeof(void*));
++  auto* dC = (const ElementC**)put(hC.data(), G * sizeof(void*));
++  auto* dD = (ElementD**)put(hD.data(), G * sizeof(void*));
++  auto* dsB = (StrideB*)put(sB.data(), G * sizeof(StrideB));
++  auto* dsC = (StrideC*)put(sC.data(), G * sizeof(StrideC));
++  auto* dsD = (StrideD*)put(sD.data(), G * sizeof(StrideD));
++  auto* dlSFB = (LayoutSFB*)put(lSFB.data(), G * sizeof(LayoutSFB));
++  auto* dAlpha = (float*)put(alpha_host.data(), G * sizeof(float));
++  // Per-group alpha (scale2) needs alpha_ptr_array (G POINTERS, one per group →
++  // &dAlpha[g]); the scalar alpha_ptr would apply dAlpha[0] to every group.
++  std::vector<const float*> hAlphaPtr(G);
++  for (int g = 0; g < G; ++g) {
++    hAlphaPtr[g] = dAlpha + g;
++  }
++  auto* dAlphaPtr = (const float**)put(hAlphaPtr.data(), G * sizeof(const float*));
++
++  cutlass::KernelHardwareInfo hw{};
++  hw.device_id = 0;
++  hw.sm_count = cutlass::KernelHardwareInfo::query_device_multiprocessor_count(0);
++
++  typename Gemm::GemmKernel::CollectiveMainloop::Arguments mainloop_args{
++      a.dA, a.dsA, dB, dsB, a.dSFA, a.dlSFA, dSFB, dlSFB};
++
++  typename Gemm::GemmKernel::CollectiveEpilogue::Arguments epi_args{};
++  epi_args.thread.alpha = 1.0f;
++  epi_args.thread.beta = 0.0f;
++  epi_args.thread.alpha_ptr_array = dAlphaPtr;
++  epi_args.ptr_C = dC;
++  epi_args.dC = dsC;
++  epi_args.ptr_D = dD;
++  epi_args.dD = dsD;
++
++  typename Gemm::Arguments args{
++      cutlass::gemm::GemmUniversalMode::kGrouped,
++      {G, a.dShapes, const_cast<ProblemShape*>(a.host_shapes.data())},
++      mainloop_args,
++      epi_args,
++      hw};
++
++  Gemm gemm;
++  size_t need = Gemm::get_workspace_size(args);
++  if (required) *required = cursor + need;
++  if (cursor > workspace_size || need > workspace_size - cursor) {
++    return -2;
++  }
++  if (gemm.can_implement(args) != cutlass::Status::kSuccess) {
++    return tag + (-50);
++  }
++  if (dry_run) return 0;
++  cutlass::Status st = gemm.initialize(args, ws + cursor, stream);
++  if (st != cutlass::Status::kSuccess) {
++    return tag + static_cast<int>(st);
++  }
++  st = gemm.run(stream);
++  return st == cutlass::Status::kSuccess ? 0 : tag + static_cast<int>(st);
++}
++
++#endif
+diff --git a/scripts/dev/glm_moe_cutlass_transient/collective_cooperative.cuh b/scripts/dev/glm_moe_cutlass_transient/collective_cooperative.cuh
+new file mode 100644
+index 0000000000000000000000000000000000000000..9291e8fdf020112c044c6d92de666401adeb1413
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/collective_cooperative.cuh
+@@ -0,0 +1,242 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++// Single-launch Sm120 NVFP4 grouped GEMM for Holo MoE Phase-2.
++// Replaces the per-expert dense-collective loop (atlas_cutlass_nvfp4_grouped_gate_up)
++// with one GemmUniversalMode::kGrouped launch over all active experts.
++//
++// Style/types mirror the dense binding cutlass_nvfp4_gemm.cu: same Sm120 /
++// OpClassBlockScaledTensorOp / nv_float4_t<e2m1> / float_ue4m3_t SF collective,
++// same #ifdef arch guard, same extern "C" status-code convention. The only new
++// machinery here is the single-launch grouped host assembly (per-group problem
++// shapes / pointers / strides / SF-layouts) plus a per-group activation pack into
++// the grouped SFA atom.
++
++#include <cuda_bf16.h>
++#include <cuda_fp8.h>
++#include <cuda_runtime_api.h>
++#include <vector>
++
++#include "cute/tensor.hpp"
++#include "cutlass/bfloat16.h"
++#include "cutlass/cutlass.h"
++#include "cutlass/detail/sm100_blockscaled_layout.hpp"
++#include "cutlass/epilogue/collective/collective_builder.hpp"
++#include "cutlass/gemm/collective/collective_builder.hpp"
++#include "cutlass/gemm/device/gemm_universal_adapter.h"
++#include "cutlass/gemm/dispatch_policy.hpp"
++#include "cutlass/gemm/group_array_problem_shape.hpp"
++#include "cutlass/gemm/kernel/gemm_universal.hpp"
++#include "cutlass/layout/matrix.h"
++#include "cutlass/util/packed_stride.hpp"
++
++using namespace cute;
++
++#if defined(CUTLASS_ARCH_MMA_SM120_SUPPORTED) || defined(CUTLASS_ARCH_MMA_SM121_SUPPORTED)
++
++// ─── element + layout aliases (IDENTICAL to dense cutlass_nvfp4_gemm.cu:23-42) ───
++using ElementInput = cutlass::float_e2m1_t;
++using ElementA = cutlass::nv_float4_t<ElementInput>;
++using ElementB = cutlass::nv_float4_t<ElementInput>;
++using ElementC = cutlass::bfloat16_t;
++using ElementD = cutlass::bfloat16_t;
++using ElementSF = cutlass::float_ue4m3_t;
++using ElementAccumulator = float;
++using ElementCompute = float;
++
++// pointer-to-layout  ⇒  selects GROUPED (IsGroupedGemmKernel)
++using GmemLayoutA = cutlass::layout::RowMajor;
++using GmemLayoutB = cutlass::layout::ColumnMajor;
++using GmemLayoutC = cutlass::layout::RowMajor;  // dense path uses RowMajor C/D; keep it
++using GmemLayoutD = cutlass::layout::RowMajor;
++
++constexpr int AlignmentA = 32;  // = 128 / 4   (FP4 elems)
++constexpr int AlignmentB = 32;
++constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;  // = 8
++constexpr int AlignmentD = 128 / cutlass::sizeof_bits<ElementD>::value;  // = 8
++
++using ArchTag = cutlass::arch::Sm120;
++using OperatorClass = cutlass::arch::OpClassBlockScaledTensorOp;
++using TileShape = Shape<_128, _128, _256>;  // matches dense ThreadBlockShape
++using ClusterShape = Shape<_1, _1, _1>;
++
++// ─── EPILOGUE (plain LinearCombination; beta=0; per-expert scale2 via alpha_ptr) ───
++using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
++    ArchTag,
++    OperatorClass,
++    TileShape,
++    ClusterShape,
++    cutlass::epilogue::collective::EpilogueTileAuto,
++    ElementAccumulator,
++    ElementCompute,
++    ElementC,
++    GmemLayoutC*,  // trailing '*' ⇒ grouped
++    AlignmentC,
++    ElementD,
++    GmemLayoutD*,
++    AlignmentD,
++    cutlass::epilogue::collective::EpilogueScheduleAuto>::CollectiveOp;
++
++// ─── MAINLOOP (pointer-to-layout ⇒ grouped; all-TMA pingpong) ───
++using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
++    ArchTag,
++    OperatorClass,
++    ElementA,
++    GmemLayoutA*,
++    AlignmentA,
++    ElementB,
++    GmemLayoutB*,
++    AlignmentB,
++    ElementAccumulator,
++    TileShape,
++    ClusterShape,
++    cutlass::gemm::collective::StageCountAutoCarveout<
++        static_cast<int>(sizeof(typename CollectiveEpilogue::SharedStorage))>,
++    cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperative>::CollectiveOp;
++// Fallback if can_implement rejects pingpong on sm_121f:
++//   cutlass::gemm::collective::KernelScheduleAuto   (cooperative)
++
++using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
++    cutlass::gemm::GroupProblemShape<cute::Shape<int, int, int>>,
++    CollectiveMainloop,
++    CollectiveEpilogue>;
++using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
++
++// per-group internal types (pointer types at the Arguments boundary)
++using StrideA = typename Gemm::GemmKernel::InternalStrideA;
++using StrideB = typename Gemm::GemmKernel::InternalStrideB;
++using StrideC = typename Gemm::GemmKernel::InternalStrideC;
++using StrideD = typename Gemm::GemmKernel::InternalStrideD;
++using LayoutSFA = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFA;
++using LayoutSFB = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFB;
++using Sm1xxBlkScaledConfig =
++    typename Gemm::GemmKernel::CollectiveMainloop::Sm1xxBlkScaledConfig;
++using ProblemShape = cute::Shape<int, int, int>;
++
++static inline size_t align_up_(size_t x, size_t a) {
++  return (x + a - 1) & ~(a - 1);
++}
++
++
++struct GroupedAPrep {
++  int status = 0;                          // non-zero on failure
++  int G = 0;                               // active groups
++  std::vector<ProblemShape> host_shapes;   // {m_e, n, k} per group
++  std::vector<int> ms;                     // sorted-row start per group (C offset)
++  std::vector<int> me;                     // m_e per group
++  std::vector<int> eidx;                   // expert index per group (B/scale2 lookup)
++  ProblemShape* dShapes = nullptr;
++  const ElementA::DataType** dA = nullptr;
++  const ElementSF** dSFA = nullptr;
++  StrideA* dsA = nullptr;
++  LayoutSFA* dlSFA = nullptr;
++  size_t cursor = 0;                       // free ws offset after the A-side arrays
++};
++
++static int launch_projection(
++    const GroupedAPrep& a,
++    const unsigned long long* packed_ptrs,
++    const unsigned long long* sfb_ptrs,
++    const float* scale2_vals,
++    __nv_bfloat16* C_bf16,
++    int n,
++    int k,
++    unsigned char* ws,
++    size_t cursor_start,
++    size_t workspace_size,
++    cudaStream_t stream,
++    int tag, bool dry_run, size_t* required) {
++  int G = a.G;
++  if (G == 0) {
++    return 0;
++  }
++  std::vector<const ElementB::DataType*> hB(G);
++  std::vector<const ElementSF*> hSFB(G);
++  std::vector<const ElementC*> hC(G);
++  std::vector<ElementD*> hD(G);
++  std::vector<StrideB> sB(G);
++  std::vector<StrideC> sC(G);
++  std::vector<StrideD> sD(G);
++  std::vector<LayoutSFB> lSFB(G);
++  std::vector<float> alpha_host(G);
++  for (int g = 0; g < G; ++g) {
++    int e = a.eidx[g];
++    int m_e = a.me[g];
++    size_t ms = (size_t)a.ms[g];
++    hB[g] = reinterpret_cast<const ElementB::DataType*>(packed_ptrs[e]);
++    hSFB[g] = reinterpret_cast<const ElementSF*>(sfb_ptrs[e]);
++    hC[g] = reinterpret_cast<const ElementC*>(C_bf16 + ms * n);
++    hD[g] = reinterpret_cast<ElementD*>(C_bf16 + ms * n);
++    sB[g] = cutlass::make_cute_packed_stride(StrideB{}, {n, k, 1});
++    sC[g] = cutlass::make_cute_packed_stride(StrideC{}, {m_e, n, 1});
++    sD[g] = cutlass::make_cute_packed_stride(StrideD{}, {m_e, n, 1});
++    lSFB[g] =
++        Sm1xxBlkScaledConfig::tile_atom_to_shape_SFB(cute::make_shape(m_e, n, k, 1));
++    alpha_host[g] = scale2_vals[e];
++  }
++
++  size_t cursor = cursor_start;
++  auto put = [&](const void* src, size_t bytes) -> void* {
++    if (cursor > workspace_size || bytes > workspace_size - cursor) { std::fprintf(stderr, "metadata capacity exceeded\n"); std::abort(); }
++    void* dst = ws + cursor;
++    cursor = align_up_(cursor + bytes, 256);
++    if (!dry_run) CHECK(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, stream));
++    return dst;
++  };
++  auto* dB = (const ElementB::DataType**)put(hB.data(), G * sizeof(void*));
++  auto* dSFB = (const ElementSF**)put(hSFB.data(), G * sizeof(void*));
++  auto* dC = (const ElementC**)put(hC.data(), G * sizeof(void*));
++  auto* dD = (ElementD**)put(hD.data(), G * sizeof(void*));
++  auto* dsB = (StrideB*)put(sB.data(), G * sizeof(StrideB));
++  auto* dsC = (StrideC*)put(sC.data(), G * sizeof(StrideC));
++  auto* dsD = (StrideD*)put(sD.data(), G * sizeof(StrideD));
++  auto* dlSFB = (LayoutSFB*)put(lSFB.data(), G * sizeof(LayoutSFB));
++  auto* dAlpha = (float*)put(alpha_host.data(), G * sizeof(float));
++  // Per-group alpha (scale2) needs alpha_ptr_array (G POINTERS, one per group →
++  // &dAlpha[g]); the scalar alpha_ptr would apply dAlpha[0] to every group.
++  std::vector<const float*> hAlphaPtr(G);
++  for (int g = 0; g < G; ++g) {
++    hAlphaPtr[g] = dAlpha + g;
++  }
++  auto* dAlphaPtr = (const float**)put(hAlphaPtr.data(), G * sizeof(const float*));
++
++  cutlass::KernelHardwareInfo hw{};
++  hw.device_id = 0;
++  hw.sm_count = cutlass::KernelHardwareInfo::query_device_multiprocessor_count(0);
++
++  typename Gemm::GemmKernel::CollectiveMainloop::Arguments mainloop_args{
++      a.dA, a.dsA, dB, dsB, a.dSFA, a.dlSFA, dSFB, dlSFB};
++
++  typename Gemm::GemmKernel::CollectiveEpilogue::Arguments epi_args{};
++  epi_args.thread.alpha = 1.0f;
++  epi_args.thread.beta = 0.0f;
++  epi_args.thread.alpha_ptr_array = dAlphaPtr;
++  epi_args.ptr_C = dC;
++  epi_args.dC = dsC;
++  epi_args.ptr_D = dD;
++  epi_args.dD = dsD;
++
++  typename Gemm::Arguments args{
++      cutlass::gemm::GemmUniversalMode::kGrouped,
++      {G, a.dShapes, const_cast<ProblemShape*>(a.host_shapes.data())},
++      mainloop_args,
++      epi_args,
++      hw};
++
++  Gemm gemm;
++  size_t need = Gemm::get_workspace_size(args);
++  if (required) *required = cursor + need;
++  if (cursor > workspace_size || need > workspace_size - cursor) {
++    return -2;
++  }
++  if (gemm.can_implement(args) != cutlass::Status::kSuccess) {
++    return tag + (-50);
++  }
++  if (dry_run) return 0;
++  cutlass::Status st = gemm.initialize(args, ws + cursor, stream);
++  if (st != cutlass::Status::kSuccess) {
++    return tag + static_cast<int>(st);
++  }
++  st = gemm.run(stream);
++  return st == cutlass::Status::kSuccess ? 0 : tag + static_cast<int>(st);
++}
++
++#endif
+diff --git a/scripts/dev/glm_moe_cutlass_transient/common.cuh b/scripts/dev/glm_moe_cutlass_transient/common.cuh
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9fbbe224aa177d90d9cabea69a43164f78da61b
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/common.cuh
+@@ -0,0 +1,75 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++#pragma once
++static void require(bool ok, const char* message) {
++    if (!ok) { std::fprintf(stderr, "FAIL: %s\n", message); std::exit(2); }
++}
++struct Routing {
++    std::array<int, 289> offsets{};
++    std::vector<int> ids;
++    int max_rows = 0;
++};
++static unsigned mix(unsigned x) {
++    x ^= x >> 16; x *= 0x7feb352d; x ^= x >> 15; x *= 0x846ca68b;
++    return x ^ (x >> 16);
++}
++static Routing routing(int rows, bool skew, int first = 0) {
++    std::array<std::vector<int>, 288> groups;
++    for (int t = 0; t < rows; ++t) {
++        int token = t + first;
++        std::array<bool, 288> seen{};
++        for (int r = 0; r < 8; ++r) {
++            unsigned e = (skew && r == 0) ? unsigned(token % 8) : mix(token * 19 + r * 4001) % 288;
++            while (seen[e]) e = (e + 1) % 288;
++            seen[e] = true; groups[e].push_back(t);
++        }
++    }
++    Routing out;
++    for (int e = 0; e < 288; ++e) {
++        out.max_rows = std::max(out.max_rows, int(groups[e].size()));
++        out.ids.insert(out.ids.end(), groups[e].begin(), groups[e].end());
++        out.offsets[e + 1] = int(out.ids.size());
++    }
++    return out;
++}
++
++#ifndef ATLAS_HOST_ONLY
++#define CHECK(call) do { cudaError_t e = (call); if (e != cudaSuccess) { \
++    std::fprintf(stderr, "%s:%d %s\n", __FILE__, __LINE__, cudaGetErrorString(e)); std::exit(1); } } while (0)
++static size_t live = 0, peak = 0;
++constexpr size_t GiB = size_t(1) << 30;
++template<class T> struct Buffer {
++    T* raw = nullptr; T* p; size_t count, bytes;
++    explicit Buffer(size_t n):count(n),bytes(n*sizeof(T)+256) {
++        require(bytes <= 3*GiB && live <= 3*GiB-bytes, "3GiB benchmark allocation ceiling");
++        CHECK(cudaMalloc(&raw, bytes)); p = reinterpret_cast<T*>(reinterpret_cast<unsigned char*>(raw)+128);
++        CHECK(cudaMemset(raw, 0xa5, bytes)); live += bytes; peak = std::max(peak, live);
++    }
++    ~Buffer() { cudaFree(raw); live -= bytes; }
++    Buffer(const Buffer&) = delete;
++    void upload(const T* data) { CHECK(cudaMemcpy(p, data, count*sizeof(T), cudaMemcpyHostToDevice)); }
++    std::vector<T> read() const {
++        std::vector<T> out(count); CHECK(cudaMemcpy(out.data(), p, count*sizeof(T), cudaMemcpyDeviceToHost)); return out;
++    }
++    void guards() const {
++        std::array<unsigned char,128> a,b;
++        CHECK(cudaMemcpy(a.data(), raw, 128, cudaMemcpyDeviceToHost));
++        CHECK(cudaMemcpy(b.data(), p+count, 128, cudaMemcpyDeviceToHost));
++        for (int i=0;i<128;++i) require(a[i]==0xa5 && b[i]==0xa5, "device guard overwritten");
++    }
++};
++__global__ void fill(unsigned char* out, size_t bytes, bool scale, unsigned seed) {
++    for (size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x; i<bytes; i+=size_t(gridDim.x)*blockDim.x) {
++        unsigned x=unsigned(i)^seed; x^=x>>16; x*=0x7feb352d; x^=x>>15;
++        out[i]=scale ? static_cast<unsigned char>(0x20+(x%24)) : static_cast<unsigned char>(x);
++    }
++}
++template<class F> static float event_time(F launch, cudaStream_t stream) {
++    cudaEvent_t a,b; CHECK(cudaEventCreate(&a)); CHECK(cudaEventCreate(&b));
++    CHECK(cudaEventRecord(a,stream));
++    for(int i=0;i<10;++i) launch();
++    CHECK(cudaEventRecord(b,stream)); CHECK(cudaEventSynchronize(b));
++    float ms; CHECK(cudaEventElapsedTime(&ms,a,b));
++    CHECK(cudaEventDestroy(a)); CHECK(cudaEventDestroy(b)); return ms/10;
++}
++
++#endif
+diff --git a/scripts/dev/glm_moe_cutlass_transient/cooperative.cu b/scripts/dev/glm_moe_cutlass_transient/cooperative.cu
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca0166fb8921b69dedfd05ee75a75a022632f12d
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/cooperative.cu
+@@ -0,0 +1,4 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++// Standalone alternative: only collective tile/schedule differ from baseline.
++#define ATLAS_CUTLASS_COOPERATIVE_K256 1
++#include "bench.cu"
+diff --git a/scripts/dev/glm_moe_cutlass_transient/generate.py b/scripts/dev/glm_moe_cutlass_transient/generate.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5dd72ff2879c267792b611dec5701446f6919651
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/generate.py
+@@ -0,0 +1,30 @@
++# SPDX-License-Identifier: AGPL-3.0-only
++"""Pin and extract the actual production CUTLASS collective/launch assembly."""
++from pathlib import Path
++import hashlib
++
++HERE = Path(__file__).resolve().parent
++ROOT = HERE.parents[2]
++source = ROOT / "crates/spark-runtime/cuda/cutlass_nvfp4_grouped_gemm.cu"
++raw = source.read_bytes()
++assert hashlib.sha256(raw).hexdigest() == "681f36a9ecd4069fbf04ead47965b3327fe06d304bdb4d77b06b017544f6f00a"
++s = raw.decode()
++header = s[:s.index("// FP4 (e2m1) quantization helper")]
++struct = s[s.index("struct GroupedAPrep {"):s.index("// Gather+pack A once")]
++launch = s[s.index("static int launch_projection("):s.index("#endif  // arch guard", s.index("static int launch_projection("))]
++assert launch.count("cudaMemcpyAsync(") == 1
++launch = launch.replace("int tag) {", "int tag, bool dry_run, size_t* required) {")
++launch = launch.replace("    void* dst = ws + cursor;", "    if (cursor > workspace_size || bytes > workspace_size - cursor) { std::fprintf(stderr, \"metadata capacity exceeded\\n\"); std::abort(); }\n    void* dst = ws + cursor;")
++launch = launch.replace("    cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, stream);", "    if (!dry_run) CHECK(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyHostToDevice, stream));")
++launch = launch.replace("  if (cursor + need > workspace_size) {", "  if (required) *required = cursor + need;\n  if (cursor > workspace_size || need > workspace_size - cursor) {")
++launch = launch.replace("  cutlass::Status st = gemm.initialize", "  if (dry_run) return 0;\n  cutlass::Status st = gemm.initialize")
++assert "if (!dry_run) CHECK(cudaMemcpyAsync" in launch
++assert launch.index("if (dry_run) return 0;") < launch.index("gemm.initialize")
++default = header + "\n" + struct + launch + "\n#endif\n"
++(HERE / "collective.cuh").write_text(default)
++assert default.count("using TileShape = Shape<_128, _128, _128>;") == 1
++assert default.count("cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpong>::CollectiveOp") == 1
++cooperative = default.replace("using TileShape = Shape<_128, _128, _128>;", "using TileShape = Shape<_128, _128, _256>;")
++cooperative = cooperative.replace("cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpong>::CollectiveOp", "cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperative>::CollectiveOp")
++(HERE / "collective_cooperative.cuh").write_text(cooperative)
++print("PASS pinned production collective; dry planning cannot copy or launch")
+diff --git a/scripts/dev/glm_moe_cutlass_transient/staging.cuh b/scripts/dev/glm_moe_cutlass_transient/staging.cuh
+new file mode 100644
+index 0000000000000000000000000000000000000000..ecb8d57b28f3d0356dd06872ff211b2bb89f45e6
+--- /dev/null
++++ b/scripts/dev/glm_moe_cutlass_transient/staging.cuh
+@@ -0,0 +1,118 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++#pragma once
++// Byte-only layout changes. Production quantizer runs before this kernel.
++__global__ void stage_a(const unsigned char* packed, const unsigned char* scales,
++    const int* ids, const int* offsets, unsigned char* const* dst,
++    unsigned char* const* sf, int k) {
++    int e=blockIdx.z, row=blockIdx.x, g=threadIdx.x+blockIdx.y*blockDim.x;
++    int me=offsets[e+1]-offsets[e];
++    if(row>=me || g>=k/16) return;
++    int sorted=offsets[e]+row, token=ids?ids[sorted]:sorted;
++    auto layout=Sm1xxBlkScaledConfig::tile_atom_to_shape_SFA(cute::make_shape(me,1,k,1));
++    sf[e][layout(row,g*16,0)]=scales[size_t(token)*(k/16)+g];
++    #pragma unroll
++    for(int j=0;j<8;++j) dst[e][size_t(row)*(k/2)+g*8+j]=packed[size_t(token)*(k/2)+g*8+j];
++}
++__global__ void stage_sfb(const unsigned char* native_scales, unsigned char* sfb,
++    int n,int k,size_t stride) {
++    int e=blockIdx.z;
++    size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x;
++    if(i>=size_t(n)*(k/16)) return;
++    int col=i/(k/16),g=i%(k/16);
++    auto layout=Sm1xxBlkScaledConfig::tile_atom_to_shape_SFB(cute::make_shape(1,n,k,1));
++    sfb[size_t(e)*stride+layout(col,g*16,0)]=native_scales[size_t(e)*n*(k/16)+i];
++}
++__global__ void native_from_t(const unsigned char* source,unsigned char* dest,
++    int n,int width) {
++    int e=blockIdx.z;
++    size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x;
++    if(i<size_t(n)*width) dest[size_t(e)*n*width+i]=source[size_t(e)*n*width+(i%width)*n+i/width];
++}
++__global__ void fill_bf16(__nv_bfloat16* a,size_t count,unsigned seed) {
++    for(size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x;i<count;i+=size_t(gridDim.x)*blockDim.x) {
++        unsigned x=unsigned(i)^seed;x^=x>>16;x*=0x7feb352d;x^=x>>15;
++        a[i]=__float2bfloat16(float(int(x%8193)-4096)/1024.0f);
++    }
++}
++
++// Exhaustive byte oracle over all active A bytes/scales and native B bytes/SFB.
++// This runs outside timing and checks the exact bytes handed to the collective.
++__global__ void verify_operands(const unsigned char* a,const unsigned char* as,
++    const unsigned char* wt,const unsigned char* st,const unsigned char* wn,
++    const unsigned char* sn,const unsigned char* sfb,unsigned char* const* ap,
++    unsigned char* const* asp,const int* offsets,const int* ids,int n,int k,
++    size_t sfb_stride,unsigned* errors) {
++    int e=blockIdx.z;
++    size_t i=size_t(blockIdx.x)*blockDim.x+threadIdx.x;
++    int me=offsets[e+1]-offsets[e];
++    auto la=Sm1xxBlkScaledConfig::tile_atom_to_shape_SFA(cute::make_shape(me,1,k,1));
++    auto lb=Sm1xxBlkScaledConfig::tile_atom_to_shape_SFB(cute::make_shape(1,n,k,1));
++    if(i<size_t(me)*k/2) {
++        size_t row=i/(k/2),col=i%(k/2),sorted=offsets[e]+row,tok=ids?ids[sorted]:sorted;
++        if(ap[e][i]!=a[tok*k/2+col]) atomicAdd(errors,1u);
++    }
++    if(i<size_t(me)*k/16) {
++        size_t row=i/(k/16),g=i%(k/16),sorted=offsets[e]+row,tok=ids?ids[sorted]:sorted;
++        if(asp[e][la(row,g*16,0)]!=as[tok*k/16+g]) atomicAdd(errors,1u);
++    }
++    if(i<size_t(n)*k/2) {
++        size_t col=i/(k/2),g=i%(k/2),base=size_t(e)*n*k/2;
++        if(wn[base+i]!=wt[base+g*n+col]) atomicAdd(errors,1u);
++    }
++    if(i<size_t(n)*k/16) {
++        size_t col=i/(k/16),g=i%(k/16),base=size_t(e)*n*k/16;
++        unsigned char expected=st[base+g*n+col];
++        if(sn[base+i]!=expected || sfb[size_t(e)*sfb_stride+lb(col,g*16,0)]!=expected) atomicAdd(errors,1u);
++    }
++}
++
++// All offsets and layouts are planned before metadata or kernels touch ws.
++// Lifetime is the entire case, including asynchronous launches and timing.
++struct StagePlan {
++    GroupedAPrep p;
++    size_t cap, cursor=0, sfb_stride;
++    unsigned char* ws;
++    std::vector<const ElementA::DataType*> a_ptrs;
++    std::vector<const ElementSF*> sf_ptrs;
++    std::vector<StrideA> strides;
++    std::vector<LayoutSFA> layouts;
++    std::vector<std::pair<size_t,size_t>> regions;
++    size_t take(size_t bytes) {
++        require(cursor<=cap && bytes<=cap-cursor,"workspace staging capacity");
++        size_t old=cursor;cursor=align_up_(cursor+bytes,256);
++        require(cursor<=cap,"aligned workspace capacity");
++        regions.push_back({old,bytes});return old;
++    }
++    template<class T> T* reserve(size_t count) {return reinterpret_cast<T*>(ws+take(count*sizeof(T)));}
++    StagePlan(unsigned char* w,size_t c,const Routing& route,int n,int k):cap(c),ws(w) {
++        sfb_stride=size_t(size(filter_zeros(Sm1xxBlkScaledConfig::tile_atom_to_shape_SFB(cute::make_shape(1,n,k,1)))));
++        for(int e=0;e<144;++e) {
++            int me=route.offsets[e+1]-route.offsets[e];
++            require(me>0,"fixture must activate every local expert");
++            p.eidx.push_back(e);p.ms.push_back(route.offsets[e]);p.me.push_back(me);
++            p.host_shapes.push_back(ProblemShape{me,n,k});
++            a_ptrs.push_back(reinterpret_cast<const ElementA::DataType*>(reserve<unsigned char>(size_t(me)*k/2)));
++            auto layout=Sm1xxBlkScaledConfig::tile_atom_to_shape_SFA(cute::make_shape(me,n,k,1));
++            layouts.push_back(layout);
++            sf_ptrs.push_back(reinterpret_cast<const ElementSF*>(reserve<unsigned char>(size_t(size(filter_zeros(layout))))));
++            strides.push_back(cutlass::make_cute_packed_stride(StrideA{},{me,k,1}));
++        }
++        p.G=144;
++        p.dShapes=reserve<ProblemShape>(144);p.dA=reserve<const ElementA::DataType*>(144);
++        p.dSFA=reserve<const ElementSF*>(144);p.dsA=reserve<StrideA>(144);p.dlSFA=reserve<LayoutSFA>(144);
++        p.cursor=cursor;
++    }
++    void upload(cudaStream_t stream) {
++        CHECK(cudaMemcpyAsync(p.dShapes,p.host_shapes.data(),144*sizeof(ProblemShape),cudaMemcpyHostToDevice,stream));
++        CHECK(cudaMemcpyAsync(p.dA,a_ptrs.data(),144*sizeof(void*),cudaMemcpyHostToDevice,stream));
++        CHECK(cudaMemcpyAsync(p.dSFA,sf_ptrs.data(),144*sizeof(void*),cudaMemcpyHostToDevice,stream));
++        CHECK(cudaMemcpyAsync(p.dsA,strides.data(),144*sizeof(StrideA),cudaMemcpyHostToDevice,stream));
++        CHECK(cudaMemcpyAsync(p.dlSFA,layouts.data(),144*sizeof(LayoutSFA),cudaMemcpyHostToDevice,stream));
++    }
++    void stage(const unsigned char* a,const unsigned char* as,const int* ids,
++        const int* offsets,int max_rows,int k,cudaStream_t stream) {
++        stage_a<<<dim3(max_rows,(k/16+255)/256,144),256,0,stream>>>(a,as,ids,offsets,
++            (unsigned char* const*)p.dA,(unsigned char* const*)p.dSFA,k);
++        CHECK(cudaGetLastError());
++    }
++};

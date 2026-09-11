@@ -295,9 +295,26 @@
       "notice_ids": [
         "AGPL-3.0-only"
       ],
-      "relationship": "adapted GLM loader, normalization dispatch and stream finalization, with original unused-predictor policy and regression tests; disabled research patch",
+      "relationship": "adapted native GLM loader, MTP repair/ownership, bounded prefill kernels and serving sanitizer; original compatibility guards, CPU/native oracles and rejected standalone experiments; copied pinned quantizer with original offline overlay wrapper; disabled AGPL research, not the Apache serving default",
       "covered_paths": [
-        "research/atlas/nvidia-modelopt-refresh.patch"
+        "research/atlas/nvidia-modelopt-refresh.patch",
+        "research/atlas/nvidia-prefill-mtp2.patch",
+        "research/atlas/nvidia-prefill-mtp2-source.json",
+        "research/atlas/nvidia-prefill-rejected-standalones.patch",
+        "research/atlas/nvidia-mtp-converter/**",
+        "research/atlas/nvidia-prefill/**"
+      ]
+    },
+    {
+      "id": "cutlass-atlas-nvidia-prefill",
+      "repository": "https://github.com/NVIDIA/cutlass",
+      "revision": "cf064d2e6bad2886238ac565b3b49007764f4939",
+      "license_expression": "BSD-3-Clause",
+      "notice_ids": [],
+      "relationship": "build-only pinned dependency, not redistributed; native grouped collective used by rejected standalone candidates; Atlas host wrappers retain AGPL",
+      "covered_paths": [
+        "research/atlas/nvidia-prefill-rejected-standalones.patch",
+        "research/atlas/nvidia-prefill/**"
       ]
     }
   ],

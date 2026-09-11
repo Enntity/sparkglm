@@ -1,0 +1,192 @@
+{
+  "schema": "sparkglm.atlas-operator-evidence/v1",
+  "records": [
+    {
+      "source_filename": "moe-k128-idle.log",
+      "private_original_sha256": "33c3686629e56ab8a151c38f7fe4a3102e4ff7a05292d2da6d6b0b7149731091",
+      "selected_result_lines": [
+        "PASS host: four full-size unique-top8 routing fixtures",
+        "PASS oracle rows=2048 skew=0 down=0 max_expert_rows=78 old_ms=3.367177 new_ms=3.331821 speedup=1.011",
+        "REJECT: first 2048 gate/up gain 1.011 <1.5; stop"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "moe-btile-full.log",
+      "private_original_sha256": "c6b412217ea0a4c7f47da58b8ba1235642ebcc8a6e62f4a32cdf022106f5a3f3",
+      "selected_result_lines": [
+        "PASS host: exhaustive packed-weight permutation and four full-size unique-top8 fixtures within1088 expert rows",
+        "PASS oracle rows=2048 skew=0 down=0 max_expert_rows=78 old_ms=3.340768 new_ms=3.257971 speedup=1.025",
+        "REJECT: first 2048 gate/up gain 1.025 <1.2; stop"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "moe-m128.log",
+      "private_original_sha256": "9b5b92aed904c753952933e93221d784a9ba4e2dc74bef5ecf73572e2c4cf8ac",
+      "selected_result_lines": [
+        "PASS host: routing/split histograms and exhaustive A/B/scale/output CTA ownership",
+        "PASS oracle rows=2048 skew=0 down=0 first=0 max_expert_rows=78 old_ms=3.342202 new_ms=3.579248 speedup=0.934",
+        "PASS oracle rows=2048 skew=0 down=0 first=2048 max_expert_rows=79 old_ms=3.338915 new_ms=3.577482 speedup=0.933",
+        "PASS oracle rows=4096 skew=0 down=0 first=0 max_expert_rows=139 old_ms=4.417203 new_ms=4.421319 speedup=0.999",
+        "PASS oracle rows=2048 skew=0 down=1 first=0 max_expert_rows=78 old_ms=3.524851 new_ms=3.548544 speedup=0.993",
+        "PASS oracle rows=2048 skew=0 down=1 first=2048 max_expert_rows=79 old_ms=3.550874 new_ms=3.517290 speedup=1.010",
+        "PASS oracle rows=4096 skew=0 down=1 first=0 max_expert_rows=139 old_ms=4.217062 new_ms=4.313744 speedup=0.978",
+        "COMBINED skew=0 2gate_plus_down_effective_gain=1.553",
+        "PASS oracle rows=2048 skew=1 down=0 first=0 max_expert_rows=312 old_ms=3.683037 new_ms=3.969568 speedup=0.928",
+        "PASS oracle rows=2048 skew=1 down=0 first=2048 max_expert_rows=314 old_ms=3.679619 new_ms=3.957501 speedup=0.930",
+        "PASS oracle rows=4096 skew=1 down=0 first=0 max_expert_rows=626 old_ms=5.034643 new_ms=4.953414 speedup=1.016",
+        "PASS oracle rows=2048 skew=1 down=1 first=0 max_expert_rows=312 old_ms=3.837914 new_ms=3.982080 speedup=0.964",
+        "PASS oracle rows=2048 skew=1 down=1 first=2048 max_expert_rows=314 old_ms=3.843654 new_ms=3.983872 speedup=0.965",
+        "PASS oracle rows=4096 skew=1 down=1 first=0 max_expert_rows=626 old_ms=4.978013 new_ms=5.071936 speedup=0.981",
+        "COMBINED skew=1 2gate_plus_down_effective_gain=1.496",
+        "REJECT: combined effective throughput <1.5; stop"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "kda-two-columns-idle.log",
+      "private_original_sha256": "bf4f50c6edc87e7342f6e13398f856d8c246e47e6865d65668e8899704e02dcd",
+      "selected_result_lines": [
+        "PASS host: 128 columns each have one owner; reduction remains 32 lanes",
+        "PASS tokens=2048 mode=0 old_ms=5.131440 new_ms=4.446137 speedup=1.154",
+        "REJECT: first production-length gain<1.5x"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "kda-temp-fp8.log",
+      "private_original_sha256": "3f06bea6e110de26e749a6305ca0db8d5e9bcaf833e764dd248e082bd7d7c616",
+      "selected_result_lines": [
+        "PASS M=2048 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=1.028826 conversion_ms=0.174006 gemm_only_ms=0.874998 conversion_plus_gemm_ms=1.064915 speedup=0.966110",
+        "PASS M=2052 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=1.098013 conversion_ms=0.170026 gemm_only_ms=0.955290 conversion_plus_gemm_ms=1.107362 speedup=0.991558"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "kda-cublaslt-fp8.log",
+      "private_original_sha256": "cfa3fef35ec17f09858b3adb2352718fce6b325b1ab4caafc494add3100843d5",
+      "selected_result_lines": [
+        "PASS M=2048 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=1.035480 conversion_ms=0.325328 gemm_only_ms=0.369587 conversion_plus_gemm_ms=0.694458 speedup=1.491063",
+        "PASS M=4100 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=2.132472 conversion_ms=0.409715 gemm_only_ms=0.779414 conversion_plus_gemm_ms=1.189974 speedup=1.792032",
+        "REJECT: conversion-inclusive gain below1.5x"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "kda-lt-null-oracle.log",
+      "private_original_sha256": "aea04ebfc9f257658a60cf842781e98311dc1c67533f2711a0e98039e5d02345",
+      "selected_result_lines": [
+        "PASS M=2048 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=1.036232 conversion_ms=0.305971 gemm_only_ms=0.689422 conversion_plus_gemm_ms=0.910930 speedup=1.137555",
+        "PASS M=4100 N=4096 K=4096 scratch_bytes=16777216 baseline_ms=2.147080 conversion_ms=0.408430 gemm_only_ms=0.741742 conversion_plus_gemm_ms=1.181693 speedup=1.816953",
+        "REJECT: conversion-inclusive gain below1.5x"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "qk8-oracle.log",
+      "private_original_sha256": "7092b9c68aa0ec9f8aa5b1b7a0b25f60d05317359c5ad2a3eae87a8ccab32ac4",
+      "selected_result_lines": [
+        "REJECT rows=2048 whole-kernel gain0.973 <1.5"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "hc-tf32.log",
+      "private_original_sha256": "3d8b944d9781f2b9f9a498a437a92a87fd7c1821112d0124eb9a8f8301948bdb",
+      "selected_result_lines": [
+        "REJECT M2048 below 1.5x; skip M1024 and M2052"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "hc-tuned-post.log",
+      "private_original_sha256": "56b663f186583e4056e10bf3b3ffe2d47f54e5f1956caccc515abd91c8b16f50",
+      "selected_result_lines": [],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "cutlass-transient-oracle.log",
+      "private_original_sha256": "bcbe92f76def98fe2a3d596c1fec49d8abc65d4563a969f77428f6ff9f0127d4",
+      "selected_result_lines": [
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.87938142",
+        "timing projection=0 skew=0 baseline_inclusive_ms=4.610192 cutlass_inclusive_ms=5.854067 speedup=0.787520 quant_ms=0.192317 A_gather_SFA_ms=0.450739",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.52162005",
+        "timing projection=1 skew=0 baseline_inclusive_ms=4.573968 cutlass_inclusive_ms=5.850662 speedup=0.781786 quant_ms=0.192397 A_gather_SFA_ms=0.450298",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=67067904 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.82066496",
+        "timing projection=2 skew=0 baseline_inclusive_ms=5.047082 cutlass_inclusive_ms=6.425261 speedup=0.785506 quant_ms=0.753565 A_gather_SFA_ms=0.228502",
+        "COMBINED skew=0 baseline_ms=14.038845 cutlass_ms=17.487295 speedup=0.802803 peak_MiB=2556.796",
+        "REJECT below1.5x fullthreeprojection threshold"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "cutlass-transient-components-r3.log",
+      "private_original_sha256": "38adf4444f79ab8e6836b16e72f64662c9f8ba3f056bd773c9cec83703d499b1",
+      "selected_result_lines": [
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.87938142",
+        "timing projection=0 skew=0 baseline_inclusive_ms=4.585370 cutlass_inclusive_ms=5.806953 speedup=0.789634 quant_ms=0.188026 A_gather_SFA_ms=0.474080",
+        "components projection=0 skew=0 SFB_pack_ms=1.166784 CUTLASS_core_with_metadata_ms=3.927651",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.52162005",
+        "timing projection=1 skew=0 baseline_inclusive_ms=4.631981 cutlass_inclusive_ms=5.807654 speedup=0.797565 quant_ms=0.191635 A_gather_SFA_ms=0.450742",
+        "components projection=1 skew=0 SFB_pack_ms=1.164320 CUTLASS_core_with_metadata_ms=3.974701",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=67067904 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.82066496",
+        "timing projection=2 skew=0 baseline_inclusive_ms=5.053917 cutlass_inclusive_ms=6.546391 speedup=0.772016 quant_ms=0.747341 A_gather_SFA_ms=0.251891",
+        "components projection=2 skew=0 SFB_pack_ms=1.331347 CUTLASS_core_with_metadata_ms=4.108243",
+        "COMBINED skew=0 baseline_ms=14.079632 cutlass_ms=17.518621 speedup=0.803695 peak_MiB=2556.796",
+        "COMPONENT_SUM SFB_pack_ms=3.662451 CUTLASS_core_with_metadata_ms=12.010595 required_saving_for1p5_ms=8.132200"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "cutlass-cooperative-k256-oracle.log",
+      "private_original_sha256": "ff3e05612abe99e7a2332e772fcd9eb944e607be2bf7a1d62ed2195ba3494325",
+      "selected_result_lines": [
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.87938142",
+        "timing projection=0 skew=0 baseline_inclusive_ms=4.585196 cutlass_inclusive_ms=5.501287 speedup=0.833477 quant_ms=0.186784 A_gather_SFA_ms=0.450730",
+        "components projection=0 skew=0 SFB_pack_ms=1.166816 CUTLASS_core_with_metadata_ms=3.626765",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=33533952 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.52162005",
+        "timing projection=1 skew=0 baseline_inclusive_ms=4.642470 cutlass_inclusive_ms=5.518752 speedup=0.841217 quant_ms=0.191766 A_gather_SFA_ms=0.450928",
+        "components projection=1 skew=0 SFB_pack_ms=1.164794 CUTLASS_core_with_metadata_ms=3.645498",
+        "PASS exhaustive A/SFA/B/SFB byte identity and one-byte-short workspace rejection",
+        "PASS outputs count=67067904 changed_bits=0 relative_L2=0 max_abs=0",
+        "PASS independent96 FP64 quantized dots max_abs_error=1.82066496",
+        "timing projection=2 skew=0 baseline_inclusive_ms=5.093587 cutlass_inclusive_ms=6.209875 speedup=0.820240 quant_ms=0.758650 A_gather_SFA_ms=0.229325",
+        "components projection=2 skew=0 SFB_pack_ms=1.300250 CUTLASS_core_with_metadata_ms=3.911571",
+        "COMBINED skew=0 baseline_ms=14.129487 cutlass_ms=16.587219 speedup=0.851830 peak_MiB=2556.796",
+        "COMPONENT_SUM SFB_pack_ms=3.631859 CUTLASS_core_with_metadata_ms=11.183834 required_saving_for1p5_ms=7.167562",
+        "REJECT below1.5x fullthreeprojection threshold"
+      ],
+      "scope": "Standalone exact-shape synthetic probe; output and speed gates as printed; no model promotion"
+    },
+    {
+      "source_filename": "moe-chunk8192-run.log",
+      "private_original_sha256": "2e3b9bfd1ddde8b9e97bd90ff85aaa2ffcb41985df16679874053e540dbb3d68",
+      "selected_result_lines": [
+        "PASS host:8192/8196 uniform/skew, top8,144 local+144 remote experts, exact GLOBAL activation/route permutation",
+        "PASS bitwise oracle rows=8192 split=4096+4096 skew=0 down=0 max_expert_rows=270 split_M64_ms=8.849748 whole_M64_ms=8.189664 gain=1.081",
+        "PASS bitwise oracle rows=8192 split=4096+4096 skew=0 down=1 max_expert_rows=270 split_M64_ms=8.484154 whole_M64_ms=8.083155 gain=1.050",
+        "COMBINED rows=8192 skew=0 2gate_plus_down split_ms=26.183649 whole_ms=24.462482 gain=1.070 threshold=1.150",
+        "REJECT: weighted chunk gain below threshold; fail fast"
+      ],
+      "scope": "8K chunk macro; not enabled in serving"
+    }
+  ],
+  "decision": "Keep selected M64 serving path. Rejected standalone alternatives remain disabled. Component timers closed transient-SFB and cooperativeK256 families."
+}

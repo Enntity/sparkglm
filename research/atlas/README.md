@@ -5,6 +5,11 @@ It contains valuable GLM contracts, typed-state work, native probes, KDA/DSA
 experiments, and lessons that informed the current vLLM line. It did not reach
 competitive end-to-end serving performance and is not the recommended engine.
 
+The September 10–11 NVIDIA refresh is a separate, disabled research branch.
+See the [initial bring-up](NVIDIA_REFRESH.md) and
+[chronological handoff](NVIDIA_HANDOFF_2026-09-11.md) for its imported source,
+measured progress, rejected routes, and reconstruction instructions.
+
 ## License
 
 Atlas and the SparkGLM modifications to it are **AGPL-3.0-only**. See
