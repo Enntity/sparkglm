@@ -89,6 +89,7 @@ are not new contributions in this restoration.
 | Source | Exact revision | License | Relationship |
 | --- | --- | --- | --- |
 | [Atlas-Inf/atlas](https://github.com/Atlas-Inf/atlas) | `bdcccc2ca91eba084aac94a059e3b0f4a5d556dd` | AGPL-3.0-only | Native Rust/CUDA engine base |
+| [Mango-kid/atlas](https://github.com/Mango-kid/atlas) | `90b3584abc71b44b609637092b85d8423d8ff20f` | AGPL-3.0-only | Native NVFP4/MTP research base; disabled NVIDIA loader, normalization and streaming patch adapts its code, with original predictor policy and regression tests |
 | SparkGLM Atlas archive | `775cb3655e29a3735f4f58faa540608f9427bf51` | AGPL-3.0-only | GLM parser, typed state, KDA/DSA/MoE/EXL3 work, probes, and incomplete end-to-end integration |
 | [MoonshotAI/FlashKDA](https://github.com/MoonshotAI/FlashKDA) | `1ce47ea3bb22c84eb9cc665028399cf35e8ffb0b` | MIT | KDA prefill kernel source used by the Atlas experiment |
 | [NVIDIA CUTLASS](https://github.com/NVIDIA/cutlass) | `5c149f52a436782210263fb2f19b354443a61c6a` | BSD-3-Clause | Build-only FlashKDA dependency pin; not redistributed here |

@@ -1,0 +1,84 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-10-atlas-nvidia-bringup",
+  "title": "Atlas NVIDIA full-model bring-up with known quality failures",
+  "date": "2026-09-10",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Retain a reproducible disabled Atlas NVIDIA candidate and its bounded positive and negative evidence",
+  "change": {
+    "baseline_ref": "cac697d712547fbf68cfb0e251cba6c69dde6e0d",
+    "candidate_ref": "working-tree",
+    "working_tree_clean": false,
+    "provenance": [
+      "Adapted AGPL engine material from https://github.com/Mango-kid/atlas at 90b3584abc71b44b609637092b85d8423d8ff20f; original regression tests and unused-predictor policy."
+    ]
+  },
+  "environment": {
+    "tp": 2,
+    "ep": 2,
+    "concurrency": 1,
+    "context": 4096,
+    "gpu_memory_utilization": 0.84,
+    "mtp": false,
+    "kv_dtype": "bf16",
+    "ssm_dtype": "f32"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe source checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded probes do not qualify this complete gate."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Bounded probes do not qualify this complete gate."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Bounded probes do not qualify this complete gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded probes do not qualify this complete gate."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Bounded probes do not qualify this complete gate."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "25eb47d8c437522b7ff25a091f3fd0f3f66ac5607cf0ea189be367c77320c98c"
+    },
+    {
+      "path": "measurement.json",
+      "kind": "raw-evidence",
+      "sha256": "45c0c506801ce3bfca32bc42a83f45247a428fe82d5832d97063063c32824948"
+    }
+  ],
+  "limitations": [
+    "Reasoning-only completions and premature tool answer text remain.",
+    "Longer retrieval changed from final-answer pass to reasoning-only failure.",
+    "Native MTP refused by loader preflight; no MTP generation result.",
+    "No matched vLLM benchmark, complete integration gate, long-context or endurance qualification.",
+    "No default or route promotion."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
