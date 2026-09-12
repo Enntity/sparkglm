@@ -10,6 +10,16 @@ or repeated startup reliability.
 The earlier package and Red Hat measurements below retain their original
 settings; they are not benchmarks of this 11 GiB default.
 
+# Active Atlas experiment, September 11
+
+Atlas is a separate AGPL project; vLLM remains the default above. The retained
+Atlas MTP2/32K C4 candidate reduced complete wall time from 205.468s to 137.129s;
+the matched workload's vLLM reference is 90.500s. Single Atlas trials and different
+speculation/cache configurations limit attribution. This remains G0 source-only
+qualification with bounded historical measurements, not parity or promotion.
+[Day-two evidence and limitations](candidates/2026-09-11-atlas-day2/RESULT.md),
+[active project](../research/atlas/project/README.md).
+
 # Selected NVIDIA package, September 9
 
 The NVIDIA + DFlash2 package is available on the package branch with

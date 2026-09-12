@@ -1,0 +1,616 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-11-atlas-day2",
+  "title": "Atlas day-two bounded prefill, decode, C4 and rejected research evidence",
+  "date": "2026-09-11",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Preserve active Atlas source lineage and bounded measurements separately from the recommended vLLM appliance",
+  "change": {
+    "baseline_ref": "dd0ffd157fb7c6e96d2f3858c888513c6f142cf6",
+    "candidate_ref": "faf4e874b2d418b67a5bc4ec5793c450c9f27ebb",
+    "working_tree_clean": true,
+    "provenance": [
+      "References are retained engine source revisions, not a claim that the publication worktree has no pending export. Latest performance evidence is r23 source 9b3e316a7f5ca92ec22a68414e7aefeda32023dd; r24 source adds diagnostic capture.",
+      "AGPL Atlas derived from the Mango-kid fork; source and artifact identities are recorded in engine-lineage.json and source-map.json. FlashKDA retains its MIT source provenance.",
+      "Public JSON is a selected-field transformation of private receipts, with original and exported hashes. Model tensors, captured routes, provider reasoning, compiled artifacts and private host configuration are excluded."
+    ]
+  },
+  "environment": {
+    "hardware": "two DGX Spark GB10",
+    "compute": "CUDA 13, sm_121a",
+    "tp": 2,
+    "ep": 2,
+    "max_sequences": 4,
+    "max_context": 32768,
+    "prefill_chunk": 4096,
+    "arena_rows": 4100,
+    "mtp_drafts": 2,
+    "kv_dtype": "bf16",
+    "ssm_dtype": "f32",
+    "target_kv_block_floor": 8196,
+    "physical_free_memory_guard_gib": 4,
+    "arithmetic": "Production kernels pin --fmad=false; individual synthetic screens retain their declared arithmetic and correctness contract.",
+    "configuration_note": "This is a progression of explicitly gated engine configurations. Timing records retain their scopes; reference vLLM uses DFlash2 MXFP8 TP2 depth7 and FP8 KV."
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Selected-field export identity, numeric/protocol reconciliation, UTF-8/no-binary content, privacy detector and local link checks pass. Source reconstruction and public publication checks are separate from full model qualification."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Complete methodology gate not run. Bounded synthetic/native tests, short/recall canaries and one C4 observation per candidate are evidence only, not this full gate."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Complete methodology gate not run. Bounded synthetic/native tests, short/recall canaries and one C4 observation per candidate are evidence only, not this full gate."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Complete methodology gate not run. Bounded synthetic/native tests, short/recall canaries and one C4 observation per candidate are evidence only, not this full gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Complete methodology gate not run. Bounded synthetic/native tests, short/recall canaries and one C4 observation per candidate are evidence only, not this full gate."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Complete methodology gate not run. Bounded synthetic/native tests, short/recall canaries and one C4 observation per candidate are evidence only, not this full gate."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r17",
+      "value": 205.467964,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r17.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r18",
+      "value": 169.723908,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r18.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r19b",
+      "value": 159.911387,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r19b.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r20",
+      "value": 151.992779,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r20.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r21",
+      "value": 139.824123,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r21.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "C4 total wall seconds",
+      "candidate": "r23-split",
+      "value": 137.129172,
+      "unit": "seconds",
+      "outputs": 1600,
+      "receipt": "raw/c4-r23-split.json",
+      "scope": "One retained appliance run, not an alternating qualification"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r11b",
+      "value": 13.087591126037296,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r11b.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r14",
+      "value": 12.775480382028036,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r14.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r15",
+      "value": 11.730530708970036,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r15.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r16-control",
+      "value": 12.204176862025633,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r16-control.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r16-warm",
+      "value": 11.558192784024868,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r16-warm.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r17",
+      "value": 11.2380139179877,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r17.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r18",
+      "value": 11.27628187200753,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r18.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r19b",
+      "value": 11.665303506015334,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r19b.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r20",
+      "value": 11.295292260998394,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r20.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r21",
+      "value": 11.277983102016151,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r21.json"
+    },
+    {
+      "name": "First field prompt client TTFT",
+      "candidate": "r23-split",
+      "value": 11.259161329013295,
+      "unit": "seconds",
+      "input_tokens": 15807,
+      "output_tokens": 8,
+      "receipt": "raw/field-r23-split.json"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "e81d65ada3ba3493997cad163a63d513d2ecbfd3711de1ee38aca9a44175dc1b"
+    },
+    {
+      "path": "c4-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "e3e4bbb0ef0cbd2addaac479f25f1e659b464578e10bfade51bbe97776f09bfc"
+    },
+    {
+      "path": "engine-lineage.json",
+      "kind": "selected-receipt",
+      "sha256": "49b3d8b8a4d1c89935731174b2155a75cd91bc8423a53e8aa9125c68c70c5565"
+    },
+    {
+      "path": "prefill-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "79ee47b0051944eac45d229911d111480aa3e4c19943ad3ede444390085f7b2e"
+    },
+    {
+      "path": "raw/acceptance-r17.json",
+      "kind": "selected-receipt",
+      "sha256": "08a7feb061a0bb14d861c71c594104d81adff086211993881d2b64d08fe6e14d"
+    },
+    {
+      "path": "raw/acceptance-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "999e7d60177770862fcf4fda49453e1d8550531060a47e99f468be50bef85138"
+    },
+    {
+      "path": "raw/acceptance-r19b.json",
+      "kind": "selected-receipt",
+      "sha256": "d95bc5d0ff58f9805739a568446ec6fe240b850a071c5e1f2000adfed01dbdda"
+    },
+    {
+      "path": "raw/acceptance-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "ee3fb5627ca0b3e9afc8c59f6e627a94bfe20d8cd6d107e76a0fa91bc3b66d9f"
+    },
+    {
+      "path": "raw/acceptance-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "1776b98e6fd4f33a323c2faef36ede6e21d3b3cff7a274ecd9b97287b508a36a"
+    },
+    {
+      "path": "raw/acceptance-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "1c2a03b8e965531c8692c9a7ad5c395841057a149c426a9bb3ea5096d42d8272"
+    },
+    {
+      "path": "raw/build-r18-attempt1-failed.json",
+      "kind": "selected-receipt",
+      "sha256": "a9accd2510653b4c75f6c334b2a61f75e481090a1beacd656e755463d420286f"
+    },
+    {
+      "path": "raw/build-r18-attempt2-failed.json",
+      "kind": "selected-receipt",
+      "sha256": "0925593a82ba0da92bc5c415d33b5c882ea79031a4d1b2142502e8131799faad"
+    },
+    {
+      "path": "raw/build-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "3ef05e2e7d9803e453cf336ec2498bc5734a001fbf78ec821950cda99cd31c72"
+    },
+    {
+      "path": "raw/build-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "79b2a1fd34c343a1396ca368c6f97e3389877592570651c22c55376eed6855d4"
+    },
+    {
+      "path": "raw/build-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "edb10cbbfd8826797f23ecefa60ab9a5c67c6d5d7f0fc6c4e970f86133445174"
+    },
+    {
+      "path": "raw/build-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "bafd99f21cc9ce44f557b399b229cc113b29e77f68fcf94c8c7bec33e1629ac5"
+    },
+    {
+      "path": "raw/build-r24-route-attempt1-failed.json",
+      "kind": "selected-receipt",
+      "sha256": "5b2f2aef83e7a696480343a69721261dd7fb5343c1e421711cd33094f72aaca0"
+    },
+    {
+      "path": "raw/build-r24-route-attempt2-failed.json",
+      "kind": "selected-receipt",
+      "sha256": "12483bc968cef88f62e5f83c7b9c64effb4255aedbc5f1a9c1eb6d4e65e72416"
+    },
+    {
+      "path": "raw/build-r24-route.json",
+      "kind": "selected-receipt",
+      "sha256": "4c4a55056036c3c274389334c9ea395dd12b6e26815a4cf602ffaac6e0cf242e"
+    },
+    {
+      "path": "raw/c4-r17.json",
+      "kind": "selected-receipt",
+      "sha256": "eab322c6358d5f5bcdea049722b992ae9afc80e99725dd07c227c6d33582b1a2"
+    },
+    {
+      "path": "raw/c4-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "3b2c47cf778a2cd6d1358866fbf1db894a878a399143411b29a328c8c2a2ffe6"
+    },
+    {
+      "path": "raw/c4-r19b.json",
+      "kind": "selected-receipt",
+      "sha256": "1af29fdacbe1a68e72ce268f0645555217454f9a38e5a9f3e5c2d82fc66b35ce"
+    },
+    {
+      "path": "raw/c4-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "6bb5235e2bf6c3ad3da2d0a80e825160d4fc3b42950da466829b78f56c4273ec"
+    },
+    {
+      "path": "raw/c4-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "1e30c4306989a142187f95549278c254d12cef9b537be12628b839fa087e1690"
+    },
+    {
+      "path": "raw/c4-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "ff0c39cd4976b9881df8d32f05d7261653facabfa9061be86894da7894bd154b"
+    },
+    {
+      "path": "raw/field-r11b.json",
+      "kind": "selected-receipt",
+      "sha256": "ab9a8af6785f5ede7b2c1eccd3a2d979d77e6e0ee53188e3d5e03bb384c7385d"
+    },
+    {
+      "path": "raw/field-r14.json",
+      "kind": "selected-receipt",
+      "sha256": "0c45a6b88e7fa973c1a3c228486baff35b12ce9f14ea5b88ae5afbdbf9c30dbd"
+    },
+    {
+      "path": "raw/field-r15.json",
+      "kind": "selected-receipt",
+      "sha256": "e545acd8a67fed4d32fa3b6d0efac5a723a9695a207894b1178caa3e6f08a123"
+    },
+    {
+      "path": "raw/field-r16-control.json",
+      "kind": "selected-receipt",
+      "sha256": "1bf7a0404b4128dd4fffb964ae5421d7565a16817f340ea393d653d008caeea8"
+    },
+    {
+      "path": "raw/field-r16-warm.json",
+      "kind": "selected-receipt",
+      "sha256": "865c0c0f5d97bdf9236e9a1d5326437260f7786f7693aaf69f769cebad89cee7"
+    },
+    {
+      "path": "raw/field-r17.json",
+      "kind": "selected-receipt",
+      "sha256": "e6dec38e215d480e40f7a4b9b424c86d39857cf37c940373f0986afc7ad96282"
+    },
+    {
+      "path": "raw/field-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "93996803f98b6205c62a4359d0cd070e9495ddcd3322ad4c972a47422bcf5012"
+    },
+    {
+      "path": "raw/field-r19b.json",
+      "kind": "selected-receipt",
+      "sha256": "56f933974f8f11837da480af00a976c2a8a4a0f7103a8f10f871d7a88992ae86"
+    },
+    {
+      "path": "raw/field-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "81f754a9fb126d9b01a47220c3798af1f3b11a15f3fd175941781dd4bcfa20c7"
+    },
+    {
+      "path": "raw/field-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "03164d575ff9441e8720462bfd8f6282e101eb2711f278649bdc2e5ce0229081"
+    },
+    {
+      "path": "raw/field-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "968098c00d68077516ab87ca0c21beb56db00377207817c7848d51992b2f91a0"
+    },
+    {
+      "path": "raw/lb3-compiler-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "d70f4ee24efba67ffb099b2059115e15e90095c9ba38ec578f652d8d462bd9a8"
+    },
+    {
+      "path": "raw/mla-o-diagnostic-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "87650689f2ba46ffb7f254b72a1a0f6c3d610d4754294d148f40e94997f6fcc3"
+    },
+    {
+      "path": "raw/mtp-comparability.json",
+      "kind": "selected-receipt",
+      "sha256": "fbf9a88c1f2a6db91cf8e9c12ecb15cc2a92db1a13e74db914e1e639ed6a8366"
+    },
+    {
+      "path": "raw/native-bridge-check-result.json",
+      "kind": "selected-receipt",
+      "sha256": "6acf544e766f29df13a1fb2ef02e2219acb1fbaee20950dbe2d30c2ea0035bde"
+    },
+    {
+      "path": "raw/native-paired-result.json",
+      "kind": "selected-receipt",
+      "sha256": "17bd4cfc7ffbb4e285dc41860510cfb6513efc185781cac0d84baed1b54b5de9"
+    },
+    {
+      "path": "raw/native-paired-tail-fused-result.json",
+      "kind": "selected-receipt",
+      "sha256": "8e0bd1699fa096c7d19a88929fabd9d4d393111c63026ec91610feb0fa9a0f63"
+    },
+    {
+      "path": "raw/native-paired-tail-result.json",
+      "kind": "selected-receipt",
+      "sha256": "3a565604c2685e2798e4dda0ab6d3a10f13f985afb02e466e54900eedaa8b17f"
+    },
+    {
+      "path": "raw/native-tail-components-result.json",
+      "kind": "selected-receipt",
+      "sha256": "c77420e186c7ebe9cbc8322adefaa68bcd4e50857fd6256efa60491d49ec4dcc"
+    },
+    {
+      "path": "raw/native-unified-check.json",
+      "kind": "selected-receipt",
+      "sha256": "73321fb9a1de2bc13a410785d482162180990f5a1b0108c456cc872430e8364a"
+    },
+    {
+      "path": "raw/operator-bf16-sparse-decode.json",
+      "kind": "selected-receipt",
+      "sha256": "182382dd3c473075d3361f302cada0d0c906ec8395d5a82e8411fe6c99d19750"
+    },
+    {
+      "path": "raw/operator-flash-kda.json",
+      "kind": "selected-receipt",
+      "sha256": "4a84cab9d8b967353b3c0b68d43be5fbad8eee206a438565be79eae3d3574f80"
+    },
+    {
+      "path": "raw/operator-hc-fusion.json",
+      "kind": "selected-receipt",
+      "sha256": "94a2f0d8d59d22f1a9bf2d02530a237ae247a33aac25bf5bf6a3276d5a9196c2"
+    },
+    {
+      "path": "raw/operator-head-batchm.json",
+      "kind": "selected-receipt",
+      "sha256": "ed9c9826c9fa281a9a57984819ca18fbb9ebaf9f4711ae3a59f61c12ee49a0d2"
+    },
+    {
+      "path": "raw/operator-mla-o-batching.json",
+      "kind": "selected-receipt",
+      "sha256": "89b5cd98c9fc0df506ad3e422d20f9af5b116e8670b4209cfacafcadea9233b6"
+    },
+    {
+      "path": "raw/operator-moe-down-compact.json",
+      "kind": "selected-receipt",
+      "sha256": "b031299c2cb0a530366b38b6b42815511881c3ab1d049749615c544a37b1af7a"
+    },
+    {
+      "path": "raw/operator-moe-fused-epilogue.json",
+      "kind": "selected-receipt",
+      "sha256": "c87f5a93b2f4c792a835c2fbeaed89c56b6c972769c944648fd3d1d92b243563"
+    },
+    {
+      "path": "raw/operator-moe-joint-m12.json",
+      "kind": "selected-receipt",
+      "sha256": "43ae2f60df3a58225adbff4fabe3f328c1abf8853efd08eec6c38d09ad62bab8"
+    },
+    {
+      "path": "raw/operator-moe-route-replay.json",
+      "kind": "selected-receipt",
+      "sha256": "ffe7f0a6ee49ccd05f4b965ac09468c33cd6ecb1af3a534dbd25c92787f65cfd"
+    },
+    {
+      "path": "raw/operator-moe-tp-shape.json",
+      "kind": "selected-receipt",
+      "sha256": "36ca6c027d43245f3ca21df38d722acd1332b241952b959274ccedf17f43bfdd"
+    },
+    {
+      "path": "raw/operator-ordered-router-workers.json",
+      "kind": "selected-receipt",
+      "sha256": "562b6763add191ccc6d3b7dfe34960b08f13f211f72f2c1f9f9f6cc74896b1ef"
+    },
+    {
+      "path": "raw/operator-owner-cohort-copy.json",
+      "kind": "selected-receipt",
+      "sha256": "360997a2a2e1342868c3f9970cb3e8a299f3e52048f4b4f3bf19e15b69918e1f"
+    },
+    {
+      "path": "raw/operator-split-decode.json",
+      "kind": "selected-receipt",
+      "sha256": "2aa028d0a9ff84ce500b33aecd546a13e0cebbf7e4ca7816e2900d039bc9e190"
+    },
+    {
+      "path": "raw/profile-r17.json",
+      "kind": "selected-receipt",
+      "sha256": "dc675197682638a3ff34e01093fc8a15eb1dd58b090e9f38461b7bdd554f719a"
+    },
+    {
+      "path": "raw/profile-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "16cc2c457170787170a2a816946375d60bbc47638d7575e620e4920e6525e9ec"
+    },
+    {
+      "path": "raw/profile-r19b.json",
+      "kind": "selected-receipt",
+      "sha256": "507a0ceacf0612a02ceb52fabd3edbd18fe19ac188239070542673af293744f9"
+    },
+    {
+      "path": "raw/profile-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "50278d4a673a93c721844b9e79b9e39eb0a7a31d8260da1dee235e3b580b2d51"
+    },
+    {
+      "path": "raw/profile-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "8e0240de63f4ef078a160337787cdbae60f41b1de57def30698c3ec3ca5f3944"
+    },
+    {
+      "path": "raw/profile-r23-independent-crosscheck.json",
+      "kind": "selected-receipt",
+      "sha256": "9bf11c1759e9ab431101c4c463f06849a27ce708cfc254b928cd197b5a303439"
+    },
+    {
+      "path": "raw/profile-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "4f1a421af9526239511fd1c58fcf0984abbf040df8c2d9303fe4e7c764ad4578"
+    },
+    {
+      "path": "raw/r12-r13-review-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "415a021e35f4e4fc4502e245fe79061ad49fe3b1e64352d801e591303b706c67"
+    },
+    {
+      "path": "raw/route-diagnostic-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "3bdab6682d8a9f07d8056d498d390b6a772102821fdbc5c445a901e330c3fc3e"
+    },
+    {
+      "path": "raw/source-r18.json",
+      "kind": "selected-receipt",
+      "sha256": "059fbf34a669473ce08042da46f3675f5a47a4ad535060123fe0a02d6ce9c1db"
+    },
+    {
+      "path": "raw/source-r20.json",
+      "kind": "selected-receipt",
+      "sha256": "db1b65a43fde3b2c4803fe4cce1232943d160ab8fff41448bb01a718dcff4395"
+    },
+    {
+      "path": "raw/source-r21.json",
+      "kind": "selected-receipt",
+      "sha256": "f7574bde73d758b8679bc521d2c3b9f66ca20e6ed05923213c43e27db3fdf0ac"
+    },
+    {
+      "path": "raw/source-r23-split.json",
+      "kind": "selected-receipt",
+      "sha256": "9d9d012513fe611f51beea5ca067fd9967f1b75f8309b7f61f83a64a4352b910"
+    },
+    {
+      "path": "raw/source-r24-route.json",
+      "kind": "selected-receipt",
+      "sha256": "17f08e11c5157cdb85777f0988c282200ba59e0af15137638f1eeca791314d01"
+    },
+    {
+      "path": "raw/transport-n64-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "f007c81af84749b414d715abf00cafeb33b010cbac56cba9d8cbbd0fa326911f"
+    },
+    {
+      "path": "raw/worker-bridge-release-summary.json",
+      "kind": "selected-receipt",
+      "sha256": "d0fc2dbb4d1a02969ec31eb0fc63e21ea43eb028f4790e4ba53a2281e245afb4"
+    },
+    {
+      "path": "source-map.json",
+      "kind": "selected-receipt",
+      "sha256": "18e1ccb003c8789df637c3c35ab4334869010b0c6bd3a3b2e330f3b8fc607037"
+    }
+  ],
+  "limitations": [
+    "Latest C4 is 137.129172 seconds for 1600 outputs versus retained vLLM 90.500192 seconds; parity remains failed and the vLLM default is unchanged.",
+    "One retained run per Atlas C4 configuration; changed output continuations and draft acceptance confound isolated performance attribution. No alternating three-pair appliance matrix or confidence interval.",
+    "The exact source build of the measured optional NVIDIA sparse prefill object is unproven. Published wrappers and the retained object hash do not reproduce that object; it is not distributed. BF16 fallback remains separately measurable.",
+    "r12/r13 timing values come from retained independent live/source review, not primary per-request JSON in this export. Earlier rejected or skipped gates remain rejected or skipped.",
+    "Synthetic operator passes and actual-input O diagnostics do not establish whole-model bit identity or broad quality parity. Diagnostic route capture and replay do not establish an integrated cohort speedup.",
+    "Profiles cover one recorded rank/device and a short C1 decode window. NCCL union may include peer waiting or overlap; it is not entirely recoverable transfer.",
+    "Conditional two-position Atlas MTP acceptance is distinct from first-position acceptance and from unmatched vLLM native-MTP1 isolation or DFlash7 suite counters.",
+    "No full tinyGLM, tool/reasoning/multimodal/cancellation, near-32K-per-owner stress, endurance, maintained release or G1-G5 promotion is claimed.",
+    "Source-only publication and separate LLooM worker bridge release are not a Runtime/model-default cutover."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -80,6 +80,16 @@ def main() -> int:
         for notice_id in source["notice_ids"]:
             assert notice_id in document_ids, (source["id"], notice_id)
 
+    for artifact in manifest.get("unresolved_source_artifacts", []):
+        assert artifact["source_commit"] is None
+        assert artifact["redistributed"] is False
+        assert re.fullmatch(r"[0-9a-f]{64}", artifact["object_sha256"])
+        assert artifact["status"] and artifact["reference_snapshot_note"]
+        for item in artifact["retained_files"]:
+            assert sha256(ROOT / item["path"]) == item["sha256"]
+        for notice_id in artifact["notice_ids"]:
+            assert notice_id in document_ids
+
     for rule in manifest["path_rules"]:
         assert rule["patterns"] and rule["reason"]
         assert matches(files, rule["patterns"]), rule["patterns"]
@@ -104,7 +114,7 @@ def main() -> int:
         assert artifact["license"] in licensing, artifact["id"]
 
     known_spdx = {
-        "Apache-2.0", "MIT", "AGPL-3.0-only", "MIT AND Apache-2.0"
+        "Apache-2.0", "MIT", "AGPL-3.0-only", "MIT AND Apache-2.0", "BSD-3-Clause"
     }
     spdx_files = 0
     for relative in files:

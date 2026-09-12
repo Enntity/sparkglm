@@ -8,6 +8,7 @@ cd "$ROOT"
 QUICK_TESTS=(
     tests/test_standalone.py
     tests/test_appliance.py
+    tests/test_atlas_project.py
     tests/test_bringup_robustness.py
     tests/test_benchmark_contract.py
     tests/test_chat_template.py

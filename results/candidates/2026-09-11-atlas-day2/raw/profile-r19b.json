@@ -1,0 +1,698 @@
+{
+  "trace_sha256": "31868b8d8326d24bd2ae0a88d4070bc96a4fdee1b36c806fdd10adc36f1a42c0",
+  "target_only": [
+    {
+      "ordinal": 0,
+      "start_ns": 11867336208,
+      "end_ns": 12003363632,
+      "wall_ns": 136027424,
+      "kernel_count": 2286,
+      "kernel_union_ns": 128530016,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1333,
+          "sum_ns": 59100704
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 16860128
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16172224
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13387584
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 8795936
+        },
+        {
+          "family": "NCCL",
+          "count": 87,
+          "sum_ns": 6768608
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2375424
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 2038976
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1397184
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 460992
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 380864
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 281888
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 207232
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 205984
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 96288
+        }
+      ],
+      "sparse": {
+        "scalar": {
+          "count": 0,
+          "sum_ns": 0,
+          "mean_ns": null,
+          "grids": []
+        },
+        "tc": {
+          "count": 33,
+          "sum_ns": 13387584,
+          "mean_ns": 405684.36363636365,
+          "grids": [
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "ordinal": 1,
+      "start_ns": 12015816080,
+      "end_ns": 12152077616,
+      "wall_ns": 136261536,
+      "kernel_count": 2286,
+      "kernel_union_ns": 128764640,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1333,
+          "sum_ns": 59269216
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 17296704
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16497568
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13298432
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 9160544
+        },
+        {
+          "family": "NCCL",
+          "count": 87,
+          "sum_ns": 5906368
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2248128
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 1989216
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1421440
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 463488
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 381408
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 283072
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 232544
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 224896
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 91616
+        }
+      ],
+      "sparse": {
+        "scalar": {
+          "count": 0,
+          "sum_ns": 0,
+          "mean_ns": null,
+          "grids": []
+        },
+        "tc": {
+          "count": 33,
+          "sum_ns": 13298432,
+          "mean_ns": 402982.7878787879,
+          "grids": [
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "ordinal": 2,
+      "start_ns": 12164727152,
+      "end_ns": 12300957456,
+      "wall_ns": 136230304,
+      "kernel_count": 2286,
+      "kernel_union_ns": 128725536,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1333,
+          "sum_ns": 59835776
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 16777504
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16412832
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13466016
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 8795552
+        },
+        {
+          "family": "NCCL",
+          "count": 87,
+          "sum_ns": 6057920
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2396160
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 1932096
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1414976
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 443936
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 386304
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 282304
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 216384
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 208704
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 99072
+        }
+      ],
+      "sparse": {
+        "scalar": {
+          "count": 0,
+          "sum_ns": 0,
+          "mean_ns": null,
+          "grids": []
+        },
+        "tc": {
+          "count": 33,
+          "sum_ns": 13466016,
+          "mean_ns": 408061.0909090909,
+          "grids": [
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "ordinal": 3,
+      "start_ns": 12313074192,
+      "end_ns": 12448215632,
+      "wall_ns": 135141440,
+      "kernel_count": 2286,
+      "kernel_union_ns": 127718880,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1333,
+          "sum_ns": 59052384
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 17188192
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16559264
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13076800
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 9037952
+        },
+        {
+          "family": "NCCL",
+          "count": 87,
+          "sum_ns": 5545120
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2305728
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 1921280
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1411648
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 464064
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 378400
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 280960
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 210208
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 204992
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 81888
+        }
+      ],
+      "sparse": {
+        "scalar": {
+          "count": 0,
+          "sum_ns": 0,
+          "mean_ns": null,
+          "grids": []
+        },
+        "tc": {
+          "count": 33,
+          "sum_ns": 13076800,
+          "mean_ns": 396266.6666666667,
+          "grids": [
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "complete_cycles": [
+    {
+      "ordinal": 0,
+      "start_ns": 11867336208,
+      "end_ns": 12015816080,
+      "wall_ns": 148479872,
+      "kernel_count": 2362,
+      "kernel_union_ns": 139858112,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1397,
+          "sum_ns": 66127712
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 16860128
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16172224
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13387584
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 8795936
+        },
+        {
+          "family": "NCCL",
+          "count": 97,
+          "sum_ns": 7522624
+        },
+        {
+          "family": "Sparse BF16 scalar attention",
+          "count": 2,
+          "sum_ns": 3547072
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2375424
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 2038976
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1397184
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 460992
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 380864
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 281888
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 207232
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 205984
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 96288
+        }
+      ]
+    },
+    {
+      "ordinal": 1,
+      "start_ns": 12015816080,
+      "end_ns": 12164727152,
+      "wall_ns": 148911072,
+      "kernel_count": 2378,
+      "kernel_union_ns": 140780672,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1413,
+          "sum_ns": 66826816
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 17296704
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16497568
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13298432
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 9160544
+        },
+        {
+          "family": "NCCL",
+          "count": 97,
+          "sum_ns": 6467232
+        },
+        {
+          "family": "Sparse BF16 scalar attention",
+          "count": 2,
+          "sum_ns": 3897568
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2248128
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 1989216
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1421440
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 463488
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 381408
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 283072
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 232544
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 224896
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 91616
+        }
+      ]
+    },
+    {
+      "ordinal": 2,
+      "start_ns": 12164727152,
+      "end_ns": 12313074192,
+      "wall_ns": 148347040,
+      "kernel_count": 2362,
+      "kernel_union_ns": 139755808,
+      "families": [
+        {
+          "family": "Remaining kernels",
+          "count": 1397,
+          "sum_ns": 66848672
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+          "count": 42,
+          "sum_ns": 16777504
+        },
+        {
+          "family": "HC pre",
+          "count": 90,
+          "sum_ns": 16412832
+        },
+        {
+          "family": "Sparse BF16 tensor-core attention",
+          "count": 33,
+          "sum_ns": 13466016
+        },
+        {
+          "family": "Grouped C3 moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+          "count": 42,
+          "sum_ns": 8795552
+        },
+        {
+          "family": "NCCL",
+          "count": 97,
+          "sum_ns": 6527744
+        },
+        {
+          "family": "Sparse BF16 scalar attention",
+          "count": 2,
+          "sum_ns": 3547552
+        },
+        {
+          "family": "KDA core + packing + gating",
+          "count": 170,
+          "sum_ns": 2396160
+        },
+        {
+          "family": "HC post + raw TF32 + finalizer",
+          "count": 90,
+          "sum_ns": 1932096
+        },
+        {
+          "family": "Grouped C3 moe_build_tile_worklist",
+          "count": 42,
+          "sum_ns": 1414976
+        },
+        {
+          "family": "Grouped C3 moe_unpermute_reduce_indexed_ep",
+          "count": 42,
+          "sum_ns": 443936
+        },
+        {
+          "family": "KDA causal convolution",
+          "count": 102,
+          "sum_ns": 386304
+        },
+        {
+          "family": "Grouped C3 moe_sort_by_expert",
+          "count": 42,
+          "sum_ns": 282304
+        },
+        {
+          "family": "Grouped C3 quantize_bf16_to_nvfp4",
+          "count": 42,
+          "sum_ns": 216384
+        },
+        {
+          "family": "Grouped C3 silu_mul_quant_nvfp4",
+          "count": 42,
+          "sum_ns": 208704
+        },
+        {
+          "family": "TP BF16 add",
+          "count": 87,
+          "sum_ns": 99072
+        }
+      ]
+    }
+  ],
+  "scope": "One recorded rank/device; prefill excluded; acceptance changes target counts. Kernel union is not recoverable time."
+}

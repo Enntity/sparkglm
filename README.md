@@ -11,6 +11,16 @@ and repeated-start qualification remain pending.
 SparkGLM runs independently with Docker and SSH; LLooM integration is optional. The latest EXL3 work remains on the
 [`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3).
 
+Two separate engine projects live on `main`. **vLLM remains the default** for
+installation and serving. **Atlas is active research**, with its own AGPL source,
+build instructions, experimental profiles, measurements and next steps. Selecting
+Atlas is an explicit operation; its research profiles never change the vLLM lane.
+
+| Project | Entry point | Status |
+| --- | --- | --- |
+| **vLLM — default** | [Install and serve](SPARKGLM.md) | Selected NVIDIA NVFP4 source preview |
+| **Atlas — experimental** | [Active Atlas project](research/atlas/README.md) | NVIDIA NVFP4, native MTP2, 32K/four-owner research; parity not achieved |
+
 > **Source research preview:** this is the maintainer-selected measured default,
 > not a production certification. No prebuilt image or complete G5 qualification
 > is claimed. [Install](SPARKGLM.md) · [results](results/CURRENT.md) ·
@@ -95,8 +105,10 @@ kept as explicitly legacy evidence rather than retroactively certified.
 - **Inspect the evidence:** see [docs/RESULTS.md](docs/RESULTS.md), retained raw
   receipts and reports under `results/`, and the code archive under
   `research/vllm-iterations/`.
-- **Inspect the native-engine attempt:** see `research/atlas/`. It is valuable
-  research, but it is not the recommended serving path.
+- **Work on the Atlas engine:** use the [active project](research/atlas/README.md),
+  [day's progress](research/atlas/DAY2_PROGRESS.md), and
+  [next steps](research/atlas/NEXT_STEPS.md). Its source and evidence are retained
+  on `main`; a separate development branch is not needed to find the work.
 - **Review before publication:** see
   [docs/PUBLICATION_REVIEW.md](docs/PUBLICATION_REVIEW.md).
 - **Know what remains unproven:** read
@@ -112,7 +124,7 @@ kept as explicitly legacy evidence rather than retroactively certified.
 | `results/` | canonical evidence | Indexed qualification records, reports, raw receipts, limitations, and rejected work |
 | `research/current-engine-history/` | provenance | Accepted commit mailbox without unsafe historical git objects |
 | `research/vllm-iterations/` | historical | Accepted and rejected vLLM-era experiments, measurements, and patch mailboxes |
-| `research/atlas/` | archival | AGPL Atlas GLM implementation, probes, and a reconstructable source patch |
+| `research/atlas/` | active experimental project | Separate AGPL Atlas engine, reconstructable source, build/profile tools, current reports and historical probes |
 
 The project deliberately retains negative results. A rejected patch is not an
 optional optimization and should not be enabled merely because its source is

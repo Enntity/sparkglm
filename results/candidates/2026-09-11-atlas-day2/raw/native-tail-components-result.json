@@ -1,0 +1,97 @@
+[
+  {
+    "stage": "start",
+    "atlas_sha256": "7b201a132873619a57d200076dad5615d8fcc2addbd070d6a4c901ded8198c89",
+    "native_sha256": "f63925f3590235c436017af0818b02cee028c2caeb6721422a15f652bb65b79a",
+    "torch": "2.13.0+cu130",
+    "cuda": "13.0",
+    "free_bytes": 111999856640,
+    "torch_memory_cap_bytes": 2147483648,
+    "minimum_inclusive_speedup": 1.3,
+    "attention_scale": 0.0625,
+    "candidate_capacity": 2051,
+    "tail_counts": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "scope": "Diagnostic component timings only; no new correctness or candidate acceptance claim."
+  },
+  {
+    "stage": "components",
+    "rows": 4096,
+    "head_count": 32,
+    "sampled_repeats": 15,
+    "median_ms": {
+      "main_native": 16.716768264770508,
+      "tail_native": 2.1866559982299805,
+      "torch_merge": 9.175264358520508
+    },
+    "samples_ms": {
+      "main_native": [
+        16.145471572875977,
+        16.099872589111328,
+        16.754688262939453,
+        16.488447189331055,
+        16.589088439941406,
+        16.771263122558594,
+        16.762752532958984,
+        16.76425552368164,
+        16.69843292236328,
+        16.78976058959961,
+        16.703519821166992,
+        16.700511932373047,
+        16.716768264770508,
+        16.751039505004883,
+        16.840831756591797
+      ],
+      "tail_native": [
+        2.161792039871216,
+        2.4257919788360596,
+        2.394304037094116,
+        2.4353280067443848,
+        2.148063898086548,
+        2.1513280868530273,
+        2.633375883102417,
+        2.1866559982299805,
+        2.1472320556640625,
+        2.1492159366607666,
+        2.6588799953460693,
+        2.1453440189361572,
+        2.1698238849639893,
+        2.4927680492401123,
+        2.464992046356201
+      ],
+      "torch_merge": [
+        9.64303970336914,
+        9.171648025512695,
+        9.388671875,
+        9.134688377380371,
+        9.240575790405273,
+        9.523200035095215,
+        9.175264358520508,
+        9.126015663146973,
+        9.08291244506836,
+        9.11193561553955,
+        9.204095840454102,
+        9.081536293029785,
+        9.392416000366211,
+        9.08841609954834,
+        9.276512145996094
+      ]
+    },
+    "sum_component_medians_ms": 28.078688621520996,
+    "torch_merge_fraction": 0.32676968936106576,
+    "current_merge_output_traffic_bytes": 2013265920,
+    "fused_merge_minimum_output_traffic_bytes": 402653184,
+    "torch_peak_reserved_bytes": 1621098496,
+    "qualification": "Previously validated fixture; timed components are diagnostic, not a paired speedup."
+  },
+  {
+    "stage": "complete",
+    "diagnostic_complete": true,
+    "candidate_speedup_gate_unchanged": 1.3,
+    "scope": "No candidate acceptance or integration; full packing-inclusive paired gate remains required."
+  }
+]

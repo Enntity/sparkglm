@@ -1,0 +1,540 @@
+{
+  "status": "rejected_performance",
+  "primary_fixture": {
+    "owners": 1,
+    "rows_per_owner": 3,
+    "top_k": 8,
+    "routing": "balanced four local experts per rank per token",
+    "experts": 288,
+    "baseline_whole_experts_per_rank": 144,
+    "tp_experts_per_rank": 288,
+    "tp_intermediate_width": 1024,
+    "ep_intermediate_width": 2048
+  },
+  "fixed_gate": {
+    "minimum_speedup": 1.3,
+    "passed": false,
+    "ep_critical_median_ms": 0.841344014,
+    "tp_critical_median_ms": 0.839040019,
+    "speedup": 1.0027459894019668,
+    "absolute_median_saving_ms": 0.002303995000000003,
+    "statistic": "median(15 independently reconstructed arm critical times), then ratio of medians",
+    "critical_time_definition": "sum over serial owners of max(rank0 pipeline time, rank1 pipeline time) plus that owner BF16 pair-add",
+    "warmup_pairs_excluded": 2,
+    "max_reconstruction_print_rounding_difference_ms": 1e-09
+  },
+  "correctness": {
+    "primary_passed": true,
+    "full_weight_and_scale_byte_identity_checks": 2,
+    "owned_gate_up_and_silu_shard_bytes_checked": 224256,
+    "snapshot_records": 8,
+    "fp64_sample_dots_per_check": 648,
+    "fp64_sample_dots_including_post_timing_recheck": 1296,
+    "local_unpermute_and_pair_add_bits_exact": true,
+    "final_ep_tp_relative_l2": 0.00404619744,
+    "relative_l2_limit": 0.01,
+    "final_max_abs": 1.0,
+    "final_max_ref": 235.0,
+    "max_abs_limit_fraction_of_max_ref": 0.02,
+    "max_abs_limit": 4.7,
+    "scope": "Only balanced one-owner GPU fixture executed; host route tests cover all eight planned combinations."
+  },
+  "memory": {
+    "peak_device_buffer_bytes": 8155665824,
+    "live_device_buffer_bytes": 8155665824,
+    "device_buffer_cap_bytes": 8589934592,
+    "post_allocation_free_bytes": 108236214272,
+    "minimum_post_allocation_free_bytes": 4294967296
+  },
+  "owner_pair_samples": [
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 0,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.833407998,
+      "rank1_ms": 0.84799999,
+      "add_ms": 0.006976,
+      "critical_ms": 0.85497599
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 0,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.918079972,
+      "rank1_ms": 0.852959991,
+      "add_ms": 0.003968,
+      "critical_ms": 0.922047972
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 1,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.83337599,
+      "rank1_ms": 0.86688,
+      "add_ms": 0.003904,
+      "critical_ms": 0.870784
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 1,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.826207995,
+      "rank1_ms": 0.833343983,
+      "add_ms": 0.003936,
+      "critical_ms": 0.837279983
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 2,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.820864022,
+      "rank1_ms": 0.836448014,
+      "add_ms": 0.003904,
+      "critical_ms": 0.840352014
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 2,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.825951993,
+      "rank1_ms": 0.822080016,
+      "add_ms": 0.004,
+      "critical_ms": 0.829951993
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 3,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.833343983,
+      "rank1_ms": 0.823967993,
+      "add_ms": 0.003936,
+      "critical_ms": 0.837279983
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 3,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.828288019,
+      "rank1_ms": 0.834335983,
+      "add_ms": 0.003936,
+      "critical_ms": 0.838271983
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 4,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.82614398,
+      "rank1_ms": 0.838464022,
+      "add_ms": 0.003904,
+      "critical_ms": 0.842368022
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 4,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.834272027,
+      "rank1_ms": 0.824127972,
+      "add_ms": 0.003904,
+      "critical_ms": 0.838176027
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 5,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.828256011,
+      "rank1_ms": 0.817983985,
+      "add_ms": 0.003936,
+      "critical_ms": 0.832192011
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 5,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.825183988,
+      "rank1_ms": 0.836192012,
+      "add_ms": 0.003872,
+      "critical_ms": 0.840064012
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 6,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.825951993,
+      "rank1_ms": 0.842592001,
+      "add_ms": 0.003936,
+      "critical_ms": 0.846528001
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 6,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.835135996,
+      "rank1_ms": 0.81904,
+      "add_ms": 0.003904,
+      "critical_ms": 0.839039996
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 7,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.833343983,
+      "rank1_ms": 0.822048008,
+      "add_ms": 0.003904,
+      "critical_ms": 0.837247983
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 7,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.82415998,
+      "rank1_ms": 0.833311975,
+      "add_ms": 0.003904,
+      "critical_ms": 0.837215975
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 8,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.827008009,
+      "rank1_ms": 0.840511978,
+      "add_ms": 0.003904,
+      "critical_ms": 0.844415978
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 8,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.83436799,
+      "rank1_ms": 0.821088016,
+      "add_ms": 0.003712,
+      "critical_ms": 0.83807999
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 9,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.835424006,
+      "rank1_ms": 0.822112024,
+      "add_ms": 0.003904,
+      "critical_ms": 0.839328006
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 9,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.82415998,
+      "rank1_ms": 0.834111989,
+      "add_ms": 0.003936,
+      "critical_ms": 0.838047989
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 10,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.823040009,
+      "rank1_ms": 0.837440014,
+      "add_ms": 0.003904,
+      "critical_ms": 0.841344014
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 10,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.849536002,
+      "rank1_ms": 0.834976017,
+      "add_ms": 0.004032,
+      "critical_ms": 0.853568002
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 11,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.894272029,
+      "rank1_ms": 1.02483201,
+      "add_ms": 0.003904,
+      "critical_ms": 1.02873601
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 11,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.835456014,
+      "rank1_ms": 0.842624009,
+      "add_ms": 0.003936,
+      "critical_ms": 0.846560009
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 12,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.990880013,
+      "rank1_ms": 0.876672029,
+      "add_ms": 0.004384,
+      "critical_ms": 0.995264013
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 12,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.880191982,
+      "rank1_ms": 0.821120024,
+      "add_ms": 0.003936,
+      "critical_ms": 0.884127982
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 13,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.836448014,
+      "rank1_ms": 0.819007993,
+      "add_ms": 0.003936,
+      "critical_ms": 0.840384014
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 13,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.830272019,
+      "rank1_ms": 0.840511978,
+      "add_ms": 0.003936,
+      "critical_ms": 0.844447978
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 14,
+      "owner": 0,
+      "tp": false,
+      "rank0_ms": 0.816991985,
+      "rank1_ms": 0.83436799,
+      "add_ms": 0.003904,
+      "critical_ms": 0.83827199
+    },
+    {
+      "owners": 1,
+      "skew": false,
+      "pair": 14,
+      "owner": 0,
+      "tp": true,
+      "rank0_ms": 0.835232019,
+      "rank1_ms": 0.820032001,
+      "add_ms": 0.003808,
+      "critical_ms": 0.839040019
+    }
+  ],
+  "recomputed_paired_samples": [
+    {
+      "pair": 0,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.85497599,
+      "tp_critical_ms": 0.922047972,
+      "logged_ep_critical_ms": 0.85497599,
+      "logged_tp_critical_ms": 0.922047972
+    },
+    {
+      "pair": 1,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.837279983,
+      "tp_critical_ms": 0.870784,
+      "logged_ep_critical_ms": 0.837279983,
+      "logged_tp_critical_ms": 0.870784
+    },
+    {
+      "pair": 2,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.840352014,
+      "tp_critical_ms": 0.829951993,
+      "logged_ep_critical_ms": 0.840352014,
+      "logged_tp_critical_ms": 0.829951994
+    },
+    {
+      "pair": 3,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.838271983,
+      "tp_critical_ms": 0.837279983,
+      "logged_ep_critical_ms": 0.838271983,
+      "logged_tp_critical_ms": 0.837279983
+    },
+    {
+      "pair": 4,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.842368022,
+      "tp_critical_ms": 0.838176027,
+      "logged_ep_critical_ms": 0.842368022,
+      "logged_tp_critical_ms": 0.838176027
+    },
+    {
+      "pair": 5,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.840064012,
+      "tp_critical_ms": 0.832192011,
+      "logged_ep_critical_ms": 0.840064012,
+      "logged_tp_critical_ms": 0.832192011
+    },
+    {
+      "pair": 6,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.846528001,
+      "tp_critical_ms": 0.839039996,
+      "logged_ep_critical_ms": 0.846528001,
+      "logged_tp_critical_ms": 0.839039996
+    },
+    {
+      "pair": 7,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.837215975,
+      "tp_critical_ms": 0.837247983,
+      "logged_ep_critical_ms": 0.837215975,
+      "logged_tp_critical_ms": 0.837247983
+    },
+    {
+      "pair": 8,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.844415978,
+      "tp_critical_ms": 0.83807999,
+      "logged_ep_critical_ms": 0.844415978,
+      "logged_tp_critical_ms": 0.838079991
+    },
+    {
+      "pair": 9,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.838047989,
+      "tp_critical_ms": 0.839328006,
+      "logged_ep_critical_ms": 0.838047989,
+      "logged_tp_critical_ms": 0.839328006
+    },
+    {
+      "pair": 10,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.841344014,
+      "tp_critical_ms": 0.853568002,
+      "logged_ep_critical_ms": 0.841344014,
+      "logged_tp_critical_ms": 0.853568002
+    },
+    {
+      "pair": 11,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.846560009,
+      "tp_critical_ms": 1.02873601,
+      "logged_ep_critical_ms": 0.846560009,
+      "logged_tp_critical_ms": 1.02873601
+    },
+    {
+      "pair": 12,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.995264013,
+      "tp_critical_ms": 0.884127982,
+      "logged_ep_critical_ms": 0.995264012,
+      "logged_tp_critical_ms": 0.884127982
+    },
+    {
+      "pair": 13,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.844447978,
+      "tp_critical_ms": 0.840384014,
+      "logged_ep_critical_ms": 0.844447978,
+      "logged_tp_critical_ms": 0.840384014
+    },
+    {
+      "pair": 14,
+      "owners": 1,
+      "skew": false,
+      "ep_critical_ms": 0.83827199,
+      "tp_critical_ms": 0.839040019,
+      "logged_ep_critical_ms": 0.83827199,
+      "logged_tp_critical_ms": 0.839040019
+    }
+  ],
+  "skipped_fixtures": [
+    {
+      "owners": 1,
+      "routing": "skewed"
+    },
+    {
+      "owners": 4,
+      "routing": "balanced"
+    },
+    {
+      "owners": 4,
+      "routing": "alternating skew, temporal hot reuse"
+    }
+  ],
+  "decision": "No matrix-TP loader rewrite is earned by this screen. Do not run the skipped fixtures or lower the fixed 1.3 gate to rescue this candidate.",
+  "limitations": [
+    "Single-GPU sequential simulated ranks, with max per-owner timing; no network, real rank concurrency or peer waits.",
+    "Full 288-expert synthetic storage does not imply every expert is touched by one 24-route call.",
+    "No model weights, loader, serving policy, EP1 replication or topology were changed.",
+    "This first-fixture rejection is not a conclusion about every possible topology or matrix-TP implementation.",
+    "Correctness and performance of skipped skewed/four-owner GPU cases are unqualified."
+  ]
+}

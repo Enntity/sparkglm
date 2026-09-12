@@ -1,0 +1,215 @@
+{
+  "status": "qualified_parent_repaired_copy_helper",
+  "generic_helper_correctness_passed": true,
+  "model_integration_qualified": false,
+  "candidate": {
+    "basis": "glm-original.cu",
+    "repair": "one scatter destination offset: dst += off",
+    "sha256": "625a9a160e084563e4072d24ebfbc0b0c73950794ce799a945691f7ec213fc71"
+  },
+  "original_workers": [
+    {
+      "worker": "DeepSeek",
+      "status": "FAILED_SOURCE_REVIEW",
+      "issues": [
+        "gather/scatter directions reversed",
+        "individual segment spans incorrectly4x"
+      ]
+    },
+    {
+      "worker": "GLM",
+      "status": "FAILED_SOURCE_REVIEW",
+      "issues": [
+        "scatter destination omitted local offset"
+      ]
+    }
+  ],
+  "coverage": {
+    "valid_cases": [
+      {
+        "segment_bytes": 16,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 1,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 1,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 1,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 16,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 1,
+        "bytes": 128
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 1,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 1,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 1,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 96,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 1,
+        "bytes": 768
+      },
+      {
+        "segment_bytes": 24576,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 196608
+      },
+      {
+        "segment_bytes": 24576,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 196608
+      },
+      {
+        "segment_bytes": 24576,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 196608
+      },
+      {
+        "segment_bytes": 24576,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 196608
+      },
+      {
+        "segment_bytes": 16777216,
+        "adjacent": 1,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 134217728
+      },
+      {
+        "segment_bytes": 16777216,
+        "adjacent": 1,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 134217728
+      },
+      {
+        "segment_bytes": 16777216,
+        "adjacent": 0,
+        "scatter": 0,
+        "default_stream": 0,
+        "bytes": 134217728
+      },
+      {
+        "segment_bytes": 16777216,
+        "adjacent": 0,
+        "scatter": 1,
+        "default_stream": 0,
+        "bytes": 134217728
+      }
+    ],
+    "host_invalid_invocations": 84,
+    "gpu_invalid_invocations": 84,
+    "byte_exact_destinations_and_source_immutability": true,
+    "redzones_unchanged": true,
+    "invalid_return_cudaErrorInvalidValue_and_backing_unchanged": true,
+    "default_and_nondefault_streams": true,
+    "gridstride_required": true
+  },
+  "memory": {
+    "peak_device_bytes": 134220288,
+    "cap_bytes": 268435456,
+    "max_vectors": 4194304
+  },
+  "limitations": [
+    "Qualification applies only to parent-repaired candidate, not either original worker draft.",
+    "No throughput or integrated model behavior measured. Zero-launch invalid-wrapper semantics additionally rely on source review."
+  ]
+}

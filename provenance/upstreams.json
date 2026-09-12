@@ -46,6 +46,11 @@
       "id": "MIT-LLooM",
       "path": "LICENSES/MIT-LLooM.txt",
       "sha256": "a06dae38964c738b85e5f1c32bfc8b3ef015419aae37ca0e430f703bdf547e85"
+    },
+    {
+      "id": "BSD-3-Clause-NVIDIA-Native",
+      "path": "research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt",
+      "sha256": "eb7324f2ae363e807927f5c16a141522697d45cf71513a07059fa5e31bb3f85f"
     }
   ],
   "notices": [
@@ -170,9 +175,10 @@
       "notice_ids": [
         "AGPL-3.0-only"
       ],
-      "relationship": "archived native-engine derivative",
+      "relationship": "historical native-engine derivative; separate from active Mango fork lineage",
       "covered_paths": [
-        "research/atlas/**"
+        "research/atlas/atlas-glm53.patch",
+        "research/atlas/bench/**"
       ]
     },
     {
@@ -183,9 +189,12 @@
       "notice_ids": [
         "MIT-FlashKDA"
       ],
-      "relationship": "pinned source dependency and MIT-derived slot patch",
+      "relationship": "pinned external MIT kernel dependency and MIT-derived slot patch; original AGPL Atlas recurrence/layout and dynamic-loader adapters",
       "covered_paths": [
-        "research/atlas/flash_kda/**"
+        "research/atlas/flash_kda/**",
+        "research/atlas/experiments/day2/flash-kda/**",
+        "research/atlas/nvidia-day2.patch",
+        "research/atlas/nvidia-r23.patch"
       ]
     },
     {
@@ -295,14 +304,18 @@
       "notice_ids": [
         "AGPL-3.0-only"
       ],
-      "relationship": "adapted native GLM loader, MTP repair/ownership, bounded prefill kernels and serving sanitizer; original compatibility guards, CPU/native oracles and rejected standalone experiments; copied pinned quantizer with original offline overlay wrapper; disabled AGPL research, not the Apache serving default",
+      "relationship": "adapted active experimental native engine; NVIDIA loader and MTP2 ownership, FlashKDA adapter, sparse attention, grouped decode and batching, guards and oracles; byte-preserving measured/latest source patches; separate from the vLLM default",
       "covered_paths": [
         "research/atlas/nvidia-modelopt-refresh.patch",
         "research/atlas/nvidia-prefill-mtp2.patch",
         "research/atlas/nvidia-prefill-mtp2-source.json",
         "research/atlas/nvidia-prefill-rejected-standalones.patch",
         "research/atlas/nvidia-mtp-converter/**",
-        "research/atlas/nvidia-prefill/**"
+        "research/atlas/nvidia-prefill/**",
+        "research/atlas/nvidia-day2*",
+        "research/atlas/nvidia-r23*",
+        "research/atlas/project/**",
+        "research/atlas/experiments/day2/**"
       ]
     },
     {
@@ -311,14 +324,24 @@
       "revision": "cf064d2e6bad2886238ac565b3b49007764f4939",
       "license_expression": "BSD-3-Clause",
       "notice_ids": [],
-      "relationship": "build-only pinned dependency, not redistributed; native grouped collective used by rejected standalone candidates; Atlas host wrappers retain AGPL",
+      "relationship": "build-only pinned dependency, not redistributed; Atlas core and grouped-collective experiments; original host wrappers retain AGPL",
       "covered_paths": [
         "research/atlas/nvidia-prefill-rejected-standalones.patch",
-        "research/atlas/nvidia-prefill/**"
+        "research/atlas/nvidia-prefill/**",
+        "research/atlas/project/**",
+        "research/atlas/experiments/day2/**"
       ]
     }
   ],
   "path_rules": [
+    {
+      "patterns": [
+        "research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt",
+        "research/atlas/experiments/day2/sparse-native/reference/traits/model/model_type.h"
+      ],
+      "license_expression": "BSD-3-Clause",
+      "reason": "Unchanged NVIDIA enum and complete retained BSD notice; upstream source commit unresolved, bytes identified below"
+    },
     {
       "patterns": [
         "runtime/entrypoint.sh",
@@ -418,7 +441,7 @@
         "results/legacy/2026-09-01-atlas-*/**"
       ],
       "license_expression": "AGPL-3.0-only",
-      "reason": "Atlas-derived archive"
+      "reason": "Active Atlas engine, experiments and historical archive; separately listed upstream files retain their notices"
     },
     {
       "patterns": [
@@ -520,6 +543,34 @@
       "source": "incoai/GLM-5.3-Flash-DFlash2",
       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
       "license": "CC BY-NC-ND 4.0"
+    }
+  ],
+  "unresolved_source_artifacts": [
+    {
+      "id": "nvidia-native-sparse-object",
+      "source_commit": null,
+      "status": "Exact object source/build identity unresolved; not a reproducible binary release",
+      "object": "csrc_sparse_mla_sm120_prefill.cuda.o",
+      "object_sha256": "9e372b5a47ade0a8332a73878ec3f6b917ae137447fea2335d2003dd146d549a",
+      "redistributed": false,
+      "reference_snapshot_note": "Available NVIDIA reference snapshot is newer than the measured cached object; its source must not be asserted to reproduce that object.",
+      "retained_files": [
+        {
+          "path": "research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt",
+          "sha256": "eb7324f2ae363e807927f5c16a141522697d45cf71513a07059fa5e31bb3f85f"
+        },
+        {
+          "path": "research/atlas/experiments/day2/sparse-native/reference/traits/model/model_type.h",
+          "sha256": "d8eb2cfdc3eb228f1671f37c50233ff2a0c07908799cc9dcb8848d74a33cf0e9"
+        }
+      ],
+      "embedded_copies": [
+        "research/atlas/nvidia-day2.patch",
+        "research/atlas/nvidia-r23.patch"
+      ],
+      "notice_ids": [
+        "BSD-3-Clause-NVIDIA-Native"
+      ]
     }
   ]
 }
