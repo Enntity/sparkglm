@@ -1,0 +1,37 @@
+{
+  "nvidia": {
+    "wall_s": [
+      90.500192,
+      93.657594,
+      82.103087
+    ],
+    "median_wall_s": 90.500192,
+    "median_capture": "nvidia-video-r1.json",
+    "median_wall_output_tok_s": 17.679520503116724,
+    "actual_prompt_tokens": [
+      15807,
+      15810,
+      15810,
+      15809
+    ]
+  },
+  "redhat": {
+    "wall_s": [
+      77.532947,
+      89.243079,
+      89.762405
+    ],
+    "median_wall_s": 89.243079,
+    "median_capture": "redhat-video-r2.json",
+    "median_wall_output_tok_s": 17.928561160468256,
+    "actual_prompt_tokens": [
+      15807,
+      15810,
+      15810,
+      15809
+    ]
+  },
+  "nvidia_wall_change_percent": 1.4086392066324782,
+  "run_order": "redhat warmup + r1/r2/r3 + semantics, then NVIDIA warmup + r1/r2/r3 + semantics",
+  "comparison_scope": "same images/settings and prompt hashes; checkpoint and quantization loader differ; blocked order, not alternating G3 pairs"
+}

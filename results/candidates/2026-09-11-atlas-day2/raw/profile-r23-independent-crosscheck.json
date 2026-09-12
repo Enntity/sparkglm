@@ -1,0 +1,295 @@
+{
+  "passed": true,
+  "helper_sha256": "6c1e4b33ee7f0ce919c3f4a1efc06811e4d41abfd62102e98c116f744c038c00",
+  "script_sha256": "901a2bf4d926512103ed4ffb1e4ac0e7f362ec36c8e6afb72ce8bfe0998c6676",
+  "inputs_unchanged": true,
+  "checks": [
+    {
+      "id": "0",
+      "crossing_kernel_count": 0,
+      "every_name_count_and_duration_match_sql": true,
+      "count_matches_retained": true,
+      "union_matches_retained": true,
+      "kernel_count": 2297,
+      "kernel_sum_ns": 100824448.0,
+      "kernel_union_ns": 100824448.0,
+      "kernel_uncovered_ns": 7170976.0
+    },
+    {
+      "id": "1",
+      "crossing_kernel_count": 0,
+      "every_name_count_and_duration_match_sql": true,
+      "count_matches_retained": true,
+      "union_matches_retained": true,
+      "kernel_count": 2297,
+      "kernel_sum_ns": 98952032.0,
+      "kernel_union_ns": 98952032.0,
+      "kernel_uncovered_ns": 7345152.0
+    },
+    {
+      "id": "2",
+      "crossing_kernel_count": 0,
+      "every_name_count_and_duration_match_sql": true,
+      "count_matches_retained": true,
+      "union_matches_retained": true,
+      "kernel_count": 2297,
+      "kernel_sum_ns": 99472864.0,
+      "kernel_union_ns": 99472864.0,
+      "kernel_uncovered_ns": 7325248.0
+    },
+    {
+      "id": "3",
+      "crossing_kernel_count": 0,
+      "every_name_count_and_duration_match_sql": true,
+      "count_matches_retained": true,
+      "union_matches_retained": true,
+      "kernel_count": 2297,
+      "kernel_sum_ns": 100093728.0,
+      "kernel_union_ns": 100093728.0,
+      "kernel_uncovered_ns": 7290048.0
+    }
+  ],
+  "note_table_checks": [
+    {
+      "name": "w4a16_gemv_batch3",
+      "matches": true
+    },
+    {
+      "name": "dense_gemv_bf16_batchm",
+      "matches": true
+    },
+    {
+      "name": "dense_gemv_bf16",
+      "matches": true
+    },
+    {
+      "name": "dense_gemm_bf16",
+      "matches": true
+    },
+    {
+      "name": "mla_batched_gemv",
+      "matches": true
+    },
+    {
+      "name": "glm_index_logits_bf16",
+      "matches": true
+    },
+    {
+      "name": "glm_index_topk_expand",
+      "matches": true
+    },
+    {
+      "name": "w4a16_gemv_dual_batch3",
+      "matches": true
+    },
+    {
+      "name": "rms_norm_vanilla",
+      "matches": true
+    },
+    {
+      "name": "moe_batched_blend",
+      "matches": true
+    },
+    {
+      "name": "moe_topk_sigmoid_batched",
+      "matches": true
+    },
+    {
+      "name": "argmax_bf16",
+      "matches": true
+    }
+  ],
+  "exact_name_means": [
+    {
+      "name": "moe_w4a4_grouped_gemm_prequant_t_k64_vecscale_compact_gate_up",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 16.196
+    },
+    {
+      "name": "hc_pre",
+      "calls_per_target": 90.0,
+      "mean_ms_per_target": 16.106136
+    },
+    {
+      "name": "w4a16_gemv_batch3",
+      "calls_per_target": 265.0,
+      "mean_ms_per_target": 11.74828
+    },
+    {
+      "name": "dense_gemv_bf16_batchm",
+      "calls_per_target": 182.0,
+      "mean_ms_per_target": 10.498544
+    },
+    {
+      "name": "moe_w4a4_grouped_gemm_prequant_t_k64_vecscale",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 8.548352
+    },
+    {
+      "name": "dense_gemv_bf16",
+      "calls_per_target": 231.0,
+      "mean_ms_per_target": 8.326224
+    },
+    {
+      "name": "ncclDevKernel_SendRecv(ncclDevKernelArgsStorage<(unsigned long)4096>)",
+      "calls_per_target": 87.0,
+      "mean_ms_per_target": 6.147896
+    },
+    {
+      "name": "dense_gemm_bf16",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 5.88772
+    },
+    {
+      "name": "mla_batched_gemv",
+      "calls_per_target": 66.0,
+      "mean_ms_per_target": 2.414272
+    },
+    {
+      "name": "kda_recurrent_bf16",
+      "calls_per_target": 102.0,
+      "mean_ms_per_target": 2.155936
+    },
+    {
+      "name": "atlas_sparse_decode_split",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 1.90752
+    },
+    {
+      "name": "hc_post",
+      "calls_per_target": 90.0,
+      "mean_ms_per_target": 1.899328
+    },
+    {
+      "name": "moe_build_tile_worklist",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 1.390104
+    },
+    {
+      "name": "glm_index_logits_bf16",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 1.29524
+    },
+    {
+      "name": "glm_index_topk_expand",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 1.092024
+    },
+    {
+      "name": "w4a16_gemv_dual_batch3",
+      "calls_per_target": 3.0,
+      "mean_ms_per_target": 0.84264
+    },
+    {
+      "name": "moe_unpermute_reduce_indexed_ep",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.453664
+    },
+    {
+      "name": "rms_norm_vanilla",
+      "calls_per_target": 157.0,
+      "mean_ms_per_target": 0.432416
+    },
+    {
+      "name": "moe_batched_blend",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.332512
+    },
+    {
+      "name": "causal_conv1d_update_prefill_tp",
+      "calls_per_target": 102.0,
+      "mean_ms_per_target": 0.332432
+    },
+    {
+      "name": "moe_sort_by_expert",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.286696
+    },
+    {
+      "name": "moe_topk_sigmoid_batched",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.258864
+    },
+    {
+      "name": "silu_mul_quant_nvfp4",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.227304
+    },
+    {
+      "name": "quantize_bf16_to_nvfp4",
+      "calls_per_target": 42.0,
+      "mean_ms_per_target": 0.211672
+    },
+    {
+      "name": "argmax_bf16",
+      "calls_per_target": 3.0,
+      "mean_ms_per_target": 0.196144
+    },
+    {
+      "name": "glm_sparse_decode_split_merge",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.1516
+    },
+    {
+      "name": "bf16_add_inplace",
+      "calls_per_target": 87.0,
+      "mean_ms_per_target": 0.08084
+    },
+    {
+      "name": "reshape_and_cache_flash",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.072712
+    },
+    {
+      "name": "glm_index_layernorm_bf16",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.070736
+    },
+    {
+      "name": "kda_sigmoid_gated_rms_norm",
+      "calls_per_target": 34.0,
+      "mean_ms_per_target": 0.063536
+    },
+    {
+      "name": "moe_silu_mul",
+      "calls_per_target": 45.0,
+      "mean_ms_per_target": 0.046872
+    },
+    {
+      "name": "glm_index_tail_write_bf16",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.046448
+    },
+    {
+      "name": "kda_pack_qkv",
+      "calls_per_target": 34.0,
+      "mean_ms_per_target": 0.038384
+    },
+    {
+      "name": "glm_index_kpool_finalize_bf16",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.036208
+    },
+    {
+      "name": "mla_cache_assemble",
+      "calls_per_target": 33.0,
+      "mean_ms_per_target": 0.029416
+    },
+    {
+      "name": "hc_contract",
+      "calls_per_target": 1.0,
+      "mean_ms_per_target": 0.00568
+    },
+    {
+      "name": "hc_expand",
+      "calls_per_target": 1.0,
+      "mean_ms_per_target": 0.005416
+    }
+  ],
+  "caveats": [
+    "Kernel-name durations are sums and may overlap.",
+    "Kernel union excludes copy/memset activity; uncovered time is not recoverable time.",
+    "Retained target boundaries reused unchanged; no requalification or inference.",
+    "Actual profile events remained local; only the generic helper had provider involvement."
+  ]
+}

@@ -1,0 +1,512 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-10-nvidia-512k-cache12-stress",
+  "title": "NVIDIA 512K/12 GiB: bounded stress passes, managed reload hits memory guard",
+  "date": "2026-09-10",
+  "state": "rejected",
+  "qualification_level": "G0",
+  "target": "One-load bounded capacity, contention, cancellation and host-memory screen",
+  "change": {
+    "baseline_ref": "4e30d3882957fabb77ad4bc9c3686539db6a58dc",
+    "candidate_ref": "4e30d3882957fabb77ad4bc9c3686539db6a58dc",
+    "working_tree_clean": true,
+    "provenance": [
+      "Original measurement using existing SparkGLM capture, context, semantic and AGPL staggered benchmark helpers; no serving code or model tensors changed. Original cancellation probe corrected to handle reasoning events."
+    ]
+  },
+  "environment": {
+    "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+    "transport": "direct head loopback, same as retained baseline",
+    "source_revision": "4e30d3882957fabb77ad4bc9c3686539db6a58dc",
+    "engine_revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+    "target_revision": "423acf37583782c51c142d145aef733d72943d93",
+    "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "ranks": {
+      "head": {
+        "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+        "configuration": {
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPEC_METHOD": "dflash",
+          "DFLASH_TOKENS": "7",
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "12884901888",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_SEQS": "4",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "GLM53_MIXED_PREFILL_CHUNK": "0"
+        }
+      },
+      "worker": {
+        "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+        "configuration": {
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPEC_METHOD": "dflash",
+          "DFLASH_TOKENS": "7",
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "12884901888",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_SEQS": "4",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "GLM53_MIXED_PREFILL_CHUNK": "0"
+        }
+      }
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "candidate median C4 wall",
+      "value": 85.295576,
+      "unit": "s",
+      "samples": 3
+    },
+    {
+      "name": "endpoint preemptions across all traffic",
+      "value": 0,
+      "unit": "count",
+      "samples": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "90a278b93e27057d3333b934d83f76328387b3358d797e81e8e3bbac7d4f9f7c"
+    },
+    {
+      "path": "cancellation-original.py",
+      "kind": "raw-evidence",
+      "sha256": "297373cd03d23659603606f016c46e4b1a34ce8fdee98ece627c4a6c9665c158"
+    },
+    {
+      "path": "cancellation.py",
+      "kind": "raw-evidence",
+      "sha256": "92338aa62d98642b491325379ca3c678b3f6ceeb93aa8dcf00b0f6fe775cf0e2"
+    },
+    {
+      "path": "environment.json",
+      "kind": "raw-evidence",
+      "sha256": "73f79d157c65158d353a86a7d41218dcfed869501a4e2e9a903df7e88044e66c"
+    },
+    {
+      "path": "raw/c4-r0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "c74f73485eec53fc1c5484be1f74a3d3d20c239cd55582bf5041157ed87112f3"
+    },
+    {
+      "path": "raw/c4-r0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "714ba1b8009dfc2b7b88e152236aa0328ed566b66f0b222a838f66ab6e73989a"
+    },
+    {
+      "path": "raw/c4-r0.json",
+      "kind": "raw-evidence",
+      "sha256": "695f93d4e4eba91afc93b3186f1ba1846aee21a5520d27011b7f0eadbc3248a2"
+    },
+    {
+      "path": "raw/c4-r1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "534db4ed724dd84def1fc0d3ce6fed7a8cbe97bcfb6cf9c6ae55c78d9e8239d8"
+    },
+    {
+      "path": "raw/c4-r1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "3eff643b8106a0626328f01eecf940e48abb1efaa7aea918c134ac6660f92fff"
+    },
+    {
+      "path": "raw/c4-r1.json",
+      "kind": "raw-evidence",
+      "sha256": "9a4df1859013a1ee4fab352bf2e17c6a3b05afdb93ff79cd01f8dd20b16acd02"
+    },
+    {
+      "path": "raw/c4-r2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "7d2096095f1b9fb26528af921f9fbe23458c0a3fb0fa02ff23aebde97284302a"
+    },
+    {
+      "path": "raw/c4-r2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "5be93d63da1d53e0c49f9a59b8b29ce67a60c8404f31b9a7abbf59ca0d31a6f1"
+    },
+    {
+      "path": "raw/c4-r2.json",
+      "kind": "raw-evidence",
+      "sha256": "6c1cc9eed47a2a09b46eab85b4bbc23fcaa0f6ca5e90e6cf2d330484fd00907c"
+    },
+    {
+      "path": "raw/c4-r3-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "2e2aa8c565251f886b1bfeea80ddc5dffa1623b848481e5bdab6684785618ce7"
+    },
+    {
+      "path": "raw/c4-r3-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "7d2096095f1b9fb26528af921f9fbe23458c0a3fb0fa02ff23aebde97284302a"
+    },
+    {
+      "path": "raw/c4-r3.json",
+      "kind": "raw-evidence",
+      "sha256": "ad1d7312485ec606c487ae887965d1f474192d968635b09ed2458e7a6377a4be"
+    },
+    {
+      "path": "raw/cancel-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "8242e2fd4f850a87aa309ccdbe17faafa234ffd02e0b075f4d0bb389b4992db1"
+    },
+    {
+      "path": "raw/cancel-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "18cdf2a835929f59bcbc15a535edb3d18bd420868d135d6b6ec313ec3c4b1584"
+    },
+    {
+      "path": "raw/cancellation.json",
+      "kind": "raw-evidence",
+      "sha256": "864da66b8cf19643520307c4973779a3452a18b711143f443ca45101988cb001"
+    },
+    {
+      "path": "raw/events.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "9f145104bc8136b6145e3b2805ade31ecb007f667b5c4b78829d7eb920b92400"
+    },
+    {
+      "path": "raw/final.prom",
+      "kind": "raw-evidence",
+      "sha256": "917288e41ec23a049f9e04abcc10b7462f9d7fc53e8bdc23ec70c59d71589e4c"
+    },
+    {
+      "path": "raw/head-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "b5e35bfff8cdaeccc1bccdce3b881cdab1a1cae497dad7e64af1de565dcdbde5"
+    },
+    {
+      "path": "raw/longc4-0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "67e059d8006d31e956c2e7ae3817dc734fba31f0c1859cc6775b687194610e16"
+    },
+    {
+      "path": "raw/longc4-0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f3e87019b4f75d1c63306c9c111fedb39a50f84d710bcc839fd02f42504d02f4"
+    },
+    {
+      "path": "raw/longc4-0-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "74eb498852d5abae71c2ef8741b18c4ac0834c50baec117aff41bfc5c9c243af"
+    },
+    {
+      "path": "raw/longc4-0-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "c70a50b3f3d964c1481d2af70d5af1a6f29d52a8894ed755733c4e0e3d7f680e"
+    },
+    {
+      "path": "raw/longc4-0-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "44b52de3ba305a934aaa6c630264c110f6c2a94dfe14ef227100184d29fe5307"
+    },
+    {
+      "path": "raw/longc4-0-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "74eb498852d5abae71c2ef8741b18c4ac0834c50baec117aff41bfc5c9c243af"
+    },
+    {
+      "path": "raw/longc4-0-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "67e059d8006d31e956c2e7ae3817dc734fba31f0c1859cc6775b687194610e16"
+    },
+    {
+      "path": "raw/longc4-0-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "5ad893adcac3a5a4ebe3a266853edc61dc35f785b29ab2e9a577e1acaa19dbb0"
+    },
+    {
+      "path": "raw/longc4-0.json",
+      "kind": "raw-evidence",
+      "sha256": "6d8e249a4c875d2fb6d2b402a533d8e17865241933a3e40ae7ed913c65ebbe50"
+    },
+    {
+      "path": "raw/longc4-1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "cc4a721063eb30f71c47543070300bcc8725f07e61c4403387fb2681593bb793"
+    },
+    {
+      "path": "raw/longc4-1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "ccc5c3b88553df035d922f3a7f1443a78bf1bb4423ff7cf002b7a7fe44a629a7"
+    },
+    {
+      "path": "raw/longc4-1-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "210aca3ccd62a9b329c09ffc087772b289f99c98bc716abc0345474eb6b1942e"
+    },
+    {
+      "path": "raw/longc4-1-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "560d0674bdb3c5b1d9e0354ecc12f7466ef886ec3bcd49a0ddc0128386536239"
+    },
+    {
+      "path": "raw/longc4-1-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "c121edd86b82135b506ce825e5d917f82de5b548e019552496c308bf797f5a0a"
+    },
+    {
+      "path": "raw/longc4-1-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "210aca3ccd62a9b329c09ffc087772b289f99c98bc716abc0345474eb6b1942e"
+    },
+    {
+      "path": "raw/longc4-1-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "2f8357e239659b53b5b63c6c1cd85cbef1ebfba4ea9a0387f61b4837f6c28735"
+    },
+    {
+      "path": "raw/longc4-1-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "c121edd86b82135b506ce825e5d917f82de5b548e019552496c308bf797f5a0a"
+    },
+    {
+      "path": "raw/longc4-1.json",
+      "kind": "raw-evidence",
+      "sha256": "6cadb770343c249878c0821fea8d0f142e1911ca41a892f7665d3d14d0399610"
+    },
+    {
+      "path": "raw/longc4-2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "4a51c205630d8d6624448b79727c199adca84be3a1b644b0f36de305f57cc797"
+    },
+    {
+      "path": "raw/longc4-2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "ccc5c3b88553df035d922f3a7f1443a78bf1bb4423ff7cf002b7a7fe44a629a7"
+    },
+    {
+      "path": "raw/longc4-2-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "178f97e108cb156f2b4e36dd3a50d2553de75e2556dc94da8bbdc62636ff1ecf"
+    },
+    {
+      "path": "raw/longc4-2-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "03bb7b37e96498728d32e72f9e73aaafbe95c84de632fefa76f839feb62988ee"
+    },
+    {
+      "path": "raw/longc4-2-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "33ac04025d29d5a110a498b1daac082251d1a0c9c95f25b11140e0bcbe140b84"
+    },
+    {
+      "path": "raw/longc4-2-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "178f97e108cb156f2b4e36dd3a50d2553de75e2556dc94da8bbdc62636ff1ecf"
+    },
+    {
+      "path": "raw/longc4-2-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "4a51c205630d8d6624448b79727c199adca84be3a1b644b0f36de305f57cc797"
+    },
+    {
+      "path": "raw/longc4-2-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "1c73718887d8000f3d993835e9f672aefab9e96e0d159cf358cff95a0a606208"
+    },
+    {
+      "path": "raw/longc4-2.json",
+      "kind": "raw-evidence",
+      "sha256": "8e8abdb8fbc18799dbda049bf3a5c75cf8653997e2a89235b384d89eb8198e43"
+    },
+    {
+      "path": "raw/longc4-3-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "dbd670a7cda412b771cc584f2be87b7795f60a2e8f534c44d0220f57f1dfca84"
+    },
+    {
+      "path": "raw/longc4-3-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "f3e87019b4f75d1c63306c9c111fedb39a50f84d710bcc839fd02f42504d02f4"
+    },
+    {
+      "path": "raw/longc4-3-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "b491b70e4f2bad0af3fa2e2e03bd4c518839296398cce10d5040f1988247b88c"
+    },
+    {
+      "path": "raw/longc4-3-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "a67503aa1a7d22a5f183c2c3e9bf8e2bbd48628610fc445a7955e6918d58f3d8"
+    },
+    {
+      "path": "raw/longc4-3-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "6633d6cc9b57340e8949880b6918c6097d459ca6e63147f5028229ce9fb8c42c"
+    },
+    {
+      "path": "raw/longc4-3-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "b491b70e4f2bad0af3fa2e2e03bd4c518839296398cce10d5040f1988247b88c"
+    },
+    {
+      "path": "raw/longc4-3-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "950cc4026342b367204737f28bc5efd4d0a3d6923d2bde8d50b0216a9f48f3d9"
+    },
+    {
+      "path": "raw/longc4-3-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "ee6aab01254c5214b377d8927830118ed096808feb3f8a7f0e85514df76e980e"
+    },
+    {
+      "path": "raw/longc4-3.json",
+      "kind": "raw-evidence",
+      "sha256": "b5c127d85b53ae7a9420e863374ad3fc10c80b73422df8460482587e23861b4c"
+    },
+    {
+      "path": "raw/managed-reload-MEMORY_ABORT.txt",
+      "kind": "raw-evidence",
+      "sha256": "3b669a7e3bcffd7ecc48869dc2dabdceec5cb0af37cfafc2418e564d33fccc9f"
+    },
+    {
+      "path": "raw/managed-reload-head-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "ae1840b9441f31e6a6716e0927d6c090df58bee8338e0b1ec5526e3eed4d0bb5"
+    },
+    {
+      "path": "raw/managed-reload.json",
+      "kind": "raw-evidence",
+      "sha256": "eb6d904107f68353e3b214dd8d24d3b16b775ed5634557c1f13d8458b5178c62"
+    },
+    {
+      "path": "raw/near512-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "83dfe211cd21be7a4562091e97fe0366e89d9f481191c1090be07a28b3f258a1"
+    },
+    {
+      "path": "raw/near512-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "661a2ffc4276ce7078aca1febd03807f55d5d442071942f6b039a16229101ee6"
+    },
+    {
+      "path": "raw/near512-turn0-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "897c7b9177cddb1cf3433e8298ab32385fa80d58ba16bd8a73b80ed606d7d0c1"
+    },
+    {
+      "path": "raw/near512-turn0-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "e3723759f66347c892d292ad4e540d78e07fd9a0fb2bc1182933eb99933e43c8"
+    },
+    {
+      "path": "raw/near512-turn1-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "c04127c559d963b5f4ef4c7d2a458f0434d7f44a6bf45b03ba14f16da6f0e98e"
+    },
+    {
+      "path": "raw/near512-turn1-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "897c7b9177cddb1cf3433e8298ab32385fa80d58ba16bd8a73b80ed606d7d0c1"
+    },
+    {
+      "path": "raw/near512-turn2-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "83dfe211cd21be7a4562091e97fe0366e89d9f481191c1090be07a28b3f258a1"
+    },
+    {
+      "path": "raw/near512-turn2-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "c04127c559d963b5f4ef4c7d2a458f0434d7f44a6bf45b03ba14f16da6f0e98e"
+    },
+    {
+      "path": "raw/near512.json",
+      "kind": "raw-evidence",
+      "sha256": "9152ff3e2b6778e624b2cc4383c864dfac7b11229560ccc7765609fd794440f7"
+    },
+    {
+      "path": "raw/queued6-after.prom",
+      "kind": "raw-evidence",
+      "sha256": "e1291743b74d5eb3b9a15794ab2e72d78942a9d2773ff260165e0ab1dd15acdf"
+    },
+    {
+      "path": "raw/queued6-before.prom",
+      "kind": "raw-evidence",
+      "sha256": "cc4a721063eb30f71c47543070300bcc8725f07e61c4403387fb2681593bb793"
+    },
+    {
+      "path": "raw/queued6.json",
+      "kind": "raw-evidence",
+      "sha256": "de4b8378f210cc82a094705dc219434e0a82f183ffaec8cff09b9d9f5377de65"
+    },
+    {
+      "path": "raw/semantics.json",
+      "kind": "raw-evidence",
+      "sha256": "82eecd2a51f8e02149dc7dd2e5a193c23ddba5c0afe1b700a1bee7bf7e6e21a6"
+    },
+    {
+      "path": "raw/summary.json",
+      "kind": "raw-evidence",
+      "sha256": "5e1a8b97020a38eba0dd4dfdd695fd9a585c6a193015f042038fe93ad1854eec"
+    },
+    {
+      "path": "raw/worker-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "8a95fca0c2527f9dddc16a75d7eb9ab987f3e85662db651fa47a7320bdefcda5"
+    },
+    {
+      "path": "summarize.py",
+      "kind": "raw-evidence",
+      "sha256": "f0a9b346d8745526b12e0fe1c165f1a274ee131942ef8af08f67996266f8954e"
+    }
+  ],
+  "limitations": [
+    "Previous-night baseline, not alternating paired G3.",
+    "Context and cache changed together.",
+    "First three median TTFTs worsened.",
+    "Host swap occupancy increased; paging rates not measured.",
+    "Memory sampling is not an OOM guarantee.",
+    "Bounded semantics still fails two arithmetic cases.",
+    "No endurance or default promotion."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

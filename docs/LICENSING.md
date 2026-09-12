@@ -18,7 +18,7 @@ source pins, retained license/notice bytes, path rules, and SPDX consistency.
 | ExLlamaV3-derived arithmetic | MIT plus the license of SparkGLM's modifications | Retain the ExLlamaV3 MIT notice and state exactly what was adapted |
 | Reederey M64 pipeline | Apache-2.0 plus inherited Mia MIT material | Retain both the Apache license and Reederey/Mia notice |
 | Z.AI chat template | GLM-5.3 License | Keep its dedicated license and provenance sidecar |
-| Atlas-native archive | AGPL-3.0-only | Keep it under `research/atlas/`; do not copy it into the Apache serving path |
+| Active Atlas engine and historical archive | AGPL-3.0-only | Keep both under `research/atlas/`; do not copy them into the Apache vLLM serving path |
 | Standalone staggered benchmark and archived campaign harnesses | AGPL-3.0-only | `benchmarks/staggered_openai.py` and `research/vllm-iterations/benchmarks/` retain their labels and full license; they are not Apache serving components |
 | FlashKDA source | MIT | The external source is not vendored; its license is retained |
 | DeepGEMM FP16 integration | MIT and Apache-2.0 | Preserve DeepSeek's MIT notice for patched source and vLLM's Apache notice for the integration |
@@ -99,3 +99,11 @@ require separate compatibility and performance qualification.
 
 The ShapleyMCG notice still applies to the historical EXL3 results and the
 EXL3 arm of comparisons; it is not attribution for the Red Hat NVFP4 quant.
+
+The active Atlas day-two export remains separate from the Apache vLLM serving
+path. Unchanged NVIDIA `model_type.h` and its full
+[BSD-3-Clause notice](../research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt)
+retain that license, including copies inside the engine patches. The external
+native sparse object is not redistributed; its exact source/build identity is
+unresolved. Source reconstruction is verified, but this is not a reproducible
+native binary release. See [Atlas build requirements](../research/atlas/project/BUILD.md).

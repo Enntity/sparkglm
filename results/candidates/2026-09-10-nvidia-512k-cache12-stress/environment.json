@@ -1,0 +1,48 @@
+{
+  "capture_platform": "Two DGX Spark GB10 nodes, TP2",
+  "transport": "direct head loopback, same as retained baseline",
+  "source_revision": "4e30d3882957fabb77ad4bc9c3686539db6a58dc",
+  "engine_revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+  "target_revision": "423acf37583782c51c142d145aef733d72943d93",
+  "draft_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+  "ranks": {
+    "head": {
+      "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "configuration": {
+        "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+        "QUANTIZATION": "modelopt_fp4",
+        "SPEC_METHOD": "dflash",
+        "DFLASH_TOKENS": "7",
+        "DFLASH_DRAFT_TP": "2",
+        "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+        "SPARKGLM_MXFP8_DRAFT": "1",
+        "MOE_BACKEND": "flashinfer_cutlass",
+        "KV_CACHE_DTYPE": "fp8",
+        "KV_CACHE_MEMORY_BYTES": "12884901888",
+        "MAX_MODEL_LEN": "524288",
+        "MAX_NUM_SEQS": "4",
+        "MAX_NUM_BATCHED_TOKENS": "2048",
+        "GLM53_MIXED_PREFILL_CHUNK": "0"
+      }
+    },
+    "worker": {
+      "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+      "configuration": {
+        "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+        "QUANTIZATION": "modelopt_fp4",
+        "SPEC_METHOD": "dflash",
+        "DFLASH_TOKENS": "7",
+        "DFLASH_DRAFT_TP": "2",
+        "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+        "SPARKGLM_MXFP8_DRAFT": "1",
+        "MOE_BACKEND": "flashinfer_cutlass",
+        "KV_CACHE_DTYPE": "fp8",
+        "KV_CACHE_MEMORY_BYTES": "12884901888",
+        "MAX_MODEL_LEN": "524288",
+        "MAX_NUM_SEQS": "4",
+        "MAX_NUM_BATCHED_TOKENS": "2048",
+        "GLM53_MIXED_PREFILL_CHUNK": "0"
+      }
+    }
+  }
+}

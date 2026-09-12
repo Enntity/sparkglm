@@ -1,0 +1,124 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-10-nvidia-512k-cache11-live",
+  "title": "Maintainer-selected NVIDIA 512K 11 GiB source preview",
+  "date": "2026-09-10",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Record successful startup and gateway connectivity for the maintainer-selected preview default",
+  "change": {
+    "baseline_ref": "45cd5d5",
+    "candidate_ref": "working-tree",
+    "working_tree_clean": false,
+    "provenance": [
+      "Original default selection and operational measurement. No external serving code copied or adapted."
+    ]
+  },
+  "environment": {
+    "head": {
+      "image": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+      "running": true,
+      "configuration": {
+        "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+        "QUANTIZATION": "modelopt_fp4",
+        "SPEC_METHOD": "dflash",
+        "DFLASH_TOKENS": "7",
+        "DFLASH_DRAFT_TP": "2",
+        "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+        "KV_CACHE_DTYPE": "fp8",
+        "KV_CACHE_MEMORY_BYTES": "11811160064",
+        "MAX_MODEL_LEN": "524288",
+        "MAX_NUM_SEQS": "4",
+        "MAX_NUM_BATCHED_TOKENS": "2048",
+        "MOE_BACKEND": "flashinfer_cutlass"
+      }
+    },
+    "worker": {
+      "image": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+      "running": true,
+      "configuration": {
+        "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+        "QUANTIZATION": "modelopt_fp4",
+        "SPEC_METHOD": "dflash",
+        "DFLASH_TOKENS": "7",
+        "DFLASH_DRAFT_TP": "2",
+        "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+        "KV_CACHE_DTYPE": "fp8",
+        "KV_CACHE_MEMORY_BYTES": "11811160064",
+        "MAX_MODEL_LEN": "524288",
+        "MAX_NUM_SEQS": "4",
+        "MAX_NUM_BATCHED_TOKENS": "2048",
+        "MOE_BACKEND": "flashinfer_cutlass"
+      }
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Bounded screen does not claim this promotion gate."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "raw-evidence",
+      "sha256": "abb8bc20f0bc1bf9f951b40fe8635d53788077cf24bdc8fb90fc51b40e370c46"
+    },
+    {
+      "path": "environment.json",
+      "kind": "raw-evidence",
+      "sha256": "72da1d9a670f872dc50a73cccfaa1f6ab85a08eafa5fb64286b1875bbdf8b2cd"
+    },
+    {
+      "path": "head-memory.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "af9ce90864ac8cc73585a5e881d9ced739f3369e77a4e7f1cd3c1a4e5239a816"
+    },
+    {
+      "path": "measurement.json",
+      "kind": "raw-evidence",
+      "sha256": "041dc925238a1334280544d7f9109876e579b820fd61bff4aa4ee69f27c9e873"
+    }
+  ],
+  "limitations": [
+    "Previous-night baseline, not alternating paired G3.",
+    "Context and cache changed together.",
+    "First three median TTFTs worsened.",
+    "Host swap occupancy increased; paging rates not measured.",
+    "Memory sampling is not an OOM guarantee.",
+    "Bounded semantics still fails two arithmetic cases.",
+    "No endurance or default promotion."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

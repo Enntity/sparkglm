@@ -1,0 +1,44 @@
+{
+  "source_revision": "dd0ffd157fb7c6e96d2f3858c888513c6f142cf6",
+  "nccl": {
+    "bytes": 33554432,
+    "warmups": 3,
+    "alternating_pairs": 9,
+    "one_interface_sendrecv_add_rank_ms": [
+      3.67456,
+      3.68688
+    ],
+    "two_interface_sendrecv_add_rank_ms": [
+      2.349536,
+      2.366496
+    ],
+    "one_interface_allreduce_rank_ms": [
+      3.085216,
+      3.099296
+    ],
+    "two_interface_allreduce_rank_ms": [
+      2.027104,
+      1.997632
+    ],
+    "two_interface_allreduce_p95_ms": [
+      8.014,
+      5.644
+    ],
+    "result": "Two-interface SendRecv retained for r14; native AllReduce not integrated."
+  },
+  "n64": {
+    "gate": 1.15,
+    "baseline_weighted_ms": 13.125127,
+    "candidate_weighted_ms": 15.492573,
+    "speedup": 0.847188,
+    "status": "performance_rejected",
+    "skipped": [
+      "skew",
+      "tail",
+      "model"
+    ],
+    "baseline_registers": 127,
+    "candidate_registers": 71
+  },
+  "scope": "Selected reviewed standalone medians, not a whole-model communication speedup."
+}

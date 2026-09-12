@@ -103,7 +103,7 @@ def start(config, timeout):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', nargs='?', default='install', choices=['plan','build','install','start','stop','status'])
-    parser.add_argument('--profile', choices=['nvfp4','exl3'], default='nvfp4')
+    parser.add_argument('--profile', choices=['nvfp4','nvfp4-nvidia','exl3'], default='nvfp4-nvidia')
     parser.add_argument('--worker', help='SSH destination USER@WORKER')
     parser.add_argument('--head-address', help='Leader IPv4 address on the private TP fabric')
     parser.add_argument('--worker-address', help='Worker IPv4 address on the private TP fabric')

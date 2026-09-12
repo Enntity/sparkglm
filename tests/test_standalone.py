@@ -16,7 +16,7 @@ image='sha256:'+'a'*64
 config=dict(worker='worker',head_address='192.0.2.1',worker_address='192.0.2.2',
             model_root='/models',entrypoint='/runtime/entrypoint.sh',interfaces=['eth0','eth1'],
             hcas=['rdma0','rdma1'],gids=[3,4],images=[image,image],names=['test-head','test-worker'])
-for profile in ('nvfp4','exl3'):
+for profile in ('nvfp4','nvfp4-nvidia','exl3'):
     recipe=materialize(image,profile=profile)
     for rank in (0,1):
         args=standalone.docker_args(recipe,config,rank)
@@ -44,8 +44,8 @@ with patch.object(standalone,'command',foreign):
 assert all('rm' not in x and 'stop' not in x for x in calls)
 plan=json.loads(subprocess.check_output([str(ROOT/'start.sh'),'plan'],text=True))
 assert plan['manager']=='standalone'
-assert plan['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4'
+assert plan['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4-nvidia'
 optional=json.loads(subprocess.check_output([str(ROOT/'start.sh'),'--lloom','plan'],text=True))
-assert optional['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4'
+assert optional['profile']['models'][0]['gatewayModel']=='sparkglm-nvfp4-nvidia'
 assert (ROOT/'runtime/entrypoint.sh').read_bytes().startswith(b'#!/usr/bin/env bash')
 print('Standalone command parity, ownership isolation and optional LLooM dispatch PASS')

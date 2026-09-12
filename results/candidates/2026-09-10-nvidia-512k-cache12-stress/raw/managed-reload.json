@@ -1,0 +1,83 @@
+{
+  "outcome": "head memory guard stopped managed reload before API readiness",
+  "minimum_head_available_gib": 0.8011589050292969,
+  "guard_threshold_gib": 1.5,
+  "consecutive_samples": 3,
+  "sample_interval_s": 2,
+  "configuration": {
+    "context": 524288,
+    "cache_bytes_per_rank": 12884901888
+  },
+  "guard_samples": [
+    {
+      "time": 1789062198.7802174,
+      "available": 1005993984,
+      "swap_used": 5471043584,
+      "running": true,
+      "pswpin_pages": 55066963,
+      "pswpout_pages": 103243215,
+      "pgmajfault": 41015817,
+      "pressure": {
+        "some": {
+          "avg10": 27.52,
+          "avg60": 10.52,
+          "avg300": 9.49,
+          "total": 885940283.0
+        },
+        "full": {
+          "avg10": 27.52,
+          "avg60": 10.52,
+          "avg300": 9.49,
+          "total": 884923851.0
+        }
+      }
+    },
+    {
+      "time": 1789062200.7919273,
+      "available": 860237824,
+      "swap_used": 5983596544,
+      "running": true,
+      "pswpin_pages": 55070474,
+      "pswpout_pages": 103367550,
+      "pgmajfault": 41016586,
+      "pressure": {
+        "some": {
+          "avg10": 27.24,
+          "avg60": 11.03,
+          "avg300": 9.61,
+          "total": 886473810.0
+        },
+        "full": {
+          "avg10": 27.24,
+          "avg60": 11.03,
+          "avg300": 9.61,
+          "total": 885456137.0
+        }
+      }
+    },
+    {
+      "time": 1789062202.801042,
+      "available": 1244213248,
+      "swap_used": 6476070912,
+      "running": true,
+      "pswpin_pages": 55073175,
+      "pswpout_pages": 103480860,
+      "pgmajfault": 41017292,
+      "pressure": {
+        "some": {
+          "avg10": 31.18,
+          "avg60": 12.27,
+          "avg300": 9.87,
+          "total": 887463881.0
+        },
+        "full": {
+          "avg10": 31.18,
+          "avg60": 12.27,
+          "avg300": 9.87,
+          "total": 886446069.0
+        }
+      }
+    }
+  ],
+  "caveat": "Same serving image pair and core model/cache settings; managed gateway-facing startup versus prior direct benchmark startup. This proves insufficient margin in a normal reload, not deterministic failure on every load."
+}

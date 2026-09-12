@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY research/experiments/nvfp4-nvidia/tiny_init.py /usr/local/lib/python3.12/dist-packages/sparkglm_modelopt_tiny.py
+RUN printf '%s\n' 'import os; os.environ.get("SPARKGLM_MODELOPT_TINY") == "1" and __import__("sparkglm_modelopt_tiny")' > /usr/local/lib/python3.12/dist-packages/sparkglm_modelopt_tiny.pth

@@ -1,0 +1,124 @@
+{
+  "captured_at": "2026-09-10T06:55:09.294240+00:00",
+  "transport": "direct head loopback, same endpoint/model ID for both arms",
+  "package_source": "f4e54e8",
+  "engine_revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+  "arms": {
+    "redhat": {
+      "head": {
+        "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+        "state": "exited",
+        "started_at": "2026-09-10T06:15:31.545547212Z",
+        "configuration": {
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "DFLASH_TOKENS": "7",
+          "GLM53_INDEXER_WORKSPACE": "rightsize",
+          "GLM53_MIXED_PREFILL_CHUNK": "0",
+          "GLM53_SPINWAIT_MS": "16",
+          "GPU_MEMORY_UTILIZATION": "0.87",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "9663676416",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "MAX_NUM_SEQS": "4",
+          "MODEL_DIR": "/models/RedHatAI--GLM-5.3-Flash-NVFP4",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "QUANTIZATION": "compressed-tensors",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "SPEC_METHOD": "dflash"
+        }
+      },
+      "worker": {
+        "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+        "state": "exited",
+        "started_at": "2026-09-10T06:15:30.880900792Z",
+        "configuration": {
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "DFLASH_TOKENS": "7",
+          "GLM53_INDEXER_WORKSPACE": "rightsize",
+          "GLM53_MIXED_PREFILL_CHUNK": "0",
+          "GLM53_SPINWAIT_MS": "16",
+          "GPU_MEMORY_UTILIZATION": "0.87",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "9663676416",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "MAX_NUM_SEQS": "4",
+          "MODEL_DIR": "/models/RedHatAI--GLM-5.3-Flash-NVFP4",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "QUANTIZATION": "compressed-tensors",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "SPEC_METHOD": "dflash"
+        }
+      }
+    },
+    "nvidia": {
+      "head": {
+        "image_digest": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+        "state": "running",
+        "started_at": "2026-09-10T06:31:45.408586859Z",
+        "configuration": {
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "DFLASH_TOKENS": "7",
+          "GLM53_INDEXER_WORKSPACE": "rightsize",
+          "GLM53_MIXED_PREFILL_CHUNK": "0",
+          "GLM53_SPINWAIT_MS": "16",
+          "GPU_MEMORY_UTILIZATION": "0.87",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "9663676416",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "MAX_NUM_SEQS": "4",
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "SPEC_METHOD": "dflash"
+        }
+      },
+      "worker": {
+        "image_digest": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+        "state": "running",
+        "started_at": "2026-09-10T06:31:44.711889075Z",
+        "configuration": {
+          "DFLASH_DRAFT_TP": "2",
+          "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+          "DFLASH_TOKENS": "7",
+          "GLM53_INDEXER_WORKSPACE": "rightsize",
+          "GLM53_MIXED_PREFILL_CHUNK": "0",
+          "GLM53_SPINWAIT_MS": "16",
+          "GPU_MEMORY_UTILIZATION": "0.87",
+          "KV_CACHE_DTYPE": "fp8",
+          "KV_CACHE_MEMORY_BYTES": "9663676416",
+          "MAX_MODEL_LEN": "524288",
+          "MAX_NUM_BATCHED_TOKENS": "2048",
+          "MAX_NUM_SEQS": "4",
+          "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+          "MOE_BACKEND": "flashinfer_cutlass",
+          "QUANTIZATION": "modelopt_fp4",
+          "SPARKGLM_MXFP8_DRAFT": "1",
+          "SPEC_METHOD": "dflash"
+        }
+      }
+    }
+  },
+  "harness_sha256": {
+    "._launch.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+    "launch.py": "e71be685f83d1c8d79e7b58c4ef5536d5d366c2ce6810189af0d5c6999c3fa54",
+    "._campaign.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+    "manifest.py": "6764cb8f99f2be3c289cbcd4eaff47d00dc26462af0fb5f0840059ad0d363b94",
+    "semantic_gate.py": "fb8c5cfc1fb43949b24106306bc34031ba6f38da1f2d8f65cd46f7e6c41e423b",
+    "campaign.py": "76ff9b3a169b1d71815f6318269895f4a9e214fca11e1505bbe3c7fc756a6677",
+    "four_stream_video.py": "c2eb79128931809dd2844a814549af345ee7008d1bcccb7fb2e56510356a9bf8",
+    "._four_stream_video.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d",
+    "._semantic_gate.py": "fe8aaa34cebb9bb73ed0226a49eb19b919134e1708e19b8c803cad72a6ada15d"
+  },
+  "model_revisions": {
+    "nvidia": "423acf37583782c51c142d145aef733d72943d93",
+    "redhat": "240131d6a447c8d89acd428c5ddfc85598651744",
+    "draft": "610aa967a92bfeb97e3d848dcb8693553e8b6a55"
+  }
+}

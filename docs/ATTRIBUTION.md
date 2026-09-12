@@ -84,14 +84,16 @@ The posted-video foundation restoration additionally carries:
 and fail-closed source manifest are SparkGLM work; the underlying algorithms
 are not new contributions in this restoration.
 
-## Atlas-native archive contents
+## Active Atlas project and historical source
 
 | Source | Exact revision | License | Relationship |
 | --- | --- | --- | --- |
 | [Atlas-Inf/atlas](https://github.com/Atlas-Inf/atlas) | `bdcccc2ca91eba084aac94a059e3b0f4a5d556dd` | AGPL-3.0-only | Native Rust/CUDA engine base |
+| [Mango-kid/atlas](https://github.com/Mango-kid/atlas) | `90b3584abc71b44b609637092b85d8423d8ff20f` | AGPL-3.0-only | Native NVFP4/MTP research base; separate experimental NVIDIA loader, MTP2 ownership, bounded prefill and sanitizer patches; original guards/oracles; pinned quantizer copied into the offline overlay converter; rejected standalone experiments retained as AGPL |
 | SparkGLM Atlas archive | `775cb3655e29a3735f4f58faa540608f9427bf51` | AGPL-3.0-only | GLM parser, typed state, KDA/DSA/MoE/EXL3 work, probes, and incomplete end-to-end integration |
 | [MoonshotAI/FlashKDA](https://github.com/MoonshotAI/FlashKDA) | `1ce47ea3bb22c84eb9cc665028399cf35e8ffb0b` | MIT | KDA prefill kernel source used by the Atlas experiment |
 | [NVIDIA CUTLASS](https://github.com/NVIDIA/cutlass) | `5c149f52a436782210263fb2f19b354443a61c6a` | BSD-3-Clause | Build-only FlashKDA dependency pin; not redistributed here |
+| [NVIDIA CUTLASS](https://github.com/NVIDIA/cutlass) | `cf064d2e6bad2886238ac565b3b49007764f4939` | BSD-3-Clause | Build-only NVIDIA Atlas dependency; rejected grouped-prefill collective experiments; upstream headers are not redistributed |
 
 The Atlas patch and copied Atlas-derived documentation remain explicitly
 AGPL-3.0-only. No attempt is made to relicense Atlas work as Apache or MIT.
@@ -148,3 +150,31 @@ MIT/Apache launcher (also published in LLooM at
 `2cc2f0df9ddcb1bb7fe60f7bd6934d2a9de1e4f2`). It executes the selected image's
 vLLM and patchers directly. It does not invoke, install, or depend on LLooM.
 The standalone Docker/SSH orchestrator is original Apache-2.0 code.
+
+## NVIDIA NVFP4 optional checkpoint
+
+[ NVIDIA GLM-5.3-Flash NVFP4](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4)
+at `423acf37583782c51c142d145aef733d72943d93` supplies external ModelOpt checkpoint
+metadata for the original optional profile and synthetic loader fixture. No
+NVIDIA code or weights are copied. The publisher labels this checkpoint MIT;
+model and draft terms remain separate from SparkGLM code licensing.
+
+## Atlas day-two source and native dependency boundary
+
+The active Mango-derived project now exports exact measured r23
+`9b3e316a7f5ca92ec22a68414e7aefeda32023dd` and diagnostic latest
+`faf4e874b2d418b67a5bc4ec5793c450c9f27ebb` trees. The source manifests record
+all patch and changed-file hashes. Original Atlas integration covers FlashKDA
+layout/recurrence, native sparse ABI and preparation, tensor-core/split sparse
+decode, grouped MoE, batched head/MLA output, fixtures and fail-fast benchmarks.
+Worker drafts were reviewed and corrected; they are not upstream authorship.
+
+The unchanged NVIDIA enum header and complete BSD-3-Clause notice are retained
+under `research/atlas/experiments/day2/sparse-native/` and inside both source
+patches. Their per-file license remains BSD-3-Clause within the AGPL derivative.
+The external native object SHA256 is
+`9e372b5a47ade0a8332a73878ec3f6b917ae137447fea2335d2003dd146d549a`.
+Its exact upstream source/build revision remains unresolved. The available newer
+reference snapshot is not asserted to reproduce it. The provenance ledger records
+this explicitly without inventing a source commit; no native binary is shipped.
+See [the build boundary](../research/atlas/project/BUILD.md).

@@ -1,0 +1,103 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-11-atlas-prefill",
+  "title": "Atlas NVIDIA MTP2 prefill research and final bounded canary",
+  "date": "2026-09-11",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Retain portable source and bounded positive/negative evidence without changing the vLLM default",
+  "change": {
+    "baseline_ref": "561ffcbf59c12982103984dbbc0060b867b6c315",
+    "candidate_ref": "dd0ffd157fb7c6e96d2f3858c888513c6f142cf6",
+    "working_tree_clean": true,
+    "provenance": [
+      "Adapted AGPL native engine from https://github.com/Mango-kid/atlas at90b3584abc71b44b609637092b85d8423d8ff20f; original NVIDIA compatibility, MTP ownership, prefill guards, sanitizer tests and rejected standalone experiments."
+    ]
+  },
+  "environment": {
+    "hardware": "two DGX Spark GB10",
+    "tp": 2,
+    "ep": 2,
+    "max_sequences": 4,
+    "max_context": 32768,
+    "prefill_chunk": 4096,
+    "arena_rows": 4100,
+    "mtp_drafts": 2,
+    "kv_dtype": "bf16",
+    "ssm_dtype": "f32",
+    "gpu_memory_utilization": 0.914
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Source reconstruction and public-safe checks; focused tests do not imply complete higher gates."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Complete gate not run; only bounded tests/canaries retained."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Complete gate not run; only bounded tests/canaries retained."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Complete gate not run; only bounded tests/canaries retained."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Complete gate not run; only bounded tests/canaries retained."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Complete gate not run; only bounded tests/canaries retained."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "2b351782f07e22a64d1915ceec461f73eab92db0cc713b6f659ff7067541d336"
+    },
+    {
+      "path": "measurement.json",
+      "kind": "raw-receipt",
+      "sha256": "7c628509b0514ed1102ad8c56f14e8c7513155214346aef735a540450f5f494e"
+    },
+    {
+      "path": "operator-evidence.json",
+      "kind": "raw-receipt",
+      "sha256": "fac75c8431fcf734c20ad1ba9a4cc53f0c9853f7d840f9d15f693f79b1b274d8"
+    },
+    {
+      "path": "source.json",
+      "kind": "raw-receipt",
+      "sha256": "c870765b2c5dd29ba4c583cd765d9050a9cef500af3df7c84b24e6ef00bf05c7"
+    },
+    {
+      "path": "validation.json",
+      "kind": "raw-receipt",
+      "sha256": "aa21bef280a62f0358870af7e71afc31699294b03335d8574f02a3a77d2dc3d4"
+    }
+  ],
+  "limitations": [
+    "R11b13.087591s client TTFT remains20.6% above recorded vLLM10.848938s; no parity claim.",
+    "Final field-guide probe is15807input/8output and firstC4prompt only; no C4 throughput claim.",
+    "R11 sanitizer improves channel delivery timing, not demonstrated endpoint speed.",
+    "MTP predictor experts are Atlas-runtime-quantized NVFP4; reference vLLM predictor precision differs.",
+    "Rejected standalone kernels are not enabled.",
+    "No full long-context/concurrency, tool-quality, cancellation/endurance or release qualification; no default promotion."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

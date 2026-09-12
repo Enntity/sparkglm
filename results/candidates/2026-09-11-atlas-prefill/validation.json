@@ -1,0 +1,91 @@
+{
+  "schema": "sparkglm.atlas-validation/v1",
+  "source_reconstruction": "PASS118frozenr11 files plus10additional standalone files and full target Git tree",
+  "r11_native_protocol_tests": {
+    "sanitizer": 42,
+    "reasoning_done": 4,
+    "status": "pass"
+  },
+  "local_protocol_tests": {
+    "passed": 394,
+    "existing_ignored": 1,
+    "network_image_test": "skipped"
+  },
+  "exported_converter_tests": {
+    "passed": 3,
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s research/atlas/nvidia-mtp-converter -v"
+  },
+  "r4_native_selected_tests": {
+    "native_selected_tests": 35,
+    "selected_test_counts": [
+      12,
+      1,
+      4,
+      2,
+      2,
+      5,
+      9
+    ]
+  },
+  "native_test_receipts": [
+    {
+      "source_filename": "r11-sanitizer-anthropic-green.log",
+      "private_original_sha256": "813ba68e384e921d4c96ed052f21b45e26352c4c9cae7d584a5f049e80601217",
+      "selected_test_summary": [
+        "running 38 tests",
+        "test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 2425 filtered out; finished in 0.01s"
+      ],
+      "expected_state": "green"
+    },
+    {
+      "source_filename": "r11-sanitizer-api-green.log",
+      "private_original_sha256": "2d2f887fc1824bbb52e247c17b7fb6c1a083f4cc1d5b3126dfda8b13b6239aa1",
+      "selected_test_summary": [
+        "running 183 tests",
+        "test result: ok. 183 passed; 0 failed; 0 ignored; 0 measured; 2280 filtered out; finished in 1.85s"
+      ],
+      "expected_state": "green"
+    },
+    {
+      "source_filename": "r11-sanitizer-openai-green.log",
+      "private_original_sha256": "6301f9788e6559320c5ec9ea7354bdef483d0fa9e49bb8ad075c721318899d59",
+      "selected_test_summary": [
+        "running 5 tests",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2458 filtered out; finished in 0.00s"
+      ],
+      "expected_state": "green"
+    },
+    {
+      "source_filename": "r11-sanitizer-parser-green.log",
+      "private_original_sha256": "b55309228fc04eaeb9e60d24c4fee9ee63f904664a1d44d9560012b2c0bb32f8",
+      "selected_test_summary": [
+        "running 169 tests",
+        "test result: ok. 168 passed; 0 failed; 1 ignored; 0 measured; 2294 filtered out; finished in 0.00s"
+      ],
+      "expected_state": "green"
+    },
+    {
+      "source_filename": "r11-sanitizer-prefix-green.log",
+      "private_original_sha256": "ecdb8814dc5dd70a0d8b5fcffe0121e8d72a31542c2a4a27a1a48509da70687f",
+      "selected_test_summary": [
+        "running 6 tests",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2456 filtered out; finished in 0.02s"
+      ],
+      "expected_state": "green"
+    },
+    {
+      "source_filename": "r11-sanitizer-prefix-red.log",
+      "private_original_sha256": "7da2364b8fb250d25f9e8774b659daa54a21e86858cd2e567e51b5affd12f300",
+      "selected_test_summary": [
+        "running 6 tests",
+        "test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 2456 filtered out; finished in 0.01s",
+        "error: test failed, to rerun pass `-p spark-server --bin spark`"
+      ],
+      "expected_state": "red-regression"
+    }
+  ],
+  "limitations": [
+    "Focused tests and canaries do not complete G1/G2/G3/G4/G5 suites.",
+    "No near32K output qualification, completed fullC4 workload or endurance claim."
+  ]
+}

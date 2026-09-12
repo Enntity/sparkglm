@@ -1,0 +1,1069 @@
+diff --git a/crates/spark-model/src/model/trait_impl/glm_ssm_normalization_tests.rs b/crates/spark-model/src/model/trait_impl/glm_ssm_normalization_tests.rs
+new file mode 100644
+index 0000000..e24f6ae
+--- /dev/null
++++ b/crates/spark-model/src/model/trait_impl/glm_ssm_normalization_tests.rs
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Actual normalization dispatch with recorded GPU calls, not CUDA numerics.
++
++use crate::model::glm_c2_test_support::fixture::{CALLER, Event, Fixture};
++use crate::traits::Model;
++
++fn check(name: &str, setting: Option<&str>, glm: bool, expected: bool) {
++    const CHILD: &str = "ATLAS_GLM_SSM_NORMALIZE_TEST_CHILD";
++    if std::env::var(CHILD).as_deref() != Ok(name) {
++        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
++        command
++            .args([
++                "--exact",
++                &format!("model::trait_impl::meta::glm_ssm_normalization_tests::{name}"),
++                "--nocapture",
++            ])
++            .env(CHILD, name)
++            .env_remove("ATLAS_GLM_SSM_NORMALIZE");
++        if let Some(value) = setting {
++            command.env("ATLAS_GLM_SSM_NORMALIZE", value);
++        }
++        assert!(command.status().unwrap().success(), "child failed: {name}");
++        return;
++    }
++
++    for rank in 0..2 {
++        let mut fixture = Fixture::new_legacy_ssm(rank);
++        if !glm {
++            fixture.model.config.model_type = "qwen3_next".into();
++        }
++        assert!(fixture.model.ssm_pool.num_ssm_layers > 0);
++        assert_ne!(fixture.model.ssm_state_norm_kernel.0, 0);
++        fixture.gpu.clear();
++        fixture
++            .model
++            .normalize_ssm_states(&fixture.seqs[0], CALLER)
++            .unwrap();
++        let events = fixture.gpu.trace();
++        if expected {
++            assert!(
++                matches!(events.as_slice(), [Event::Upload(_, 8, CALLER), Event::Kernel(name, _, CALLER)]
++                if name == "ssm_state_clamp_norm_fused"),
++                "rank {rank}: {events:?}"
++            );
++        } else {
++            assert!(events.is_empty(), "disabled GLM touched GPU: {events:?}");
++        }
++    }
++}
++
++#[test]
++fn glm_explicit_zero_skips_normalization_dispatch() {
++    check(
++        "glm_explicit_zero_skips_normalization_dispatch",
++        Some("0"),
++        true,
++        false,
++    );
++}
++
++#[test]
++fn glm_absent_preserves_normalization_dispatch() {
++    check(
++        "glm_absent_preserves_normalization_dispatch",
++        None,
++        true,
++        true,
++    );
++}
++
++#[test]
++fn glm_explicit_one_preserves_normalization_dispatch() {
++    check(
++        "glm_explicit_one_preserves_normalization_dispatch",
++        Some("1"),
++        true,
++        true,
++    );
++}
++
++#[test]
++fn non_glm_ignores_zero_and_preserves_normalization_dispatch() {
++    check(
++        "non_glm_ignores_zero_and_preserves_normalization_dispatch",
++        Some("0"),
++        false,
++        true,
++    );
++}
+diff --git a/crates/spark-model/src/model/trait_impl/meta.rs b/crates/spark-model/src/model/trait_impl/meta.rs
+index 4706c92..e4edb24 100644
+--- a/crates/spark-model/src/model/trait_impl/meta.rs
++++ b/crates/spark-model/src/model/trait_impl/meta.rs
+@@ -28,6 +28,10 @@ use crate::speculative::DraftProposer;
+ use crate::traits::{ChunkedPrefillPageMetadata, Model, SequenceState};
+ use crate::weight_map::{DenseWeight, MtpWeights, QuantizedWeight};
+ 
++#[cfg(test)]
++#[path = "glm_ssm_normalization_tests.rs"]
++mod glm_ssm_normalization_tests;
++
+ impl TransformerModel {
+     pub(super) fn vocab_size_dispatch(&self) -> usize {
+         self.config.vocab_size
+@@ -174,6 +178,15 @@ impl TransformerModel {
+     ) -> Result<()> {
+         use spark_runtime::kernel_args::KernelLaunch;
+ 
++        // GLM's reference KDA recurrence does not clamp its recurrent state.
++        // Keep the upstream policy unless this semantic experiment explicitly
++        // opts out; never change normalization for another model family.
++        if self.config.model_type == "glm5_next"
++            && std::env::var("ATLAS_GLM_SSM_NORMALIZE").as_deref() == Ok("0")
++        {
++            return Ok(());
++        }
++
+         let num_ssm = self.ssm_pool.num_ssm_layers;
+         if num_ssm == 0 || self.ssm_state_norm_kernel.0 == 0 {
+             return Ok(());
+diff --git a/crates/spark-model/src/weight_loader/glm5.rs b/crates/spark-model/src/weight_loader/glm5.rs
+index c999cd6..f90af11 100644
+--- a/crates/spark-model/src/weight_loader/glm5.rs
++++ b/crates/spark-model/src/weight_loader/glm5.rs
+@@ -3,11 +3,15 @@
+ //! GLM-5.3 Flash loader (hybrid KDA/MLA + mHC + NVFP4 MoE).
+ 
+ mod components;
++mod dense;
+ mod layers;
+ mod mtp;
+ pub(crate) mod retirement;
+ mod tp;
+ 
++#[cfg(test)]
++mod nvidia_dense_tests;
++
+ pub(crate) use mtp::{Glm5MtpModule, load_glm5_mtp_module};
+ 
+ use anyhow::{Context, Result};
+diff --git a/crates/spark-model/src/weight_loader/glm5/components.rs b/crates/spark-model/src/weight_loader/glm5/components.rs
+index ca9ed53..122cd80 100644
+--- a/crates/spark-model/src/weight_loader/glm5/components.rs
++++ b/crates/spark-model/src/weight_loader/glm5/components.rs
+@@ -63,7 +63,7 @@ pub(super) fn load_ffn(
+     allow_prefill_layout: bool,
+ ) -> Result<FfnComponent> {
+     if config.mlp_only_layers.contains(&layer_idx) {
+-        return load_dense_ffn(store, lp, config, gpu, qctx);
++        return load_dense_ffn(store, lp, config, gpu, variant, qctx);
+     }
+     load_moe(
+         store,
+@@ -82,41 +82,39 @@ fn load_dense_ffn(
+     lp: &str,
+     config: &ModelConfig,
+     gpu: &dyn GpuBackend,
++    variant: Nvfp4Variant,
+     qctx: QuantizeCtx,
+ ) -> Result<FfnComponent> {
+     let p = format!("{lp}.mlp");
+     let h = config.hidden_size;
+     let inter = config.intermediate_size;
+-    let gate = dense_auto(store, &format!("{p}.gate_proj.weight"), gpu)?;
+-    let up = dense_auto(store, &format!("{p}.up_proj.weight"), gpu)?;
+-    let down = dense_auto(store, &format!("{p}.down_proj.weight"), gpu)?;
+     let weights = DenseFfnWeights {
+-        gate_proj: quantize_to_nvfp4(
+-            &gate,
++        gate_proj: super::dense::load_projection(
++            store,
++            &format!("{p}.gate_proj"),
+             inter,
+             h,
+             gpu,
+-            qctx.absmax_k,
+-            qctx.quantize_k,
+-            qctx.stream,
++            variant,
++            qctx,
+         )?,
+-        up_proj: quantize_to_nvfp4(
+-            &up,
++        up_proj: super::dense::load_projection(
++            store,
++            &format!("{p}.up_proj"),
+             inter,
+             h,
+             gpu,
+-            qctx.absmax_k,
+-            qctx.quantize_k,
+-            qctx.stream,
++            variant,
++            qctx,
+         )?,
+-        down_proj: quantize_to_nvfp4(
+-            &down,
++        down_proj: super::dense::load_projection(
++            store,
++            &format!("{p}.down_proj"),
+             h,
+             inter,
+             gpu,
+-            qctx.absmax_k,
+-            qctx.quantize_k,
+-            qctx.stream,
++            variant,
++            qctx,
+         )?,
+         // Keep the memory-tight fallback for the first safe deployment.
+         gate_proj_t: None,
+diff --git a/crates/spark-model/src/weight_loader/glm5/dense.rs b/crates/spark-model/src/weight_loader/glm5/dense.rs
+new file mode 100644
+index 0000000..fd8bf50
+--- /dev/null
++++ b/crates/spark-model/src/weight_loader/glm5/dense.rs
+@@ -0,0 +1,71 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Preserve checkpoint-native ModelOpt dense FFNs; retain the BF16 bring-up path.
++use anyhow::{Result, ensure};
++use spark_runtime::gpu::GpuBackend;
++use spark_runtime::weights::{WeightDtype, WeightStore};
++
++use crate::weight_map::{
++    Nvfp4Variant, QuantizeCtx, QuantizedWeight, dense_auto, quantize_to_nvfp4, quantized,
++    scalar_f32,
++};
++
++#[allow(clippy::too_many_arguments)]
++pub(super) fn load_projection(
++    store: &WeightStore,
++    prefix: &str,
++    n: usize,
++    k: usize,
++    gpu: &dyn GpuBackend,
++    variant: Nvfp4Variant,
++    qctx: QuantizeCtx,
++) -> Result<QuantizedWeight> {
++    let name = format!("{prefix}.weight");
++    let weight = store.get(&name)?;
++    if weight.dtype == WeightDtype::UInt8 {
++        // NVIDIA 423acf37583782c51c142d145aef733d72943d93: row-major
++        // [N,K/2] E2M1 bytes, [N,K/16] E4M3 scales, scalar F32 multiplier.
++        // These are the same buffers used by the existing Standard expert
++        // loader. Dequantizing then requantizing would change the checkpoint.
++        ensure!(
++            matches!(variant, Nvfp4Variant::Standard),
++            "{prefix}: packed dense FFN requires ModelOpt NVFP4"
++        );
++        ensure!(
++            n > 0 && k > 0 && k.is_multiple_of(16) && weight.shape == [n, k / 2],
++            "{prefix}: invalid packed dense weight shape {:?}, expected [{n}, {}]",
++            weight.shape,
++            k / 2
++        );
++        let scales = store.get(&format!("{prefix}.weight_scale"))?;
++        ensure!(
++            scales.dtype == WeightDtype::FP8E4M3 && scales.shape == [n, k / 16],
++            "{prefix}: invalid dense NVFP4 block scales"
++        );
++        // scalar_f32 checks dtype and element count, including scalar [] shape.
++        let result = quantized(store, prefix, gpu)?;
++        ensure!(
++            result.weight_scale_2.is_finite() && result.weight_scale_2 > 0.0,
++            "{prefix}: invalid dense NVFP4 global scale"
++        );
++        let input_name = format!("{prefix}.input_scale");
++        if store.contains(&input_name) {
++            let input_scale = scalar_f32(store, &input_name, gpu)?;
++            ensure!(
++                input_scale.is_finite() && input_scale > 0.0,
++                "{prefix}: invalid dense NVFP4 input scale"
++            );
++        }
++        return Ok(result);
++    }
++
++    let dense = dense_auto(store, &name, gpu)?;
++    quantize_to_nvfp4(
++        &dense,
++        n,
++        k,
++        gpu,
++        qctx.absmax_k,
++        qctx.quantize_k,
++        qctx.stream,
++    )
++}
+diff --git a/crates/spark-model/src/weight_loader/glm5/nvidia_dense_tests.rs b/crates/spark-model/src/weight_loader/glm5/nvidia_dense_tests.rs
+new file mode 100644
+index 0000000..db3d20e
+--- /dev/null
++++ b/crates/spark-model/src/weight_loader/glm5/nvidia_dense_tests.rs
+@@ -0,0 +1,158 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Exercise the real GLM FFN loader with synthetic ModelOpt packed weights.
++use super::*;
++use crate::layers::FfnComponent;
++use crate::weight_map::{Nvfp4Variant, QuantizeCtx};
++use spark_runtime::gpu::{KernelHandle, mock::MockGpuBackend};
++use spark_runtime::weights::{WeightDtype, WeightTensor};
++use std::collections::HashMap;
++
++fn fixture(gpu: &MockGpuBackend, defect: Option<(&str, &str)>) -> WeightStore {
++    let mut tensors = HashMap::new();
++    for (projection, n, k) in [
++        ("gate_proj", 64, 32),
++        ("up_proj", 64, 32),
++        ("down_proj", 32, 64),
++    ] {
++        for (suffix, mut shape, dtype, value) in [
++            ("weight", vec![n, k / 2], WeightDtype::UInt8, None),
++            ("weight_scale", vec![n, k / 16], WeightDtype::FP8E4M3, None),
++            ("weight_scale_2", vec![], WeightDtype::FP32, Some(0.125_f32)),
++            ("input_scale", vec![], WeightDtype::FP32, Some(0.5_f32)),
++        ] {
++            if defect == Some((projection, suffix)) {
++                if shape.is_empty() {
++                    shape.push(2);
++                } else {
++                    shape[0] += 1;
++                }
++            }
++            let ptr = gpu
++                .alloc(shape.iter().product::<usize>() * dtype.byte_size())
++                .unwrap();
++            if let Some(value) = value {
++                gpu.copy_h2d(&value.to_le_bytes(), ptr).unwrap();
++            }
++            tensors.insert(
++                format!("l.mlp.{projection}.{suffix}"),
++                WeightTensor { ptr, shape, dtype },
++            );
++        }
++    }
++    WeightStore::from_map(tensors)
++}
++
++fn load(store: &WeightStore, gpu: &MockGpuBackend) -> anyhow::Result<FfnComponent> {
++    let mut config = ModelConfig::qwen3_next_80b_nvfp4();
++    config.hidden_size = 32;
++    config.intermediate_size = 64;
++    config.mlp_only_layers = vec![0];
++    components::load_ffn(
++        store,
++        "l",
++        0,
++        &config,
++        gpu,
++        Nvfp4Variant::Standard,
++        QuantizeCtx {
++            absmax_k: KernelHandle(1),
++            quantize_k: KernelHandle(2),
++            stream: 0,
++        },
++        true,
++    )
++}
++
++#[test]
++fn nvidia_dense_ffn_preserves_checkpoint_bytes_scales_without_conversion() {
++    let gpu = MockGpuBackend::new();
++    let store = fixture(&gpu, None);
++    let layer = load(&store, &gpu).unwrap();
++    let FfnComponent::Dense(layer) = layer else {
++        panic!("expected dense FFN")
++    };
++    for (name, actual) in [
++        ("gate_proj", layer.weights.gate_proj),
++        ("up_proj", layer.weights.up_proj),
++        ("down_proj", layer.weights.down_proj),
++    ] {
++        assert_eq!(
++            actual.weight,
++            store.get(&format!("l.mlp.{name}.weight")).unwrap().ptr
++        );
++        assert_eq!(
++            actual.weight_scale,
++            store
++                .get(&format!("l.mlp.{name}.weight_scale"))
++                .unwrap()
++                .ptr
++        );
++        assert_eq!(
++            actual.input_scale,
++            store.get(&format!("l.mlp.{name}.input_scale")).unwrap().ptr
++        );
++        assert_eq!(actual.weight_scale_2, 0.125);
++    }
++    assert_eq!(
++        gpu.launch_count(),
++        0,
++        "native packed weights must not dequantize/requantize"
++    );
++}
++
++#[test]
++fn nvidia_dense_ffn_rejects_malformed_packed_geometry_before_launch() {
++    for suffix in ["weight", "weight_scale", "weight_scale_2", "input_scale"] {
++        let gpu = MockGpuBackend::new();
++        let store = fixture(&gpu, Some(("gate_proj", suffix)));
++        assert!(load(&store, &gpu).is_err(), "accepted malformed {suffix}");
++        assert_eq!(gpu.launch_count(), 0);
++    }
++}
++
++#[test]
++fn nvidia_dense_ffn_rejects_nonfinite_or_nonpositive_scalars() {
++    for suffix in ["weight_scale_2", "input_scale"] {
++        for value in [0.0_f32, -1.0, f32::NAN, f32::INFINITY] {
++            let gpu = MockGpuBackend::new();
++            let store = fixture(&gpu, None);
++            let ptr = store.get(&format!("l.mlp.gate_proj.{suffix}")).unwrap().ptr;
++            gpu.copy_h2d(&value.to_le_bytes(), ptr).unwrap();
++            assert!(load(&store, &gpu).is_err());
++            assert_eq!(gpu.launch_count(), 0);
++        }
++    }
++}
++
++#[test]
++fn nvidia_dense_ffn_keeps_existing_unquantized_fallback() {
++    let gpu = MockGpuBackend::new();
++    let mut tensors = HashMap::new();
++    for (projection, n, k) in [
++        ("gate_proj", 64, 32),
++        ("up_proj", 64, 32),
++        ("down_proj", 32, 64),
++    ] {
++        tensors.insert(
++            format!("l.mlp.{projection}.weight"),
++            WeightTensor {
++                ptr: gpu.alloc(n * k * 2).unwrap(),
++                shape: vec![n, k],
++                dtype: WeightDtype::BF16,
++            },
++        );
++    }
++    let store = WeightStore::from_map(tensors);
++    let layer = load(&store, &gpu).unwrap();
++    let FfnComponent::Dense(layer) = layer else {
++        panic!("expected dense FFN")
++    };
++    assert_ne!(
++        layer.weights.gate_proj.weight,
++        store.get("l.mlp.gate_proj.weight").unwrap().ptr
++    );
++    assert!(
++        gpu.launch_count() > 0,
++        "BF16 checkpoints still use runtime quantization"
++    );
++}
+diff --git a/crates/spark-runtime/src/fast_weights/mod.rs b/crates/spark-runtime/src/fast_weights/mod.rs
+index db533c5..d142406 100644
+--- a/crates/spark-runtime/src/fast_weights/mod.rs
++++ b/crates/spark-runtime/src/fast_weights/mod.rs
+@@ -67,6 +67,8 @@ pub struct FastSafetensorsLoader {
+     /// OPT-IN: a model that DOES build an MTP head must keep them, so this is
+     /// set only where `load_mtp_weights` is known to return `None`.
+     pub skip_mtp: bool,
++    /// Exact tensor prefix of an unused appended predictor layer; default retains it.
++    pub skip_layer_prefix: Option<String>,
+     /// When true (default), attempt `O_DIRECT`; fall back to buffered reads if
+     /// the filesystem rejects it (tmpfs, overlayfs, some FUSE backends).
+     pub try_direct_io: bool,
+@@ -127,6 +129,7 @@ impl FastSafetensorsLoader {
+             peak_memory_multiplier: None,
+             skip_activation_scales: false,
+             skip_mtp: false,
++            skip_layer_prefix: None,
+             try_direct_io: true,
+             direct_io_tensor_cap: DEFAULT_DIRECT_IO_TENSOR_CAP,
+             prefetch_shards: false,
+@@ -144,6 +147,7 @@ impl FastSafetensorsLoader {
+             peak_memory_multiplier: None,
+             skip_activation_scales: false,
+             skip_mtp: false,
++            skip_layer_prefix: None,
+             try_direct_io: true,
+             direct_io_tensor_cap: DEFAULT_DIRECT_IO_TENSOR_CAP,
+             prefetch_shards: false,
+@@ -275,7 +279,11 @@ impl WeightLoader for FastSafetensorsLoader {
+         }
+ 
+         // Extra weights (e.g. MTP grafted from another quantization).
+-        let no_skip = |_: &str| false;
++        let skip_unused = |name: &str| {
++            self.skip_layer_prefix
++                .as_ref()
++                .is_some_and(|prefix| name.starts_with(prefix))
++        };
+         let extra = model_dir.join("extra_weights.safetensors");
+         if extra.exists() {
+             tracing::info!("Fast-loading extra_weights.safetensors");
+@@ -284,7 +292,7 @@ impl WeightLoader for FastSafetensorsLoader {
+                 &extra,
+                 None,
+                 gpu,
+-                &no_skip,
++                &skip_unused,
+                 self.try_direct_io,
+                 self.direct_io_tensor_cap,
+                 self.prefetch_shards,
+diff --git a/crates/spark-runtime/src/fast_weights/skip.rs b/crates/spark-runtime/src/fast_weights/skip.rs
+index ddd55f4..64c671d 100644
+--- a/crates/spark-runtime/src/fast_weights/skip.rs
++++ b/crates/spark-runtime/src/fast_weights/skip.rs
+@@ -2,7 +2,7 @@
+ 
+ //! Which tensors the fast loader does NOT upload.
+ //!
+-//! Four independent rules, worth reading together because each one withholds
++//! Five independent rules, worth reading together because each one withholds
+ //! bytes a downstream loader might expect:
+ //!
+ //!   1. **`demand_paged_patterns`** — tensors a model declares it will read by
+@@ -13,7 +13,9 @@
+ //!   3. **`skip_activation_scales`** — W4A4 `*.input_scale`, opt-in.
+ //!   4. **`skip_mtp`** — `mtp.*` for a loader that builds no MTP head, opt-in.
+ //!
+-//! Rules 3 and 4 default OFF and are allow-listed per model, because
++//!   5. **`skip_layer_prefix`** — an unused appended predictor layer, opt-in.
++//!
++//! Rules 3, 4, and 5 default OFF and are allow-listed per model, because
+ //! withholding a tensor a loader DOES read is invisible until the output is
+ //! subtly wrong. Rule 2 is structural and always active under EP, and rule 1
+ //! is only ever populated by a loader that has its own row reader.
+@@ -23,6 +25,13 @@ use crate::weights::parse_expert_index;
+ 
+ impl FastSafetensorsLoader {
+     pub(super) fn should_skip_tensor(&self, name: &str) -> bool {
++        if self
++            .skip_layer_prefix
++            .as_ref()
++            .is_some_and(|prefix| name.starts_with(prefix))
++        {
++            return true;
++        }
+         // Demand-paged first: the model has declared it reads these by row at
+         // use time, which is independent of expert parallelism and must hold
+         // on a single rank where the EP check below returns early.
+diff --git a/crates/spark-runtime/src/weights.rs b/crates/spark-runtime/src/weights.rs
+index 5fc1513..2ae2e94 100644
+--- a/crates/spark-runtime/src/weights.rs
++++ b/crates/spark-runtime/src/weights.rs
+@@ -327,6 +327,8 @@ pub struct SafetensorsLoader {
+     /// OPT-IN: a model that DOES build an MTP head must keep them, so this is
+     /// set only where `load_mtp_weights` is known to return `None`.
+     pub skip_mtp: bool,
++    /// Exact tensor prefix of an unused appended predictor layer; default retains it.
++    pub skip_layer_prefix: Option<String>,
+ }
+ 
+ impl Default for SafetensorsLoader {
+@@ -347,6 +349,7 @@ impl SafetensorsLoader {
+             peak_memory_multiplier: None,
+             skip_activation_scales: false,
+             skip_mtp: false,
++            skip_layer_prefix: None,
+         }
+     }
+ 
+@@ -361,6 +364,7 @@ impl SafetensorsLoader {
+             peak_memory_multiplier: None,
+             skip_activation_scales: false,
+             skip_mtp: false,
++            skip_layer_prefix: None,
+         }
+     }
+ 
+@@ -368,6 +372,13 @@ impl SafetensorsLoader {
+     /// Skips `*.experts.{E}.*` tensors where E is not in local range.
+     /// MTP head experts are never skipped (small, fully replicated).
+     fn should_skip_tensor(&self, name: &str) -> bool {
++        if self
++            .skip_layer_prefix
++            .as_ref()
++            .is_some_and(|prefix| name.starts_with(prefix))
++        {
++            return true;
++        }
+         // MTP head weights for a model whose loader does not build one.
+         if self.skip_mtp && name.starts_with("mtp.") {
+             return true;
+@@ -434,20 +445,11 @@ pub(crate) use loader::check_oom_guard;
+ pub(crate) use loader::estimate_has_fp8;
+ 
+ #[cfg(test)]
+-mod expert_filter_tests {
+-    use super::SafetensorsLoader;
+-
+-    #[test]
+-    fn replicated_prefix_overrides_ep_expert_filter() {
+-        let mut loader = SafetensorsLoader::with_ep(1, 2, 288);
+-        let appended = "model.language_model.layers.45.mlp.experts.1.gate_proj.weight";
+-        let target = "model.language_model.layers.44.mlp.experts.1.gate_proj.weight";
+-        assert!(loader.should_skip_tensor(appended));
+-        loader.replicated_expert_prefix = Some(".layers.45.".into());
+-        assert!(!loader.should_skip_tensor(appended));
+-        assert!(loader.should_skip_tensor(target));
+-    }
+-}
++#[path = "weights/appended_skip_tests.rs"]
++mod appended_skip_tests;
++
++#[cfg(test)]
++mod expert_filter_tests;
+ 
+ #[cfg(test)]
+ mod from_str_tests;
+diff --git a/crates/spark-runtime/src/weights/appended_skip_tests.rs b/crates/spark-runtime/src/weights/appended_skip_tests.rs
+new file mode 100644
+index 0000000..a766d21
+--- /dev/null
++++ b/crates/spark-runtime/src/weights/appended_skip_tests.rs
+@@ -0,0 +1,165 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Actual file loading and byte estimates agree when an appended layer is unused.
++#![cfg(unix)]
++use super::*;
++use crate::fast_weights::FastSafetensorsLoader;
++use crate::gpu::mock::MockGpuBackend;
++use std::io::Write;
++
++const PREFIX: &str = "model.language_model.layers.45.";
++
++struct TestDir(std::path::PathBuf);
++impl TestDir {
++    fn new() -> Self {
++        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
++        let counter = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++        let path = std::env::temp_dir().join(format!(
++            "atlas-appended-skip-{}-{counter}",
++            std::process::id()
++        ));
++        std::fs::create_dir(&path).unwrap();
++        Self(path)
++    }
++    fn path(&self) -> &std::path::Path {
++        &self.0
++    }
++}
++impl Drop for TestDir {
++    fn drop(&mut self) {
++        let _ = std::fs::remove_dir_all(&self.0);
++    }
++}
++
++fn checkpoint(path: &std::path::Path) {
++    write_checkpoint(
++        path,
++        &[
++            "model.language_model.layers.44.mlp.experts.0.weight",
++            "model.language_model.layers.44.mlp.experts.1.weight",
++            "model.language_model.layers.45.mlp.experts.0.weight",
++            "model.language_model.layers.45.mlp.experts.1.weight",
++            "model.language_model.layers.45.enorm.weight",
++            "model.language_model.layers.450.norm.weight",
++            "other.model.language_model.layers.45.norm.weight",
++        ],
++    );
++}
++
++fn write_checkpoint(path: &std::path::Path, names: &[&str]) {
++    let mut header = serde_json::Map::new();
++    for (i, name) in names.iter().copied().enumerate() {
++        header.insert(
++            name.into(),
++            serde_json::json!({"dtype":"BF16", "shape":[2], "data_offsets":[i*4,(i+1)*4]}),
++        );
++    }
++    let bytes = serde_json::to_vec(&header).unwrap();
++    let mut file = std::fs::File::create(path).unwrap();
++    file.write_all(&(bytes.len() as u64).to_le_bytes()).unwrap();
++    file.write_all(&bytes).unwrap();
++    file.write_all(&(0..(names.len() * 4) as u8).collect::<Vec<_>>())
++        .unwrap();
++}
++
++#[test]
++fn unused_appended_layer_skips_load_and_estimate_on_both_ep_ranks() {
++    let tmp = TestDir::new();
++    let path = tmp.path().join("model.safetensors");
++    checkpoint(&path);
++    for rank in 0..2 {
++        let mut baseline = SafetensorsLoader::with_ep(rank, 2, 2);
++        let mut fast = FastSafetensorsLoader::with_ep(rank, 2, 2);
++        fast.try_direct_io = false;
++        baseline.skip_layer_prefix = Some(PREFIX.into());
++        fast.skip_layer_prefix = Some(PREFIX.into());
++        let estimated =
++            estimate_load_bytes(&[path.clone()], &|name| baseline.should_skip_tensor(name))
++                .unwrap();
++        assert_eq!(
++            estimated, 12,
++            "only one target expert plus two boundary controls"
++        );
++        let a = MockGpuBackend::new();
++        let b = MockGpuBackend::new();
++        let lhs = baseline.load(tmp.path(), &a, 0).unwrap();
++        let rhs = fast.load(tmp.path(), &b, 0).unwrap();
++        assert_eq!(lhs.len(), 3);
++        assert_eq!(rhs.len(), 3);
++        assert_eq!(a.alloc_count(), 3);
++        assert_eq!(b.alloc_count(), 3);
++        for name in lhs.names() {
++            assert!(!name.starts_with(PREFIX));
++            assert_eq!(
++                a.read_alloc(lhs.get(name).unwrap().ptr),
++                b.read_alloc(rhs.get(name).unwrap().ptr)
++            );
++        }
++    }
++}
++
++#[test]
++fn appended_mtp_on_retains_existing_rank0_and_replicated_experts() {
++    let tmp = TestDir::new();
++    checkpoint(&tmp.path().join("model.safetensors"));
++    for rank in 0..2 {
++        for distributed in [false, true] {
++            let mut baseline = SafetensorsLoader::with_ep(rank, 2, 2);
++            let mut fast = FastSafetensorsLoader::with_ep(rank, 2, 2);
++            fast.try_direct_io = false;
++            if distributed {
++                baseline.replicated_expert_prefix = Some(".layers.45.".into());
++                fast.replicated_expert_prefix = Some(".layers.45.".into());
++            } else {
++                baseline.rank0_only_expert_prefix = Some(".layers.45.".into());
++                fast.rank0_only_expert_prefix = Some(".layers.45.".into());
++            }
++            let a = MockGpuBackend::new();
++            let b = MockGpuBackend::new();
++            let lhs = baseline.load(tmp.path(), &a, 0).unwrap();
++            let rhs = fast.load(tmp.path(), &b, 0).unwrap();
++            let expected = if distributed || rank == 0 { 6 } else { 4 };
++            assert_eq!(lhs.len(), expected);
++            assert_eq!(rhs.len(), expected);
++            assert!(lhs.contains("model.language_model.layers.45.enorm.weight"));
++            for name in lhs.names() {
++                assert_eq!(
++                    a.read_alloc(lhs.get(name).unwrap().ptr),
++                    b.read_alloc(rhs.get(name).unwrap().ptr)
++                );
++            }
++        }
++    }
++}
++
++#[test]
++fn unused_appended_layer_is_not_reintroduced_by_extra_weights() {
++    let tmp = TestDir::new();
++    checkpoint(&tmp.path().join("model.safetensors"));
++    write_checkpoint(
++        &tmp.path().join("extra_weights.safetensors"),
++        &["model.language_model.layers.45.enorm.weight", "extra.keep"],
++    );
++    for rank in 0..2 {
++        let mut baseline = SafetensorsLoader::with_ep(rank, 2, 2);
++        let mut fast = FastSafetensorsLoader::with_ep(rank, 2, 2);
++        baseline.skip_layer_prefix = Some(PREFIX.into());
++        fast.skip_layer_prefix = Some(PREFIX.into());
++        fast.try_direct_io = false;
++        let a = MockGpuBackend::new();
++        let b = MockGpuBackend::new();
++        let lhs = baseline.load(tmp.path(), &a, 0).unwrap();
++        let rhs = fast.load(tmp.path(), &b, 0).unwrap();
++        assert_eq!(lhs.len(), 4);
++        assert_eq!(rhs.len(), 4);
++        assert!(!lhs.contains("model.language_model.layers.45.enorm.weight"));
++        assert!(!rhs.contains("model.language_model.layers.45.enorm.weight"));
++        assert_eq!(
++            a.read_alloc(lhs.get("extra.keep").unwrap().ptr),
++            Some(vec![4, 5, 6, 7])
++        );
++        assert_eq!(
++            b.read_alloc(rhs.get("extra.keep").unwrap().ptr),
++            Some(vec![4, 5, 6, 7])
++        );
++    }
++}
+diff --git a/crates/spark-runtime/src/weights/expert_filter_tests.rs b/crates/spark-runtime/src/weights/expert_filter_tests.rs
+new file mode 100644
+index 0000000..3e61047
+--- /dev/null
++++ b/crates/spark-runtime/src/weights/expert_filter_tests.rs
+@@ -0,0 +1,13 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++use super::SafetensorsLoader;
++
++#[test]
++fn replicated_prefix_overrides_ep_expert_filter() {
++    let mut loader = SafetensorsLoader::with_ep(1, 2, 288);
++    let appended = "model.language_model.layers.45.mlp.experts.1.gate_proj.weight";
++    let target = "model.language_model.layers.44.mlp.experts.1.gate_proj.weight";
++    assert!(loader.should_skip_tensor(appended));
++    loader.replicated_expert_prefix = Some(".layers.45.".into());
++    assert!(!loader.should_skip_tensor(appended));
++    assert!(loader.should_skip_tensor(target));
++}
+diff --git a/crates/spark-runtime/src/weights/loader.rs b/crates/spark-runtime/src/weights/loader.rs
+index e4c507a..60e6e2f 100644
+--- a/crates/spark-runtime/src/weights/loader.rs
++++ b/crates/spark-runtime/src/weights/loader.rs
+@@ -159,11 +159,16 @@ impl WeightLoader for SafetensorsLoader {
+         };
+ 
+         // Load extra weight files (e.g. MTP weights grafted from another quantization).
+-        // Extra weights (MTP) are always fully loaded — they have their own expert lists.
+-        let no_skip = |_: &str| false;
++        // Extra weights keep their own expert lists, but a predictor the caller
++        // explicitly does not build must not be reintroduced by an extra file.
++        let skip_unused = |name: &str| {
++            self.skip_layer_prefix
++                .as_ref()
++                .is_some_and(|prefix| name.starts_with(prefix))
++        };
+         let extra = model_dir.join("extra_weights.safetensors");
+         if extra.exists() {
+-            let extra_weights = load_single(&extra, gpu, oom_reserve_bytes, &no_skip)?;
++            let extra_weights = load_single(&extra, gpu, oom_reserve_bytes, &skip_unused)?;
+             tracing::info!(
+                 "Loaded {} extra weight tensors from extra_weights.safetensors",
+                 extra_weights.len()
+diff --git a/crates/spark-server/src/api/chat_stream/glm_tool_boundary_tests.rs b/crates/spark-server/src/api/chat_stream/glm_tool_boundary_tests.rs
+index 967bfa0..2a294f2 100644
+--- a/crates/spark-server/src/api/chat_stream/glm_tool_boundary_tests.rs
++++ b/crates/spark-server/src/api/chat_stream/glm_tool_boundary_tests.rs
+@@ -15,6 +15,9 @@ const END: u32 = 2;
+ const TOOL: u32 = 3;
+ const CALL: &[u32] = &[3, 4, 5, 6, 7, 8, 9, 10, 11];
+ 
++#[path = "reasoning_done_tests.rs"]
++mod reasoning_done_tests;
++
+ fn app(glm: bool) -> Arc<AppState> {
+     let dir = tempfile::tempdir().unwrap();
+     let words = [
+@@ -32,6 +35,7 @@ fn app(glm: bool) -> Arc<AppState> {
+         "</tool_call>",
+         "unknown_tool",
+         "<think>",
++        "42",
+     ];
+     let vocab = words
+         .iter()
+@@ -208,6 +212,15 @@ fn stream(
+ }
+ 
+ fn stream_tokens(glm: bool, tools: bool, tokens: Vec<u32>) -> (StreamState, Vec<ir::StreamDelta>) {
++    let (_, stream, deltas) = stream_tokens_with_context(glm, tools, tokens);
++    (stream, deltas)
++}
++
++fn stream_tokens_with_context(
++    glm: bool,
++    tools: bool,
++    tokens: Vec<u32>,
++) -> (StreamCtx, StreamState, Vec<ir::StreamDelta>) {
+     let state = app(glm);
+     let defs = if tools { request().tools } else { vec![] };
+     let ctx = StreamCtx {
+@@ -243,7 +256,7 @@ fn stream_tokens(glm: bool, tools: bool, tokens: Vec<u32>) -> (StreamState, Vec<
+     for token in tokens {
+         deltas.extend(handle_token(&mut stream, &ctx, token));
+     }
+-    (stream, deltas)
++    (ctx, stream, deltas)
+ }
+ 
+ #[test]
+diff --git a/crates/spark-server/src/api/chat_stream/handle_done.rs b/crates/spark-server/src/api/chat_stream/handle_done.rs
+index e165fb3..f83d6b4 100644
+--- a/crates/spark-server/src/api/chat_stream/handle_done.rs
++++ b/crates/spark-server/src/api/chat_stream/handle_done.rs
+@@ -121,6 +121,24 @@ pub(super) fn handle_done(
+ fn flush_pending_output(state: &mut StreamState, ctx: &StreamCtx) -> DeltaVec {
+     let mut deltas: DeltaVec = Vec::new();
+ 
++    // EOS or a token limit can arrive before </think>. The reasoning
++    // sanitizer still holds a short safe tail in that case; preserve its
++    // channel instead of losing it or treating it as final answer content.
++    // finalize_done skips this entire flush for rejected output.
++    if ctx.enable_thinking && !state.reasoning_xml_leak_detected {
++        let tail = flush_content_sanitizer(
++            &mut state.reasoning_tag_scan_buf,
++            &mut state.reasoning_suppressing_leak,
++            &ctx.leak_markers,
++        );
++        if !tail.is_empty() {
++            deltas.push(StreamDelta::Reasoning {
++                text: tail,
++                token_ids: state.take_ids_if(ctx.req_return_token_ids),
++            });
++        }
++    }
++
+     // ── Stop-string hold-back flush ─────────────────────────────────
+     // vLLM's `IncrementalDetokenizer` releases any bytes still in the
+     // hold-back window when the stream finalises (see
+diff --git a/crates/spark-server/src/api/chat_stream/reasoning_done_tests.rs b/crates/spark-server/src/api/chat_stream/reasoning_done_tests.rs
+new file mode 100644
+index 0000000..4918d62
+--- /dev/null
++++ b/crates/spark-server/src/api/chat_stream/reasoning_done_tests.rs
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Actual Token -> Done handlers retain a sanitized open-reasoning tail.
++
++use super::*;
++use crate::api::chat_stream::handle_done::handle_done;
++
++fn done(stream: &mut StreamState, ctx: &StreamCtx, reason: &str) -> Vec<ir::StreamDelta> {
++    handle_done(stream, ctx, reason.into(), 2, 1.0, 1.0, 0, 0, 0)
++}
++
++#[test]
++fn reasoning_done_matches_blocking_when_eos_has_no_think_close() {
++    for reason in ["stop", "length"] {
++        let raw = vec![14]; // The real live failure was one token "42", then EOS.
++        let app = app(true);
++        let (reasoning, content) = crate::api::chat_blocking::decode_response_text(
++            &app,
++            &response(raw.clone()),
++            true,
++            false,
++        );
++        assert_eq!(reasoning.as_deref(), Some("42"));
++        assert!(content.is_empty());
++        let (ctx, mut stream, mut deltas) = stream_tokens_with_context(true, false, raw);
++        assert!(
++            deltas.is_empty(),
++            "short reasoning should be held until Done"
++        );
++        assert_eq!(stream.reasoning_tag_scan_buf, "42");
++        deltas.extend(done(&mut stream, &ctx, reason));
++        assert!(
++            matches!(deltas.as_slice(), [
++            ir::StreamDelta::Reasoning { text, token_ids },
++            ir::StreamDelta::Finish { reason: finish, .. }
++        ] if text == "42" && token_ids == &[14] && finish.as_wire() == reason),
++            "{deltas:?}"
++        );
++        assert!(stream.reasoning_tag_scan_buf.is_empty());
++    }
++}
++
++#[test]
++fn reasoning_done_does_not_duplicate_a_closed_thinking_tail() {
++    let (ctx, mut stream, mut deltas) = stream_tokens_with_context(true, false, vec![14, END]);
++    deltas.extend(done(&mut stream, &ctx, "stop"));
++    let reasoning: String = deltas
++        .iter()
++        .filter_map(|d| match d {
++            ir::StreamDelta::Reasoning { text, .. } => Some(text.as_str()),
++            _ => None,
++        })
++        .collect();
++    assert_eq!(reasoning, "42");
++    assert!(
++        !deltas
++            .iter()
++            .any(|d| matches!(d, ir::StreamDelta::Content { .. }))
++    );
++}
++
++#[test]
++fn reasoning_done_preserves_rejected_output_and_leak_suppression() {
++    for guard in [false, true] {
++        let (ctx, mut stream, deltas) = stream_tokens_with_context(true, false, vec![14]);
++        assert!(deltas.is_empty());
++        if guard {
++            stream.guard_stop = Some("simhash_semantic_loop");
++        } else {
++            stream.reasoning_suppressing_leak = true;
++        }
++        let deltas = done(&mut stream, &ctx, "stop");
++        assert!(
++            matches!(deltas.as_slice(), [ir::StreamDelta::Finish { .. }]),
++            "{deltas:?}"
++        );
++    }
++}
+diff --git a/crates/spark-server/src/main_modules/serve_phases/weights.rs b/crates/spark-server/src/main_modules/serve_phases/weights.rs
+index f5164b2..81f9d3d 100644
+--- a/crates/spark-server/src/main_modules/serve_phases/weights.rs
++++ b/crates/spark-server/src/main_modules/serve_phases/weights.rs
+@@ -44,6 +44,7 @@ pub(crate) fn load_weight_store(
+     let mult = quant_multiplier(config);
+     let glm_mtp_distributed =
+         std::env::var("ATLAS_GLM_MTP_DISTRIBUTED").ok().as_deref() == Some("1");
++    let unused_mtp_prefix = unused_glm_mtp_prefix(config, args.speculative);
+     if glm_mtp_distributed {
+         anyhow::ensure!(
+             config.model_type == "glm5_next"
+@@ -136,6 +137,7 @@ pub(crate) fn load_weight_store(
+             }
+             loader.skip_activation_scales = skip_activation_scales(config);
+             loader.skip_mtp = skip_mtp(config, args);
++            loader.skip_layer_prefix = unused_mtp_prefix.clone();
+             loader.prefetch_shards = args.fast_load_prefetch_shards
+                 || std::env::var("ATLAS_FAST_LOAD_PREFETCH_SHARDS")
+                     .ok()
+@@ -168,6 +170,7 @@ pub(crate) fn load_weight_store(
+         loader.peak_memory_multiplier = mult;
+         loader.skip_activation_scales = skip_activation_scales(config);
+         loader.skip_mtp = skip_mtp(config, args);
++        loader.skip_layer_prefix = unused_mtp_prefix;
+         loader
+             .load(model_dir, gpu, oom_reserve_bytes)
+             .context("Failed to load model weights")?
+@@ -333,3 +336,39 @@ fn skip_mtp(config: &ModelConfig, args: &cli::ServeArgs) -> bool {
+     // comes straight out of the KV cache. With the flag it is the drafter.
+     matches!(config.model_type.as_str(), "qwen4_exp") && !args.speculative
+ }
++
++// GLM's predictor is a physical appended layer, not the generic `mtp.*` tree.
++// Without speculative decoding the factory never consumes any of its tensors.
++fn unused_glm_mtp_prefix(config: &ModelConfig, speculative: bool) -> Option<String> {
++    (config.model_type == "glm5_next" && !speculative).then(|| {
++        format!(
++            "{}.layers.{}.",
++            config.weight_prefix, config.num_hidden_layers
++        )
++    })
++}
++
++#[cfg(test)]
++mod unused_glm_mtp_tests {
++    use super::*;
++
++    #[test]
++    fn unused_glm_mtp_policy_uses_actual_prefix_and_target_layer_count() {
++        let mut config = ModelConfig::qwen3_next_80b_nvfp4();
++        assert!(unused_glm_mtp_prefix(&config, false).is_none());
++        config.model_type = "glm5_next".into();
++        config.weight_prefix = "model.language_model".into();
++        config.num_hidden_layers = 45;
++        assert_eq!(
++            unused_glm_mtp_prefix(&config, false).as_deref(),
++            Some("model.language_model.layers.45.")
++        );
++        assert!(unused_glm_mtp_prefix(&config, true).is_none());
++        config.weight_prefix = "fixture".into();
++        config.num_hidden_layers = 3;
++        assert_eq!(
++            unused_glm_mtp_prefix(&config, false).as_deref(),
++            Some("fixture.layers.3.")
++        );
++    }
++}
+diff --git a/crates/spark-server/tests/integration.rs b/crates/spark-server/tests/integration.rs
+index 21e009c..49cfb84 100644
+--- a/crates/spark-server/tests/integration.rs
++++ b/crates/spark-server/tests/integration.rs
+@@ -77,6 +77,7 @@ fn setup_model(
+         peak_memory_multiplier: None,
+         skip_activation_scales: false,
+         skip_mtp: false,
++        skip_layer_prefix: None,
+     };
+     use spark_runtime::weights::WeightLoader;
+     let store = loader.load(model_dir, gpu.as_ref(), 1024 * 1024 * 1024)?;

@@ -1,0 +1,38 @@
+{
+  "head": {
+    "image": "sha256:1c5d50d6717d4fa958f8dcb701b635d78c77c6b3e1cb4281a3b3c0344ca30c9e",
+    "running": true,
+    "configuration": {
+      "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+      "QUANTIZATION": "modelopt_fp4",
+      "SPEC_METHOD": "dflash",
+      "DFLASH_TOKENS": "7",
+      "DFLASH_DRAFT_TP": "2",
+      "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+      "KV_CACHE_DTYPE": "fp8",
+      "KV_CACHE_MEMORY_BYTES": "11811160064",
+      "MAX_MODEL_LEN": "524288",
+      "MAX_NUM_SEQS": "4",
+      "MAX_NUM_BATCHED_TOKENS": "2048",
+      "MOE_BACKEND": "flashinfer_cutlass"
+    }
+  },
+  "worker": {
+    "image": "sha256:39c74f120832796f529dc6b33a39d59f9d9b224721888ecbd80e957a242466a4",
+    "running": true,
+    "configuration": {
+      "MODEL_DIR": "/models/nvidia--GLM-5.3-Flash-NVFP4",
+      "QUANTIZATION": "modelopt_fp4",
+      "SPEC_METHOD": "dflash",
+      "DFLASH_TOKENS": "7",
+      "DFLASH_DRAFT_TP": "2",
+      "DFLASH_MODEL_DIR": "/models/local-inference-lab--GLM-5.3-Flash-DFlash2-MXFP8",
+      "KV_CACHE_DTYPE": "fp8",
+      "KV_CACHE_MEMORY_BYTES": "11811160064",
+      "MAX_MODEL_LEN": "524288",
+      "MAX_NUM_SEQS": "4",
+      "MAX_NUM_BATCHED_TOKENS": "2048",
+      "MOE_BACKEND": "flashinfer_cutlass"
+    }
+  }
+}

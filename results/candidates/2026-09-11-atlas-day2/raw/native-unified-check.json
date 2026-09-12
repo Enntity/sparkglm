@@ -1,0 +1,106 @@
+[
+  {
+    "stage": "init",
+    "passed": true,
+    "abi_size": 112,
+    "library_sha256": {
+      "unified": "583f41ebc63a1c4c1b3b757bcff8136b6a46b5a3d006dc1ce1db45ff84038925",
+      "atlas": "7b201a132873619a57d200076dad5615d8fcc2addbd070d6a4c901ded8198c89",
+      "native": "f63925f3590235c436017af0818b02cee028c2caeb6721422a15f652bb65b79a",
+      "merge": "3ede49e1a0bc0cdd35614e7210cbba27d637b0aa83be28172185d09350e4c932"
+    },
+    "torch": "2.13.0+cu130",
+    "cuda": "13.0",
+    "cap_bytes": 2147483648,
+    "scope": "Synthetic integration byte equivalence; no model qualification"
+  },
+  {
+    "stage": "rejects",
+    "passed": true,
+    "cases": 21
+  },
+  {
+    "stage": "correctness",
+    "passed": true,
+    "rows": 2048,
+    "seq_start": 16384,
+    "seq_end": 18432,
+    "output_bytes": 67108864,
+    "lse_bytes": 262144,
+    "peak_reserved_bytes": 929038336
+  },
+  {
+    "stage": "correctness",
+    "passed": true,
+    "rows": 3515,
+    "seq_start": 16384,
+    "seq_end": 19899,
+    "output_bytes": 115179520,
+    "lse_bytes": 449920,
+    "peak_reserved_bytes": 1593835520
+  },
+  {
+    "stage": "correctness",
+    "passed": true,
+    "rows": 4100,
+    "seq_start": 16384,
+    "seq_end": 20484,
+    "output_bytes": 134348800,
+    "lse_bytes": 524800,
+    "peak_reserved_bytes": 1839202304
+  },
+  {
+    "stage": "correctness",
+    "passed": true,
+    "rows": 4096,
+    "seq_start": 16384,
+    "seq_end": 20480,
+    "output_bytes": 134217728,
+    "lse_bytes": 524288,
+    "peak_reserved_bytes": 1832910848
+  },
+  {
+    "stage": "timing",
+    "rows": 4096,
+    "warmups": 3,
+    "pairs": 9,
+    "samples_ms": {
+      "atlas": [
+        31.979328155517578,
+        32.479393005371094,
+        32.40060806274414,
+        32.36368179321289,
+        31.84841537475586,
+        32.944671630859375,
+        32.36252975463867,
+        32.355934143066406,
+        31.924768447875977
+      ],
+      "unified_inclusive": [
+        22.08527946472168,
+        22.681440353393555,
+        22.727264404296875,
+        22.559839248657227,
+        22.717344284057617,
+        22.107328414916992,
+        22.097440719604492,
+        22.757503509521484,
+        22.092512130737305
+      ]
+    },
+    "median_ms": {
+      "atlas": 32.36252975463867,
+      "unified_inclusive": 22.559839248657227
+    },
+    "inclusive_speedup": 1.4345195193075193,
+    "minimum_speedup": 1.3,
+    "candidate_pass": true,
+    "peak_reserved_bytes": 1832910848
+  },
+  {
+    "stage": "complete",
+    "passed": true,
+    "fixtures": 4,
+    "inclusive_speedup": 1.4345195193075193
+  }
+]

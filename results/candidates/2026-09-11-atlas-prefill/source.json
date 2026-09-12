@@ -1,0 +1,33 @@
+{
+  "schema": "sparkglm.atlas-bundle-source/v1",
+  "upstream": {
+    "repository": "https://github.com/Mango-kid/atlas",
+    "revision": "90b3584abc71b44b609637092b85d8423d8ff20f"
+  },
+  "incremental_base_revision": "561ffcbf59c12982103984dbbc0060b867b6c315",
+  "r11_selected_tree": "e736269645387dcf19d7d2850d57641c4a248d15",
+  "with_rejected_standalones_tree": "e6a4b26058000d1c81b0c87bbf4c2cb0c9127c03",
+  "patch_chain": [
+    {
+      "path": "nvidia-modelopt-refresh.patch",
+      "sha256": "c8e96fba76bc9a35151df6f9d0a035a492c08d1255593469ef4b741ad434cf89"
+    },
+    {
+      "path": "nvidia-prefill-mtp2.patch",
+      "sha256": "f53877c97e40dccdf4e568baa766a60a8a8944045fec2bcfa05c564f855d3322"
+    },
+    {
+      "path": "nvidia-prefill-rejected-standalones.patch",
+      "sha256": "8f6d3753c34d0f287ea1e93621baa91d93935cd8a85de8b0562d9c83097d736b"
+    }
+  ],
+  "source_manifest_sha256": "7ab795f3a8b4721a011b814943d28f387190980f43b4cc08c0f2c2b9b8ea232c",
+  "runtime_binary_sha256": "c8d9952cce7399549a6a0fe9660e175ddb34a06b1ea559e44f7a2fd241d7b21c",
+  "checkpoint": {
+    "repository": "https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4",
+    "revision": "423acf37583782c51c142d145aef733d72943d93",
+    "predictor": "native appended BF16 layer45 experts converted offline using pinned Atlas runtime NVFP4 quantizer"
+  },
+  "license": "AGPL-3.0-only source; checkpoint publisher terms separate",
+  "engine_checkpoint_revision": "dd0ffd157fb7c6e96d2f3858c888513c6f142cf6"
+}

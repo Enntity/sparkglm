@@ -1,0 +1,23 @@
+{
+  "status": "performance_rejected_correctness_unqualified",
+  "evidence_class": "Retained independent live/source review; primary per-request raw JSON is not available in this export.",
+  "reviewed_client_ttft_s": {
+    "r11": 13.088,
+    "r12": 19.041,
+    "r13": 20.062
+  },
+  "corrected_profile_ms": {
+    "window": 13734.0,
+    "nccl_union": 1892.89,
+    "nccl_compute_overlap": 551.755,
+    "nccl_without_other_kernel": 1341.135,
+    "no_kernel_intervals": 666.013
+  },
+  "findings": [
+    "Stream labels do not classify individual kernels; include all compute streams.",
+    "Overlap and D2H wait do not measure recoverable transfer cost.",
+    "Short text equality does not prove new dispatch tensor identity.",
+    "Greedy equality-based verification is not a random acceptance draw.",
+    "Tool HTTP500 existed in both compared controls; tool qualification was incomplete."
+  ]
+}

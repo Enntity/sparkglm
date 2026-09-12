@@ -1,0 +1,6664 @@
+[
+  {
+    "title": "SparkGLM \u00b7 NVIDIA NVFP4",
+    "subtitle": "Native CUTLASS \u00b7 DFlash2 k7 \u00b7 512K configured \u00b7 2,048-token prefill",
+    "detail": "Median of 3: 90.50s \u00b7 17.68 output tok/s including all waiting",
+    "capture": {
+      "schema": 1,
+      "model": "sparkglm-package",
+      "streams": 4,
+      "max_tokens": 400,
+      "prompt_style": "field-guide",
+      "prompt_salt": "current-best-video-20260903-r1",
+      "cache_salt": "official-quant-video-r1",
+      "prompt_tokens_target": 16000,
+      "stagger_ms": 1000,
+      "recipe_label": "nvidia NVFP4 / DFlash2 k7 / 512K / 9GiB / prefill 2048",
+      "engine_commit": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+      "wall_s": 90.500192,
+      "total_completion_tokens": 1600,
+      "aggregate_decode_tok_s": 20.038419,
+      "requests": [
+        {
+          "index": 0,
+          "prompt_sha256": "d707531169c27ae0b2fb19c9db120947738378f30793ed03f8611c3472d41bd6",
+          "label": "SYSTEMS",
+          "subject": "distributed systems engineering",
+          "scheduled_s": 0.004253,
+          "first_token_s": 10.853191,
+          "ttft_s": 10.848938,
+          "ended_s": 83.616344,
+          "completion_tokens": 400,
+          "prompt_tokens": 15807,
+          "decode_tok_s": 5.483545,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 10.853191,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 12.082997,
+              "text": ". CAP",
+              "tokens": 1
+            },
+            {
+              "t": 13.312196,
+              "text": " theorem:",
+              "tokens": 2
+            },
+            {
+              "t": 14.528509,
+              "text": " a",
+              "tokens": 0
+            },
+            {
+              "t": 15.743834,
+              "text": " distributed store",
+              "tokens": 4
+            },
+            {
+              "t": 16.983773,
+              "text": " cannot simultaneously guarantee",
+              "tokens": 6
+            },
+            {
+              "t": 18.205064,
+              "text": " consistency, availability, and partition",
+              "tokens": 8
+            },
+            {
+              "t": 19.384649,
+              "text": " tolerance;",
+              "tokens": 2
+            },
+            {
+              "t": 20.625799,
+              "text": " partitions",
+              "tokens": 2
+            },
+            {
+              "t": 21.849111,
+              "text": " force",
+              "tokens": 2
+            },
+            {
+              "t": 23.071873,
+              "text": " a",
+              "tokens": 0
+            },
+            {
+              "t": 24.299782,
+              "text": " choice.\n2. Partition tolerance is",
+              "tokens": 7
+            },
+            {
+              "t": 25.529399,
+              "text": " mandatory in real",
+              "tokens": 3
+            },
+            {
+              "t": 26.795314,
+              "text": " networks, so systems",
+              "tokens": 4
+            },
+            {
+              "t": 28.005024,
+              "text": " effectively",
+              "tokens": 3
+            },
+            {
+              "t": 29.236712,
+              "text": " choose between",
+              "tokens": 3
+            },
+            {
+              "t": 30.596523,
+              "text": " CP (",
+              "tokens": 1
+            },
+            {
+              "t": 31.827641,
+              "text": "consistent",
+              "tokens": 2
+            },
+            {
+              "t": 33.063533,
+              "text": ") and AP (available",
+              "tokens": 3
+            },
+            {
+              "t": 34.264908,
+              "text": ") during",
+              "tokens": 2
+            },
+            {
+              "t": 35.490192,
+              "text": " splits",
+              "tokens": 1
+            },
+            {
+              "t": 36.743433,
+              "text": ".\n3. PAC",
+              "tokens": 2
+            },
+            {
+              "t": 36.955542,
+              "text": "EL",
+              "tokens": 0
+            },
+            {
+              "t": 38.231338,
+              "text": "C extends",
+              "tokens": 2
+            },
+            {
+              "t": 38.436634,
+              "text": " CAP: during",
+              "tokens": 2
+            },
+            {
+              "t": 39.701191,
+              "text": " normal",
+              "tokens": 2
+            },
+            {
+              "t": 39.919821,
+              "text": " operation (",
+              "tokens": 2
+            },
+            {
+              "t": 41.199019,
+              "text": "Else",
+              "tokens": 1
+            },
+            {
+              "t": 41.409365,
+              "text": ") you",
+              "tokens": 1
+            },
+            {
+              "t": 42.664803,
+              "text": " still",
+              "tokens": 1
+            },
+            {
+              "t": 42.890737,
+              "text": " trade latency against",
+              "tokens": 4
+            },
+            {
+              "t": 44.140692,
+              "text": " consistency.\n4. Strong",
+              "tokens": 5
+            },
+            {
+              "t": 44.361301,
+              "text": " consistency typically",
+              "tokens": 4
+            },
+            {
+              "t": 45.616179,
+              "text": " requires",
+              "tokens": 2
+            },
+            {
+              "t": 45.83725,
+              "text": " qu",
+              "tokens": 0
+            },
+            {
+              "t": 47.093504,
+              "text": "orum agreement",
+              "tokens": 3
+            },
+            {
+              "t": 47.31374,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 48.583396,
+              "text": " adding",
+              "tokens": 2
+            },
+            {
+              "t": 48.804543,
+              "text": " round",
+              "tokens": 1
+            },
+            {
+              "t": 50.05984,
+              "text": " trips",
+              "tokens": 1
+            },
+            {
+              "t": 50.278022,
+              "text": " and tail",
+              "tokens": 2
+            },
+            {
+              "t": 51.529119,
+              "text": " latency.\n5. Event",
+              "tokens": 3
+            },
+            {
+              "t": 52.749694,
+              "text": "ual consistency allows",
+              "tokens": 5
+            },
+            {
+              "t": 53.525606,
+              "text": " diver",
+              "tokens": 1
+            },
+            {
+              "t": 53.934747,
+              "text": "gent replicas",
+              "tokens": 2
+            },
+            {
+              "t": 54.150221,
+              "text": " to",
+              "tokens": 1
+            },
+            {
+              "t": 54.39865,
+              "text": " converge later",
+              "tokens": 3
+            },
+            {
+              "t": 54.634501,
+              "text": " via",
+              "tokens": 1
+            },
+            {
+              "t": 54.862299,
+              "text": " anti",
+              "tokens": 1
+            },
+            {
+              "t": 55.107343,
+              "text": "-entropy or read",
+              "tokens": 3
+            },
+            {
+              "t": 55.337694,
+              "text": " repair",
+              "tokens": 1
+            },
+            {
+              "t": 55.577142,
+              "text": ".\n6. C",
+              "tokens": 1
+            },
+            {
+              "t": 55.820794,
+              "text": "ausal consistency guarantees",
+              "tokens": 6
+            },
+            {
+              "t": 56.065058,
+              "text": " that caus",
+              "tokens": 2
+            },
+            {
+              "t": 56.305189,
+              "text": "ally related writes are",
+              "tokens": 4
+            },
+            {
+              "t": 56.540316,
+              "text": " seen in order",
+              "tokens": 3
+            },
+            {
+              "t": 56.768836,
+              "text": ", weaker",
+              "tokens": 2
+            },
+            {
+              "t": 57.006594,
+              "text": " but",
+              "tokens": 0
+            },
+            {
+              "t": 57.250673,
+              "text": " cheaper than total",
+              "tokens": 4
+            },
+            {
+              "t": 57.472842,
+              "text": " order",
+              "tokens": 1
+            },
+            {
+              "t": 57.709089,
+              "text": ".\n7. Linear",
+              "tokens": 2
+            },
+            {
+              "t": 57.945295,
+              "text": "izability makes",
+              "tokens": 3
+            },
+            {
+              "t": 58.179258,
+              "text": " operations appear instantaneous",
+              "tokens": 7
+            },
+            {
+              "t": 58.411331,
+              "text": " and",
+              "tokens": 0
+            },
+            {
+              "t": 58.648385,
+              "text": " atomic",
+              "tokens": 2
+            },
+            {
+              "t": 58.891081,
+              "text": ", approx",
+              "tokens": 1
+            },
+            {
+              "t": 59.126468,
+              "text": "imating single",
+              "tokens": 3
+            },
+            {
+              "t": 59.3508,
+              "text": "-machine",
+              "tokens": 2
+            },
+            {
+              "t": 59.599291,
+              "text": " semantics",
+              "tokens": 2
+            },
+            {
+              "t": 59.837114,
+              "text": ".\n8. Sequential",
+              "tokens": 3
+            },
+            {
+              "t": 60.067872,
+              "text": " consistency preserves",
+              "tokens": 4
+            },
+            {
+              "t": 60.31097,
+              "text": " per",
+              "tokens": 1
+            },
+            {
+              "t": 60.547983,
+              "text": "-process",
+              "tokens": 1
+            },
+            {
+              "t": 60.796823,
+              "text": " operation",
+              "tokens": 2
+            },
+            {
+              "t": 61.019997,
+              "text": " order without",
+              "tokens": 3
+            },
+            {
+              "t": 61.255613,
+              "text": " a",
+              "tokens": 0
+            },
+            {
+              "t": 61.496766,
+              "text": " global real",
+              "tokens": 3
+            },
+            {
+              "t": 61.742269,
+              "text": "-time ordering",
+              "tokens": 2
+            },
+            {
+              "t": 61.984605,
+              "text": ".\n9. Read-your",
+              "tokens": 3
+            },
+            {
+              "t": 62.225402,
+              "text": "-writes and monot",
+              "tokens": 3
+            },
+            {
+              "t": 62.454898,
+              "text": "onic reads",
+              "tokens": 2
+            },
+            {
+              "t": 62.715531,
+              "text": " are session",
+              "tokens": 3
+            },
+            {
+              "t": 62.952566,
+              "text": " guarantees",
+              "tokens": 2
+            },
+            {
+              "t": 63.199991,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 63.451535,
+              "text": " often implemented",
+              "tokens": 4
+            },
+            {
+              "t": 63.767937,
+              "text": " with sticky",
+              "tokens": 2
+            },
+            {
+              "t": 64.005842,
+              "text": " routing",
+              "tokens": 2
+            },
+            {
+              "t": 64.249515,
+              "text": ".\n10. Quorum reads",
+              "tokens": 3
+            },
+            {
+              "t": 64.487353,
+              "text": "/writes with",
+              "tokens": 2
+            },
+            {
+              "t": 64.726579,
+              "text": " R+W>N",
+              "tokens": 2
+            },
+            {
+              "t": 64.984376,
+              "text": " ensure",
+              "tokens": 1
+            },
+            {
+              "t": 65.207875,
+              "text": " overlap;",
+              "tokens": 2
+            },
+            {
+              "t": 65.438262,
+              "text": " R=W",
+              "tokens": 0
+            },
+            {
+              "t": 65.686112,
+              "text": "=N",
+              "tokens": 1
+            },
+            {
+              "t": 65.918852,
+              "text": " gives strong consistency at",
+              "tokens": 5
+            },
+            {
+              "t": 66.157338,
+              "text": " high",
+              "tokens": 1
+            },
+            {
+              "t": 66.39638,
+              "text": " latency",
+              "tokens": 2
+            },
+            {
+              "t": 66.634699,
+              "text": " cost.\n11. Slo",
+              "tokens": 3
+            },
+            {
+              "t": 66.877543,
+              "text": "ppy",
+              "tokens": 0
+            },
+            {
+              "t": 67.117211,
+              "text": " quorums and",
+              "tokens": 3
+            },
+            {
+              "t": 67.367198,
+              "text": " hinted hand",
+              "tokens": 2
+            },
+            {
+              "t": 67.609981,
+              "text": "off maintain",
+              "tokens": 2
+            },
+            {
+              "t": 67.829581,
+              "text": " availability when",
+              "tokens": 4
+            },
+            {
+              "t": 68.068367,
+              "text": " preferred",
+              "tokens": 2
+            },
+            {
+              "t": 68.289777,
+              "text": " nodes are down",
+              "tokens": 3
+            },
+            {
+              "t": 68.532869,
+              "text": ", at",
+              "tokens": 0
+            },
+            {
+              "t": 68.763411,
+              "text": " consistency",
+              "tokens": 3
+            },
+            {
+              "t": 69.00266,
+              "text": " cost.\n12. Leader-based",
+              "tokens": 4
+            },
+            {
+              "t": 69.237358,
+              "text": " replication fun",
+              "tokens": 3
+            },
+            {
+              "t": 69.48129,
+              "text": "nels writes",
+              "tokens": 3
+            },
+            {
+              "t": 69.708266,
+              "text": " through one",
+              "tokens": 2
+            },
+            {
+              "t": 69.946339,
+              "text": " primary;",
+              "tokens": 2
+            },
+            {
+              "t": 70.168803,
+              "text": " fail",
+              "tokens": 1
+            },
+            {
+              "t": 70.401298,
+              "text": "over requires",
+              "tokens": 2
+            },
+            {
+              "t": 70.638348,
+              "text": " lease",
+              "tokens": 1
+            },
+            {
+              "t": 70.88518,
+              "text": " or",
+              "tokens": 1
+            },
+            {
+              "t": 71.1168,
+              "text": " consensus",
+              "tokens": 2
+            },
+            {
+              "t": 71.380185,
+              "text": "-based",
+              "tokens": 1
+            },
+            {
+              "t": 71.614667,
+              "text": " leader election.\n13. Multi",
+              "tokens": 5
+            },
+            {
+              "t": 71.848551,
+              "text": "-leader replication accepts",
+              "tokens": 6
+            },
+            {
+              "t": 72.083809,
+              "text": " write",
+              "tokens": 1
+            },
+            {
+              "t": 72.335507,
+              "text": " conflicts, resolved",
+              "tokens": 4
+            },
+            {
+              "t": 72.570693,
+              "text": " via L",
+              "tokens": 1
+            },
+            {
+              "t": 72.796279,
+              "text": "WW, CR",
+              "tokens": 1
+            },
+            {
+              "t": 73.036999,
+              "text": "DTs, or application",
+              "tokens": 4
+            },
+            {
+              "t": 73.272049,
+              "text": " logic",
+              "tokens": 1
+            },
+            {
+              "t": 73.512067,
+              "text": ".\n14. Leaderless (",
+              "tokens": 4
+            },
+            {
+              "t": 73.759039,
+              "text": "D",
+              "tokens": 0
+            },
+            {
+              "t": 73.992555,
+              "text": "ynamo-style) replication lets",
+              "tokens": 5
+            },
+            {
+              "t": 74.219907,
+              "text": " any node",
+              "tokens": 2
+            },
+            {
+              "t": 74.456565,
+              "text": " accept writes, relying",
+              "tokens": 5
+            },
+            {
+              "t": 74.686262,
+              "text": " on qu",
+              "tokens": 1
+            },
+            {
+              "t": 74.928031,
+              "text": "orums and version",
+              "tokens": 3
+            },
+            {
+              "t": 75.159794,
+              "text": "ing.\n15. Vector",
+              "tokens": 3
+            },
+            {
+              "t": 75.405366,
+              "text": " clocks capture",
+              "tokens": 3
+            },
+            {
+              "t": 75.654045,
+              "text": " causality;",
+              "tokens": 2
+            },
+            {
+              "t": 75.893479,
+              "text": " concurrent",
+              "tokens": 2
+            },
+            {
+              "t": 76.123673,
+              "text": " updates",
+              "tokens": 2
+            },
+            {
+              "t": 76.364858,
+              "text": " produce siblings",
+              "tokens": 3
+            },
+            {
+              "t": 76.594646,
+              "text": " requiring",
+              "tokens": 2
+            },
+            {
+              "t": 76.844775,
+              "text": " conflict",
+              "tokens": 2
+            },
+            {
+              "t": 77.080152,
+              "text": " resolution.\n16. Lam",
+              "tokens": 4
+            },
+            {
+              "t": 77.307208,
+              "text": "port timestamps",
+              "tokens": 3
+            },
+            {
+              "t": 77.558512,
+              "text": " order",
+              "tokens": 1
+            },
+            {
+              "t": 77.79521,
+              "text": " events caus",
+              "tokens": 2
+            },
+            {
+              "t": 78.016413,
+              "text": "ally but cannot",
+              "tokens": 3
+            },
+            {
+              "t": 78.248318,
+              "text": " detect",
+              "tokens": 2
+            },
+            {
+              "t": 78.481618,
+              "text": " concurrency",
+              "tokens": 2
+            },
+            {
+              "t": 78.720612,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 78.956736,
+              "text": " only impose",
+              "tokens": 3
+            },
+            {
+              "t": 79.197606,
+              "text": " a",
+              "tokens": 0
+            },
+            {
+              "t": 79.436021,
+              "text": " total order.\n17. Last",
+              "tokens": 4
+            },
+            {
+              "t": 79.64322,
+              "text": "-write-wins disc",
+              "tokens": 3
+            },
+            {
+              "t": 79.85392,
+              "text": "ards concurrent",
+              "tokens": 3
+            },
+            {
+              "t": 80.063342,
+              "text": " edits",
+              "tokens": 2
+            },
+            {
+              "t": 80.269815,
+              "text": "; safe",
+              "tokens": 1
+            },
+            {
+              "t": 80.477443,
+              "text": " only when",
+              "tokens": 2
+            },
+            {
+              "t": 80.690117,
+              "text": " data",
+              "tokens": 1
+            },
+            {
+              "t": 80.890115,
+              "text": " loss is acceptable",
+              "tokens": 3
+            },
+            {
+              "t": 81.092369,
+              "text": ".\n18. CRDTs (count",
+              "tokens": 4
+            },
+            {
+              "t": 81.288493,
+              "text": "ers,",
+              "tokens": 1
+            },
+            {
+              "t": 81.496439,
+              "text": " sets, registers) merge concurrent",
+              "tokens": 6
+            },
+            {
+              "t": 81.69154,
+              "text": " updates deterministically without coordination",
+              "tokens": 10
+            },
+            {
+              "t": 81.904529,
+              "text": ".\n19. G",
+              "tokens": 1
+            },
+            {
+              "t": 82.110126,
+              "text": "ossip",
+              "tokens": 1
+            },
+            {
+              "t": 82.317628,
+              "text": " protocols",
+              "tokens": 2
+            },
+            {
+              "t": 82.532972,
+              "text": " spread state",
+              "tokens": 2
+            },
+            {
+              "t": 82.747123,
+              "text": " epid",
+              "tokens": 1
+            },
+            {
+              "t": 82.945432,
+              "text": "em",
+              "tokens": 1
+            },
+            {
+              "t": 83.115747,
+              "text": "ically,",
+              "tokens": 1
+            },
+            {
+              "t": 83.27847,
+              "text": " conver",
+              "tokens": 2
+            },
+            {
+              "t": 83.436671,
+              "text": "ging in O(log N",
+              "tokens": 2
+            },
+            {
+              "t": 83.61616,
+              "text": ") rounds with",
+              "tokens": 3
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 1,
+          "prompt_sha256": "6f296bb9589ee4abfea65f454e7d6f2fd76e84f048f61b22ff977cc05878a07e",
+          "label": "SPACE",
+          "subject": "surprising facts about the solar system",
+          "scheduled_s": 1.000492,
+          "first_token_s": 20.626194,
+          "ttft_s": 19.625702,
+          "ended_s": 79.197674,
+          "completion_tokens": 400,
+          "prompt_tokens": 15810,
+          "decode_tok_s": 6.812189,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 20.626194,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 21.849503,
+              "text": ". Venus",
+              "tokens": 2
+            },
+            {
+              "t": 23.072277,
+              "text": " rotates",
+              "tokens": 2
+            },
+            {
+              "t": 24.300014,
+              "text": " so",
+              "tokens": 0
+            },
+            {
+              "t": 25.529581,
+              "text": " slowly that a",
+              "tokens": 3
+            },
+            {
+              "t": 26.795574,
+              "text": " single",
+              "tokens": 2
+            },
+            {
+              "t": 28.005346,
+              "text": " day-night",
+              "tokens": 2
+            },
+            {
+              "t": 29.236871,
+              "text": " cycle lasts",
+              "tokens": 3
+            },
+            {
+              "t": 30.597026,
+              "text": " longer than its",
+              "tokens": 3
+            },
+            {
+              "t": 31.827732,
+              "text": " year",
+              "tokens": 1
+            },
+            {
+              "t": 33.063643,
+              "text": ".\n2. On",
+              "tokens": 2
+            },
+            {
+              "t": 34.265261,
+              "text": " Venus, the Sun",
+              "tokens": 3
+            },
+            {
+              "t": 35.4903,
+              "text": " rises in",
+              "tokens": 2
+            },
+            {
+              "t": 36.743534,
+              "text": " the west and",
+              "tokens": 3
+            },
+            {
+              "t": 36.955486,
+              "text": " sets in the east because",
+              "tokens": 5
+            },
+            {
+              "t": 38.231419,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 38.436572,
+              "text": " planet spins backward",
+              "tokens": 5
+            },
+            {
+              "t": 39.701292,
+              "text": ".\n3. Venus",
+              "tokens": 2
+            },
+            {
+              "t": 39.919886,
+              "text": " is hotter",
+              "tokens": 2
+            },
+            {
+              "t": 41.199325,
+              "text": " than Mercury",
+              "tokens": 3
+            },
+            {
+              "t": 41.409437,
+              "text": " despite being",
+              "tokens": 3
+            },
+            {
+              "t": 42.665047,
+              "text": " farther from the Sun",
+              "tokens": 5
+            },
+            {
+              "t": 42.890906,
+              "text": ", thanks",
+              "tokens": 2
+            },
+            {
+              "t": 44.140561,
+              "text": " to a",
+              "tokens": 1
+            },
+            {
+              "t": 44.361501,
+              "text": " runaway greenhouse effect.\n4. It",
+              "tokens": 7
+            },
+            {
+              "t": 45.616099,
+              "text": " rains",
+              "tokens": 1
+            },
+            {
+              "t": 45.837357,
+              "text": " sulfur",
+              "tokens": 2
+            },
+            {
+              "t": 47.093385,
+              "text": "ic acid on Venus, though the",
+              "tokens": 6
+            },
+            {
+              "t": 47.313801,
+              "text": " drops",
+              "tokens": 1
+            },
+            {
+              "t": 48.583705,
+              "text": " evapor",
+              "tokens": 2
+            },
+            {
+              "t": 48.804615,
+              "text": "ate before reaching",
+              "tokens": 4
+            },
+            {
+              "t": 50.060172,
+              "text": " the ground",
+              "tokens": 2
+            },
+            {
+              "t": 50.278077,
+              "text": ".\n5. A day on",
+              "tokens": 3
+            },
+            {
+              "t": 51.529447,
+              "text": " Mercury",
+              "tokens": 2
+            },
+            {
+              "t": 52.749893,
+              "text": " lasts",
+              "tokens": 1
+            },
+            {
+              "t": 53.525679,
+              "text": " about",
+              "tokens": 2
+            },
+            {
+              "t": 53.934684,
+              "text": " 59",
+              "tokens": 0
+            },
+            {
+              "t": 54.15006,
+              "text": " Earth days, while",
+              "tokens": 4
+            },
+            {
+              "t": 54.398579,
+              "text": " its",
+              "tokens": 1
+            },
+            {
+              "t": 54.634844,
+              "text": " year is only",
+              "tokens": 3
+            },
+            {
+              "t": 54.862381,
+              "text": " 88 Earth days.\n6. Mercury",
+              "tokens": 6
+            },
+            {
+              "t": 55.107509,
+              "text": "'s temperature",
+              "tokens": 3
+            },
+            {
+              "t": 55.337753,
+              "text": " swings",
+              "tokens": 1
+            },
+            {
+              "t": 55.577279,
+              "text": " from about 430",
+              "tokens": 4
+            },
+            {
+              "t": 55.820912,
+              "text": "\u00b0C in",
+              "tokens": 1
+            },
+            {
+              "t": 56.064957,
+              "text": " daylight to -",
+              "tokens": 3
+            },
+            {
+              "t": 56.30509,
+              "text": "180\u00b0C at night.\n7. Despite",
+              "tokens": 6
+            },
+            {
+              "t": 56.540402,
+              "text": " shrinking",
+              "tokens": 2
+            },
+            {
+              "t": 56.768882,
+              "text": " as",
+              "tokens": 1
+            },
+            {
+              "t": 57.00676,
+              "text": " it cools, Mercury still",
+              "tokens": 5
+            },
+            {
+              "t": 57.25124,
+              "text": " has cliffs",
+              "tokens": 2
+            },
+            {
+              "t": 57.472784,
+              "text": " hundreds",
+              "tokens": 2
+            },
+            {
+              "t": 57.70944,
+              "text": " of kilometers",
+              "tokens": 4
+            },
+            {
+              "t": 57.94561,
+              "text": " long.\n8. Mars",
+              "tokens": 3
+            },
+            {
+              "t": 58.179336,
+              "text": " hosts",
+              "tokens": 1
+            },
+            {
+              "t": 58.411138,
+              "text": " Olympus",
+              "tokens": 2
+            },
+            {
+              "t": 58.648187,
+              "text": " Mons, a",
+              "tokens": 1
+            },
+            {
+              "t": 58.891012,
+              "text": " volcano nearly three",
+              "tokens": 5
+            },
+            {
+              "t": 59.126399,
+              "text": " times the",
+              "tokens": 2
+            },
+            {
+              "t": 59.350707,
+              "text": " height of Mount Everest.\n9. Val",
+              "tokens": 7
+            },
+            {
+              "t": 59.599516,
+              "text": "les",
+              "tokens": 1
+            },
+            {
+              "t": 59.837154,
+              "text": " Marineris on Mars is",
+              "tokens": 4
+            },
+            {
+              "t": 60.067641,
+              "text": " a canyon system that",
+              "tokens": 5
+            },
+            {
+              "t": 60.311277,
+              "text": " would stretch across",
+              "tokens": 5
+            },
+            {
+              "t": 60.548077,
+              "text": " the entire United States.\n10. Mars",
+              "tokens": 7
+            },
+            {
+              "t": 60.797061,
+              "text": " has the",
+              "tokens": 2
+            },
+            {
+              "t": 61.019778,
+              "text": " largest",
+              "tokens": 2
+            },
+            {
+              "t": 61.255666,
+              "text": " dust",
+              "tokens": 1
+            },
+            {
+              "t": 61.496805,
+              "text": " storms in the solar system, sometimes",
+              "tokens": 8
+            },
+            {
+              "t": 61.742475,
+              "text": " engulfing the whole",
+              "tokens": 5
+            },
+            {
+              "t": 61.984754,
+              "text": " planet for",
+              "tokens": 2
+            },
+            {
+              "t": 62.22573,
+              "text": " months.\n11. Jupiter",
+              "tokens": 4
+            },
+            {
+              "t": 62.454733,
+              "text": "'s Great",
+              "tokens": 2
+            },
+            {
+              "t": 62.715358,
+              "text": " Red Spot is",
+              "tokens": 3
+            },
+            {
+              "t": 62.952655,
+              "text": " a storm larger",
+              "tokens": 3
+            },
+            {
+              "t": 63.19987,
+              "text": " than Earth that has r",
+              "tokens": 5
+            },
+            {
+              "t": 63.45173,
+              "text": "aged for at least ",
+              "tokens": 4
+            },
+            {
+              "t": 63.768008,
+              "text": "350 years.\n12. Jupiter has",
+              "tokens": 6
+            },
+            {
+              "t": 64.005753,
+              "text": " no",
+              "tokens": 0
+            },
+            {
+              "t": 64.249264,
+              "text": " solid",
+              "tokens": 2
+            },
+            {
+              "t": 64.487428,
+              "text": " surface;",
+              "tokens": 2
+            },
+            {
+              "t": 64.726248,
+              "text": " it",
+              "tokens": 0
+            },
+            {
+              "t": 64.984645,
+              "text": " transitions",
+              "tokens": 3
+            },
+            {
+              "t": 65.207813,
+              "text": " from",
+              "tokens": 1
+            },
+            {
+              "t": 65.438055,
+              "text": " gas to liquid metallic",
+              "tokens": 5
+            },
+            {
+              "t": 65.686014,
+              "text": " hydrogen under",
+              "tokens": 3
+            },
+            {
+              "t": 65.919012,
+              "text": " crushing",
+              "tokens": 2
+            },
+            {
+              "t": 66.157634,
+              "text": " pressure.\n13. Jupiter's moon",
+              "tokens": 7
+            },
+            {
+              "t": 66.396483,
+              "text": " Gan",
+              "tokens": 1
+            },
+            {
+              "t": 66.634777,
+              "text": "ymede is",
+              "tokens": 1
+            },
+            {
+              "t": 66.877722,
+              "text": " larger than the",
+              "tokens": 4
+            },
+            {
+              "t": 67.117095,
+              "text": " planet Mercury.\n",
+              "tokens": 3
+            },
+            {
+              "t": 67.367396,
+              "text": "14. Europa",
+              "tokens": 3
+            },
+            {
+              "t": 67.609661,
+              "text": " likely",
+              "tokens": 1
+            },
+            {
+              "t": 67.829694,
+              "text": " hides a salty",
+              "tokens": 3
+            },
+            {
+              "t": 68.068455,
+              "text": " ocean beneath",
+              "tokens": 3
+            },
+            {
+              "t": 68.289584,
+              "text": " its ice",
+              "tokens": 2
+            },
+            {
+              "t": 68.53248,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 68.763355,
+              "text": " possibly",
+              "tokens": 2
+            },
+            {
+              "t": 69.002857,
+              "text": " holding more water",
+              "tokens": 4
+            },
+            {
+              "t": 69.237089,
+              "text": " than all",
+              "tokens": 2
+            },
+            {
+              "t": 69.481579,
+              "text": " of Earth's",
+              "tokens": 3
+            },
+            {
+              "t": 69.708183,
+              "text": " oceans.\n15. Io",
+              "tokens": 3
+            },
+            {
+              "t": 69.946467,
+              "text": " has",
+              "tokens": 1
+            },
+            {
+              "t": 70.168887,
+              "text": " hundreds",
+              "tokens": 2
+            },
+            {
+              "t": 70.40143,
+              "text": " of active",
+              "tokens": 2
+            },
+            {
+              "t": 70.638474,
+              "text": " volcanoes, making",
+              "tokens": 4
+            },
+            {
+              "t": 70.885489,
+              "text": " it the",
+              "tokens": 2
+            },
+            {
+              "t": 71.117063,
+              "text": " most volcanically active",
+              "tokens": 5
+            },
+            {
+              "t": 71.380269,
+              "text": " body known",
+              "tokens": 3
+            },
+            {
+              "t": 71.614819,
+              "text": ".\n16. Saturn",
+              "tokens": 2
+            },
+            {
+              "t": 71.848445,
+              "text": " is",
+              "tokens": 1
+            },
+            {
+              "t": 72.083754,
+              "text": " so low",
+              "tokens": 1
+            },
+            {
+              "t": 72.335209,
+              "text": " in density it",
+              "tokens": 3
+            },
+            {
+              "t": 72.570513,
+              "text": " would float in a sufficiently",
+              "tokens": 7
+            },
+            {
+              "t": 72.796083,
+              "text": " large bathtub",
+              "tokens": 3
+            },
+            {
+              "t": 73.037118,
+              "text": " of water.\n17. Saturn's",
+              "tokens": 5
+            },
+            {
+              "t": 73.27235,
+              "text": " rings",
+              "tokens": 1
+            },
+            {
+              "t": 73.51218,
+              "text": " are mostly",
+              "tokens": 3
+            },
+            {
+              "t": 73.759398,
+              "text": " water ice",
+              "tokens": 2
+            },
+            {
+              "t": 73.992295,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 74.219632,
+              "text": " yet span",
+              "tokens": 2
+            },
+            {
+              "t": 74.456635,
+              "text": " hundreds",
+              "tokens": 2
+            },
+            {
+              "t": 74.686085,
+              "text": " of thousands of kilometers while being",
+              "tokens": 9
+            },
+            {
+              "t": 74.927707,
+              "text": " only about",
+              "tokens": 2
+            },
+            {
+              "t": 75.159853,
+              "text": " 10 meters thick in",
+              "tokens": 4
+            },
+            {
+              "t": 75.404771,
+              "text": " places.\n18. A day",
+              "tokens": 4
+            },
+            {
+              "t": 75.653748,
+              "text": " on Saturn lasts",
+              "tokens": 4
+            },
+            {
+              "t": 75.893664,
+              "text": " only about 10.",
+              "tokens": 3
+            },
+            {
+              "t": 76.123396,
+              "text": "5",
+              "tokens": 0
+            },
+            {
+              "t": 76.364592,
+              "text": " hours despite",
+              "tokens": 3
+            },
+            {
+              "t": 76.594702,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 76.844491,
+              "text": " planet's enormous",
+              "tokens": 4
+            },
+            {
+              "t": 77.079843,
+              "text": " size.\n19. Titan has",
+              "tokens": 5
+            },
+            {
+              "t": 77.306856,
+              "text": " lakes and",
+              "tokens": 2
+            },
+            {
+              "t": 77.558204,
+              "text": " rivers of liquid methane",
+              "tokens": 5
+            },
+            {
+              "t": 77.794846,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 78.016307,
+              "text": " eth",
+              "tokens": 1
+            },
+            {
+              "t": 78.248111,
+              "text": "ane instead",
+              "tokens": 2
+            },
+            {
+              "t": 78.481414,
+              "text": " of water",
+              "tokens": 2
+            },
+            {
+              "t": 78.720717,
+              "text": ".\n20. Titan",
+              "tokens": 3
+            },
+            {
+              "t": 78.956479,
+              "text": "'s atmosphere is dens",
+              "tokens": 4
+            },
+            {
+              "t": 79.197498,
+              "text": "er than",
+              "tokens": 2
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 2,
+          "prompt_sha256": "71172ad1d03e1d2c24fb87d34dac58b378047d859461ba3b6fc24c0e248d122a",
+          "label": "OCEAN",
+          "subject": "deep-ocean science and exploration",
+          "scheduled_s": 2.000493,
+          "first_token_s": 30.596833,
+          "ttft_s": 28.59634,
+          "ended_s": 82.945455,
+          "completion_tokens": 400,
+          "prompt_tokens": 15810,
+          "decode_tok_s": 7.621977,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 30.596833,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 31.827364,
+              "text": ". The",
+              "tokens": 2
+            },
+            {
+              "t": 33.063268,
+              "text": " ocean's",
+              "tokens": 2
+            },
+            {
+              "t": 34.264547,
+              "text": " \"",
+              "tokens": 0
+            },
+            {
+              "t": 35.490109,
+              "text": "tw",
+              "tokens": 1
+            },
+            {
+              "t": 36.743252,
+              "text": "ilight zone\" spans",
+              "tokens": 4
+            },
+            {
+              "t": 36.955294,
+              "text": " roughly 200\u20131",
+              "tokens": 4
+            },
+            {
+              "t": 38.231202,
+              "text": ",000 m,",
+              "tokens": 2
+            },
+            {
+              "t": 38.436378,
+              "text": " where sunlight",
+              "tokens": 4
+            },
+            {
+              "t": 39.701027,
+              "text": " fades",
+              "tokens": 1
+            },
+            {
+              "t": 39.919746,
+              "text": " to near",
+              "tokens": 2
+            },
+            {
+              "t": 41.198712,
+              "text": "-dark",
+              "tokens": 1
+            },
+            {
+              "t": 41.409301,
+              "text": "ness and most",
+              "tokens": 4
+            },
+            {
+              "t": 42.664437,
+              "text": " migr",
+              "tokens": 1
+            },
+            {
+              "t": 42.890485,
+              "text": "atory mes",
+              "tokens": 2
+            },
+            {
+              "t": 44.14042,
+              "text": "op",
+              "tokens": 1
+            },
+            {
+              "t": 44.361686,
+              "text": "elagic fish live.\n2. The",
+              "tokens": 6
+            },
+            {
+              "t": 45.615963,
+              "text": " \"mid",
+              "tokens": 1
+            },
+            {
+              "t": 45.837554,
+              "text": "night zone\" (b",
+              "tokens": 3
+            },
+            {
+              "t": 47.093197,
+              "text": "athyp",
+              "tokens": 2
+            },
+            {
+              "t": 47.313543,
+              "text": "elagic",
+              "tokens": 1
+            },
+            {
+              "t": 48.583017,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 48.804279,
+              "text": " 1",
+              "tokens": 1
+            },
+            {
+              "t": 50.059448,
+              "text": ",000\u20134,000 m)",
+              "tokens": 4
+            },
+            {
+              "t": 50.277932,
+              "text": " is permanently",
+              "tokens": 3
+            },
+            {
+              "t": 51.528741,
+              "text": " dark, near",
+              "tokens": 3
+            },
+            {
+              "t": 52.749516,
+              "text": "-free",
+              "tokens": 1
+            },
+            {
+              "t": 53.525483,
+              "text": "zing, and hosts",
+              "tokens": 4
+            },
+            {
+              "t": 53.934456,
+              "text": " animals",
+              "tokens": 2
+            },
+            {
+              "t": 54.149958,
+              "text": " that",
+              "tokens": 1
+            },
+            {
+              "t": 54.398312,
+              "text": " make their own light",
+              "tokens": 6
+            },
+            {
+              "t": 54.634653,
+              "text": " via bioluminescence",
+              "tokens": 5
+            },
+            {
+              "t": 54.86221,
+              "text": ".\n3. Below",
+              "tokens": 2
+            },
+            {
+              "t": 55.107263,
+              "text": " ~",
+              "tokens": 1
+            },
+            {
+              "t": 55.337602,
+              "text": "4,000 m lies",
+              "tokens": 3
+            },
+            {
+              "t": 55.577079,
+              "text": " the abyssal zone",
+              "tokens": 4
+            },
+            {
+              "t": 55.820588,
+              "text": ", covering",
+              "tokens": 2
+            },
+            {
+              "t": 56.064741,
+              "text": " more",
+              "tokens": 2
+            },
+            {
+              "t": 56.304886,
+              "text": " than half of Earth",
+              "tokens": 4
+            },
+            {
+              "t": 56.54018,
+              "text": "'s surface,",
+              "tokens": 3
+            },
+            {
+              "t": 56.768743,
+              "text": " with fine",
+              "tokens": 3
+            },
+            {
+              "t": 57.006826,
+              "text": " sediment",
+              "tokens": 2
+            },
+            {
+              "t": 57.250939,
+              "text": " plains",
+              "tokens": 2
+            },
+            {
+              "t": 57.472921,
+              "text": " and sparse",
+              "tokens": 2
+            },
+            {
+              "t": 57.709336,
+              "text": " but",
+              "tokens": 1
+            },
+            {
+              "t": 57.945532,
+              "text": " diverse",
+              "tokens": 2
+            },
+            {
+              "t": 58.179009,
+              "text": " life",
+              "tokens": 2
+            },
+            {
+              "t": 58.410908,
+              "text": ".\n4. Had",
+              "tokens": 2
+            },
+            {
+              "t": 58.648071,
+              "text": "al",
+              "tokens": 0
+            },
+            {
+              "t": 58.890955,
+              "text": " zones, the",
+              "tokens": 3
+            },
+            {
+              "t": 59.12634,
+              "text": " deepest trenches (",
+              "tokens": 5
+            },
+            {
+              "t": 59.35064,
+              "text": "6",
+              "tokens": 0
+            },
+            {
+              "t": 59.599209,
+              "text": ",000\u201311",
+              "tokens": 2
+            },
+            {
+              "t": 59.836905,
+              "text": ",000 m), are named",
+              "tokens": 5
+            },
+            {
+              "t": 60.067576,
+              "text": " after H",
+              "tokens": 2
+            },
+            {
+              "t": 60.311125,
+              "text": "ades and include",
+              "tokens": 4
+            },
+            {
+              "t": 60.547801,
+              "text": " the Mar",
+              "tokens": 2
+            },
+            {
+              "t": 60.796512,
+              "text": "iana Trench's",
+              "tokens": 3
+            },
+            {
+              "t": 61.019275,
+              "text": " Challenger Deep",
+              "tokens": 4
+            },
+            {
+              "t": 61.255311,
+              "text": " at ~10,9",
+              "tokens": 2
+            },
+            {
+              "t": 61.496709,
+              "text": "35 m.\n5. Pressure",
+              "tokens": 4
+            },
+            {
+              "t": 61.742046,
+              "text": " increases",
+              "tokens": 3
+            },
+            {
+              "t": 61.984159,
+              "text": " about",
+              "tokens": 1
+            },
+            {
+              "t": 62.225022,
+              "text": " 1 atmosphere",
+              "tokens": 4
+            },
+            {
+              "t": 62.454493,
+              "text": " per",
+              "tokens": 1
+            },
+            {
+              "t": 62.715047,
+              "text": " 10 m of",
+              "tokens": 2
+            },
+            {
+              "t": 62.952256,
+              "text": " depth, so Challenger",
+              "tokens": 5
+            },
+            {
+              "t": 63.199798,
+              "text": " Deep experiences",
+              "tokens": 4
+            },
+            {
+              "t": 63.45122,
+              "text": " over",
+              "tokens": 1
+            },
+            {
+              "t": 63.767822,
+              "text": " 1,000 times",
+              "tokens": 3
+            },
+            {
+              "t": 64.00552,
+              "text": " surface",
+              "tokens": 2
+            },
+            {
+              "t": 64.249053,
+              "text": " pressure.\n6. Deep-sea",
+              "tokens": 6
+            },
+            {
+              "t": 64.487256,
+              "text": " temperatures hover",
+              "tokens": 5
+            },
+            {
+              "t": 64.726667,
+              "text": " near",
+              "tokens": 1
+            },
+            {
+              "t": 64.984116,
+              "text": " 1",
+              "tokens": 0
+            },
+            {
+              "t": 65.20773,
+              "text": "\u20134 \u00b0",
+              "tokens": 2
+            },
+            {
+              "t": 65.437707,
+              "text": "C, though hydro",
+              "tokens": 4
+            },
+            {
+              "t": 65.685811,
+              "text": "thermal vents can exceed",
+              "tokens": 6
+            },
+            {
+              "t": 65.918754,
+              "text": " 400",
+              "tokens": 1
+            },
+            {
+              "t": 66.157702,
+              "text": " \u00b0C without",
+              "tokens": 3
+            },
+            {
+              "t": 66.396099,
+              "text": " boiling",
+              "tokens": 2
+            },
+            {
+              "t": 66.634643,
+              "text": " due to immense",
+              "tokens": 4
+            },
+            {
+              "t": 66.87736,
+              "text": " pressure.\n7. Hydrothermal vents,",
+              "tokens": 8
+            },
+            {
+              "t": 67.11688,
+              "text": " first discovered in 19",
+              "tokens": 6
+            },
+            {
+              "t": 67.367072,
+              "text": "77 near",
+              "tokens": 2
+            },
+            {
+              "t": 67.609377,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 67.829378,
+              "text": " Gal\u00e1pagos",
+              "tokens": 2
+            },
+            {
+              "t": 68.067771,
+              "text": " Rift, sp",
+              "tokens": 3
+            },
+            {
+              "t": 68.289289,
+              "text": "ew mineral",
+              "tokens": 2
+            },
+            {
+              "t": 68.532803,
+              "text": "-rich fluid",
+              "tokens": 3
+            },
+            {
+              "t": 68.762997,
+              "text": " and support chem",
+              "tokens": 4
+            },
+            {
+              "t": 69.00257,
+              "text": "osynthetic ecosystems.\n8. Ch",
+              "tokens": 7
+            },
+            {
+              "t": 69.23671,
+              "text": "emosynthetic bacteria at",
+              "tokens": 6
+            },
+            {
+              "t": 69.480667,
+              "text": " vents oxidize hydrogen",
+              "tokens": 6
+            },
+            {
+              "t": 69.707999,
+              "text": " sulfide to",
+              "tokens": 3
+            },
+            {
+              "t": 69.945855,
+              "text": " power food",
+              "tokens": 2
+            },
+            {
+              "t": 70.168735,
+              "text": " webs independent",
+              "tokens": 5
+            },
+            {
+              "t": 70.401238,
+              "text": " of sunlight.\n",
+              "tokens": 3
+            },
+            {
+              "t": 70.638266,
+              "text": "9. Giant tube",
+              "tokens": 3
+            },
+            {
+              "t": 70.885054,
+              "text": " worms (R",
+              "tokens": 3
+            },
+            {
+              "t": 71.116572,
+              "text": "iftia p",
+              "tokens": 1
+            },
+            {
+              "t": 71.380054,
+              "text": "achypt",
+              "tokens": 2
+            },
+            {
+              "t": 71.614725,
+              "text": "ila) at vents",
+              "tokens": 3
+            },
+            {
+              "t": 71.848297,
+              "text": " can",
+              "tokens": 1
+            },
+            {
+              "t": 72.08363,
+              "text": " exceed",
+              "tokens": 2
+            },
+            {
+              "t": 72.334947,
+              "text": " 2 m",
+              "tokens": 1
+            },
+            {
+              "t": 72.570275,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 72.795963,
+              "text": " rely",
+              "tokens": 1
+            },
+            {
+              "t": 73.036752,
+              "text": " on internal symb",
+              "tokens": 4
+            },
+            {
+              "t": 73.272159,
+              "text": "iotic bacteria",
+              "tokens": 4
+            },
+            {
+              "t": 73.511836,
+              "text": " for nutrition",
+              "tokens": 3
+            },
+            {
+              "t": 73.75934,
+              "text": ".\n10. Vent",
+              "tokens": 3
+            },
+            {
+              "t": 73.991984,
+              "text": " fields",
+              "tokens": 2
+            },
+            {
+              "t": 74.219343,
+              "text": " host",
+              "tokens": 1
+            },
+            {
+              "t": 74.456506,
+              "text": " endemic",
+              "tokens": 2
+            },
+            {
+              "t": 74.685986,
+              "text": " species like",
+              "tokens": 3
+            },
+            {
+              "t": 74.92739,
+              "text": " sc",
+              "tokens": 1
+            },
+            {
+              "t": 75.159508,
+              "text": "aly",
+              "tokens": 1
+            },
+            {
+              "t": 75.40515,
+              "text": "-foot sn",
+              "tokens": 2
+            },
+            {
+              "t": 75.653447,
+              "text": "ails with",
+              "tokens": 2
+            },
+            {
+              "t": 75.892905,
+              "text": " iron-s",
+              "tokens": 2
+            },
+            {
+              "t": 76.123024,
+              "text": "ulfide",
+              "tokens": 1
+            },
+            {
+              "t": 76.364273,
+              "text": " shells,",
+              "tokens": 2
+            },
+            {
+              "t": 76.594579,
+              "text": " sometimes",
+              "tokens": 3
+            },
+            {
+              "t": 76.84417,
+              "text": " called \"sea",
+              "tokens": 3
+            },
+            {
+              "t": 77.079546,
+              "text": " pang",
+              "tokens": 1
+            },
+            {
+              "t": 77.306768,
+              "text": "ol",
+              "tokens": 0
+            },
+            {
+              "t": 77.557901,
+              "text": "ins.\"\n11. Cold se",
+              "tokens": 5
+            },
+            {
+              "t": 77.794562,
+              "text": "eps leak",
+              "tokens": 2
+            },
+            {
+              "t": 78.016224,
+              "text": " methane",
+              "tokens": 2
+            },
+            {
+              "t": 78.247837,
+              "text": " and hydrogen sulf",
+              "tokens": 4
+            },
+            {
+              "t": 78.481156,
+              "text": "ide more",
+              "tokens": 2
+            },
+            {
+              "t": 78.720514,
+              "text": " slowly than",
+              "tokens": 3
+            },
+            {
+              "t": 78.956167,
+              "text": " vents and",
+              "tokens": 3
+            },
+            {
+              "t": 79.198354,
+              "text": " host",
+              "tokens": 1
+            },
+            {
+              "t": 79.435929,
+              "text": " mussels",
+              "tokens": 2
+            },
+            {
+              "t": 79.643156,
+              "text": ", tub",
+              "tokens": 1
+            },
+            {
+              "t": 79.854102,
+              "text": "ew",
+              "tokens": 1
+            },
+            {
+              "t": 80.063158,
+              "text": "orms, and ice",
+              "tokens": 3
+            },
+            {
+              "t": 80.269723,
+              "text": "-like",
+              "tokens": 1
+            },
+            {
+              "t": 80.477297,
+              "text": " methane",
+              "tokens": 2
+            },
+            {
+              "t": 80.690322,
+              "text": " hydrates.\n12. Meth",
+              "tokens": 5
+            },
+            {
+              "t": 80.890036,
+              "text": "ane hydrates are",
+              "tokens": 4
+            },
+            {
+              "t": 81.092314,
+              "text": " ice",
+              "tokens": 1
+            },
+            {
+              "t": 81.288432,
+              "text": "-like cages trapping",
+              "tokens": 5
+            },
+            {
+              "t": 81.496355,
+              "text": " methane,",
+              "tokens": 2
+            },
+            {
+              "t": 81.691451,
+              "text": " stable under deep",
+              "tokens": 5
+            },
+            {
+              "t": 81.904471,
+              "text": "-sea pressure",
+              "tokens": 3
+            },
+            {
+              "t": 82.110027,
+              "text": " and temperature, and a",
+              "tokens": 6
+            },
+            {
+              "t": 82.317569,
+              "text": " potential energy",
+              "tokens": 4
+            },
+            {
+              "t": 82.53289,
+              "text": " resource",
+              "tokens": 2
+            },
+            {
+              "t": 82.747036,
+              "text": ".\n13. Br",
+              "tokens": 2
+            },
+            {
+              "t": 82.945359,
+              "text": "ine",
+              "tokens": 1
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 3,
+          "prompt_sha256": "a561237d8299439e00bf7a5802b95c304a38e5bb0b78d9d5628ad71e0cc1a208",
+          "label": "ROBOTICS",
+          "subject": "practical robotics and embodied AI",
+          "scheduled_s": 3.00029,
+          "first_token_s": 53.934174,
+          "ttft_s": 50.933884,
+          "ended_s": 90.500192,
+          "completion_tokens": 400,
+          "prompt_tokens": 15809,
+          "decode_tok_s": 10.911771,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 53.934174,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 54.149678,
+              "text": ". Kinematic",
+              "tokens": 2
+            },
+            {
+              "t": 54.398013,
+              "text": " redundancy",
+              "tokens": 2
+            },
+            {
+              "t": 54.634258,
+              "text": " gives",
+              "tokens": 2
+            },
+            {
+              "t": 54.862025,
+              "text": " robots",
+              "tokens": 1
+            },
+            {
+              "t": 55.107143,
+              "text": " extra",
+              "tokens": 1
+            },
+            {
+              "t": 55.337499,
+              "text": " degrees of",
+              "tokens": 2
+            },
+            {
+              "t": 55.577205,
+              "text": " freedom beyond those",
+              "tokens": 4
+            },
+            {
+              "t": 55.820501,
+              "text": " needed for a task, letting",
+              "tokens": 6
+            },
+            {
+              "t": 56.064445,
+              "text": " them avoid",
+              "tokens": 2
+            },
+            {
+              "t": 56.304646,
+              "text": " joint",
+              "tokens": 1
+            },
+            {
+              "t": 56.539937,
+              "text": " limits",
+              "tokens": 1
+            },
+            {
+              "t": 56.768516,
+              "text": " and obstacles",
+              "tokens": 3
+            },
+            {
+              "t": 57.006699,
+              "text": " while keeping",
+              "tokens": 3
+            },
+            {
+              "t": 57.250537,
+              "text": " the end-eff",
+              "tokens": 2
+            },
+            {
+              "t": 57.472675,
+              "text": "ector on",
+              "tokens": 1
+            },
+            {
+              "t": 57.709008,
+              "text": " target.\n2. A",
+              "tokens": 3
+            },
+            {
+              "t": 57.945154,
+              "text": " six",
+              "tokens": 1
+            },
+            {
+              "t": 58.178884,
+              "text": "-axis",
+              "tokens": 1
+            },
+            {
+              "t": 58.410753,
+              "text": " arm",
+              "tokens": 0
+            },
+            {
+              "t": 58.647997,
+              "text": " needs full",
+              "tokens": 3
+            },
+            {
+              "t": 58.890856,
+              "text": " pose",
+              "tokens": 1
+            },
+            {
+              "t": 59.126275,
+              "text": " control",
+              "tokens": 1
+            },
+            {
+              "t": 59.350526,
+              "text": " (position",
+              "tokens": 2
+            },
+            {
+              "t": 59.598926,
+              "text": " plus",
+              "tokens": 1
+            },
+            {
+              "t": 59.837075,
+              "text": " orientation), while",
+              "tokens": 4
+            },
+            {
+              "t": 60.067449,
+              "text": " SC",
+              "tokens": 0
+            },
+            {
+              "t": 60.310821,
+              "text": "ARA",
+              "tokens": 1
+            },
+            {
+              "t": 60.547603,
+              "text": " robots",
+              "tokens": 1
+            },
+            {
+              "t": 60.79628,
+              "text": " trade",
+              "tokens": 2
+            },
+            {
+              "t": 61.019471,
+              "text": " vertical",
+              "tokens": 1
+            },
+            {
+              "t": 61.255528,
+              "text": " d",
+              "tokens": 1
+            },
+            {
+              "t": 61.496591,
+              "text": "exterity for speed",
+              "tokens": 3
+            },
+            {
+              "t": 61.742164,
+              "text": " in",
+              "tokens": 1
+            },
+            {
+              "t": 61.984387,
+              "text": " planar",
+              "tokens": 1
+            },
+            {
+              "t": 62.225248,
+              "text": " pick-and",
+              "tokens": 2
+            },
+            {
+              "t": 62.454674,
+              "text": "-place.\n3. In",
+              "tokens": 2
+            },
+            {
+              "t": 62.715277,
+              "text": "verse kin",
+              "tokens": 2
+            },
+            {
+              "t": 62.9525,
+              "text": "ematics can",
+              "tokens": 2
+            },
+            {
+              "t": 63.199669,
+              "text": " have multiple solutions; elbow",
+              "tokens": 6
+            },
+            {
+              "t": 63.4514,
+              "text": "-up",
+              "tokens": 1
+            },
+            {
+              "t": 63.767757,
+              "text": " and elbow-down post",
+              "tokens": 4
+            },
+            {
+              "t": 64.005448,
+              "text": "ures reach",
+              "tokens": 2
+            },
+            {
+              "t": 64.248791,
+              "text": " the same point",
+              "tokens": 2
+            },
+            {
+              "t": 64.486981,
+              "text": " with",
+              "tokens": 1
+            },
+            {
+              "t": 64.726471,
+              "text": " different arm",
+              "tokens": 3
+            },
+            {
+              "t": 64.983876,
+              "text": " configurations.\n4. Workspace",
+              "tokens": 6
+            },
+            {
+              "t": 65.207638,
+              "text": " is",
+              "tokens": 0
+            },
+            {
+              "t": 65.437318,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 65.685701,
+              "text": " set of reachable",
+              "tokens": 3
+            },
+            {
+              "t": 65.918561,
+              "text": " end",
+              "tokens": 1
+            },
+            {
+              "t": 66.157531,
+              "text": "-effector poses",
+              "tokens": 3
+            },
+            {
+              "t": 66.396283,
+              "text": ";",
+              "tokens": 0
+            },
+            {
+              "t": 66.634566,
+              "text": " d",
+              "tokens": 1
+            },
+            {
+              "t": 66.87714,
+              "text": "exter",
+              "tokens": 1
+            },
+            {
+              "t": 67.116669,
+              "text": "ous workspace is the subset",
+              "tokens": 5
+            },
+            {
+              "t": 67.366968,
+              "text": " where any",
+              "tokens": 2
+            },
+            {
+              "t": 67.609167,
+              "text": " orientation is achievable.\n5. Den",
+              "tokens": 6
+            },
+            {
+              "t": 67.829173,
+              "text": "avit",
+              "tokens": 1
+            },
+            {
+              "t": 68.068069,
+              "text": "-Harten",
+              "tokens": 1
+            },
+            {
+              "t": 68.289057,
+              "text": "berg parameters",
+              "tokens": 3
+            },
+            {
+              "t": 68.532693,
+              "text": " compact",
+              "tokens": 2
+            },
+            {
+              "t": 68.763261,
+              "text": "ly describe each",
+              "tokens": 3
+            },
+            {
+              "t": 69.002471,
+              "text": " link's geometry",
+              "tokens": 3
+            },
+            {
+              "t": 69.2365,
+              "text": " as",
+              "tokens": 1
+            },
+            {
+              "t": 69.480979,
+              "text": " four",
+              "tokens": 1
+            },
+            {
+              "t": 69.70773,
+              "text": " numbers",
+              "tokens": 1
+            },
+            {
+              "t": 69.946082,
+              "text": ": link",
+              "tokens": 1
+            },
+            {
+              "t": 70.169074,
+              "text": " length, twist",
+              "tokens": 3
+            },
+            {
+              "t": 70.400957,
+              "text": ", offset",
+              "tokens": 2
+            },
+            {
+              "t": 70.638172,
+              "text": ", and joint",
+              "tokens": 2
+            },
+            {
+              "t": 70.884969,
+              "text": " angle.\n6. Jacobian",
+              "tokens": 3
+            },
+            {
+              "t": 71.116202,
+              "text": " matrices map",
+              "tokens": 3
+            },
+            {
+              "t": 71.379983,
+              "text": " joint velocities",
+              "tokens": 3
+            },
+            {
+              "t": 71.614431,
+              "text": " to end-effector velocities",
+              "tokens": 5
+            },
+            {
+              "t": 71.84837,
+              "text": "; singularities",
+              "tokens": 3
+            },
+            {
+              "t": 72.08372,
+              "text": " occur where",
+              "tokens": 3
+            },
+            {
+              "t": 72.334629,
+              "text": " the Jacobian loses",
+              "tokens": 3
+            },
+            {
+              "t": 72.570193,
+              "text": " rank and",
+              "tokens": 2
+            },
+            {
+              "t": 72.795884,
+              "text": " control",
+              "tokens": 2
+            },
+            {
+              "t": 73.03659,
+              "text": " de",
+              "tokens": 0
+            },
+            {
+              "t": 73.27191,
+              "text": "grades.\n7. Near",
+              "tokens": 3
+            },
+            {
+              "t": 73.511633,
+              "text": " singular",
+              "tokens": 2
+            },
+            {
+              "t": 73.759287,
+              "text": "ities, small",
+              "tokens": 2
+            },
+            {
+              "t": 73.991678,
+              "text": " joint motions",
+              "tokens": 3
+            },
+            {
+              "t": 74.219045,
+              "text": " produce",
+              "tokens": 1
+            },
+            {
+              "t": 74.456186,
+              "text": " huge Cartesian motions",
+              "tokens": 5
+            },
+            {
+              "t": 74.685824,
+              "text": ", so planners",
+              "tokens": 2
+            },
+            {
+              "t": 74.927031,
+              "text": " damp",
+              "tokens": 1
+            },
+            {
+              "t": 75.159697,
+              "text": " or re",
+              "tokens": 1
+            },
+            {
+              "t": 75.405013,
+              "text": "configure to",
+              "tokens": 3
+            },
+            {
+              "t": 75.653146,
+              "text": " avoid them.\n8. Torque",
+              "tokens": 4
+            },
+            {
+              "t": 75.89312,
+              "text": " control at joints",
+              "tokens": 4
+            },
+            {
+              "t": 76.122819,
+              "text": " enables",
+              "tokens": 1
+            },
+            {
+              "t": 76.363973,
+              "text": " compliant",
+              "tokens": 2
+            },
+            {
+              "t": 76.594383,
+              "text": " interaction",
+              "tokens": 2
+            },
+            {
+              "t": 76.843861,
+              "text": ", whereas pure",
+              "tokens": 3
+            },
+            {
+              "t": 77.079225,
+              "text": " position control makes",
+              "tokens": 5
+            },
+            {
+              "t": 77.307478,
+              "text": " contact",
+              "tokens": 1
+            },
+            {
+              "t": 77.557576,
+              "text": " tasks",
+              "tokens": 1
+            },
+            {
+              "t": 77.79427,
+              "text": " brittle.\n9. Imp",
+              "tokens": 3
+            },
+            {
+              "t": 78.016024,
+              "text": "edance control regulates",
+              "tokens": 5
+            },
+            {
+              "t": 78.247475,
+              "text": " the relationship",
+              "tokens": 3
+            },
+            {
+              "t": 78.480818,
+              "text": " between force",
+              "tokens": 3
+            },
+            {
+              "t": 78.720432,
+              "text": " and displacement",
+              "tokens": 3
+            },
+            {
+              "t": 78.955857,
+              "text": ", making",
+              "tokens": 2
+            },
+            {
+              "t": 79.197342,
+              "text": " robots safe",
+              "tokens": 2
+            },
+            {
+              "t": 79.4356,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 79.643055,
+              "text": " effective",
+              "tokens": 2
+            },
+            {
+              "t": 79.853716,
+              "text": " for",
+              "tokens": 1
+            },
+            {
+              "t": 80.062938,
+              "text": " contact",
+              "tokens": 1
+            },
+            {
+              "t": 80.269522,
+              "text": "-rich",
+              "tokens": 1
+            },
+            {
+              "t": 80.477205,
+              "text": " manipulation",
+              "tokens": 3
+            },
+            {
+              "t": 80.689813,
+              "text": ".\n10. Admitt",
+              "tokens": 2
+            },
+            {
+              "t": 80.889953,
+              "text": "ance control is",
+              "tokens": 3
+            },
+            {
+              "t": 81.092119,
+              "text": " the dual",
+              "tokens": 2
+            },
+            {
+              "t": 81.288238,
+              "text": ":",
+              "tokens": 0
+            },
+            {
+              "t": 81.496281,
+              "text": " it senses",
+              "tokens": 2
+            },
+            {
+              "t": 81.691262,
+              "text": " force and modifies",
+              "tokens": 3
+            },
+            {
+              "t": 81.904276,
+              "text": " motion",
+              "tokens": 2
+            },
+            {
+              "t": 82.109866,
+              "text": ", useful when",
+              "tokens": 2
+            },
+            {
+              "t": 82.317364,
+              "text": " the hardware",
+              "tokens": 3
+            },
+            {
+              "t": 82.532819,
+              "text": " only",
+              "tokens": 1
+            },
+            {
+              "t": 82.746879,
+              "text": " has",
+              "tokens": 0
+            },
+            {
+              "t": 82.945159,
+              "text": " position-controlled",
+              "tokens": 4
+            },
+            {
+              "t": 83.115567,
+              "text": " joints.\n11. Hybrid",
+              "tokens": 4
+            },
+            {
+              "t": 83.278285,
+              "text": " force",
+              "tokens": 1
+            },
+            {
+              "t": 83.43661,
+              "text": "/position",
+              "tokens": 2
+            },
+            {
+              "t": 83.615963,
+              "text": " control splits task",
+              "tokens": 4
+            },
+            {
+              "t": 83.775791,
+              "text": " space",
+              "tokens": 1
+            },
+            {
+              "t": 83.891752,
+              "text": ":",
+              "tokens": 0
+            },
+            {
+              "t": 84.006753,
+              "text": " force-controlled",
+              "tokens": 3
+            },
+            {
+              "t": 84.129033,
+              "text": " along constrained",
+              "tokens": 4
+            },
+            {
+              "t": 84.23643,
+              "text": " directions",
+              "tokens": 2
+            },
+            {
+              "t": 84.356002,
+              "text": ", position-controlled along free",
+              "tokens": 6
+            },
+            {
+              "t": 84.489888,
+              "text": " directions.\n12. Gravity",
+              "tokens": 5
+            },
+            {
+              "t": 84.594023,
+              "text": " compensation",
+              "tokens": 2
+            },
+            {
+              "t": 84.714625,
+              "text": " lets",
+              "tokens": 1
+            },
+            {
+              "t": 84.83827,
+              "text": " lightweight",
+              "tokens": 3
+            },
+            {
+              "t": 84.947628,
+              "text": " arms feel",
+              "tokens": 2
+            },
+            {
+              "t": 85.066533,
+              "text": " nearly",
+              "tokens": 1
+            },
+            {
+              "t": 85.196148,
+              "text": " weightless,",
+              "tokens": 2
+            },
+            {
+              "t": 85.307467,
+              "text": " enabling hand",
+              "tokens": 3
+            },
+            {
+              "t": 85.441763,
+              "text": "-guid",
+              "tokens": 1
+            },
+            {
+              "t": 85.54909,
+              "text": "ing for",
+              "tokens": 1
+            },
+            {
+              "t": 85.668162,
+              "text": " programming",
+              "tokens": 3
+            },
+            {
+              "t": 85.786425,
+              "text": " by",
+              "tokens": 0
+            },
+            {
+              "t": 85.907888,
+              "text": " demonstration",
+              "tokens": 3
+            },
+            {
+              "t": 86.03095,
+              "text": ".\n13. Collabor",
+              "tokens": 3
+            },
+            {
+              "t": 86.143193,
+              "text": "ative robots",
+              "tokens": 2
+            },
+            {
+              "t": 86.26407,
+              "text": " limit",
+              "tokens": 1
+            },
+            {
+              "t": 86.38775,
+              "text": " power",
+              "tokens": 1
+            },
+            {
+              "t": 86.497841,
+              "text": " and force",
+              "tokens": 2
+            },
+            {
+              "t": 86.614991,
+              "text": " (",
+              "tokens": 1
+            },
+            {
+              "t": 86.73979,
+              "text": "ISO/",
+              "tokens": 0
+            },
+            {
+              "t": 86.852657,
+              "text": "TS 150",
+              "tokens": 1
+            },
+            {
+              "t": 86.971294,
+              "text": "66 specifies",
+              "tokens": 3
+            },
+            {
+              "t": 87.086433,
+              "text": " thresholds",
+              "tokens": 2
+            },
+            {
+              "t": 87.206394,
+              "text": ") so incidental",
+              "tokens": 3
+            },
+            {
+              "t": 87.326798,
+              "text": " contact causes",
+              "tokens": 3
+            },
+            {
+              "t": 87.447783,
+              "text": " no",
+              "tokens": 0
+            },
+            {
+              "t": 87.567861,
+              "text": " harm",
+              "tokens": 1
+            },
+            {
+              "t": 87.687186,
+              "text": ".\n14. Safety",
+              "tokens": 3
+            },
+            {
+              "t": 87.806758,
+              "text": "-rated",
+              "tokens": 1
+            },
+            {
+              "t": 87.920267,
+              "text": " monitored",
+              "tokens": 2
+            },
+            {
+              "t": 88.025681,
+              "text": " stop,",
+              "tokens": 1
+            },
+            {
+              "t": 88.132445,
+              "text": " hand",
+              "tokens": 1
+            },
+            {
+              "t": 88.248683,
+              "text": " guiding, and speed-and",
+              "tokens": 4
+            },
+            {
+              "t": 88.363728,
+              "text": "-separation monitoring",
+              "tokens": 5
+            },
+            {
+              "t": 88.483049,
+              "text": " are the four",
+              "tokens": 2
+            },
+            {
+              "t": 88.605471,
+              "text": " ISO",
+              "tokens": 1
+            },
+            {
+              "t": 88.729555,
+              "text": " ",
+              "tokens": 0
+            },
+            {
+              "t": 88.852925,
+              "text": "10218",
+              "tokens": 1
+            },
+            {
+              "t": 88.975914,
+              "text": " collaborative modes.\n15. Speed",
+              "tokens": 6
+            },
+            {
+              "t": 89.084948,
+              "text": "-and",
+              "tokens": 1
+            },
+            {
+              "t": 89.20246,
+              "text": "-separation monitoring slows",
+              "tokens": 5
+            },
+            {
+              "t": 89.315598,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 89.432712,
+              "text": " robot as human",
+              "tokens": 3
+            },
+            {
+              "t": 89.554054,
+              "text": " distance shr",
+              "tokens": 2
+            },
+            {
+              "t": 89.67327,
+              "text": "inks, reaching",
+              "tokens": 3
+            },
+            {
+              "t": 89.792959,
+              "text": " full speed only",
+              "tokens": 3
+            },
+            {
+              "t": 89.918946,
+              "text": " at",
+              "tokens": 1
+            },
+            {
+              "t": 90.05316,
+              "text": " safe separation.\n16. Li",
+              "tokens": 4
+            },
+            {
+              "t": 90.161412,
+              "text": "D",
+              "tokens": 1
+            },
+            {
+              "t": 90.270642,
+              "text": "AR returns",
+              "tokens": 1
+            },
+            {
+              "t": 90.382365,
+              "text": " point",
+              "tokens": 2
+            },
+            {
+              "t": 90.500126,
+              "text": " clouds",
+              "tokens": 1
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  },
+  {
+    "title": "SparkGLM \u00b7 Red Hat NVFP4",
+    "subtitle": "Native CUTLASS \u00b7 DFlash2 k7 \u00b7 512K configured \u00b7 2,048-token prefill",
+    "detail": "Median of 3: 89.24s \u00b7 17.93 output tok/s including all waiting",
+    "capture": {
+      "schema": 1,
+      "model": "sparkglm-package",
+      "streams": 4,
+      "max_tokens": 400,
+      "prompt_style": "field-guide",
+      "prompt_salt": "current-best-video-20260903-r1",
+      "cache_salt": "official-quant-video-r2",
+      "prompt_tokens_target": 16000,
+      "stagger_ms": 1000,
+      "recipe_label": "redhat NVFP4 / DFlash2 k7 / 512K / 9GiB / prefill 2048",
+      "engine_commit": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+      "wall_s": 89.243079,
+      "total_completion_tokens": 1600,
+      "aggregate_decode_tok_s": 20.401901,
+      "requests": [
+        {
+          "index": 0,
+          "prompt_sha256": "d707531169c27ae0b2fb19c9db120947738378f30793ed03f8611c3472d41bd6",
+          "label": "SYSTEMS",
+          "subject": "distributed systems engineering",
+          "scheduled_s": 0.004061,
+          "first_token_s": 11.015076,
+          "ttft_s": 11.011015,
+          "ended_s": 80.136595,
+          "completion_tokens": 400,
+          "prompt_tokens": 15807,
+          "decode_tok_s": 5.772443,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 11.015076,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 12.258493,
+              "text": ". Distributed",
+              "tokens": 3
+            },
+            {
+              "t": 13.509639,
+              "text": " systems coordinate",
+              "tokens": 3
+            },
+            {
+              "t": 14.731599,
+              "text": " independent",
+              "tokens": 2
+            },
+            {
+              "t": 15.949353,
+              "text": " network",
+              "tokens": 2
+            },
+            {
+              "t": 17.181365,
+              "text": "ed computers",
+              "tokens": 2
+            },
+            {
+              "t": 18.401882,
+              "text": " to",
+              "tokens": 1
+            },
+            {
+              "t": 19.572849,
+              "text": " appear as one",
+              "tokens": 2
+            },
+            {
+              "t": 20.822242,
+              "text": " coherent system.\n2. Lat",
+              "tokens": 5
+            },
+            {
+              "t": 22.066328,
+              "text": "ency,",
+              "tokens": 1
+            },
+            {
+              "t": 23.315341,
+              "text": " bandwidth, and reliability",
+              "tokens": 5
+            },
+            {
+              "t": 24.544223,
+              "text": " of",
+              "tokens": 1
+            },
+            {
+              "t": 25.791613,
+              "text": " networks fundamentally",
+              "tokens": 4
+            },
+            {
+              "t": 27.053208,
+              "text": " shape",
+              "tokens": 1
+            },
+            {
+              "t": 28.272906,
+              "text": " system design",
+              "tokens": 3
+            },
+            {
+              "t": 29.522447,
+              "text": " choices",
+              "tokens": 1
+            },
+            {
+              "t": 30.786101,
+              "text": ".\n3. Partial",
+              "tokens": 2
+            },
+            {
+              "t": 32.004606,
+              "text": " failure is the default",
+              "tokens": 5
+            },
+            {
+              "t": 33.288913,
+              "text": " condition",
+              "tokens": 2
+            },
+            {
+              "t": 34.519413,
+              "text": "; components",
+              "tokens": 2
+            },
+            {
+              "t": 35.720215,
+              "text": " fail",
+              "tokens": 1
+            },
+            {
+              "t": 36.960444,
+              "text": " independently and",
+              "tokens": 3
+            },
+            {
+              "t": 37.177327,
+              "text": " unpredictably.\n4. The",
+              "tokens": 4
+            },
+            {
+              "t": 38.456619,
+              "text": " CAP theorem",
+              "tokens": 3
+            },
+            {
+              "t": 38.667417,
+              "text": " limits",
+              "tokens": 1
+            },
+            {
+              "t": 39.923759,
+              "text": " guarantees",
+              "tokens": 2
+            },
+            {
+              "t": 40.140876,
+              "text": ":",
+              "tokens": 0
+            },
+            {
+              "t": 41.395315,
+              "text": " during",
+              "tokens": 1
+            },
+            {
+              "t": 41.610191,
+              "text": " a network",
+              "tokens": 2
+            },
+            {
+              "t": 42.865954,
+              "text": " partition, choose consistency",
+              "tokens": 6
+            },
+            {
+              "t": 43.087122,
+              "text": " or availability.\n5. PAC",
+              "tokens": 5
+            },
+            {
+              "t": 44.354411,
+              "text": "EL",
+              "tokens": 0
+            },
+            {
+              "t": 44.562421,
+              "text": "C extends",
+              "tokens": 2
+            },
+            {
+              "t": 45.819599,
+              "text": " CAP: even",
+              "tokens": 1
+            },
+            {
+              "t": 46.033595,
+              "text": " without",
+              "tokens": 2
+            },
+            {
+              "t": 47.292976,
+              "text": " partitions, there",
+              "tokens": 3
+            },
+            {
+              "t": 47.50175,
+              "text": " is a latency-vers",
+              "tokens": 4
+            },
+            {
+              "t": 48.764126,
+              "text": "us-consistency tradeoff",
+              "tokens": 4
+            },
+            {
+              "t": 49.972775,
+              "text": ".\n6. Event",
+              "tokens": 2
+            },
+            {
+              "t": 50.741106,
+              "text": "ual",
+              "tokens": 1
+            },
+            {
+              "t": 51.132744,
+              "text": " consistency permits",
+              "tokens": 3
+            },
+            {
+              "t": 51.371518,
+              "text": " temporary",
+              "tokens": 2
+            },
+            {
+              "t": 51.59814,
+              "text": " divergence, conver",
+              "tokens": 4
+            },
+            {
+              "t": 51.840224,
+              "text": "ging once",
+              "tokens": 1
+            },
+            {
+              "t": 52.077474,
+              "text": " updates",
+              "tokens": 2
+            },
+            {
+              "t": 52.306731,
+              "text": " cease",
+              "tokens": 1
+            },
+            {
+              "t": 52.556572,
+              "text": ".\n7. Strong",
+              "tokens": 2
+            },
+            {
+              "t": 52.79188,
+              "text": " consistency requires",
+              "tokens": 4
+            },
+            {
+              "t": 53.027103,
+              "text": " coordination",
+              "tokens": 3
+            },
+            {
+              "t": 53.282226,
+              "text": ", typically",
+              "tokens": 2
+            },
+            {
+              "t": 53.516809,
+              "text": " via consensus",
+              "tokens": 2
+            },
+            {
+              "t": 53.758418,
+              "text": " or quorum protocols.\n8. Qu",
+              "tokens": 5
+            },
+            {
+              "t": 53.999514,
+              "text": "orum",
+              "tokens": 1
+            },
+            {
+              "t": 54.23734,
+              "text": " systems require",
+              "tokens": 3
+            },
+            {
+              "t": 54.476343,
+              "text": " overlapping",
+              "tokens": 2
+            },
+            {
+              "t": 54.714448,
+              "text": " read",
+              "tokens": 1
+            },
+            {
+              "t": 54.964712,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 55.197953,
+              "text": " write sets;",
+              "tokens": 2
+            },
+            {
+              "t": 55.435344,
+              "text": " N",
+              "tokens": 1
+            },
+            {
+              "t": 55.681539,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 55.917347,
+              "text": " R, W with R+W",
+              "tokens": 3
+            },
+            {
+              "t": 56.158511,
+              "text": ">N ensures",
+              "tokens": 1
+            },
+            {
+              "t": 56.412438,
+              "text": " consistency.\n9. Cons",
+              "tokens": 4
+            },
+            {
+              "t": 56.650261,
+              "text": "ensus protocols like",
+              "tokens": 4
+            },
+            {
+              "t": 56.881538,
+              "text": " Paxos and Raft agree",
+              "tokens": 4
+            },
+            {
+              "t": 57.12182,
+              "text": " on a single value",
+              "tokens": 3
+            },
+            {
+              "t": 57.360036,
+              "text": " despite",
+              "tokens": 2
+            },
+            {
+              "t": 57.616344,
+              "text": " failures.\n10. Raft elect",
+              "tokens": 5
+            },
+            {
+              "t": 57.838186,
+              "text": "s a",
+              "tokens": 0
+            },
+            {
+              "t": 58.078428,
+              "text": " leader via",
+              "tokens": 2
+            },
+            {
+              "t": 58.320233,
+              "text": " majority",
+              "tokens": 2
+            },
+            {
+              "t": 58.559368,
+              "text": " vote",
+              "tokens": 1
+            },
+            {
+              "t": 58.802781,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 59.047244,
+              "text": " replic",
+              "tokens": 1
+            },
+            {
+              "t": 59.283799,
+              "text": "ates a",
+              "tokens": 1
+            },
+            {
+              "t": 59.532072,
+              "text": " log of",
+              "tokens": 1
+            },
+            {
+              "t": 59.768836,
+              "text": " commands",
+              "tokens": 2
+            },
+            {
+              "t": 60.003411,
+              "text": ".\n11. Paxos achieves",
+              "tokens": 4
+            },
+            {
+              "t": 60.244252,
+              "text": " consensus",
+              "tokens": 2
+            },
+            {
+              "t": 60.484714,
+              "text": " through prepare",
+              "tokens": 3
+            },
+            {
+              "t": 60.725736,
+              "text": " and",
+              "tokens": 1
+            },
+            {
+              "t": 60.958781,
+              "text": " accept",
+              "tokens": 1
+            },
+            {
+              "t": 61.198532,
+              "text": " phases",
+              "tokens": 1
+            },
+            {
+              "t": 61.43856,
+              "text": " with proposal",
+              "tokens": 3
+            },
+            {
+              "t": 61.677505,
+              "text": " numbers.\n12. Multi",
+              "tokens": 3
+            },
+            {
+              "t": 61.919491,
+              "text": "-Pax",
+              "tokens": 1
+            },
+            {
+              "t": 62.150528,
+              "text": "os amort",
+              "tokens": 2
+            },
+            {
+              "t": 62.373276,
+              "text": "izes leader",
+              "tokens": 2
+            },
+            {
+              "t": 62.612204,
+              "text": " election across",
+              "tokens": 3
+            },
+            {
+              "t": 62.846022,
+              "text": " many",
+              "tokens": 1
+            },
+            {
+              "t": 63.08278,
+              "text": " log entries.\n13. FLP",
+              "tokens": 4
+            },
+            {
+              "t": 63.315654,
+              "text": " imposs",
+              "tokens": 1
+            },
+            {
+              "t": 63.557742,
+              "text": "ibility:",
+              "tokens": 1
+            },
+            {
+              "t": 63.784064,
+              "text": " deterministic",
+              "tokens": 3
+            },
+            {
+              "t": 64.02064,
+              "text": " consensus cannot guarantee termination",
+              "tokens": 7
+            },
+            {
+              "t": 64.242734,
+              "text": " in async",
+              "tokens": 2
+            },
+            {
+              "t": 64.485348,
+              "text": " systems with",
+              "tokens": 3
+            },
+            {
+              "t": 64.717463,
+              "text": " one",
+              "tokens": 0
+            },
+            {
+              "t": 64.939035,
+              "text": " crash.\n14. Practical",
+              "tokens": 4
+            },
+            {
+              "t": 65.171483,
+              "text": " consensus uses",
+              "tokens": 3
+            },
+            {
+              "t": 65.387611,
+              "text": " timeouts or failure",
+              "tokens": 4
+            },
+            {
+              "t": 65.629858,
+              "text": " detectors",
+              "tokens": 2
+            },
+            {
+              "t": 65.878386,
+              "text": " to make progress despite",
+              "tokens": 4
+            },
+            {
+              "t": 66.176324,
+              "text": " F",
+              "tokens": 1
+            },
+            {
+              "t": 66.43866,
+              "text": "LP.\n15. Leader leases",
+              "tokens": 4
+            },
+            {
+              "t": 66.681282,
+              "text": " bound",
+              "tokens": 1
+            },
+            {
+              "t": 66.922146,
+              "text": " stal",
+              "tokens": 1
+            },
+            {
+              "t": 67.153891,
+              "text": "eness and",
+              "tokens": 2
+            },
+            {
+              "t": 67.394955,
+              "text": " reduce",
+              "tokens": 1
+            },
+            {
+              "t": 67.633312,
+              "text": " qu",
+              "tokens": 0
+            },
+            {
+              "t": 67.87704,
+              "text": "orum reads during normal",
+              "tokens": 5
+            },
+            {
+              "t": 68.114814,
+              "text": " operation.\n16. Vector",
+              "tokens": 4
+            },
+            {
+              "t": 68.362883,
+              "text": " clocks capture",
+              "tokens": 3
+            },
+            {
+              "t": 68.588646,
+              "text": " causality;",
+              "tokens": 2
+            },
+            {
+              "t": 68.828858,
+              "text": " concurrent",
+              "tokens": 2
+            },
+            {
+              "t": 69.083587,
+              "text": " writes",
+              "tokens": 1
+            },
+            {
+              "t": 69.311976,
+              "text": " produce",
+              "tokens": 2
+            },
+            {
+              "t": 69.557857,
+              "text": " siblings",
+              "tokens": 2
+            },
+            {
+              "t": 69.805096,
+              "text": " requiring",
+              "tokens": 1
+            },
+            {
+              "t": 70.037422,
+              "text": " resolution",
+              "tokens": 3
+            },
+            {
+              "t": 70.285752,
+              "text": ".\n17. Lam",
+              "tokens": 1
+            },
+            {
+              "t": 70.541886,
+              "text": "port clocks provide",
+              "tokens": 4
+            },
+            {
+              "t": 70.787228,
+              "text": " a",
+              "tokens": 0
+            },
+            {
+              "t": 71.025352,
+              "text": " total order",
+              "tokens": 2
+            },
+            {
+              "t": 71.26664,
+              "text": " consistent",
+              "tokens": 3
+            },
+            {
+              "t": 71.514423,
+              "text": " with causality but",
+              "tokens": 3
+            },
+            {
+              "t": 71.754919,
+              "text": " not true",
+              "tokens": 2
+            },
+            {
+              "t": 71.993877,
+              "text": " time",
+              "tokens": 1
+            },
+            {
+              "t": 72.233222,
+              "text": ".\n18. Hybrid",
+              "tokens": 2
+            },
+            {
+              "t": 72.464716,
+              "text": " logical",
+              "tokens": 2
+            },
+            {
+              "t": 72.701624,
+              "text": " clocks combine physical",
+              "tokens": 4
+            },
+            {
+              "t": 72.938878,
+              "text": " time with logical",
+              "tokens": 3
+            },
+            {
+              "t": 73.166423,
+              "text": " counters for ordering",
+              "tokens": 5
+            },
+            {
+              "t": 73.407757,
+              "text": ".\n19. Clock",
+              "tokens": 2
+            },
+            {
+              "t": 73.649901,
+              "text": " skew",
+              "tokens": 1
+            },
+            {
+              "t": 73.865823,
+              "text": " makes",
+              "tokens": 1
+            },
+            {
+              "t": 74.101538,
+              "text": " physical",
+              "tokens": 1
+            },
+            {
+              "t": 74.346353,
+              "text": " timestamps unreliable for",
+              "tokens": 5
+            },
+            {
+              "t": 74.58273,
+              "text": " ordering distributed",
+              "tokens": 4
+            },
+            {
+              "t": 74.832966,
+              "text": " events.\n20. Two-phase commit",
+              "tokens": 6
+            },
+            {
+              "t": 75.056602,
+              "text": " blocks",
+              "tokens": 1
+            },
+            {
+              "t": 75.305712,
+              "text": " if",
+              "tokens": 1
+            },
+            {
+              "t": 75.540466,
+              "text": " the",
+              "tokens": 0
+            },
+            {
+              "t": 75.774682,
+              "text": " coordinator fails between",
+              "tokens": 5
+            },
+            {
+              "t": 76.014896,
+              "text": " prepare and commit",
+              "tokens": 4
+            },
+            {
+              "t": 76.251768,
+              "text": ".\n21. Three",
+              "tokens": 2
+            },
+            {
+              "t": 76.491841,
+              "text": "-phase commit reduces",
+              "tokens": 4
+            },
+            {
+              "t": 76.687958,
+              "text": " blocking but cannot",
+              "tokens": 4
+            },
+            {
+              "t": 76.916179,
+              "text": " survive",
+              "tokens": 1
+            },
+            {
+              "t": 77.076548,
+              "text": " certain",
+              "tokens": 2
+            },
+            {
+              "t": 77.246843,
+              "text": " partition scenarios",
+              "tokens": 3
+            },
+            {
+              "t": 77.421611,
+              "text": ".\n22. Saga",
+              "tokens": 2
+            },
+            {
+              "t": 77.593851,
+              "text": " patterns",
+              "tokens": 2
+            },
+            {
+              "t": 77.749525,
+              "text": " replace distributed transactions with",
+              "tokens": 7
+            },
+            {
+              "t": 77.922682,
+              "text": " sequ",
+              "tokens": 1
+            },
+            {
+              "t": 78.092071,
+              "text": "enced local transactions",
+              "tokens": 5
+            },
+            {
+              "t": 78.267955,
+              "text": " and compensations",
+              "tokens": 3
+            },
+            {
+              "t": 78.443566,
+              "text": ".\n23. Idemp",
+              "tokens": 2
+            },
+            {
+              "t": 78.607284,
+              "text": "otency keys",
+              "tokens": 2
+            },
+            {
+              "t": 78.782302,
+              "text": " make retries safe",
+              "tokens": 3
+            },
+            {
+              "t": 78.9541,
+              "text": " for",
+              "tokens": 1
+            },
+            {
+              "t": 79.125233,
+              "text": " non",
+              "tokens": 1
+            },
+            {
+              "t": 79.294542,
+              "text": "-idempotent operations.\n24. Exactly",
+              "tokens": 7
+            },
+            {
+              "t": 79.458228,
+              "text": "-once delivery",
+              "tokens": 2
+            },
+            {
+              "t": 79.631832,
+              "text": " is impossible",
+              "tokens": 3
+            },
+            {
+              "t": 79.791612,
+              "text": "; systems",
+              "tokens": 2
+            },
+            {
+              "t": 79.963605,
+              "text": " achieve effectively",
+              "tokens": 3
+            },
+            {
+              "t": 80.13653,
+              "text": "-once via",
+              "tokens": 2
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 1,
+          "prompt_sha256": "6f296bb9589ee4abfea65f454e7d6f2fd76e84f048f61b22ff977cc05878a07e",
+          "label": "SPACE",
+          "subject": "surprising facts about the solar system",
+          "scheduled_s": 1.000103,
+          "first_token_s": 20.821969,
+          "ttft_s": 19.821866,
+          "ended_s": 76.251015,
+          "completion_tokens": 400,
+          "prompt_tokens": 15810,
+          "decode_tok_s": 7.198392,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 20.821969,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 22.066082,
+              "text": ". Venus",
+              "tokens": 2
+            },
+            {
+              "t": 23.315107,
+              "text": " rotates",
+              "tokens": 2
+            },
+            {
+              "t": 24.543956,
+              "text": " backwards",
+              "tokens": 2
+            },
+            {
+              "t": 25.791359,
+              "text": " compared",
+              "tokens": 2
+            },
+            {
+              "t": 27.052818,
+              "text": " to most planets, so its Sun",
+              "tokens": 7
+            },
+            {
+              "t": 28.272539,
+              "text": " rises in",
+              "tokens": 2
+            },
+            {
+              "t": 29.522109,
+              "text": " the west.\n2. A",
+              "tokens": 4
+            },
+            {
+              "t": 30.7858,
+              "text": " day on Venus lasts",
+              "tokens": 5
+            },
+            {
+              "t": 32.003961,
+              "text": " longer",
+              "tokens": 1
+            },
+            {
+              "t": 33.289066,
+              "text": " than its",
+              "tokens": 3
+            },
+            {
+              "t": 34.51866,
+              "text": " year,",
+              "tokens": 1
+            },
+            {
+              "t": 35.719527,
+              "text": " taking 243",
+              "tokens": 3
+            },
+            {
+              "t": 36.959802,
+              "text": " Earth days to spin",
+              "tokens": 4
+            },
+            {
+              "t": 37.176966,
+              "text": " once",
+              "tokens": 1
+            },
+            {
+              "t": 38.456311,
+              "text": ".\n3. Jupiter",
+              "tokens": 3
+            },
+            {
+              "t": 38.66702,
+              "text": "'s Great",
+              "tokens": 2
+            },
+            {
+              "t": 39.923186,
+              "text": " Red Spot is a storm",
+              "tokens": 5
+            },
+            {
+              "t": 40.140498,
+              "text": " wider",
+              "tokens": 2
+            },
+            {
+              "t": 41.395744,
+              "text": " than Earth that",
+              "tokens": 3
+            },
+            {
+              "t": 41.609791,
+              "text": " has raged for centuries.\n4.",
+              "tokens": 7
+            },
+            {
+              "t": 42.865616,
+              "text": " Saturn would",
+              "tokens": 3
+            },
+            {
+              "t": 43.08671,
+              "text": " float in",
+              "tokens": 3
+            },
+            {
+              "t": 44.354163,
+              "text": " water because",
+              "tokens": 3
+            },
+            {
+              "t": 44.562204,
+              "text": " its average",
+              "tokens": 3
+            },
+            {
+              "t": 45.819255,
+              "text": " density is lower",
+              "tokens": 4
+            },
+            {
+              "t": 46.033503,
+              "text": " than water",
+              "tokens": 3
+            },
+            {
+              "t": 47.292348,
+              "text": "'s.\n5. Neptune",
+              "tokens": 3
+            },
+            {
+              "t": 47.501369,
+              "text": " was",
+              "tokens": 1
+            },
+            {
+              "t": 48.763899,
+              "text": " found",
+              "tokens": 1
+            },
+            {
+              "t": 49.972461,
+              "text": " by mathematics",
+              "tokens": 4
+            },
+            {
+              "t": 50.740898,
+              "text": " before",
+              "tokens": 2
+            },
+            {
+              "t": 51.132357,
+              "text": " telesc",
+              "tokens": 1
+            },
+            {
+              "t": 51.37095,
+              "text": "opes, predicted",
+              "tokens": 4
+            },
+            {
+              "t": 51.598285,
+              "text": " from Uran",
+              "tokens": 2
+            },
+            {
+              "t": 51.839816,
+              "text": "us's w",
+              "tokens": 2
+            },
+            {
+              "t": 52.077409,
+              "text": "obble.\n6. Uran",
+              "tokens": 3
+            },
+            {
+              "t": 52.306812,
+              "text": "us rolls",
+              "tokens": 2
+            },
+            {
+              "t": 52.556152,
+              "text": " on its side, tilted",
+              "tokens": 5
+            },
+            {
+              "t": 52.791295,
+              "text": " about",
+              "tokens": 1
+            },
+            {
+              "t": 53.026274,
+              "text": " 98 degrees, likely from",
+              "tokens": 6
+            },
+            {
+              "t": 53.281888,
+              "text": " an",
+              "tokens": 1
+            },
+            {
+              "t": 53.516696,
+              "text": " ancient giant",
+              "tokens": 3
+            },
+            {
+              "t": 53.75825,
+              "text": " impact.\n7. On Neptune",
+              "tokens": 6
+            },
+            {
+              "t": 53.999228,
+              "text": ", winds",
+              "tokens": 1
+            },
+            {
+              "t": 54.236751,
+              "text": " exceed",
+              "tokens": 2
+            },
+            {
+              "t": 54.475792,
+              "text": " 2",
+              "tokens": 1
+            },
+            {
+              "t": 54.714291,
+              "text": ",000 km/h",
+              "tokens": 2
+            },
+            {
+              "t": 54.96484,
+              "text": ", the",
+              "tokens": 1
+            },
+            {
+              "t": 55.197657,
+              "text": " fastest in",
+              "tokens": 3
+            },
+            {
+              "t": 55.435047,
+              "text": " the solar system.\n8. Mercury's",
+              "tokens": 7
+            },
+            {
+              "t": 55.681275,
+              "text": " day is longer",
+              "tokens": 4
+            },
+            {
+              "t": 55.917427,
+              "text": " than its year due",
+              "tokens": 4
+            },
+            {
+              "t": 56.158365,
+              "text": " to its",
+              "tokens": 2
+            },
+            {
+              "t": 56.412544,
+              "text": " slow spin",
+              "tokens": 2
+            },
+            {
+              "t": 56.649902,
+              "text": " and fast",
+              "tokens": 2
+            },
+            {
+              "t": 56.881199,
+              "text": " orbit.\n9. The Sun holds",
+              "tokens": 6
+            },
+            {
+              "t": 57.121556,
+              "text": " ",
+              "tokens": 0
+            },
+            {
+              "t": 57.359568,
+              "text": "99.86",
+              "tokens": 1
+            },
+            {
+              "t": 57.615805,
+              "text": "% of all",
+              "tokens": 2
+            },
+            {
+              "t": 57.837633,
+              "text": " mass",
+              "tokens": 2
+            },
+            {
+              "t": 58.078302,
+              "text": " in the solar system.\n10. Jupiter",
+              "tokens": 8
+            },
+            {
+              "t": 58.319992,
+              "text": "'s moon",
+              "tokens": 1
+            },
+            {
+              "t": 58.559116,
+              "text": " Gan",
+              "tokens": 1
+            },
+            {
+              "t": 58.802573,
+              "text": "ymede is",
+              "tokens": 2
+            },
+            {
+              "t": 59.046985,
+              "text": " larger than the planet",
+              "tokens": 6
+            },
+            {
+              "t": 59.283562,
+              "text": " Mercury.\n11. Saturn",
+              "tokens": 5
+            },
+            {
+              "t": 59.531797,
+              "text": "'s moon Titan",
+              "tokens": 3
+            },
+            {
+              "t": 59.768511,
+              "text": " has lakes",
+              "tokens": 2
+            },
+            {
+              "t": 60.00302,
+              "text": " and rivers of",
+              "tokens": 3
+            },
+            {
+              "t": 60.244406,
+              "text": " liquid methane,",
+              "tokens": 4
+            },
+            {
+              "t": 60.48444,
+              "text": " not water",
+              "tokens": 3
+            },
+            {
+              "t": 60.725583,
+              "text": ".\n12. Olympus",
+              "tokens": 3
+            },
+            {
+              "t": 60.95896,
+              "text": " Mons on",
+              "tokens": 2
+            },
+            {
+              "t": 61.198739,
+              "text": " Mars is nearly",
+              "tokens": 3
+            },
+            {
+              "t": 61.438458,
+              "text": " three times the",
+              "tokens": 4
+            },
+            {
+              "t": 61.676989,
+              "text": " height of Mount",
+              "tokens": 4
+            },
+            {
+              "t": 61.919358,
+              "text": " Everest.\n13. Mars",
+              "tokens": 5
+            },
+            {
+              "t": 62.150203,
+              "text": " hosts",
+              "tokens": 1
+            },
+            {
+              "t": 62.373465,
+              "text": " Val",
+              "tokens": 1
+            },
+            {
+              "t": 62.612079,
+              "text": "les Mar",
+              "tokens": 2
+            },
+            {
+              "t": 62.845666,
+              "text": "ineris, a canyon system stretching",
+              "tokens": 8
+            },
+            {
+              "t": 63.082319,
+              "text": " over 4,000 km.\n14",
+              "tokens": 4
+            },
+            {
+              "t": 63.315514,
+              "text": ". Jupiter's moon",
+              "tokens": 4
+            },
+            {
+              "t": 63.55726,
+              "text": " Europa likely",
+              "tokens": 4
+            },
+            {
+              "t": 63.783985,
+              "text": " hides a salty",
+              "tokens": 3
+            },
+            {
+              "t": 64.020504,
+              "text": " ocean with",
+              "tokens": 3
+            },
+            {
+              "t": 64.242855,
+              "text": " more water",
+              "tokens": 2
+            },
+            {
+              "t": 64.485268,
+              "text": " than Earth's",
+              "tokens": 3
+            },
+            {
+              "t": 64.717178,
+              "text": ".\n15. Saturn",
+              "tokens": 3
+            },
+            {
+              "t": 64.938918,
+              "text": "'s rings",
+              "tokens": 2
+            },
+            {
+              "t": 65.171205,
+              "text": " are mostly",
+              "tokens": 3
+            },
+            {
+              "t": 65.387441,
+              "text": " water",
+              "tokens": 1
+            },
+            {
+              "t": 65.629693,
+              "text": " ice",
+              "tokens": 1
+            },
+            {
+              "t": 65.878233,
+              "text": " and may",
+              "tokens": 2
+            },
+            {
+              "t": 66.176252,
+              "text": " be younger",
+              "tokens": 3
+            },
+            {
+              "t": 66.438245,
+              "text": " than the",
+              "tokens": 2
+            },
+            {
+              "t": 66.680853,
+              "text": " dinosaurs.\n16. The",
+              "tokens": 5
+            },
+            {
+              "t": 66.921785,
+              "text": " asteroid",
+              "tokens": 2
+            },
+            {
+              "t": 67.153604,
+              "text": " belt's",
+              "tokens": 2
+            },
+            {
+              "t": 67.395159,
+              "text": " total mass is less",
+              "tokens": 4
+            },
+            {
+              "t": 67.632951,
+              "text": " than the Moon's.\n",
+              "tokens": 4
+            },
+            {
+              "t": 67.876835,
+              "text": "17. Com",
+              "tokens": 2
+            },
+            {
+              "t": 68.114731,
+              "text": "ets'",
+              "tokens": 1
+            },
+            {
+              "t": 68.36233,
+              "text": " tails always",
+              "tokens": 3
+            },
+            {
+              "t": 68.588119,
+              "text": " point away",
+              "tokens": 3
+            },
+            {
+              "t": 68.828785,
+              "text": " from the Sun, pushed",
+              "tokens": 5
+            },
+            {
+              "t": 69.083503,
+              "text": " by solar",
+              "tokens": 2
+            },
+            {
+              "t": 69.311651,
+              "text": " wind.\n18. Io",
+              "tokens": 3
+            },
+            {
+              "t": 69.557929,
+              "text": " is",
+              "tokens": 1
+            },
+            {
+              "t": 69.805023,
+              "text": " the most volcanically",
+              "tokens": 5
+            },
+            {
+              "t": 70.03697,
+              "text": " active body, with hundreds",
+              "tokens": 7
+            },
+            {
+              "t": 70.28514,
+              "text": " of erupt",
+              "tokens": 2
+            },
+            {
+              "t": 70.541081,
+              "text": "ing volcanoes.\n19. Enc",
+              "tokens": 5
+            },
+            {
+              "t": 70.787044,
+              "text": "eladus shoots",
+              "tokens": 4
+            },
+            {
+              "t": 71.025026,
+              "text": " water ge",
+              "tokens": 2
+            },
+            {
+              "t": 71.266315,
+              "text": "ysers from its south",
+              "tokens": 5
+            },
+            {
+              "t": 71.514125,
+              "text": " pole into space",
+              "tokens": 3
+            },
+            {
+              "t": 71.754596,
+              "text": ".\n20. Pluto",
+              "tokens": 3
+            },
+            {
+              "t": 71.993452,
+              "text": "'s heart",
+              "tokens": 2
+            },
+            {
+              "t": 72.232746,
+              "text": "-shaped",
+              "tokens": 2
+            },
+            {
+              "t": 72.464101,
+              "text": " region, S",
+              "tokens": 2
+            },
+            {
+              "t": 72.701237,
+              "text": "putnik",
+              "tokens": 2
+            },
+            {
+              "t": 72.938692,
+              "text": " Planitia, is a nitrogen",
+              "tokens": 5
+            },
+            {
+              "t": 73.166522,
+              "text": " ice",
+              "tokens": 1
+            },
+            {
+              "t": 73.40745,
+              "text": " glacier.\n21. The Kuiper Belt",
+              "tokens": 7
+            },
+            {
+              "t": 73.649513,
+              "text": " holds",
+              "tokens": 2
+            },
+            {
+              "t": 73.865567,
+              "text": " icy",
+              "tokens": 1
+            },
+            {
+              "t": 74.101245,
+              "text": " bodies beyond",
+              "tokens": 3
+            },
+            {
+              "t": 74.346105,
+              "text": " Neptune, including",
+              "tokens": 5
+            },
+            {
+              "t": 74.582496,
+              "text": " dwarf",
+              "tokens": 1
+            },
+            {
+              "t": 74.832673,
+              "text": " planets.\n22. One",
+              "tokens": 4
+            },
+            {
+              "t": 75.056446,
+              "text": " Pl",
+              "tokens": 1
+            },
+            {
+              "t": 75.305562,
+              "text": "ut",
+              "tokens": 1
+            },
+            {
+              "t": 75.539995,
+              "text": "onian",
+              "tokens": 1
+            },
+            {
+              "t": 75.774257,
+              "text": " year equals",
+              "tokens": 3
+            },
+            {
+              "t": 76.014708,
+              "text": " 248",
+              "tokens": 1
+            },
+            {
+              "t": 76.250851,
+              "text": " Earth years.\n",
+              "tokens": 3
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 2,
+          "prompt_sha256": "71172ad1d03e1d2c24fb87d34dac58b378047d859461ba3b6fc24c0e248d122a",
+          "label": "OCEAN",
+          "subject": "deep-ocean science and exploration",
+          "scheduled_s": 2.000049,
+          "first_token_s": 30.786304,
+          "ttft_s": 28.786255,
+          "ended_s": 76.687999,
+          "completion_tokens": 400,
+          "prompt_tokens": 15810,
+          "decode_tok_s": 8.69249,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 30.786304,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 32.004305,
+              "text": ". The",
+              "tokens": 2
+            },
+            {
+              "t": 33.28917,
+              "text": " ocean's",
+              "tokens": 2
+            },
+            {
+              "t": 34.519088,
+              "text": " average depth",
+              "tokens": 3
+            },
+            {
+              "t": 35.719902,
+              "text": " is about 3,6",
+              "tokens": 4
+            },
+            {
+              "t": 36.96015,
+              "text": "88 meters,",
+              "tokens": 2
+            },
+            {
+              "t": 37.177162,
+              "text": " covering roughly 71",
+              "tokens": 5
+            },
+            {
+              "t": 38.456915,
+              "text": "% of Earth",
+              "tokens": 3
+            },
+            {
+              "t": 38.667227,
+              "text": "'s surface.\n2. The deepest",
+              "tokens": 7
+            },
+            {
+              "t": 39.923521,
+              "text": " known",
+              "tokens": 1
+            },
+            {
+              "t": 40.140641,
+              "text": " point,",
+              "tokens": 2
+            },
+            {
+              "t": 41.395553,
+              "text": " Challenger",
+              "tokens": 3
+            },
+            {
+              "t": 41.609999,
+              "text": " Deep in",
+              "tokens": 2
+            },
+            {
+              "t": 42.86584,
+              "text": " the Mariana T",
+              "tokens": 3
+            },
+            {
+              "t": 43.086931,
+              "text": "rench, reaches about",
+              "tokens": 6
+            },
+            {
+              "t": 44.354705,
+              "text": " 10,9",
+              "tokens": 1
+            },
+            {
+              "t": 44.562271,
+              "text": "35 meters.\n3. Pressure",
+              "tokens": 6
+            },
+            {
+              "t": 45.819498,
+              "text": " at Challenger",
+              "tokens": 3
+            },
+            {
+              "t": 46.033343,
+              "text": " Deep exceeds",
+              "tokens": 4
+            },
+            {
+              "t": 47.29269,
+              "text": " 1,000 atmos",
+              "tokens": 3
+            },
+            {
+              "t": 47.501569,
+              "text": "pheres\u2014over 15",
+              "tokens": 4
+            },
+            {
+              "t": 48.764063,
+              "text": ",000 pounds",
+              "tokens": 3
+            },
+            {
+              "t": 49.97266,
+              "text": " per square",
+              "tokens": 2
+            },
+            {
+              "t": 50.741369,
+              "text": " inch.\n4. Sun",
+              "tokens": 4
+            },
+            {
+              "t": 51.133049,
+              "text": "light penetr",
+              "tokens": 3
+            },
+            {
+              "t": 51.371825,
+              "text": "ates only the",
+              "tokens": 3
+            },
+            {
+              "t": 51.598038,
+              "text": " upper ~200",
+              "tokens": 3
+            },
+            {
+              "t": 51.840346,
+              "text": " meters;",
+              "tokens": 2
+            },
+            {
+              "t": 52.077206,
+              "text": " below lies",
+              "tokens": 3
+            },
+            {
+              "t": 52.307083,
+              "text": " the twilight",
+              "tokens": 3
+            },
+            {
+              "t": 52.556467,
+              "text": " (",
+              "tokens": 1
+            },
+            {
+              "t": 52.792185,
+              "text": "mesop",
+              "tokens": 1
+            },
+            {
+              "t": 53.026869,
+              "text": "elagic) zone.\n5. The",
+              "tokens": 5
+            },
+            {
+              "t": 53.282024,
+              "text": " midnight",
+              "tokens": 3
+            },
+            {
+              "t": 53.516397,
+              "text": " zone (b",
+              "tokens": 2
+            },
+            {
+              "t": 53.758349,
+              "text": "athyp",
+              "tokens": 1
+            },
+            {
+              "t": 53.999346,
+              "text": "elagic) extends from",
+              "tokens": 5
+            },
+            {
+              "t": 54.237555,
+              "text": " ",
+              "tokens": 0
+            },
+            {
+              "t": 54.476567,
+              "text": "1,000 to 4,000",
+              "tokens": 4
+            },
+            {
+              "t": 54.714504,
+              "text": " meters and",
+              "tokens": 3
+            },
+            {
+              "t": 54.965062,
+              "text": " is completely",
+              "tokens": 3
+            },
+            {
+              "t": 55.197765,
+              "text": " dark.\n6. The",
+              "tokens": 4
+            },
+            {
+              "t": 55.435161,
+              "text": " abyssal zone (4",
+              "tokens": 4
+            },
+            {
+              "t": 55.681456,
+              "text": ",000\u20136,000 m",
+              "tokens": 4
+            },
+            {
+              "t": 55.917632,
+              "text": ") covers",
+              "tokens": 2
+            },
+            {
+              "t": 56.158443,
+              "text": " more",
+              "tokens": 1
+            },
+            {
+              "t": 56.412293,
+              "text": " than half the",
+              "tokens": 3
+            },
+            {
+              "t": 56.650158,
+              "text": " planet's surface.\n7. The had",
+              "tokens": 8
+            },
+            {
+              "t": 56.881328,
+              "text": "al zone,",
+              "tokens": 2
+            },
+            {
+              "t": 57.121891,
+              "text": " below 6,000 m",
+              "tokens": 4
+            },
+            {
+              "t": 57.359775,
+              "text": ", occurs only",
+              "tokens": 3
+            },
+            {
+              "t": 57.616076,
+              "text": " in trenches",
+              "tokens": 3
+            },
+            {
+              "t": 57.838377,
+              "text": " and is named",
+              "tokens": 3
+            },
+            {
+              "t": 58.078523,
+              "text": " after H",
+              "tokens": 3
+            },
+            {
+              "t": 58.320163,
+              "text": "ades.\n8. Had",
+              "tokens": 3
+            },
+            {
+              "t": 58.559293,
+              "text": "al amph",
+              "tokens": 1
+            },
+            {
+              "t": 58.802984,
+              "text": "ipods survive",
+              "tokens": 4
+            },
+            {
+              "t": 59.047173,
+              "text": " at pressures",
+              "tokens": 3
+            },
+            {
+              "t": 59.283726,
+              "text": " equivalent",
+              "tokens": 3
+            },
+            {
+              "t": 59.531929,
+              "text": " to ~",
+              "tokens": 1
+            },
+            {
+              "t": 59.76864,
+              "text": "1,100",
+              "tokens": 2
+            },
+            {
+              "t": 60.002844,
+              "text": " kg",
+              "tokens": 0
+            },
+            {
+              "t": 60.243727,
+              "text": " on every",
+              "tokens": 3
+            },
+            {
+              "t": 60.484804,
+              "text": " square centimeter",
+              "tokens": 4
+            },
+            {
+              "t": 60.725814,
+              "text": ".\n9. Deep",
+              "tokens": 3
+            },
+            {
+              "t": 60.958668,
+              "text": "-sea temperatures",
+              "tokens": 4
+            },
+            {
+              "t": 61.19839,
+              "text": " hover",
+              "tokens": 2
+            },
+            {
+              "t": 61.438866,
+              "text": " near 1\u20134\u00b0C, except",
+              "tokens": 5
+            },
+            {
+              "t": 61.677192,
+              "text": " near hydro",
+              "tokens": 3
+            },
+            {
+              "t": 61.919819,
+              "text": "thermal vents.\n10. Hydro",
+              "tokens": 6
+            },
+            {
+              "t": 62.151098,
+              "text": "thermal vents were",
+              "tokens": 5
+            },
+            {
+              "t": 62.373624,
+              "text": " first discovered in",
+              "tokens": 5
+            },
+            {
+              "t": 62.611855,
+              "text": " 1977",
+              "tokens": 1
+            },
+            {
+              "t": 62.84546,
+              "text": " near the Gal\u00e1",
+              "tokens": 4
+            },
+            {
+              "t": 63.08256,
+              "text": "pagos Rift",
+              "tokens": 3
+            },
+            {
+              "t": 63.315321,
+              "text": ".\n11. Vent",
+              "tokens": 2
+            },
+            {
+              "t": 63.557421,
+              "text": " fluids can exceed 400",
+              "tokens": 6
+            },
+            {
+              "t": 63.783894,
+              "text": "\u00b0C yet",
+              "tokens": 2
+            },
+            {
+              "t": 64.020392,
+              "text": " remain liquid",
+              "tokens": 3
+            },
+            {
+              "t": 64.242658,
+              "text": " due to immense",
+              "tokens": 4
+            },
+            {
+              "t": 64.485559,
+              "text": " pressure.\n12. \"",
+              "tokens": 4
+            },
+            {
+              "t": 64.717308,
+              "text": "Black smokers",
+              "tokens": 4
+            },
+            {
+              "t": 64.938618,
+              "text": "\" emit dark",
+              "tokens": 3
+            },
+            {
+              "t": 65.171395,
+              "text": ", mineral-rich pl",
+              "tokens": 4
+            },
+            {
+              "t": 65.387531,
+              "text": "umes at temperatures",
+              "tokens": 5
+            },
+            {
+              "t": 65.629958,
+              "text": " up to ~",
+              "tokens": 2
+            },
+            {
+              "t": 65.87846,
+              "text": "400\u00b0C.\n13. Vent ecosystems",
+              "tokens": 7
+            },
+            {
+              "t": 66.176075,
+              "text": " thrive without",
+              "tokens": 4
+            },
+            {
+              "t": 66.438847,
+              "text": " sunlight via",
+              "tokens": 3
+            },
+            {
+              "t": 66.681093,
+              "text": " chemosynthesis,",
+              "tokens": 5
+            },
+            {
+              "t": 66.922058,
+              "text": " using",
+              "tokens": 1
+            },
+            {
+              "t": 67.153811,
+              "text": " hydrogen",
+              "tokens": 2
+            },
+            {
+              "t": 67.394854,
+              "text": " sulfide as",
+              "tokens": 3
+            },
+            {
+              "t": 67.633128,
+              "text": " energy.\n14. Giant tube worms (",
+              "tokens": 8
+            },
+            {
+              "t": 67.877162,
+              "text": "Riftia",
+              "tokens": 2
+            },
+            {
+              "t": 68.114987,
+              "text": " p",
+              "tokens": 0
+            },
+            {
+              "t": 68.362703,
+              "text": "achy",
+              "tokens": 1
+            },
+            {
+              "t": 68.588324,
+              "text": "ptila) can grow",
+              "tokens": 4
+            },
+            {
+              "t": 68.828695,
+              "text": " over",
+              "tokens": 1
+            },
+            {
+              "t": 69.083743,
+              "text": " 2 meters long",
+              "tokens": 4
+            },
+            {
+              "t": 69.311792,
+              "text": " with no mouth",
+              "tokens": 4
+            },
+            {
+              "t": 69.557752,
+              "text": " or gut.\n15. Vent",
+              "tokens": 4
+            },
+            {
+              "t": 69.804901,
+              "text": " organisms",
+              "tokens": 3
+            },
+            {
+              "t": 70.037647,
+              "text": "'",
+              "tokens": 0
+            },
+            {
+              "t": 70.285966,
+              "text": " symbiotic",
+              "tokens": 2
+            },
+            {
+              "t": 70.541663,
+              "text": " bacteria oxid",
+              "tokens": 4
+            },
+            {
+              "t": 70.786893,
+              "text": "ize hydrogen sulfide to",
+              "tokens": 6
+            },
+            {
+              "t": 71.025276,
+              "text": " produce organic carbon",
+              "tokens": 6
+            },
+            {
+              "t": 71.266563,
+              "text": ".\n16. Cold",
+              "tokens": 3
+            },
+            {
+              "t": 71.514336,
+              "text": " seeps",
+              "tokens": 1
+            },
+            {
+              "t": 71.754838,
+              "text": ", where methane",
+              "tokens": 4
+            },
+            {
+              "t": 71.994117,
+              "text": " escapes",
+              "tokens": 2
+            },
+            {
+              "t": 72.232979,
+              "text": " the",
+              "tokens": 1
+            },
+            {
+              "t": 72.464529,
+              "text": " seab",
+              "tokens": 1
+            },
+            {
+              "t": 72.701388,
+              "text": "ed, host",
+              "tokens": 2
+            },
+            {
+              "t": 72.939116,
+              "text": " chem",
+              "tokens": 2
+            },
+            {
+              "t": 73.166828,
+              "text": "osynthetic communities",
+              "tokens": 5
+            },
+            {
+              "t": 73.407873,
+              "text": " too",
+              "tokens": 1
+            },
+            {
+              "t": 73.649821,
+              "text": ".\n17. Meth",
+              "tokens": 3
+            },
+            {
+              "t": 73.865915,
+              "text": "ane hydrates",
+              "tokens": 3
+            },
+            {
+              "t": 74.101457,
+              "text": "\u2014",
+              "tokens": 1
+            },
+            {
+              "t": 74.346256,
+              "text": "ice-like methane",
+              "tokens": 4
+            },
+            {
+              "t": 74.582939,
+              "text": " trapped",
+              "tokens": 2
+            },
+            {
+              "t": 74.832879,
+              "text": " in sed",
+              "tokens": 2
+            },
+            {
+              "t": 75.056678,
+              "text": "iments\u2014may hold",
+              "tokens": 4
+            },
+            {
+              "t": 75.305775,
+              "text": " vast",
+              "tokens": 2
+            },
+            {
+              "t": 75.540224,
+              "text": " carbon reserves.\n18. Deep",
+              "tokens": 6
+            },
+            {
+              "t": 75.774414,
+              "text": "-sea sed",
+              "tokens": 2
+            },
+            {
+              "t": 76.01477,
+              "text": "iments accumulate",
+              "tokens": 5
+            },
+            {
+              "t": 76.25095,
+              "text": " at",
+              "tokens": 0
+            },
+            {
+              "t": 76.491603,
+              "text": " ~",
+              "tokens": 1
+            },
+            {
+              "t": 76.68787,
+              "text": "1\u2013",
+              "tokens": 1
+            }
+          ],
+          "error": null
+        },
+        {
+          "index": 3,
+          "prompt_sha256": "a561237d8299439e00bf7a5802b95c304a38e5bb0b78d9d5628ad71e0cc1a208",
+          "label": "ROBOTICS",
+          "subject": "practical robotics and embodied AI",
+          "scheduled_s": 3.000483,
+          "first_token_s": 51.132616,
+          "ttft_s": 48.132133,
+          "ended_s": 89.243079,
+          "completion_tokens": 400,
+          "prompt_tokens": 15809,
+          "decode_tok_s": 10.469566,
+          "token_count_method": "final_usage_weighted_by_delta_chars",
+          "events": [
+            {
+              "t": 51.132616,
+              "text": "1",
+              "tokens": 0
+            },
+            {
+              "t": 51.371239,
+              "text": ". Mobile",
+              "tokens": 2
+            },
+            {
+              "t": 51.597949,
+              "text": " robots rely",
+              "tokens": 2
+            },
+            {
+              "t": 51.840131,
+              "text": " on kinematic",
+              "tokens": 3
+            },
+            {
+              "t": 52.077755,
+              "text": " models;",
+              "tokens": 2
+            },
+            {
+              "t": 52.306645,
+              "text": " differential-drive",
+              "tokens": 4
+            },
+            {
+              "t": 52.556692,
+              "text": " platforms",
+              "tokens": 2
+            },
+            {
+              "t": 52.791595,
+              "text": " cannot",
+              "tokens": 1
+            },
+            {
+              "t": 53.026543,
+              "text": " move",
+              "tokens": 1
+            },
+            {
+              "t": 53.281645,
+              "text": " sideways",
+              "tokens": 2
+            },
+            {
+              "t": 53.51692,
+              "text": ", while",
+              "tokens": 1
+            },
+            {
+              "t": 53.758059,
+              "text": " omn",
+              "tokens": 1
+            },
+            {
+              "t": 53.998977,
+              "text": "idirectional platforms",
+              "tokens": 5
+            },
+            {
+              "t": 54.237071,
+              "text": " use me",
+              "tokens": 1
+            },
+            {
+              "t": 54.475994,
+              "text": "can",
+              "tokens": 1
+            },
+            {
+              "t": 54.71417,
+              "text": "um or",
+              "tokens": 1
+            },
+            {
+              "t": 54.964613,
+              "text": " Swedish wheels for",
+              "tokens": 4
+            },
+            {
+              "t": 55.198106,
+              "text": " hol",
+              "tokens": 1
+            },
+            {
+              "t": 55.435254,
+              "text": "onomic",
+              "tokens": 1
+            },
+            {
+              "t": 55.681194,
+              "text": " motion.\n2. Sensor",
+              "tokens": 4
+            },
+            {
+              "t": 55.917273,
+              "text": " fusion",
+              "tokens": 1
+            },
+            {
+              "t": 56.158177,
+              "text": " typically",
+              "tokens": 2
+            },
+            {
+              "t": 56.412048,
+              "text": " combines wheel",
+              "tokens": 3
+            },
+            {
+              "t": 56.649681,
+              "text": " od",
+              "tokens": 1
+            },
+            {
+              "t": 56.881752,
+              "text": "ometry, IMU, and Li",
+              "tokens": 4
+            },
+            {
+              "t": 57.121692,
+              "text": "DAR via",
+              "tokens": 1
+            },
+            {
+              "t": 57.359665,
+              "text": " an",
+              "tokens": 1
+            },
+            {
+              "t": 57.615529,
+              "text": " Extended Kalman",
+              "tokens": 3
+            },
+            {
+              "t": 57.837928,
+              "text": " Filter or",
+              "tokens": 2
+            },
+            {
+              "t": 58.07863,
+              "text": " factor",
+              "tokens": 2
+            },
+            {
+              "t": 58.320099,
+              "text": "-graph",
+              "tokens": 1
+            },
+            {
+              "t": 58.559223,
+              "text": " smoothing",
+              "tokens": 2
+            },
+            {
+              "t": 58.80269,
+              "text": " to stabilize",
+              "tokens": 3
+            },
+            {
+              "t": 59.047103,
+              "text": " pose",
+              "tokens": 1
+            },
+            {
+              "t": 59.283655,
+              "text": " estimates",
+              "tokens": 2
+            },
+            {
+              "t": 59.532009,
+              "text": ".\n3. Wheel",
+              "tokens": 2
+            },
+            {
+              "t": 59.768727,
+              "text": " odometry drifts",
+              "tokens": 3
+            },
+            {
+              "t": 60.003296,
+              "text": " un",
+              "tokens": 1
+            },
+            {
+              "t": 60.243902,
+              "text": "boundedly over distance",
+              "tokens": 4
+            },
+            {
+              "t": 60.484606,
+              "text": ",",
+              "tokens": 1
+            },
+            {
+              "t": 60.725659,
+              "text": " so absolute",
+              "tokens": 2
+            },
+            {
+              "t": 60.958561,
+              "text": " references",
+              "tokens": 2
+            },
+            {
+              "t": 61.198297,
+              "text": " like",
+              "tokens": 1
+            },
+            {
+              "t": 61.438759,
+              "text": " LiDAR scan",
+              "tokens": 3
+            },
+            {
+              "t": 61.677435,
+              "text": " matching",
+              "tokens": 1
+            },
+            {
+              "t": 61.919725,
+              "text": ", GPS",
+              "tokens": 1
+            },
+            {
+              "t": 62.150811,
+              "text": ", or visual",
+              "tokens": 3
+            },
+            {
+              "t": 62.373532,
+              "text": " landmarks are needed",
+              "tokens": 4
+            },
+            {
+              "t": 62.61214,
+              "text": " for long",
+              "tokens": 2
+            },
+            {
+              "t": 62.845767,
+              "text": "-range",
+              "tokens": 1
+            },
+            {
+              "t": 63.082437,
+              "text": " navigation",
+              "tokens": 2
+            },
+            {
+              "t": 63.315586,
+              "text": ".\n4. Visual",
+              "tokens": 3
+            },
+            {
+              "t": 63.557631,
+              "text": " SLAM",
+              "tokens": 1
+            },
+            {
+              "t": 63.784158,
+              "text": " systems such",
+              "tokens": 2
+            },
+            {
+              "t": 64.02057,
+              "text": " as OR",
+              "tokens": 2
+            },
+            {
+              "t": 64.242794,
+              "text": "B-S",
+              "tokens": 0
+            },
+            {
+              "t": 64.485456,
+              "text": "LAM track sparse",
+              "tokens": 4
+            },
+            {
+              "t": 64.717406,
+              "text": " feature",
+              "tokens": 1
+            },
+            {
+              "t": 64.938704,
+              "text": " points,",
+              "tokens": 2
+            },
+            {
+              "t": 65.171308,
+              "text": " while LiDAR",
+              "tokens": 2
+            },
+            {
+              "t": 65.387685,
+              "text": "-in",
+              "tokens": 1
+            },
+            {
+              "t": 65.629781,
+              "text": "ertial od",
+              "tokens": 2
+            },
+            {
+              "t": 65.878309,
+              "text": "ometry systems",
+              "tokens": 3
+            },
+            {
+              "t": 66.175952,
+              "text": " like LO",
+              "tokens": 1
+            },
+            {
+              "t": 66.438413,
+              "text": "AM",
+              "tokens": 1
+            },
+            {
+              "t": 66.680961,
+              "text": " excel",
+              "tokens": 1
+            },
+            {
+              "t": 66.92221,
+              "text": " in",
+              "tokens": 1
+            },
+            {
+              "t": 67.153716,
+              "text": " low",
+              "tokens": 0
+            },
+            {
+              "t": 67.394711,
+              "text": "-text",
+              "tokens": 1
+            },
+            {
+              "t": 67.633208,
+              "text": "ure, large",
+              "tokens": 2
+            },
+            {
+              "t": 67.876919,
+              "text": "-scale outdoor",
+              "tokens": 3
+            },
+            {
+              "t": 68.115241,
+              "text": " scenes",
+              "tokens": 2
+            },
+            {
+              "t": 68.362558,
+              "text": ".\n5. Loop",
+              "tokens": 2
+            },
+            {
+              "t": 68.588196,
+              "text": " closure",
+              "tokens": 1
+            },
+            {
+              "t": 68.828551,
+              "text": "\u2014",
+              "tokens": 1
+            },
+            {
+              "t": 69.08365,
+              "text": "recogn",
+              "tokens": 1
+            },
+            {
+              "t": 69.31188,
+              "text": "izing a previously visited",
+              "tokens": 6
+            },
+            {
+              "t": 69.557662,
+              "text": " place\u2014corrects accumulated",
+              "tokens": 5
+            },
+            {
+              "t": 69.804821,
+              "text": " drift; bag",
+              "tokens": 3
+            },
+            {
+              "t": 70.037321,
+              "text": "-of-",
+              "tokens": 1
+            },
+            {
+              "t": 70.285444,
+              "text": "words and",
+              "tokens": 1
+            },
+            {
+              "t": 70.541389,
+              "text": " scan",
+              "tokens": 1
+            },
+            {
+              "t": 70.7873,
+              "text": "-context",
+              "tokens": 2
+            },
+            {
+              "t": 71.02518,
+              "text": " descriptors",
+              "tokens": 3
+            },
+            {
+              "t": 71.266464,
+              "text": " are common",
+              "tokens": 2
+            },
+            {
+              "t": 71.514258,
+              "text": " place",
+              "tokens": 1
+            },
+            {
+              "t": 71.754762,
+              "text": "-rec",
+              "tokens": 1
+            },
+            {
+              "t": 71.993659,
+              "text": "ognition tools",
+              "tokens": 3
+            },
+            {
+              "t": 72.233289,
+              "text": ".\n6. Occup",
+              "tokens": 2
+            },
+            {
+              "t": 72.464279,
+              "text": "ancy grid",
+              "tokens": 2
+            },
+            {
+              "t": 72.700975,
+              "text": " maps",
+              "tokens": 1
+            },
+            {
+              "t": 72.939226,
+              "text": " store",
+              "tokens": 1
+            },
+            {
+              "t": 73.16663,
+              "text": " per",
+              "tokens": 1
+            },
+            {
+              "t": 73.407255,
+              "text": "-cell probability of",
+              "tokens": 4
+            },
+            {
+              "t": 73.649698,
+              "text": " obstruction",
+              "tokens": 2
+            },
+            {
+              "t": 73.865761,
+              "text": ", updated",
+              "tokens": 2
+            },
+            {
+              "t": 74.10136,
+              "text": " with log",
+              "tokens": 2
+            },
+            {
+              "t": 74.346195,
+              "text": "-odds",
+              "tokens": 1
+            },
+            {
+              "t": 74.582632,
+              "text": " from",
+              "tokens": 1
+            },
+            {
+              "t": 74.832782,
+              "text": " ray",
+              "tokens": 1
+            },
+            {
+              "t": 75.056551,
+              "text": "-c",
+              "tokens": 0
+            },
+            {
+              "t": 75.305646,
+              "text": "asting sensor",
+              "tokens": 3
+            },
+            {
+              "t": 75.540288,
+              "text": " models.\n7. Path",
+              "tokens": 3
+            },
+            {
+              "t": 75.774072,
+              "text": " planners",
+              "tokens": 2
+            },
+            {
+              "t": 76.014645,
+              "text": " split",
+              "tokens": 1
+            },
+            {
+              "t": 76.250684,
+              "text": " into graph",
+              "tokens": 3
+            },
+            {
+              "t": 76.491493,
+              "text": "-search",
+              "tokens": 1
+            },
+            {
+              "t": 76.687778,
+              "text": " (A*,",
+              "tokens": 1
+            },
+            {
+              "t": 76.916048,
+              "text": " Dijkstra), sampling-based",
+              "tokens": 6
+            },
+            {
+              "t": 77.076478,
+              "text": " (R",
+              "tokens": 0
+            },
+            {
+              "t": 77.246775,
+              "text": "RT, PR",
+              "tokens": 1
+            },
+            {
+              "t": 77.421544,
+              "text": "M), and optimization",
+              "tokens": 5
+            },
+            {
+              "t": 77.593666,
+              "text": "-based (CH",
+              "tokens": 2
+            },
+            {
+              "t": 77.749351,
+              "text": "OMP",
+              "tokens": 0
+            },
+            {
+              "t": 77.922491,
+              "text": ", ST",
+              "tokens": 1
+            },
+            {
+              "t": 78.091883,
+              "text": "OMP",
+              "tokens": 1
+            },
+            {
+              "t": 78.267888,
+              "text": ",",
+              "tokens": 0
+            },
+            {
+              "t": 78.443502,
+              "text": " trajectory",
+              "tokens": 2
+            },
+            {
+              "t": 78.607215,
+              "text": " smoothing",
+              "tokens": 2
+            },
+            {
+              "t": 78.782154,
+              "text": ") families.\n8. A*",
+              "tokens": 4
+            },
+            {
+              "t": 78.953947,
+              "text": " optim",
+              "tokens": 1
+            },
+            {
+              "t": 79.125048,
+              "text": "ality depends",
+              "tokens": 3
+            },
+            {
+              "t": 79.294354,
+              "text": " on an",
+              "tokens": 1
+            },
+            {
+              "t": 79.458045,
+              "text": " admissible heuristic; Eu",
+              "tokens": 5
+            },
+            {
+              "t": 79.631635,
+              "text": "clidean distance",
+              "tokens": 3
+            },
+            {
+              "t": 79.791471,
+              "text": " is admissible",
+              "tokens": 3
+            },
+            {
+              "t": 79.963393,
+              "text": " for grid",
+              "tokens": 2
+            },
+            {
+              "t": 80.136318,
+              "text": " maps",
+              "tokens": 1
+            },
+            {
+              "t": 80.310023,
+              "text": ", but",
+              "tokens": 1
+            },
+            {
+              "t": 80.435425,
+              "text": " inflated",
+              "tokens": 2
+            },
+            {
+              "t": 80.561913,
+              "text": " heuristics",
+              "tokens": 2
+            },
+            {
+              "t": 80.689777,
+              "text": " trade optim",
+              "tokens": 3
+            },
+            {
+              "t": 80.815612,
+              "text": "ality for speed.\n9. Sampling-based",
+              "tokens": 7
+            },
+            {
+              "t": 80.931528,
+              "text": " planners are",
+              "tokens": 2
+            },
+            {
+              "t": 81.054407,
+              "text": " probabilistically",
+              "tokens": 4
+            },
+            {
+              "t": 81.18064,
+              "text": " complete:",
+              "tokens": 2
+            },
+            {
+              "t": 81.306344,
+              "text": " given",
+              "tokens": 1
+            },
+            {
+              "t": 81.428776,
+              "text": " infinite",
+              "tokens": 2
+            },
+            {
+              "t": 81.550575,
+              "text": " time they",
+              "tokens": 2
+            },
+            {
+              "t": 81.673502,
+              "text": " find",
+              "tokens": 1
+            },
+            {
+              "t": 81.797869,
+              "text": " a path",
+              "tokens": 2
+            },
+            {
+              "t": 81.925387,
+              "text": " if one exists, but",
+              "tokens": 4
+            },
+            {
+              "t": 82.046578,
+              "text": " solution",
+              "tokens": 2
+            },
+            {
+              "t": 82.177432,
+              "text": " quality",
+              "tokens": 1
+            },
+            {
+              "t": 82.307577,
+              "text": " improves",
+              "tokens": 2
+            },
+            {
+              "t": 82.437575,
+              "text": " only",
+              "tokens": 1
+            },
+            {
+              "t": 82.564504,
+              "text": " with rew",
+              "tokens": 2
+            },
+            {
+              "t": 82.687521,
+              "text": "iring",
+              "tokens": 1
+            },
+            {
+              "t": 82.815297,
+              "text": " (RRT*)",
+              "tokens": 1
+            },
+            {
+              "t": 82.942134,
+              "text": " or post",
+              "tokens": 2
+            },
+            {
+              "t": 83.064999,
+              "text": "-processing.\n10. Dynamic",
+              "tokens": 5
+            },
+            {
+              "t": 83.185841,
+              "text": " Window",
+              "tokens": 1
+            },
+            {
+              "t": 83.308782,
+              "text": " Approach",
+              "tokens": 2
+            },
+            {
+              "t": 83.432025,
+              "text": " controls",
+              "tokens": 2
+            },
+            {
+              "t": 83.547621,
+              "text": " local obstacle",
+              "tokens": 3
+            },
+            {
+              "t": 83.665509,
+              "text": " avoidance by sampling",
+              "tokens": 5
+            },
+            {
+              "t": 83.780333,
+              "text": " velocity commands",
+              "tokens": 4
+            },
+            {
+              "t": 83.896364,
+              "text": " within acceleration",
+              "tokens": 4
+            },
+            {
+              "t": 84.017382,
+              "text": " limits",
+              "tokens": 1
+            },
+            {
+              "t": 84.143747,
+              "text": " and scoring",
+              "tokens": 3
+            },
+            {
+              "t": 84.268076,
+              "text": " them",
+              "tokens": 1
+            },
+            {
+              "t": 84.383745,
+              "text": " against",
+              "tokens": 1
+            },
+            {
+              "t": 84.507458,
+              "text": " clearance",
+              "tokens": 2
+            },
+            {
+              "t": 84.625913,
+              "text": ", heading",
+              "tokens": 2
+            },
+            {
+              "t": 84.749183,
+              "text": ", and goal",
+              "tokens": 2
+            },
+            {
+              "t": 84.87423,
+              "text": " progress",
+              "tokens": 2
+            },
+            {
+              "t": 84.997782,
+              "text": ".\n11. Gr",
+              "tokens": 2
+            },
+            {
+              "t": 85.11693,
+              "text": "as",
+              "tokens": 0
+            },
+            {
+              "t": 85.23091,
+              "text": "ping depends",
+              "tokens": 3
+            },
+            {
+              "t": 85.343827,
+              "text": " on form",
+              "tokens": 1
+            },
+            {
+              "t": 85.462469,
+              "text": "-c",
+              "tokens": 1
+            },
+            {
+              "t": 85.583672,
+              "text": "losure or",
+              "tokens": 2
+            },
+            {
+              "t": 85.71104,
+              "text": " force-closure:",
+              "tokens": 3
+            },
+            {
+              "t": 85.826719,
+              "text": " contact",
+              "tokens": 1
+            },
+            {
+              "t": 85.94391,
+              "text": " geometry",
+              "tokens": 2
+            },
+            {
+              "t": 86.066798,
+              "text": " must constrain",
+              "tokens": 3
+            },
+            {
+              "t": 86.191831,
+              "text": " the object",
+              "tokens": 2
+            },
+            {
+              "t": 86.315565,
+              "text": " against",
+              "tokens": 2
+            },
+            {
+              "t": 86.43904,
+              "text": " external",
+              "tokens": 2
+            },
+            {
+              "t": 86.564954,
+              "text": " wrench",
+              "tokens": 1
+            },
+            {
+              "t": 86.698311,
+              "text": "es.\n",
+              "tokens": 1
+            },
+            {
+              "t": 86.809992,
+              "text": "12. Fr",
+              "tokens": 1
+            },
+            {
+              "t": 86.925335,
+              "text": "iction",
+              "tokens": 2
+            },
+            {
+              "t": 87.042123,
+              "text": " cones bound",
+              "tokens": 2
+            },
+            {
+              "t": 87.164924,
+              "text": " tang",
+              "tokens": 1
+            },
+            {
+              "t": 87.284869,
+              "text": "ential force",
+              "tokens": 3
+            },
+            {
+              "t": 87.407081,
+              "text": " to",
+              "tokens": 0
+            },
+            {
+              "t": 87.527091,
+              "text": " \u03bc",
+              "tokens": 1
+            },
+            {
+              "t": 87.649588,
+              "text": "N",
+              "tokens": 0
+            },
+            {
+              "t": 87.772078,
+              "text": " at",
+              "tokens": 1
+            },
+            {
+              "t": 87.895802,
+              "text": " each contact; grasp",
+              "tokens": 4
+            },
+            {
+              "t": 88.017922,
+              "text": " wrench",
+              "tokens": 1
+            },
+            {
+              "t": 88.145917,
+              "text": " space",
+              "tokens": 2
+            },
+            {
+              "t": 88.269223,
+              "text": " analysis checks",
+              "tokens": 3
+            },
+            {
+              "t": 88.392571,
+              "text": " whether the",
+              "tokens": 2
+            },
+            {
+              "t": 88.515805,
+              "text": " object can resist",
+              "tokens": 4
+            },
+            {
+              "t": 88.638657,
+              "text": " arbitrary",
+              "tokens": 2
+            },
+            {
+              "t": 88.761277,
+              "text": " disturbances",
+              "tokens": 3
+            },
+            {
+              "t": 88.888262,
+              "text": ".\n13. Vacuum",
+              "tokens": 2
+            },
+            {
+              "t": 89.007587,
+              "text": " grippers",
+              "tokens": 2
+            },
+            {
+              "t": 89.123537,
+              "text": " dominate",
+              "tokens": 2
+            },
+            {
+              "t": 89.243012,
+              "text": " logistics",
+              "tokens": 2
+            }
+          ],
+          "error": null
+        }
+      ]
+    }
+  }
+]

@@ -4,10 +4,22 @@
 
 SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA
 DGX Spark GB10 systems**, building on MiaAI-Lab's excellent two-Spark work.
-`main` now defaults to our measured **NVFP4** path: native CUTLASS W4A4,
-MXFP8 DFlash2, 512K context, 9 GiB KV per rank, 2K chunks and mixed scheduling.
+`main` now defaults to the selected **NVIDIA NVFP4** path: native CUTLASS W4A4,
+MXFP8 DFlash2, 512K context, 11 GiB KV per rank, 2K chunks and mixed scheduling.
+The 11 GiB setting has a successful startup and gateway smoke check; throughput
+and repeated-start qualification remain pending.
 SparkGLM runs independently with Docker and SSH; LLooM integration is optional. The latest EXL3 work remains on the
 [`exl3` branch](https://github.com/Enntity/sparkglm/tree/exl3).
+
+Two separate engine projects live on `main`. **vLLM remains the default** for
+installation and serving. **Atlas is active research**, with its own AGPL source,
+build instructions, experimental profiles, measurements and next steps. Selecting
+Atlas is an explicit operation; its research profiles never change the vLLM lane.
+
+| Project | Entry point | Status |
+| --- | --- | --- |
+| **vLLM — default** | [Install and serve](SPARKGLM.md) | Selected NVIDIA NVFP4 source preview |
+| **Atlas — experimental** | [Active Atlas project](research/atlas/README.md) | NVIDIA NVFP4, native MTP2, 32K/four-owner research; parity not achieved |
 
 > **Source research preview:** this is the maintainer-selected measured default,
 > not a production certification. No prebuilt image or complete G5 qualification
@@ -38,6 +50,9 @@ from this repository's code licenses; see the required notice and citation in
 > candidates. This affects at most 4/2051 candidates at those rows, but it is
 > still a model-semantic deviation—not “exact inference.” See
 > [known limitations](docs/KNOWN_LIMITATIONS.md).
+
+For the selected NVIDIA checkpoint package, see [NVIDIA + DFlash2](docs/NVIDIA_PACKAGE.md),
+including exact pins and the measured Red Hat comparison.
 
 ## Choose your path
 
@@ -90,8 +105,10 @@ kept as explicitly legacy evidence rather than retroactively certified.
 - **Inspect the evidence:** see [docs/RESULTS.md](docs/RESULTS.md), retained raw
   receipts and reports under `results/`, and the code archive under
   `research/vllm-iterations/`.
-- **Inspect the native-engine attempt:** see `research/atlas/`. It is valuable
-  research, but it is not the recommended serving path.
+- **Work on the Atlas engine:** use the [active project](research/atlas/README.md),
+  [day's progress](research/atlas/DAY2_PROGRESS.md), and
+  [next steps](research/atlas/NEXT_STEPS.md). Its source and evidence are retained
+  on `main`; a separate development branch is not needed to find the work.
 - **Review before publication:** see
   [docs/PUBLICATION_REVIEW.md](docs/PUBLICATION_REVIEW.md).
 - **Know what remains unproven:** read
@@ -107,7 +124,7 @@ kept as explicitly legacy evidence rather than retroactively certified.
 | `results/` | canonical evidence | Indexed qualification records, reports, raw receipts, limitations, and rejected work |
 | `research/current-engine-history/` | provenance | Accepted commit mailbox without unsafe historical git objects |
 | `research/vllm-iterations/` | historical | Accepted and rejected vLLM-era experiments, measurements, and patch mailboxes |
-| `research/atlas/` | archival | AGPL Atlas GLM implementation, probes, and a reconstructable source patch |
+| `research/atlas/` | active experimental project | Separate AGPL Atlas engine, reconstructable source, build/profile tools, current reports and historical probes |
 
 The project deliberately retains negative results. A rejected patch is not an
 optional optimization and should not be enabled merely because its source is
@@ -151,7 +168,7 @@ not an optimization.
 Important defaults include work-conserving
 `GLM53_MIXED_PREFILL_CHUNK=0`, the GB10-selected 16 ms TP spin window, and the
 `rightsize` mode for `GLM53_INDEXER_WORKSPACE`. The NVFP4 profile adds native
-CUTLASS MoE, 2K chunks and the measured 512K/9 GiB budget. The EXL3 profile
+CUTLASS MoE, 2K chunks and the selected 512K/11 GiB budget. The EXL3 profile
 selects corrected concurrent E3 with 32-row temporary expert buffers.
 See [video settings](docs/PUBLISHED_VIDEO_CONFIGURATION.md) and
 [known limitations](docs/KNOWN_LIMITATIONS.md). Legacy `.env` knobs apply only
