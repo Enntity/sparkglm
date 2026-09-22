@@ -1,0 +1,130 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "adaptive-verification-20260920",
+  "title": "Adaptive DFlash verification TP2",
+  "date": "2026-09-21",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Adaptive DFlash verification TP2",
+  "change": {
+    "baseline_ref": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+    "candidate_ref": "e2e47e3d7f4f9ec20ace43b950949ca64dfd4580",
+    "working_tree_clean": false,
+    "provenance": [
+      "Historical measured deployment; source consolidated separately. Exact hashes and source pins retained; no new build qualification."
+    ]
+  },
+  "environment": {
+    "hardware": "2 x DGX Spark GB10",
+    "configuration": {
+      "sourceBase": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+      "vllmRevision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+      "miaRevision": "775a58b704924b13cf5c38de97559b3630f67bbf",
+      "baseline": {
+        "DFLASH_TOKENS": "5",
+        "DFLASH_DRAFT_TP": "2",
+        "MAX_MODEL_LEN": "262144",
+        "MAX_NUM_SEQS": "8",
+        "MAX_NUM_BATCHED_TOKENS": "2048",
+        "KV_CACHE_DTYPE": "fp8",
+        "KV_CACHE_MEMORY_BYTES": "11811160064",
+        "MOE_BACKEND": "flashinfer_cutlass",
+        "SPARKGLM_DFLASH_COMPACT_KV": "256",
+        "GLM53_MIXED_PREFILL_CHUNK": "0",
+        "SPARKGLM_MXFP8_DRAFT": "1"
+      },
+      "candidateOverrides": {
+        "GLM53_ADAPTIVE_K": "ema",
+        "GLM53_ADAPTIVE_K_SET": "2,4,5",
+        "GLM53_ADAPTIVE_K_MIN_STEPS": "4",
+        "GLM53_ADAPTIVE_K_SATURATE": "max",
+        "GLM53_ADAPTIVE_K_HIST": "200"
+      },
+      "captureSizesBothArms": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        12,
+        15,
+        16,
+        18,
+        20,
+        21,
+        24,
+        25,
+        30,
+        32,
+        35,
+        36,
+        40,
+        42,
+        48
+      ]
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe source/evidence checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "402a8056b3e4641672c3da3f258f5965421af96859bdce1fd1c3c8f0f7ea65d8"
+    },
+    {
+      "path": "raw/campaign-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "d96ef3f0c75254327b5643627f944947506cc64531eca6eb26327b0642685fca"
+    },
+    {
+      "path": "raw/experiment.json",
+      "kind": "raw-receipt",
+      "sha256": "b590a48143d43e89797c915b09c0c7532877b14afaaeef5d620d79df88c28387"
+    }
+  ],
+  "limitations": [
+    "Workload-dependent gains and regressions; three paired C2/C4 repetitions, one C8/stagger pair.",
+    "Tiny test inconclusive for adaptive; no release/endurance qualification."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

@@ -178,3 +178,21 @@ Its exact upstream source/build revision remains unresolved. The available newer
 reference snapshot is not asserted to reproduce it. The provenance ledger records
 this explicitly without inventing a source commit; no native binary is shipped.
 See [the build boundary](../research/atlas/project/BUILD.md).
+
+## Experimental NVMe prefix cache
+
+The direct-file GPU/SSD transport and hybrid-group handling are adapted from
+[PR232](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks/pull/232),
+repository https://github.com/gabewillen/GLM-5.3-Flash-EXL3-2x-DGX-Sparks
+at `3c2add4c491737c5b916217e0c5d6dc708fe02d8`. The selected source files
+carry explicit Apache-2.0 identifiers; vLLM patch context remains copyright
+the vLLM contributors under Apache-2.0. No repository-wide license inference
+is used for other files. All-rank durable commits, payload integrity checks,
+quota reservations and fenced cold retry are original SparkGLM integration.
+The feature is disabled by default and unqualified for production.
+
+## Optional adaptive verification source preview
+
+The verbatim patcher comes from https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks at `775a58b704924b13cf5c38de97559b3630f67bbf`. Its AGPL-3.0-only license and upstream MIT notice remain under `research/adaptive-verification/vendor/mia/`. It is not copied into the Apache serving overlay. The optional derivative and patched scheduler retain AGPL obligations.
+
+Vanilla and installed source fixtures derive from https://github.com/vllm-project/vllm at `487ecf187d3dfe74d2cf6119a92881dba403c219`; Apache notices remain in each file and fixture directory. Installed scheduler fixtures include existing MIT recipe patches; post-adaptive snapshots also include the AGPL additions. Original work in this publication is the hash-bound installer, profile renderer, source composition, CPU packaging checks and sanitized evidence selection. The existing root entrypoint retains its MIT/Apache notices.

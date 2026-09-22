@@ -18,6 +18,7 @@ source pins, retained license/notice bytes, path rules, and SPDX consistency.
 | ExLlamaV3-derived arithmetic | MIT plus the license of SparkGLM's modifications | Retain the ExLlamaV3 MIT notice and state exactly what was adapted |
 | Reederey M64 pipeline | Apache-2.0 plus inherited Mia MIT material | Retain both the Apache license and Reederey/Mia notice |
 | Z.AI chat template | GLM-5.3 License | Keep its dedicated license and provenance sidecar |
+| Optional adaptive verification derivative | AGPL-3.0-only plus inherited MIT/Apache notices | Keep the patch, fixtures, source contract and launcher under `research/adaptive-verification/`; explicit opt-in profile, separate from the Apache default |
 | Active Atlas engine and historical archive | AGPL-3.0-only | Keep both under `research/atlas/`; do not copy them into the Apache vLLM serving path |
 | Standalone staggered benchmark and archived campaign harnesses | AGPL-3.0-only | `benchmarks/staggered_openai.py` and `research/vllm-iterations/benchmarks/` retain their labels and full license; they are not Apache serving components |
 | FlashKDA source | MIT | The external source is not vendored; its license is retained |

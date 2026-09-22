@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Experimental derivative of an explicitly selected, qualified serving image.
+ARG BASE
+FROM ${BASE}
+COPY overlay/kvoffload /opt/glm53/kvoffload
+COPY overlay/patch_nvme_prefix_cache.py /opt/glm53/patch_nvme_prefix_cache.py
+COPY overlay/kvoffload/nvme_direct.py /usr/local/lib/python3.12/dist-packages/vllm/v1/kv_offload/nvme_direct.py
+RUN python3 -S /opt/glm53/patch_nvme_prefix_cache.py

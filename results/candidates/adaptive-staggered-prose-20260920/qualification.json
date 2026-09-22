@@ -1,0 +1,79 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "adaptive-staggered-prose-20260920",
+  "title": "Earlier C4 prose capture comparison",
+  "date": "2026-09-21",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Earlier C4 prose capture comparison",
+  "change": {
+    "baseline_ref": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+    "candidate_ref": "e2e47e3d7f4f9ec20ace43b950949ca64dfd4580",
+    "working_tree_clean": false,
+    "provenance": [
+      "Historical measured deployment; source consolidated separately. Exact hashes and source pins retained; no new build qualification."
+    ]
+  },
+  "environment": {
+    "hardware": "2 x DGX Spark GB10",
+    "configuration": {
+      "concurrency": 4,
+      "stagger_seconds": 1,
+      "prompt_tokens_approx": 16000,
+      "output_tokens": 400
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe source/evidence checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "69c4f8e45fed656b3a1653ddf4b4f529480cb2159eda8bbb2403f03632ff873c"
+    },
+    {
+      "path": "raw/times.json",
+      "kind": "raw-receipt",
+      "sha256": "eef3545fb243a592dd799b49e34e54ef3230bf8aed0bcba6fb04abca95c55393"
+    }
+  ],
+  "limitations": [
+    "Historical different Mia configuration; grouped observations, not isolated kernel or stock recipe comparison."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

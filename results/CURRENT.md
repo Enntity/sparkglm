@@ -1,3 +1,15 @@
+# September21 source consolidation and bounded measurements
+
+The current optional [adaptive/SSD profile](../research/adaptive-verification/README.md) publishes the deployed source composition: NVIDIA NVFP4/MXFP8, compact draft256, K5 with adaptive2/4/5,262K context, eight slots and11GiB KV per rank. The default launcher remains unchanged. This is a source preview, not a certified appliance or a G5 promotion.
+
+- [Compact KV capacity tradeoff](candidates/compact-draft-kv-20260917/RESULT.md): retained capacity gains and throughput/TTFT costs.
+- [Adaptive comparison](candidates/adaptive-verification-20260920/RESULT.md): favorable C2 median with C4/C8 regressions; tiny adaptive qualification remains inconclusive.
+- [SSD prefix restoration](candidates/nvme-prefix-cache-20260921/RESULT.md): bounded200K cold/hot/SSD/restart measurements and partial-rank fallback.
+- [Repeated coding-agent comparison](candidates/coding-agent-repeat3-20260921/RESULT.md): stock Mia7.6% shorter median on one task; quality findings preserved on both sides.
+- [Earlier staggered prose](candidates/adaptive-staggered-prose-20260920/RESULT.md): favorable SparkGLM result against a different experimental Mia configuration, not the stock coding arm.
+
+No combined full-matrix/endurance claim is made. Historical measurements below retain their exact original configurations.
+
 # Current source-preview default: NVIDIA 512K / 11 GiB
 
 Selected by the maintainer on September 10. NVIDIA ModelOpt NVFP4, MXFP8

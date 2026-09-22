@@ -1,0 +1,199 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "nvme-prefix-cache-20260921",
+  "title": "Bounded TP2 SSD prefix-cache feasibility",
+  "date": "2026-09-21",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "NVFP4 adaptive DFlash TP2: idle 200K prefix recovery",
+  "change": {
+    "baseline_ref": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+    "candidate_ref": "969cd120311e5247e75833e278203f45c08f921c",
+    "working_tree_clean": false,
+    "provenance": [
+      "Adapted Apache-2.0 NVMe transport and hybrid support from upstream PR232 at 3c2add4c491737c5b916217e0c5d6dc708fe02d8; original all-rank commit, integrity, bounded quota and fenced failure recovery."
+    ]
+  },
+  "environment": {
+    "capture_platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.6",
+    "image_digests": [
+      "sha256:85032c49c6992fa8257f02aca4b7081c49e2cd97ddbcc3c432cd974cc7aa2df7",
+      "sha256:973e36b92a712853ef428ae896208815129b59a7f72ad7bc239c5c1be814e044"
+    ],
+    "model_revision": "423acf37583782c51c142d145aef733d72943d93",
+    "quant_revision": null,
+    "drafter_revision": "610aa967a92bfeb97e3d848dcb8693553e8b6a55",
+    "configuration": {
+      "quantization": "NVFP4 modelopt_fp4 flashinfer_cutlass",
+      "kv_dtype": "fp8",
+      "kv_bytes_per_rank": 11811160064,
+      "context_limit": 262144,
+      "max_num_seqs": 8,
+      "prefill_chunk": 2048,
+      "draft": "DFlash2 TP2 K5 ceiling; adaptive EMA 2/4/5",
+      "nvme_bytes_per_rank": 68719476736,
+      "nvme_reserve_bytes_per_rank": 68719476736,
+      "nvme_io_threads": 2,
+      "synthetic_prompt_tokens": 200000,
+      "output_cap": 32
+    },
+    "hardware": "2 x DGX Spark GB10",
+    "topology": "TP2; node-local SSD per rank"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe all checks, 16 focused stdlib tests, exact-base patch and idempotence checks passed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Full standard gate not run; bounded probes are recorded separately. No certification or default promotion."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Full standard gate not run; bounded probes are recorded separately. No certification or default promotion."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Full standard gate not run; bounded probes are recorded separately. No certification or default promotion."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Full standard gate not run; bounded probes are recorded separately. No certification or default promotion."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Full standard gate not run; bounded probes are recorded separately. No certification or default promotion."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "cold_ttft",
+      "value": 132.47725286497734,
+      "unit": "seconds",
+      "cached_tokens": 0,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "hot_ttft",
+      "value": 2.407868213020265,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "restore_ttft",
+      "value": 5.640098821837455,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "restart_restore_ttft",
+      "value": 12.528354163980111,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "staggered-0_ttft",
+      "value": 6.9361438089981675,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "staggered-1_ttft",
+      "value": 7.993220997042954,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "staggered-2_ttft",
+      "value": 9.750416873022914,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    },
+    {
+      "name": "staggered-3_ttft",
+      "value": 9.73349720519036,
+      "unit": "seconds",
+      "cached_tokens": 197120,
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "b622410577fc8ce89960377bc68d27ebde7fe734df4f851ccc9a50009ebbf213"
+    },
+    {
+      "path": "raw/cache_bench.py",
+      "kind": "measurement",
+      "sha256": "b0b7d9c573f6431a76bd22678cb403624c5b435e3c0288b24d54abc76c33edd1"
+    },
+    {
+      "path": "raw/concurrent-cache-result.json",
+      "kind": "measurement",
+      "sha256": "6982b368d859b037088acb9236ef17bbc83320a18e950d65b35601987deec20f"
+    },
+    {
+      "path": "raw/concurrent_probe.py",
+      "kind": "measurement",
+      "sha256": "44b1f3c6697c069d42245d58e5bd5cf6fef23878393172ca7b7740f6d320c46a"
+    },
+    {
+      "path": "raw/full-cache-result.json",
+      "kind": "measurement",
+      "sha256": "8d0d76d2533408634a23f08a83174c95988a9aca4c9c1eb46cfbf674c12ca7de"
+    },
+    {
+      "path": "raw/restart-cache-result.json",
+      "kind": "measurement",
+      "sha256": "224bd5b45fcf9996e9d9be25a058a7b210dc5ddd2070f825a2d79005719ecab6"
+    },
+    {
+      "path": "raw/restart_probe.py",
+      "kind": "measurement",
+      "sha256": "33e2a0234f113c469e53f50e69ac590467cfc531c70d96e014270c04fcc8a23e"
+    },
+    {
+      "path": "raw/source-sha256.json",
+      "kind": "measurement",
+      "sha256": "b7c120bd13bc18a2fc30bbc34d7df7f25fba667968fa2606a0f491372bda4711"
+    },
+    {
+      "path": "raw/tiny-cache-result.json",
+      "kind": "measurement",
+      "sha256": "086e3eacc3de72b28e0d7b833f0d8dce7e2ef854306dd0d4ed3d3880fe0d331f"
+    },
+    {
+      "path": "raw/tiny-fault-result.json",
+      "kind": "measurement",
+      "sha256": "85ff42c6c4aefb4975b1242a1d2463a85ee35326e08e7f3cf6ea89056bd41b7d"
+    }
+  ],
+  "limitations": [
+    "User selected minimal fail-fast iterations: one retained sample per mode, no full G2/G3 matrix or G5 endurance.",
+    "Cold request includes first-request JIT work; this is a bounded resume-latency observation, not an isolated kernel comparison.",
+    "Four staggered requests share one 200K prefix, not four independent resident 200K contexts.",
+    "Synthetic exact continuation check is narrow; it is not a broad model-quality evaluation.",
+    "No online TTL/LRU reclamation: quota exhaustion stops new stores; cleanup requires stopped ranks.",
+    "Public feature remains opt-in and disabled by default."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

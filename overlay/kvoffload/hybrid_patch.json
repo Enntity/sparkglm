@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "source_revision": "3c2add4c491737c5b916217e0c5d6dc708fe02d8",
+  "files": [
+    {
+      "path": "distributed/kv_transfer/kv_connector/v1/offloading/scheduler.py",
+      "base_sha256": "616e7fd4cb0d09064cbc4d5735f607b37964c6be3b81e26de00d5913e0a9a3e3",
+      "result_sha256": "4d715bb00e23d23995aa8b741b2fe570ca9b97950d0288c52065018349f83b60",
+      "edits": [
+        {
+          "before": "    # Offload keys this job covers; passed to manager.complete_*().\n    keys: set[OffloadKey]\n    is_store: bool\n    # Store source blocks fenced after the request finishes.\n    deferred_fence_block_ids: list[int] | None = None\n    # Store source blocks fenced when the transfer is created.\n",
+          "after": "    # Offload keys this job covers; passed to manager.complete_*().\n    keys: set[OffloadKey]\n    is_store: bool\n    failed: bool = False\n    # Store source blocks fenced after the request finishes.\n    deferred_fence_block_ids: list[int] | None = None\n    # Store source blocks fenced when the transfer is created.\n"
+        },
+        {
+          "before": "    # of these groups is volatile and lacks a stable hash, so it must\n    # be excluded from store and load scheduling.\n    is_eagle_group: bool = False\n\n\ndef get_sliding_window_size_in_chunks(\n",
+          "after": "    # of these groups is volatile and lacks a stable hash, so it must\n    # be excluded from store and load scheduling.\n    is_eagle_group: bool = False\n    # False for groups that cannot be offloaded/restored at all (no block\n    # hashes, non-positional block table), e.g. GLM5Next's KpoolTailSpec\n    # 1-block/req circular scratch. Such groups are skipped by every store,\n    # load, lookup and key-tracking path; their contribution to a\n    # GPULoadStoreSpec is always zero blocks. Restores are hash-aligned\n    # (tokens_per_hash is a multiple of the kpool size), where the scratch\n    # content is empty by construction, so skipping it is exact.\n    is_offloadable: bool = True\n\n\ndef get_sliding_window_size_in_chunks(\n"
+        },
+        {
+          "before": "            and vllm_config.speculative_config.use_eagle()\n        )\n        if use_eagle and not eagle_groups:\n            eagle_groups = set(range(len(kv_cache_config.kv_cache_groups)))\n\n        if eagle_groups:\n",
+          "after": "            and vllm_config.speculative_config.use_eagle()\n        )\n        if use_eagle and not eagle_groups:\n            # Prefer name-based detection of the draft tower (MTP drafters\n            # register under an \"mtp\" prefix) over marking every group\n            # volatile, which permanently desyncs store and lookup for\n            # non-draft groups.\n            eagle_groups = {\n                idx\n                for idx, g in enumerate(kv_cache_config.kv_cache_groups)\n                if any(\n                    n == \"mtp\"\n                    or n.startswith(\"mtp.\")\n                    or \".mtp.\" in n\n                    or \"dflash\" in n\n                    or \"drafter\" in n\n                    for n in g.layer_names\n                )\n            }\n        if use_eagle and not eagle_groups:\n            # Root-prefix minority rule: a separately-loaded drafter (e.g.\n            # DFlash2) registers its layers under its own root (\"model.\u2026\")\n            # while the target's layers share another root (e.g.\n            # \"language_model.model.\u2026\"). Groups whose root token differs\n            # from the most common root are the draft tower.\n            def _root(name: str) -> str:\n                return name.split(\".\", 1)[0]\n\n            group_roots = [\n                {_root(n) for n in g.layer_names}\n                for g in kv_cache_config.kv_cache_groups\n            ]\n            root_counts: dict[str, int] = {}\n            for roots in group_roots:\n                for r in roots:\n                    root_counts[r] = root_counts.get(r, 0) + 1\n            if len(root_counts) > 1:\n                majority_root = max(root_counts, key=lambda r: root_counts[r])\n                eagle_groups = {\n                    idx\n                    for idx, roots in enumerate(group_roots)\n                    if majority_root not in roots\n                }\n                if eagle_groups:\n                    logger.info(\n                        \"KV offloading: draft KV groups %s detected by \"\n                        \"root-prefix minority rule (majority root %r).\",\n                        sorted(eagle_groups),\n                        majority_root,\n                    )\n        if use_eagle and not eagle_groups:\n            logger.warning(\n                \"KV offloading: could not identify the draft KV group by \"\n                \"name; marking ALL groups volatile (offload lookups will \"\n                \"never converge). Group layer names: %s\",\n                [\n                    (idx, sorted(g.layer_names)[:3], len(g.layer_names))\n                    for idx, g in enumerate(kv_cache_config.kv_cache_groups)\n                ],\n            )\n            eagle_groups = set(range(len(kv_cache_config.kv_cache_groups)))\n\n        if eagle_groups:\n"
+        },
+        {
+          "before": "        for idx, tokens_per_block in enumerate(spec.tokens_per_block):\n            kv_cache_group = kv_cache_config.kv_cache_groups[idx]\n            kv_spec = kv_cache_group.kv_cache_spec\n            sw = get_sliding_window_size_in_chunks(\n                kv_spec, tokens_per_block * spec.blocks_per_chunk\n            )\n",
+          "after": "        for idx, tokens_per_block in enumerate(spec.tokens_per_block):\n            kv_cache_group = kv_cache_config.kv_cache_groups[idx]\n            kv_spec = kv_cache_group.kv_cache_spec\n            is_offloadable = getattr(\n                kv_spec, \"participates_in_prefix_caching\", True\n            )\n            sw = get_sliding_window_size_in_chunks(\n                kv_spec, tokens_per_block * spec.blocks_per_chunk\n            )\n"
+        },
+        {
+          "before": "                    hashes_per_chunk=(\n                        (tokens_per_block * spec.blocks_per_chunk)\n                        // spec.tokens_per_hash\n                    ),\n                    sliding_window_size_in_chunks=sw,\n                    alignment_chunk_count=_alignment_chunk_count(\n",
+          "after": "                    hashes_per_chunk=(\n                        (tokens_per_block * spec.blocks_per_chunk)\n                        // spec.tokens_per_hash\n                        if is_offloadable\n                        else 0\n                    ),\n                    sliding_window_size_in_chunks=sw,\n                    alignment_chunk_count=_alignment_chunk_count(\n"
+        },
+        {
+          "before": "                    ),\n                    kv_event_group_spec=get_offloading_event_group_spec(kv_cache_group),\n                    is_eagle_group=idx in eagle_groups,\n                    requires_cow_source=(\n                        isinstance(kv_spec, MambaSpec)\n                        and kv_spec.mamba_cache_mode == \"align\"\n",
+          "after": "                    ),\n                    kv_event_group_spec=get_offloading_event_group_spec(kv_cache_group),\n                    is_eagle_group=idx in eagle_groups,\n                    is_offloadable=is_offloadable,\n                    requires_cow_source=(\n                        isinstance(kv_spec, MambaSpec)\n                        and kv_spec.mamba_cache_mode == \"align\"\n"
+        },
+        {
+          "before": "                )\n            )\n        kv_group_configs = tuple(kv_group_configs_list)\n        group_block_sizes = {config.tokens_per_block for config in kv_group_configs}\n        has_partial_recurrent_group = any(\n            config.requires_cow_source\n            and config.tokens_per_block > spec.tokens_per_hash\n",
+          "after": "                )\n            )\n        kv_group_configs = tuple(kv_group_configs_list)\n        if not all(config.is_offloadable for config in kv_group_configs):\n            logger.info(\n                \"KV offloading: skipping non-offloadable KV groups %s \"\n                \"(no prefix-cache participation, e.g. kpool tail scratch).\",\n                [c.group_idx for c in kv_group_configs if not c.is_offloadable],\n            )\n        group_block_sizes = {\n            config.tokens_per_block\n            for config in kv_group_configs\n            if config.is_offloadable\n        }\n        has_partial_recurrent_group = any(\n            config.requires_cow_source\n            and config.tokens_per_block > spec.tokens_per_hash\n"
+        },
+        {
+          "before": "        # Partial tails currently require one physical block per offload chunk\n        # and uniform, non-windowed groups so one boundary identifies every\n        # group's source. EAGLE and DCP need additional hand-off semantics.\n        supports_partial_tail = (\n            spec.blocks_per_chunk == 1\n            and len(group_block_sizes) == 1\n",
+          "after": "        # Partial tails currently require one physical block per offload chunk\n        # and uniform, non-windowed groups so one boundary identifies every\n        # group's source. EAGLE and DCP need additional hand-off semantics.\n        # Non-offloadable groups have no boundary hand-off either, so their\n        # presence disables partial tails.\n        supports_partial_tail = (\n            spec.blocks_per_chunk == 1\n            and len(group_block_sizes) == 1\n"
+        },
+        {
+          "before": "                for config in kv_group_configs\n            )\n            and not any(config.is_eagle_group for config in kv_group_configs)\n            and vllm_config.parallel_config.decode_context_parallel_size == 1\n        )\n\n",
+          "after": "                for config in kv_group_configs\n            )\n            and not any(config.is_eagle_group for config in kv_group_configs)\n            and all(config.is_offloadable for config in kv_group_configs)\n            and vllm_config.parallel_config.decode_context_parallel_size == 1\n        )\n\n"
+        },
+        {
+          "before": "    partial_tail_boundary: int | None = None\n    # True once on_request_finished has been signaled to the manager.\n    finished_signaled: bool = False\n\n    def __post_init__(self) -> None:\n        self.group_states = tuple(\n",
+          "after": "    partial_tail_boundary: int | None = None\n    # True once on_request_finished has been signaled to the manager.\n    finished_signaled: bool = False\n    nvme_load_failed: bool = False\n\n    def __post_init__(self) -> None:\n        self.group_states = tuple(\n"
+        },
+        {
+          "before": "        for group_config, group_state in zip(\n            self.config.kv_group_configs, self.group_states\n        ):\n            for req_block_hash in islice(\n                self.req.block_hashes,\n                group_config.hashes_per_chunk * len(group_state.offload_keys)\n",
+          "after": "        for group_config, group_state in zip(\n            self.config.kv_group_configs, self.group_states\n        ):\n            if not group_config.is_offloadable:\n                continue\n            for req_block_hash in islice(\n                self.req.block_hashes,\n                group_config.hashes_per_chunk * len(group_state.offload_keys)\n"
+        },
+        {
+          "before": "        ``next_stored_chunk_idx``, so it is never re-considered and a\n        permanent hole breaks prefix-reuse lookup.\n        \"\"\"\n        num_chunks = num_offloadable_tokens // group_config.tokens_per_chunk\n        is_decoding = num_offloadable_tokens > self.req.num_prompt_tokens\n        if group_config.is_eagle_group and is_decoding:\n",
+          "after": "        ``next_stored_chunk_idx``, so it is never re-considered and a\n        permanent hole breaks prefix-reuse lookup.\n        \"\"\"\n        if not group_config.is_offloadable:\n            return 0\n        num_chunks = num_offloadable_tokens // group_config.tokens_per_chunk\n        is_decoding = num_offloadable_tokens > self.req.num_prompt_tokens\n        if group_config.is_eagle_group and is_decoding:\n"
+        },
+        {
+          "before": "        full_attention_groups: list[int] = []\n        sliding_window_groups: list[int] = []\n        for group_config in self.config.kv_group_configs:\n            if group_config.sliding_window_size_in_chunks is None:\n                full_attention_groups.append(group_config.group_idx)\n            else:\n",
+          "after": "        full_attention_groups: list[int] = []\n        sliding_window_groups: list[int] = []\n        for group_config in self.config.kv_group_configs:\n            if not group_config.is_offloadable:\n                continue\n            if group_config.sliding_window_size_in_chunks is None:\n                full_attention_groups.append(group_config.group_idx)\n            else:\n"
+        },
+        {
+          "before": "            self._current_batch_allocated_block_ids.update(\n                block.block_id for block in group_blocks if block.block_id != 0\n            )\n\n            tokens_per_block = group_config.tokens_per_block\n            tokens_per_chunk = group_config.tokens_per_chunk\n",
+          "after": "            self._current_batch_allocated_block_ids.update(\n                block.block_id for block in group_blocks if block.block_id != 0\n            )\n\n            if not group_config.is_offloadable:\n                # Non-positional scratch group: never loaded into.\n                group_sizes.append(0)\n                block_indices.append(0)\n                continue\n\n            tokens_per_block = group_config.tokens_per_block\n            tokens_per_chunk = group_config.tokens_per_chunk\n"
+        },
+        {
+          "before": "                )\n                continue\n            job_status = self._jobs[job_id]\n            job_status.pending_count -= count\n            if job_status.pending_count > 0:\n                continue\n",
+          "after": "                )\n                continue\n            job_status = self._jobs[job_id]\n            job_status.failed |= job_id in meta.failed_jobs\n            job_status.pending_count -= count\n            if job_status.pending_count > 0:\n                continue\n"
+        },
+        {
+          "before": "\n            req_status = self._req_status[job_status.req_id]\n            if job_status.is_store:\n                self.manager.complete_store(job_status.keys, req_status.req_context)\n            else:\n                self.manager.complete_load(job_status.keys, req_status.req_context)\n                if self._chunks_being_loaded:\n                    self._chunks_being_loaded.difference_update(job_status.keys)\n",
+          "after": "\n            req_status = self._req_status[job_status.req_id]\n            if job_status.is_store:\n                self.manager.complete_store(\n                    job_status.keys, req_status.req_context, success=not job_status.failed\n                )\n            else:\n                if job_status.failed:\n                    # Both ranks have finished DMA before recovery can release pages.\n                    assert hasattr(self.manager, \"invalidate\"), \"unsupported load failure\"\n                    self.manager.invalidate(job_status.keys)\n                    req_status.nvme_load_failed = True\n                    req_status.req.skip_reading_prefix_cache = True\n                    logger.warning(\"NVMe load failed; recomputing request %s\", job_status.req_id)\n                self.manager.complete_load(job_status.keys, req_status.req_context)\n                if self._chunks_being_loaded:\n                    self._chunks_being_loaded.difference_update(job_status.keys)\n"
+        },
+        {
+          "before": "            req_status.transfer_jobs.remove(job_id)\n            if req_status.finished_signaled and not req_status.transfer_jobs:\n                del self._req_status[job_status.req_id]\n\n    def get_stats(self) -> OffloadingConnectorStats | None:\n        stats: OffloadingConnectorStats | None = None\n",
+          "after": "            req_status.transfer_jobs.remove(job_id)\n            if req_status.finished_signaled and not req_status.transfer_jobs:\n                del self._req_status[job_status.req_id]\n\n    def consume_failed_load(self, request_id: str) -> bool:\n        status = self._req_status.get(request_id)\n        if status is None or not status.nvme_load_failed:\n            return False\n        status.nvme_load_failed = False\n        return True\n\n    def get_stats(self) -> OffloadingConnectorStats | None:\n        stats: OffloadingConnectorStats | None = None\n"
+        }
+      ]
+    },
+    {
+      "path": "distributed/kv_transfer/kv_connector/v1/offloading/config.py",
+      "base_sha256": "d400d0b0fadc06f2ad60a1356a6fee730a187dbcc4e48656da523de813419ec9",
+      "result_sha256": "2e050c12c0008741769fcb037f52001d24a6b258bb277e198e92a375f8a0d432",
+      "edits": [
+        {
+          "before": "                )\n            ),\n            layer_names=tuple(group.layer_names),\n        )\n        for group in kv_cache_config.kv_cache_groups\n    )\n\n    _, tokens_per_hash = resolve_kv_cache_block_sizes(kv_cache_config, vllm_config)\n    for group in groups:\n        assert group.tokens_per_block % tokens_per_hash == 0, (\n            f\"tokens_per_block={group.tokens_per_block} not divisible by \"\n            f\"tokens_per_hash={tokens_per_hash}. \"\n",
+          "after": "                )\n            ),\n            layer_names=tuple(group.layer_names),\n            # Groups that opt out of prefix caching (e.g. GLM5Next's\n            # KpoolTailSpec, a 1-block/req circular scratch buffer) have no\n            # block hashes and no positional block table, so they cannot be\n            # offloaded or restored; exclude them from offloading entirely.\n            # GLM5Next's 4-token K-pool tail is a circular scratch buffer,\n            # not prefix state.  Some model revisions omit the participation\n            # marker; identify it defensively by spec name as well.\n            offloadable=(\n                getattr(group.kv_cache_spec, \"participates_in_prefix_caching\", True)\n                and \"KpoolTail\" not in type(group.kv_cache_spec).__name__\n            ),\n        )\n        for group in kv_cache_config.kv_cache_groups\n    )\n\n    _, tokens_per_hash = resolve_kv_cache_block_sizes(kv_cache_config, vllm_config)\n    for group in groups:\n        if not group.offloadable:\n            continue\n        assert group.tokens_per_block % tokens_per_hash == 0, (\n            f\"tokens_per_block={group.tokens_per_block} not divisible by \"\n            f\"tokens_per_hash={tokens_per_hash}. \"\n"
+        }
+      ]
+    },
+    {
+      "path": "v1/kv_offload/config.py",
+      "base_sha256": "92fbcc19d9e863c80676f03540c4a4b68b3943979b80123cc219ff114a92f955",
+      "result_sha256": "a166ac94dc039b059a060fdcdbc5be6c22ebc067fcfb8cc07481d41f4e4f6e6e",
+      "edits": [
+        {
+          "before": "    tokens_per_block: int\n    # Layer names belonging to this group.\n    layer_names: tuple[str, ...]\n\n\n@dataclass(frozen=True)\n",
+          "after": "    tokens_per_block: int\n    # Layer names belonging to this group.\n    layer_names: tuple[str, ...]\n    # False for groups that cannot be offloaded/restored (no block hashes,\n    # non-positional block table), e.g. GLM5Next's KpoolTailSpec scratch.\n    offloadable: bool = True\n\n\n@dataclass(frozen=True)\n"
+        }
+      ]
+    },
+    {
+      "path": "distributed/kv_transfer/kv_connector/v1/offloading/common.py",
+      "base_sha256": "9b3f042c6fa1581d10e8f688d2d9bc927bb41b780a9ea01f514d57228e20c978",
+      "result_sha256": "3b30865ef63c6c4e6a2dcb7ee43074f826990a50b62ad3df3b43418b7c732216",
+      "edits": [
+        {
+          "before": "\n    completed_jobs: dict[int, int] = field(default_factory=dict)\n    transfer_stats: TransferStats = field(default_factory=TransferStats)\n\n    def mark_completed(self, job_id: int) -> None:\n        \"\"\"Record a transfer job completion from this worker.\"\"\"\n",
+          "after": "\n    completed_jobs: dict[int, int] = field(default_factory=dict)\n    transfer_stats: TransferStats = field(default_factory=TransferStats)\n    failed_jobs: set[int] = field(default_factory=set)\n\n    def mark_completed(self, job_id: int) -> None:\n        \"\"\"Record a transfer job completion from this worker.\"\"\"\n"
+        },
+        {
+          "before": "\n        return OffloadingWorkerMetadata(\n            completed_jobs=merged,\n            transfer_stats=self.transfer_stats.aggregate(other.transfer_stats),\n        )\n",
+          "after": "\n        return OffloadingWorkerMetadata(\n            completed_jobs=merged,\n            failed_jobs=self.failed_jobs | other.failed_jobs,\n            transfer_stats=self.transfer_stats.aggregate(other.transfer_stats),\n        )\n"
+        }
+      ]
+    },
+    {
+      "path": "distributed/kv_transfer/kv_connector/v1/offloading/worker.py",
+      "base_sha256": "c3ed81b167466294e453da35b7253a4798135f959ee9350caf78e3c913171a67",
+      "result_sha256": "3d559b742b1e617496ae259ef1c9aa6e9d4ed44f68add93dc8d9ed0c93adba72",
+      "edits": [
+        {
+          "before": "        for transfer_result in self.worker.get_finished():\n            # we currently do not support job failures\n            job_id = transfer_result.job_id\n            assert transfer_result.success\n            is_load = job_id in self._load_jobs\n            if (\n                transfer_result.transfer_time is not None\n",
+          "after": "        for transfer_result in self.worker.get_finished():\n            # we currently do not support job failures\n            job_id = transfer_result.job_id\n            if not transfer_result.success:\n                self._connector_worker_meta.failed_jobs.add(job_id)\n            is_load = job_id in self._load_jobs\n            if (\n                transfer_result.transfer_time is not None\n"
+        }
+      ]
+    },
+    {
+      "path": "distributed/kv_transfer/kv_connector/v1/offloading_connector.py",
+      "base_sha256": "b5ddf7c1c8c50f6183dcdc4247759865b88e2b1b415e605c7993f615534912e0",
+      "result_sha256": "6b48b51d0fffab2851f42429d5d5c7358ea32dfd71fd98c3920287eb04fcaae9",
+      "edits": [
+        {
+          "before": "            return self.connector_worker.build_connector_worker_meta()\n        return None\n\n    def on_new_request(self, request: \"Request\") -> None:\n        assert self.connector_scheduler is not None\n        self.connector_scheduler.on_new_request(request)\n",
+          "after": "            return self.connector_worker.build_connector_worker_meta()\n        return None\n\n    def consume_failed_load(self, request_id: str) -> bool:\n        assert self.connector_scheduler is not None\n        return self.connector_scheduler.consume_failed_load(request_id)\n\n    def on_new_request(self, request: \"Request\") -> None:\n        assert self.connector_scheduler is not None\n        self.connector_scheduler.on_new_request(request)\n"
+        }
+      ]
+    },
+    {
+      "path": "v1/core/sched/scheduler.py",
+      "base_sha256": "e73bfc9cd47b0b3cfced4180221c8a655046fad88496503de8196e5802f7360a",
+      "result_sha256": "b43f02bb48215c87e4b3d86fb4bfcb4ecc7d0e2aee96ebc96deab3526aa4742e",
+      "edits": [
+        {
+          "before": "        \"\"\"\n        assert self.connector is not None\n\n        if request.request_id in self.failed_recving_kv_req_ids:\n            # Request had KV load failures; num_computed_tokens was already\n            # updated in _update_requests_with_invalid_blocks\n",
+          "after": "        \"\"\"\n        assert self.connector is not None\n\n        recover = getattr(self.connector, \"consume_failed_load\", None)\n        if recover is not None and recover(request.request_id):\n            # An NVMe restore is all-or-nothing for hybrid recurrent state.\n            # This method runs only after all ranks finish receiving.\n            request.num_computed_tokens = 0\n            self.failed_recving_kv_req_ids.add(request.request_id)\n\n        if request.request_id in self.failed_recving_kv_req_ids:\n            # Request had KV load failures; num_computed_tokens was already\n            # updated in _update_requests_with_invalid_blocks\n"
+        }
+      ]
+    }
+  ]
+}

@@ -51,6 +51,11 @@
       "id": "BSD-3-Clause-NVIDIA-Native",
       "path": "research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt",
       "sha256": "eb7324f2ae363e807927f5c16a141522697d45cf71513a07059fa5e31bb3f85f"
+    },
+    {
+      "id": "MIT-Mia-775a58b",
+      "path": "research/adaptive-verification/vendor/mia/LICENSE.MIT",
+      "sha256": "d48b01844af2aa68bc3fbea765069b94d70adb0c67dc4a62ca605c067aec9ab3"
     }
   ],
   "notices": [
@@ -331,9 +336,68 @@
         "research/atlas/project/**",
         "research/atlas/experiments/day2/**"
       ]
+    },
+    {
+      "id": "mia-nvme-prefix-pr232",
+      "repository": "https://github.com/gabewillen/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+      "revision": "3c2add4c491737c5b916217e0c5d6dc708fe02d8",
+      "license_expression": "Apache-2.0",
+      "notice_ids": [
+        "Apache-2.0"
+      ],
+      "covered_paths": [
+        "overlay/kvoffload/nvme_direct.py",
+        "overlay/kvoffload/hybrid_patch.json",
+        "overlay/patch_nvme_prefix_cache.py"
+      ],
+      "relationship": "Adapted explicitly Apache-2.0-labeled NVMe direct IO and hybrid scheduler/config changes from PR232. Original SparkGLM durable all-rank commits, quota/checksum validation and fenced whole-request cold recovery. No cold-weight loader or draft taper copied."
+    },
+    {
+      "id": "mia-adaptive-775a58b",
+      "repository": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+      "revision": "775a58b704924b13cf5c38de97559b3630f67bbf",
+      "license_expression": "AGPL-3.0-only",
+      "notice_ids": [
+        "AGPL-3.0-only",
+        "MIT-Mia-775a58b"
+      ],
+      "relationship": "Verbatim adaptive patcher, with original fail-closed packaging and measured profile; AGPL derivative isolated under research. Upstream MIT notice also retained.",
+      "covered_paths": [
+        "research/adaptive-verification/**",
+        "profiles/adaptive-dflash2-nvfp4-nvidia.json"
+      ]
+    },
+    {
+      "id": "vllm-adaptive-fixtures",
+      "repository": "https://github.com/vllm-project/vllm",
+      "revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+      "license_expression": "Apache-2.0",
+      "notice_ids": [
+        "Apache-2.0"
+      ],
+      "relationship": "Verbatim vanilla fixtures; installed fixture retains existing attributed MIT scheduler adaptations, and measured post-patch snapshots include the AGPL adaptive modification.",
+      "covered_paths": [
+        "research/adaptive-verification/fixtures/**",
+        "research/adaptive-verification/receipts/*.py"
+      ]
     }
   ],
   "path_rules": [
+    {
+      "patterns": [
+        "research/adaptive-verification/fixtures/**"
+      ],
+      "license_expression": "MIT AND Apache-2.0",
+      "reason": "Vanilla Apache vLLM and exact installed source with inherited MIT recipe patches; retain file notices."
+    },
+    {
+      "patterns": [
+        "research/adaptive-verification/**",
+        "profiles/adaptive-dflash2-nvfp4-nvidia.json"
+      ],
+      "license_expression": "MIT AND Apache-2.0 AND AGPL-3.0-only",
+      "reason": "Separate opt-in AGPL adaptive derivative; preserve every inherited notice."
+    },
     {
       "patterns": [
         "research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt",

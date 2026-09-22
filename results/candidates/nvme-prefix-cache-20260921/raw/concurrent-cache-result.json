@@ -1,0 +1,139 @@
+{
+  "workload": "four staggered restores/continuations of one shared 200K prefix",
+  "stagger_seconds": 0.5,
+  "seconds": 11.276186298811808,
+  "requests": [
+    {
+      "label": "staggered-0",
+      "ttft_seconds": 6.9361438089981675,
+      "wall_seconds": 8.493026660988107,
+      "usage": {
+        "prompt_tokens": 200000,
+        "total_tokens": 200007,
+        "completion_tokens": 7,
+        "prompt_tokens_details": {
+          "cached_tokens": 197120
+        }
+      },
+      "text": "AZURE-7319",
+      "tokens": [
+        "AZ",
+        "URE",
+        "-",
+        "7",
+        "31",
+        "9",
+        "<|user|>"
+      ],
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d",
+      "prompt_tokens": 200000,
+      "prompt_sha256": "e435cfc38d48679defe22f37a296b5f4500e21a1dd2ef257737c30d7c659bd99",
+      "disk_io_delta": {
+        "read_bytes": 1598636032,
+        "write_bytes": 479232
+      }
+    },
+    {
+      "label": "staggered-1",
+      "ttft_seconds": 7.993220997042954,
+      "wall_seconds": 8.986978573026136,
+      "usage": {
+        "prompt_tokens": 200000,
+        "total_tokens": 200007,
+        "completion_tokens": 7,
+        "prompt_tokens_details": {
+          "cached_tokens": 197120
+        }
+      },
+      "text": "AZURE-7319",
+      "tokens": [
+        "AZ",
+        "URE",
+        "-",
+        "7",
+        "31",
+        "9",
+        "<|user|>"
+      ],
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d",
+      "prompt_tokens": 200000,
+      "prompt_sha256": "e435cfc38d48679defe22f37a296b5f4500e21a1dd2ef257737c30d7c659bd99",
+      "disk_io_delta": {
+        "read_bytes": 1271898112,
+        "write_bytes": 479232
+      }
+    },
+    {
+      "label": "staggered-2",
+      "ttft_seconds": 9.750416873022914,
+      "wall_seconds": 10.233734098030254,
+      "usage": {
+        "prompt_tokens": 200000,
+        "total_tokens": 200007,
+        "completion_tokens": 7,
+        "prompt_tokens_details": {
+          "cached_tokens": 197120
+        }
+      },
+      "text": "AZURE-7319",
+      "tokens": [
+        "AZ",
+        "URE",
+        "-",
+        "7",
+        "31",
+        "9",
+        "<|user|>"
+      ],
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d",
+      "prompt_tokens": 200000,
+      "prompt_sha256": "e435cfc38d48679defe22f37a296b5f4500e21a1dd2ef257737c30d7c659bd99",
+      "disk_io_delta": {
+        "read_bytes": 900071424,
+        "write_bytes": 479232
+      }
+    },
+    {
+      "label": "staggered-3",
+      "ttft_seconds": 9.73349720519036,
+      "wall_seconds": 9.756205765064806,
+      "usage": {
+        "prompt_tokens": 200000,
+        "total_tokens": 200007,
+        "completion_tokens": 7,
+        "prompt_tokens_details": {
+          "cached_tokens": 197120
+        }
+      },
+      "text": "AZURE-7319",
+      "tokens": [
+        "AZ",
+        "URE",
+        "-",
+        "7",
+        "31",
+        "9",
+        "<|user|>"
+      ],
+      "output_sha256": "f7615bc6521b6524feb066dc3a453292f2a7040bd68d7795256bfcf54a08135d",
+      "prompt_tokens": 200000,
+      "prompt_sha256": "e435cfc38d48679defe22f37a296b5f4500e21a1dd2ef257737c30d7c659bd99",
+      "disk_io_delta": {
+        "read_bytes": 519634944,
+        "write_bytes": 479232
+      }
+    }
+  ],
+  "protected_counters": {
+    "before": [
+      "vllm:num_requests_running{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0",
+      "vllm:num_requests_waiting{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0",
+      "vllm:num_preemptions_total{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0"
+    ],
+    "after": [
+      "vllm:num_requests_running{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0",
+      "vllm:num_requests_waiting{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0",
+      "vllm:num_preemptions_total{engine=\"0\",model_name=\"sparkglm-nvme-test\"} 0.0"
+    ]
+  }
+}

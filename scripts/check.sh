@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 cd "$ROOT"
 
 QUICK_TESTS=(
+    tests/test_adaptive_package.py
     tests/test_standalone.py
     tests/test_appliance.py
     tests/test_atlas_project.py
@@ -14,12 +15,14 @@ QUICK_TESTS=(
     tests/test_chat_template.py
     tests/test_commit_provenance.py
     tests/test_direct_epilogue.py
+    tests/test_dflash_compact_kv.py
     tests/test_image_recipe.py
     tests/test_indexer_workspace.py
     tests/test_kpool_tail_slotmap.py
     tests/test_licensing.py
     tests/test_local_links.py
     tests/test_model_revision_pins.py
+    tests/test_nvme_prefix_cache.py
     tests/test_nvfp4_candidate.py
     tests/test_numeric_config.py
     tests/test_publication_privacy.py

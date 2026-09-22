@@ -1,0 +1,81 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "compact-draft-kv-20260917",
+  "title": "Compact draft KV capacity screen",
+  "date": "2026-09-21",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Compact draft KV capacity screen",
+  "change": {
+    "baseline_ref": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+    "candidate_ref": "e2e47e3d7f4f9ec20ace43b950949ca64dfd4580",
+    "working_tree_clean": false,
+    "provenance": [
+      "Historical measured deployment; source consolidated separately. Exact hashes and source pins retained; no new build qualification."
+    ]
+  },
+  "environment": {
+    "hardware": "2 x DGX Spark GB10",
+    "configuration": {
+      "compact_draft_page": 256,
+      "draft_depth": 5,
+      "context": 262144,
+      "slots": 8,
+      "kv_gib_per_rank": 11
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe source/evidence checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "d3763c5c4bda30efc7b47579658b4cfb76014f62fad36ba2ca625ea8f5baa13a"
+    },
+    {
+      "path": "raw/screen-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "dc5877e7d141d55f82b98bb9ddb741e70481de231d014f45aee0fe609b4d1b38"
+    }
+  ],
+  "limitations": [
+    "Capacity selected with measured throughput/TTFT tradeoffs.",
+    "No token-parity, full-context C8 or release/endurance claim."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

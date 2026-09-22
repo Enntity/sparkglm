@@ -1,5 +1,7 @@
 # SparkGLM
 
+Latest source: [optional adaptive + SSD TP2 profile](research/adaptive-verification/README.md), [measured results and limits](results/CURRENT.md). These opt-in components do not change the default or claim release qualification.
+
 ![SparkGLM — GLM-5.3-Flash NVFP4 on two DGX Sparks](assets/sparkglm-nvfp4.png)
 
 SparkGLM targets responsive **concurrent GLM-5.3-Flash serving on two NVIDIA

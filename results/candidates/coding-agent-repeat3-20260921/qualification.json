@@ -1,0 +1,85 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "coding-agent-repeat3-20260921",
+  "title": "Repeated staggered C2 coding agents",
+  "date": "2026-09-21",
+  "state": "measurement",
+  "qualification_level": "G0",
+  "target": "Repeated staggered C2 coding agents",
+  "change": {
+    "baseline_ref": "5eaf46ada624ee0d39e80fca173586894155bfd1",
+    "candidate_ref": "e2e47e3d7f4f9ec20ace43b950949ca64dfd4580",
+    "working_tree_clean": false,
+    "provenance": [
+      "Historical measured deployment; source consolidated separately. Exact hashes and source pins retained; no new build qualification."
+    ]
+  },
+  "environment": {
+    "hardware": "2 x DGX Spark GB10",
+    "configuration": {
+      "concurrency": 2,
+      "stagger_seconds": 10,
+      "mia_revision": "775a58b704924b13cf5c38de97559b3630f67bbf",
+      "vllm": "0.1.dev20051+g487ecf187"
+    }
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Public-safe source/evidence checks."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "No full standard gate claimed; bounded historical observations only."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "646c62766c260e73fd72ab68282bec5403618ff94d44d4cd1b6cd34bac4943e2"
+    },
+    {
+      "path": "raw/quality-summary.json",
+      "kind": "raw-receipt",
+      "sha256": "f46c00c056fc591d42dc7b2b8b00c51a6d546299713ad4885332a2f2a490ddb9"
+    },
+    {
+      "path": "raw/summary.json",
+      "kind": "raw-receipt",
+      "sha256": "ccd9e0b6782d9d2ef9edd5ca8c1ce89452d330009915fe899053584aba1ef82a"
+    }
+  ],
+  "limitations": [
+    "One task, three grouped repetitions per recipe, different agent trajectories and complete configurations.",
+    "All negative quality outcomes retained. No G5/endurance or broad coding-quality claim."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}
