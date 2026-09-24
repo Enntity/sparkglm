@@ -5,8 +5,8 @@
     "revision": "90b3584abc71b44b609637092b85d8423d8ff20f"
   },
   "incremental_base_revision": "a7e8163c87550ccb055b043c63513a2b71b244eb",
-  "engine_revision": "6bb661fb663c7cccedfdc3389dac3741657d84ad",
-  "reconstructed_tree": "594ad1d560e79c9d6de6a37cbcb364e8f9587d83",
+  "engine_revision": "db903a0f02ad64d517bcbe68fa90534904ccce50",
+  "reconstructed_tree": "51fe61e6fd6772564eb0be4051ba9fde00e638d6",
   "patch_chain": [
     {
       "path": "nvidia-modelopt-refresh.patch",
@@ -30,13 +30,13 @@
     },
     {
       "path": "nvidia-installable.patch",
-      "sha256": "17272a213a5c9c8509468603c52b4eba2c2e80bda68f5632b0951039621e1a5b"
+      "sha256": "f5ffcb462719672b42eab23467841c4d04e8bfc67eab045a7577982d48e418b2"
     }
   ],
-  "changed_file_count": 164,
+  "changed_file_count": 167,
   "diff_summary": {
-    "insertions": 28104,
-    "deletions": 816
+    "insertions": 28210,
+    "deletions": 820
   },
   "sanitization": {
     "changed": false,
@@ -109,7 +109,8 @@
     "crates/spark-model/src/model/impl_a2.rs": "e9dbeef98e09e16538994bacb694cc74371d13d08ad7feeaf45cc3935a406b11",
     "crates/spark-model/src/model/impl_a3.rs": "8616b55fbda45875cee43682e727900d3fe89769658f10dde363559e04a013d7",
     "crates/spark-model/src/model/mod.rs": "3c3fe31738c6b6c75e603287a087a59e9dffd759c5650792a68fb409677ebea0",
-    "crates/spark-model/src/model/trait_impl/drafter_prefill.rs": "477aa92fc3e0485dcfb0b7016fa03a4472b8bb24e6a0b4feb6f696093ff67076",
+    "crates/spark-model/src/model/trait_impl/drafter_prefill.rs": "4947033ece469f306a6e6e44b818c37b92e588ebccf6f7c915826e7fb69ee5ba",
+    "crates/spark-model/src/model/trait_impl/drafter_prompt_tests.rs": "73625341c609c888d2b1dc639f2aad62b27326a28db8c98c6ac50bba70160815",
     "crates/spark-model/src/model/trait_impl/mod.rs": "0e49d5d96df4b524805ac076100c7d46d9d40de32320f1887ff796ec49073260",
     "crates/spark-model/src/model/trait_impl/prefill_a/vision.rs": "89693bf1a1abb0b5f5d22d145a2467e6bc039e42690e5a61e3af5692001c375a",
     "crates/spark-model/src/model/trait_impl/prefill_b/embed_chunk.rs": "94114e9422c17a9d5f3350a4edb65cd9c8a26ad8c9ce002a1a9d6906ad7e6ee1",
@@ -147,6 +148,7 @@
     "crates/spark-server/src/cli/serve_args.rs": "c7c832ac39dd9dc38763725b8b2eac357b5293ba531768a53d6dbefe573c64f4",
     "crates/spark-server/src/main_modules/serve.rs": "1ca64e79e0979594446a08ce270ca7866105be3a0c51e3ae843c296b81ef0b54",
     "crates/spark-server/src/main_modules/serve_load.rs": "5406350c729f8a110bdac159ed4b710566a87f77ab817d4e3aa56693e43a584e",
+    "crates/spark-server/src/main_modules/serve_phases/build.rs": "7d66a10f136933cc91d4e4cb30fe3866b115d87c494cdd6ed5fff8b31dae2bc7",
     "crates/spark-server/src/main_modules/serve_phases/preflight.rs": "86ec6d3b4c80ef082dedd51ca49c70b441ccc13ca1dba4bcc35d8b5e8aa1ad64",
     "crates/spark-server/src/scheduler/decode_logits_content.rs": "4ee8ec4a676ffe4c09070b8b342413cfb269506e9388e85b6d5c271e3cd4cd1c",
     "crates/spark-server/src/scheduler/decode_logits_step.rs": "81782d9c98450afe8b88474ce1de48bdbf951b7c5149fcfd424324a18a843308",
@@ -156,6 +158,7 @@
     "crates/spark-server/src/scheduler/mod.rs": "009462aa821576c4f6f4fb404ab4be29e396378ecc4493b2f1d2197c5eaa607e",
     "crates/spark-server/src/scheduler/mod_helpers.rs": "7491de013247a618e96813190bdf4ec1d7a851f3993f0c2b641798b29784cf9f",
     "crates/spark-server/src/scheduler/phase_continue_prefills/run_standard.rs": "2652eef68ce6b79123517a4ffff1593b57e44eef2353fa7d8a5a49ceee756b99",
+    "crates/spark-server/src/scheduler/phase_promote_prefills.rs": "d23420ba829a828ddea0aea16fac9cb791f56f6ad1e78c07f3e0a0ed15173377",
     "crates/spark-server/src/scheduler/phase_start_prefills/repair_admission.rs": "61c57167c9ec1cf74e9cdb1f27ec5a5e341085abb61a7a54e959468da3d4bfe9",
     "crates/spark-server/src/scheduler/preempt.rs": "a1796d1817ff8d73b07f5ef1f49a19bd142e1eb22666888dff324fb066da9ed6",
     "crates/spark-server/src/scheduler/preempt_tests.rs": "8b794ba74c54b20f4a4bb94b4111caf6c9f2e17b4cecf12c066c07e200930a6f",
@@ -164,7 +167,7 @@
     "crates/spark-server/src/scheduler/repair_admission_gate.rs": "3740ae2b8fbc84f78f9087a2d611944010d4a36938ae43bc7140ed02b3288535",
     "crates/spark-server/src/tokenizer.rs": "1a5ab7d8e705b48dc91d70f623c3d7f58ef49b558716e7b9b245b11c86efab5f",
     "crates/spark-server/src/tokenizer/chat_impl.rs": "7332bcb7a104123b4f392f6cea4afb35fdb00221b8789ed2f7951786afe05ece",
-    "crates/spark-server/src/tokenizer/tests/glm5_next.rs": "cd2cb30baac1f26f3b9e6869f7d3e964bc953504bea2656d6cb92a4e2a6c78a6",
+    "crates/spark-server/src/tokenizer/tests/glm5_next.rs": "55e47a02077473c416ea03a4be26990335238e92b2af446e22ad50c2e3472f72",
     "docs/GLM_HC_TF32_PREWARM.md": "9f853d2b30b1eb8ec9706b635a3654c1cc3da95dc8230364e0b079214d0bede8",
     "jinja-templates/openai/glm5_next.jinja": "2e24c13c22cbd63370908e2302a045bceeac801ff83d28ec683d1983175a3886",
     "kernels/gb10/common/glm_vision_encoder.cu": "ca0ff7bb638c610c9e7595d8cc4ca59fb1c394c6c3b71319f2178a39a185aaac",

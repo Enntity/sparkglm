@@ -2248,7 +2248,7 @@ index 997b5cfa002df76c70f99569bf78e8e7e135242b..6e34f599412b931498bc05664c3f6fde
  // Served NLLB-200 / M2M-100 encoder-decoder model (CUDA/GB10 serving path).
  #[cfg(feature = "cuda")]
 diff --git a/crates/spark-model/src/model/trait_impl/drafter_prefill.rs b/crates/spark-model/src/model/trait_impl/drafter_prefill.rs
-index f041371732476ce6e8f633e9d6184a54fad42ff3..2d856a6c4ce6eb23104b22eb06eff8f3394a7cea 100644
+index f041371732476ce6e8f633e9d6184a54fad42ff3..90d1227a553bda69f8e6e13122aaa022878573f9 100644
 --- a/crates/spark-model/src/model/trait_impl/drafter_prefill.rs
 +++ b/crates/spark-model/src/model/trait_impl/drafter_prefill.rs
 @@ -110,7 +110,14 @@ impl TransformerModel {
@@ -2267,6 +2267,41 @@ index f041371732476ce6e8f633e9d6184a54fad42ff3..2d856a6c4ce6eb23104b22eb06eff8f3
              return Ok(());
          }
          use std::sync::atomic::Ordering;
+@@ -203,6 +210,13 @@ impl TransformerModel {
+         is_last: bool,
+         stream: u64,
+     ) -> Result<()> {
++        // Native/plain requests are admitted with MTP disabled.  Return
++        // before touching the paired path, proposer state, or retained
++        // capture so a request-local fallback cannot accidentally run a
++        // drafter through an eager-prefill call.
++        if seq.disable_mtp {
++            return Ok(());
++        }
+         if self.try_glm_paired_eager(seq, is_last, stream)? {
+             return Ok(());
+         }
+diff --git a/crates/spark-model/src/model/trait_impl/drafter_prompt_tests.rs b/crates/spark-model/src/model/trait_impl/drafter_prompt_tests.rs
+index 0342bdd87d55fa9a4ffc02b1050f2d453355aad6..7539e1371593b41a2652445f1bfa07fcd6230203 100644
+--- a/crates/spark-model/src/model/trait_impl/drafter_prompt_tests.rs
++++ b/crates/spark-model/src/model/trait_impl/drafter_prompt_tests.rs
+@@ -357,6 +357,16 @@ fn actual_midchunk_and_disabled_missing_owner_are_inert() {
+     assert_eq!(calls.load(Ordering::Relaxed), 0);
+ }
+ 
++#[test]
++fn request_local_mtp_disable_skips_eager_owner_checks() {
++    let (model, mut seq, calls) = fixture(148, true);
++    seq.disable_mtp = true;
++    // Keep a live proposer/capture owner in the fixture: the request-local
++    // fence must short-circuit before either path can inspect or mutate it.
++    assert!(model.try_eager_drafter_prefill(&mut seq, true, 37).is_ok());
++    assert_eq!(calls.load(Ordering::Relaxed), 0);
++}
++
+ #[test]
+ fn actual_prefill_policy_failure_is_spent_before_proposer() {
+     let name = "model::trait_impl::drafter_prefill::prompt_tests::actual_prefill_policy_failure_is_spent_before_proposer";
 diff --git a/crates/spark-model/src/model/trait_impl/mod.rs b/crates/spark-model/src/model/trait_impl/mod.rs
 index 2ca0273fcc73df23cf8f0403bed848aefb4e781b..daa752a3f82d5902db47b922a6ec0d494d32e5c8 100644
 --- a/crates/spark-model/src/model/trait_impl/mod.rs
@@ -4966,6 +5001,28 @@ index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..592d63b6acfd05edb70ff976e7a845bd
          ),
      }
  
+diff --git a/crates/spark-server/src/main_modules/serve_phases/build.rs b/crates/spark-server/src/main_modules/serve_phases/build.rs
+index 2fb8d8c579763b46dd670dde0b5dae8f68b70b0f..b4b4f048f15854b0721ccb5e9ff51f899684ed22 100644
+--- a/crates/spark-server/src/main_modules/serve_phases/build.rs
++++ b/crates/spark-server/src/main_modules/serve_phases/build.rs
+@@ -302,8 +302,15 @@ pub(crate) fn maybe_run_ep_worker(
+                 Ok(true) => {}
+                 Ok(false) => break,
+                 Err(e) => {
+-                    tracing::error!("EP worker error: {e:#}");
+-                    break;
++                    // An EP worker error may follow a failed collective.  A
++                    // local break leaves the rank alive and lets the head
++                    // issue another collective against a dead peer, which
++                    // turns a reportable failure into an indefinite hang.
++                    // Use the existing fail-fast propagation path so every
++                    // rank/process exits together after communicator state is
++                    // uncertain.
++                    tracing::error!("EP worker fatal error: {e:#}; terminating rank");
++                    crate::glm_terminal_session::terminate();
+                 }
+             }
+         }
 diff --git a/crates/spark-server/src/main_modules/serve_phases/preflight.rs b/crates/spark-server/src/main_modules/serve_phases/preflight.rs
 index 2f51f49f0e38bb08962d92f094a0bb11a9f31409..7aaf46ac7aa41abf9f2aef14d5cc54532c1ed508 100644
 --- a/crates/spark-server/src/main_modules/serve_phases/preflight.rs
@@ -5162,6 +5219,96 @@ index dc1ed2c8d9172d1ac34fcb42f96bd6460faa732f..0e576560a4037b5bbaa90955d0916ef9
          model.ep_broadcast_cmd_for_seq(p.seq.slot_idx as u32, 0xFFFFFFF0)?;
          model.ep_broadcast_cmd(chunk_len as u32)?;
          model.ep_broadcast_cmd(p.chunk_offset as u32)?;
+diff --git a/crates/spark-server/src/scheduler/phase_promote_prefills.rs b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
+index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..c5ca86cacabd5487b4b423ce08dfa62cc339b7f3 100644
+--- a/crates/spark-server/src/scheduler/phase_promote_prefills.rs
++++ b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
+@@ -33,7 +33,11 @@ pub(super) fn promote_completed_prefills(
+     for (idx, maybe_token) in completed_indices {
+         let mut p = prefilling.swap_remove(idx);
+         let Some(first) = maybe_token else {
+-            // Error path: free the sequence.
++            // Every producer uses None to mark a failed forward/sampling
++            // operation.  Complete the request before releasing its owner;
++            // otherwise the scheduler frees/reallocates the slot while the
++            // client waits forever behind SSE keepalives.
++            super::lifecycle::send_error_to_sink(&mut p.sink, "prefill failed");
+             let mut seq = p.seq;
+             if let Err(e) = model.free_sequence(&mut seq) {
+                 tracing::error!("phase_promote_prefills: free_sequence (error path): {e:#}");
+@@ -238,3 +242,72 @@ pub(super) fn build_active_seq_from_prefill(
+         adaptive: crate::adaptive_sampler::AdaptiveSamplingState::new(temperature),
+     }
+ }
++
++#[cfg(test)]
++#[test]
++fn failed_prefill_notifies_request_before_releasing_owner() {
++    let (a, mut response_rx) = super::test_support::test_seq(vec![], 8, None, 4);
++    let now = Instant::now();
++    let p = super::prefill_a_step_params::build_prefill_in_progress(
++        std::sync::Arc::new(vec![7; 4]),
++        0,
++        a.seq,
++        4,
++        8,
++        0,
++        super::test_support::EOS.to_vec(),
++        a.sink,
++        None,
++        now,
++        0.0,
++        0,
++        1.0,
++        0.0,
++        0.0,
++        1.0,
++        0.0,
++        0.0,
++        0.0,
++        0.0,
++        0.0,
++        0,
++        vec![],
++        false,
++        None,
++        None,
++        0,
++        false,
++        false,
++        false,
++        false,
++        None,
++        None,
++        None,
++        None,
++    );
++    let mut prefilling = vec![p];
++    let mut active = Vec::new();
++
++    promote_completed_prefills(
++        &super::lifecycle_tests::StubModel::default(),
++        &mut prefilling,
++        vec![(0, None)],
++        &mut active,
++        None,
++        None,
++        None,
++        None,
++        64,
++        None,
++    );
++
++    let delivered = response_rx
++        .try_recv()
++        .unwrap_or_else(|e| panic!("failed prefill did not terminate request: {e:?}"));
++    match delivered {
++        Ok(_) => panic!("failed prefill unexpectedly returned a successful response"),
++        Err(e) => assert!(e.to_string().contains("prefill failed"), "{e:#}"),
++    }
++    assert!(prefilling.is_empty());
++    assert!(active.is_empty());
++}
 diff --git a/crates/spark-server/src/scheduler/phase_start_prefills/repair_admission.rs b/crates/spark-server/src/scheduler/phase_start_prefills/repair_admission.rs
 index 01fd966deeaa5542075c4e04d9e689e199c79f96..73939d99b32d8c8a62fdc59f444da913aa4a915a 100644
 --- a/crates/spark-server/src/scheduler/phase_start_prefills/repair_admission.rs
@@ -6125,13 +6272,22 @@ index f68a6973452e88d4d7aeed7679f078684b59e842..cf5bc3460852ce953517da9545f1470c
 +    }
  }
 diff --git a/crates/spark-server/src/tokenizer/tests/glm5_next.rs b/crates/spark-server/src/tokenizer/tests/glm5_next.rs
-index 4ca945436369399f223b44ec21c620f716a8e2ca..e1e16a23d34ed50aa507296f66c970fb7326d10a 100644
+index 4ca945436369399f223b44ec21c620f716a8e2ca..6208b45048b91a3760f85b13bb40970d712ea3cd 100644
 --- a/crates/spark-server/src/tokenizer/tests/glm5_next.rs
 +++ b/crates/spark-server/src/tokenizer/tests/glm5_next.rs
-@@ -63,3 +63,59 @@ fn glm5_without_tools_preserves_stock_reasoning_prompt() {
-         assert!(rendered.ends_with("<|assistant|><think>"));
-     }
- }
+@@ -60,6 +60,67 @@ fn glm5_without_tools_preserves_stock_reasoning_prompt() {
+     let messages = [json!({"role": "user", "content": "What is the weather in Paris?"})];
+     for enabled in [false, true] {
+         let rendered = render(&messages, None, enabled);
+-        assert!(rendered.ends_with("<|assistant|><think>"));
++        let suffix = if enabled {
++            "<|assistant|><think>"
++        } else {
++            "<|assistant|><think></think>"
++        };
++        assert!(rendered.ends_with(suffix), "resolved thinking={enabled}");
++    }
++}
 +
 +#[test]
 +fn glm5_rendered_prompt_keeps_two_image_markers_in_order() {
@@ -6186,8 +6342,8 @@ index 4ca945436369399f223b44ec21c620f716a8e2ca..e1e16a23d34ed50aa507296f66c970fb
 +            "{rendered}"
 +        );
 +        assert!(!rendered.contains("<|vision_start|>"));
-+    }
-+}
+     }
+ }
 diff --git a/jinja-templates/openai/glm5_next.jinja b/jinja-templates/openai/glm5_next.jinja
 index 6101a36b64223af8f3ace4452297126b88fe2238..6ba47e6060f5e4b5b18b70954189d4c778f7893f 100644
 --- a/jinja-templates/openai/glm5_next.jinja
