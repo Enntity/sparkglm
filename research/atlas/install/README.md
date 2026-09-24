@@ -37,7 +37,9 @@ associated qualification record; a successful source build alone is not a
 capability or performance result.
 
 The frozen launch profile uses a 36,864-token total sequence budget, four
-text sequences, BF16 KV and FP32 recurrent state. Prompts plus requested output
+text sequences, BF16 KV and FP32 recurrent state. The memory utilization is
+0.925 to include the enabled vision tower and its preallocated workspace;
+KV overcommit stays disabled and the 4096 MiB free-memory guard remains active. Prompts plus requested output
 must fit that sequence budget. Vision resolution is bounded by the native
 encoder allocation; large images are resized before encoding. These limits
 are independent of the vLLM recipe's context and vision capacity.
