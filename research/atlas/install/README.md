@@ -8,13 +8,15 @@ With a LLooM version containing the Atlas recipe, run on the leader:
 
 ```sh
 lloom setup --recipe linux-nvidia-dgx-spark-2x-glm53-atlas --additive
-lloom setup --recipe linux-nvidia-dgx-spark-2x-glm53-atlas --additive --apply --yes --start
+lloom setup --recipe linux-nvidia-dgx-spark-2x-glm53-atlas --additive --apply --yes
+lloom runtime-start glm53-flash-atlas-cluster
 ```
 
 Review the first command's plan, including both nodes and their fabric
 addresses. Setup downloads the pinned NVIDIA checkpoint, builds the native
 engine image from pinned sources, converts the MTP overlay once on each node,
-and verifies the conversion before starting the worker and leader. Docker,
+and verifies the conversion. The runtime-start command then starts the worker
+and leader through the owner gateway and waits for readiness. Docker,
 the NVIDIA container runtime and working RoCE connectivity are prerequisites.
 Allow time and disk space for a first source build and model download.
 Existing model files can be reused through LLooM's managed model directory.
@@ -26,7 +28,10 @@ compile code or convert weights; those operations belong to setup.
 The candidate includes JSON schema/JSON output, structured function calls,
 streaming, reasoning controls, images and video. Constrained generation and
 multimodal requests use native decoding; ordinary text retains speculative
-MTP2 decoding. The scheduler separates these paths to preserve distributed
+MTP2 decoding. FFmpeg is included and enabled for MP4/WebM clips; animated
+GIF also works. Public HTTP(S) media URLs and base64 data URIs are supported.
+URL fetching retains private-address, redirect, byte-size and time limits.
+The scheduler separates these paths to preserve distributed
 ordering. Supported behavior and hardware results must be read with the
 associated qualification record; a successful source build alone is not a
 capability or performance result.

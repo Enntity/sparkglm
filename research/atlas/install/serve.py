@@ -31,8 +31,11 @@ def launch(environ, profile):
     env['NCCL_SOCKET_IFNAME'] = interface
     env['NCCL_IB_HCA'] = hca
     args = [str(arg).replace('${model}', model) for arg in profile['server_argv']]
+    name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
+        raise ValueError('Invalid SERVED_MODEL_NAME')
     args += [f'--rank={rank}', f'--master-addr={master}', f'--master-port={port}',
-             '--bind=127.0.0.1', f'--port={8893 + int(rank)}']
+             '--bind=127.0.0.1', f'--port={8893 + int(rank)}', f'--model-name={name}']
     return ['/usr/local/bin/spark', *args], env
 
 

@@ -23,7 +23,11 @@ class LaunchContract(unittest.TestCase):
             self.assertEqual(argv[:3], ['/usr/local/bin/spark', 'serve', '/models/overlay'])
             self.assertIn('--bind=127.0.0.1', argv)
             self.assertIn('--port='+str(8893+int(rank)), argv)
+            self.assertIn('--model-name=glm-5.3-flash-atlas', argv)
             self.assertIn('--world-size=2', argv)
+            self.assertIn('--video-allow-ffmpeg', argv)
+            self.assertIn('--vision-allow-remote-images', argv)
+            self.assertNotIn('--vision-remote-image-allow-private', argv)
             self.assertIn('--tp-size=2', argv)
             self.assertIn('--ep-size=2', argv)
             self.assertNotIn('--disable-tool-grammar=true', argv)
@@ -40,7 +44,7 @@ class LaunchContract(unittest.TestCase):
     def test_invalid_cluster_configuration_fails_before_process_launch(self):
         for key, value in [('NODE_RANK', '2'), ('MASTER_ADDR', 'not-an-address'),
                            ('MASTER_PORT', '0'), ('FABRIC_INTERFACE', 'eth0\nINJECTED=1'),
-                           ('MODEL_PATH', 'relative')]:
+                           ('MODEL_PATH', 'relative'), ('SERVED_MODEL_NAME', 'bad\nname')]:
             with self.subTest(key=key), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, **{key:value}), self.profile)
 

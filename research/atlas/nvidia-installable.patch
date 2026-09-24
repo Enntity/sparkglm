@@ -1,5 +1,5 @@
 diff --git a/crates/atlas-core/src/config.rs b/crates/atlas-core/src/config.rs
-index e0e1e90f10169ced5be68b5f011a73ca9410529c..98c4337d6e363dd36e6d46619e7baf67a7db723c 100644
+index e0e1e90f10169ced5be68b5f011a73ca9410529c..fce8c8e6d02c2e5be094d9998acad564edcda5d6 100644
 --- a/crates/atlas-core/src/config.rs
 +++ b/crates/atlas-core/src/config.rs
 @@ -697,6 +697,11 @@ pub struct QuantizationConfig {
@@ -28,13 +28,23 @@ index e0e1e90f10169ced5be68b5f011a73ca9410529c..98c4337d6e363dd36e6d46619e7baf67
      /// Layer indices after which deepstack mergers are applied ([8, 16, 24]).
      pub deepstack_visual_indexes: Vec<usize>,
      /// Placeholder token ID that marks where vision embeddings get spliced
-@@ -727,9 +739,10 @@ pub struct VisionConfig {
+@@ -727,9 +739,20 @@ pub struct VisionConfig {
      /// advances T once per temporal group. When 0 the runtime falls back to
      /// the family default.
      pub video_pad_token_id: u32,
 -    /// Resolved vision AREA bound in pixels: the operator's
 -    /// `--vision-max-pixels`, else the checkpoint's `preprocessor_config.json`,
 -    /// else `None`.
++    /// GLM image sequence boundary token IDs. GLM's chat template emits one
++    /// image marker triple and the serving processor expands it to one token
++    /// per merged patch. Zero for model families whose template owns a
++    /// different vision layout.
++    pub image_start_token_id: u32,
++    pub image_end_token_id: u32,
++    /// GLM video sequence boundary token IDs. A video expands to one image
++    /// marker per temporal group, with timestamp tokens between groups.
++    pub video_start_token_id: u32,
++    pub video_end_token_id: u32,
 +    /// Resolved vision pixel budget: the operator's `--vision-max-pixels`, else
 +    /// the checkpoint's processor configuration, else `None`. Qwen paths treat
 +    /// this as spatial `H×W`; GLM-5.3 treats it as the processor's temporal
@@ -42,7 +52,7 @@ index e0e1e90f10169ced5be68b5f011a73ca9410529c..98c4337d6e363dd36e6d46619e7baf67
      ///
      /// ★ THE SINGLE SOURCE OF TRUTH, and it exists because there used to be
      /// two. The CPU preprocessor clamped every image to 1280px on the long
-@@ -793,8 +806,9 @@ pub use parsers::{
+@@ -793,8 +816,9 @@ pub use parsers::{
      parse_peft_adapter_config, parse_quantization_config,
  };
  pub(crate) use parsers::{
@@ -87,7 +97,7 @@ index f46d12a43c9145ebd3c05436801783378a00520b..1c823daf9689d47d007e1dde163a7476
 -pub(crate) use vision::parse_vision_config;
 +pub(crate) use vision::{parse_glm5_vision_config, parse_vision_config};
 diff --git a/crates/atlas-core/src/config/parsers/vision.rs b/crates/atlas-core/src/config/parsers/vision.rs
-index a9269787769188ab7054ed2a89a4ac722f236622..abf71514409118fdc21a76d93b617f5d233003bb 100644
+index a9269787769188ab7054ed2a89a4ac722f236622..3ecaa9218b820ecd97eac535104ceb6a5b1cb46e 100644
 --- a/crates/atlas-core/src/config/parsers/vision.rs
 +++ b/crates/atlas-core/src/config/parsers/vision.rs
 @@ -4,7 +4,7 @@
@@ -108,7 +118,7 @@ index a9269787769188ab7054ed2a89a4ac722f236622..abf71514409118fdc21a76d93b617f5d
          depth: get_usize("depth"),
          hidden_size: get_usize("hidden_size"),
          num_heads: get_usize("num_heads"),
-@@ -48,6 +50,9 @@ pub(crate) fn parse_vision_config(raw: &serde_json::Value) -> Option<VisionConfi
+@@ -48,9 +50,16 @@ pub(crate) fn parse_vision_config(raw: &serde_json::Value) -> Option<VisionConfi
          spatial_merge_size: get_usize("spatial_merge_size"),
          intermediate_size: get_usize("intermediate_size"),
          out_hidden_size: get_usize("out_hidden_size"),
@@ -118,7 +128,14 @@ index a9269787769188ab7054ed2a89a4ac722f236622..abf71514409118fdc21a76d93b617f5d
          deepstack_visual_indexes,
          image_pad_token_id,
          video_pad_token_id,
-@@ -58,3 +63,153 @@ pub(crate) fn parse_vision_config(raw: &serde_json::Value) -> Option<VisionConfi
++        image_start_token_id: 0,
++        image_end_token_id: 0,
++        video_start_token_id: 0,
++        video_end_token_id: 0,
+         // Not in config.json — it comes from preprocessor_config.json (or the
+         // operator's flag), which this parser does not see. Resolved and
+         // installed by the server right after config load, before the encoder
+@@ -58,3 +67,172 @@ pub(crate) fn parse_vision_config(raw: &serde_json::Value) -> Option<VisionConfi
          max_pixels: None,
      })
  }
@@ -242,6 +259,21 @@ index a9269787769188ab7054ed2a89a4ac722f236622..abf71514409118fdc21a76d93b617f5d
 +                .and_then(serde_json::Value::as_u64)
 +        })
 +        .unwrap_or(0) as u32;
++    // GLM-5 stores these at the top level alongside image_token_id and
++    // video_token_id. Keep the canonical IDs as a compatibility default for
++    // older exported configs that omitted the redundant fields; the pad IDs
++    // remain required above because they identify the encoder rows.
++    let token_id = |key: &str, default: u32| {
++        raw.get(key)
++            .and_then(serde_json::Value::as_u64)
++            .or_else(|| vc.get(key).and_then(serde_json::Value::as_u64))
++            .or_else(|| text_config.get(key).and_then(serde_json::Value::as_u64))
++            .unwrap_or(default as u64) as u32
++    };
++    let image_start_token_id = token_id("image_start_token_id", 154_830);
++    let image_end_token_id = token_id("image_end_token_id", 154_831);
++    let video_start_token_id = token_id("video_start_token_id", 154_832);
++    let video_end_token_id = token_id("video_end_token_id", 154_833);
 +    let deepstack_visual_indexes = vc
 +        .get("deepstack_visual_indexes")
 +        .and_then(serde_json::Value::as_array)
@@ -269,11 +301,15 @@ index a9269787769188ab7054ed2a89a4ac722f236622..abf71514409118fdc21a76d93b617f5d
 +        deepstack_visual_indexes,
 +        image_pad_token_id,
 +        video_pad_token_id,
++        image_start_token_id,
++        image_end_token_id,
++        video_start_token_id,
++        video_end_token_id,
 +        max_pixels: None,
 +    }))
 +}
 diff --git a/crates/atlas-core/src/config/tests.rs b/crates/atlas-core/src/config/tests.rs
-index 089ecaeff2cbf9d7edeba2b254a4a22f5e71aa98..4dfa8fcc7a5243168e1bfcfd89c433375dd0a5ad 100644
+index 089ecaeff2cbf9d7edeba2b254a4a22f5e71aa98..2c64c568b8dcb4378b0898ff1f9e29c916678d83 100644
 --- a/crates/atlas-core/src/config/tests.rs
 +++ b/crates/atlas-core/src/config/tests.rs
 @@ -76,7 +76,7 @@ fn glm5_next_maps_nested_hybrid_mla_kda_and_ep_shape() {
@@ -312,7 +348,7 @@ index 089ecaeff2cbf9d7edeba2b254a4a22f5e71aa98..4dfa8fcc7a5243168e1bfcfd89c43337
  
      let cfg = parse_config(&raw.to_string()).unwrap();
      assert_eq!(cfg.model_type, "glm5_next");
-@@ -153,6 +173,12 @@ fn glm5_next_maps_nested_hybrid_mla_kda_and_ep_shape() {
+@@ -153,6 +173,16 @@ fn glm5_next_maps_nested_hybrid_mla_kda_and_ep_shape() {
      assert_eq!(cfg.mtp_num_hidden_layers, 1);
      assert!(cfg.nested_config);
      assert!(!cfg.attn_gated);
@@ -322,9 +358,72 @@ index 089ecaeff2cbf9d7edeba2b254a4a22f5e71aa98..4dfa8fcc7a5243168e1bfcfd89c43337
 +    assert_eq!(vision.projection_intermediate_size, 10240);
 +    assert_eq!(vision.out_hidden_size, 4096);
 +    assert_eq!(vision.image_pad_token_id, 151655);
++    assert_eq!(vision.image_start_token_id, 154830);
++    assert_eq!(vision.image_end_token_id, 154831);
++    assert_eq!(vision.video_start_token_id, 154832);
++    assert_eq!(vision.video_end_token_id, 154833);
      let quant = cfg.quantization_config.unwrap();
      assert_eq!(quant.quant_method, "modelopt");
      assert_eq!(quant.quant_algo, "NVFP4");
+diff --git a/crates/spark-model/src/factory/build.rs b/crates/spark-model/src/factory/build.rs
+index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..363656eb698406c34bc49fec2990fefc5f12b72a 100644
+--- a/crates/spark-model/src/factory/build.rs
++++ b/crates/spark-model/src/factory/build.rs
+@@ -101,7 +101,7 @@ pub fn build_model(
+             self_speculative,
+             drafts: num_drafts,
+             owners: max_batch_size,
+-            context: max_seq_len,
++            context: super::glm_sparse_decode::repair_context(max_seq_len),
+             block_size: kv_block_size,
+             kv_dtype,
+             layer_dtypes: &layer_dtypes,
+diff --git a/crates/spark-model/src/factory/glm_sparse_decode.rs b/crates/spark-model/src/factory/glm_sparse_decode.rs
+index 5005af722567d14f9558f1ae6f9d5e98f197e2b3..ebd72669e6a0f67624e2874aceaaebc52a6d2274 100644
+--- a/crates/spark-model/src/factory/glm_sparse_decode.rs
++++ b/crates/spark-model/src/factory/glm_sparse_decode.rs
+@@ -19,6 +19,14 @@ pub(super) struct BuildPolicy<'a> {
+     pub alternate_owner: bool,
+ }
+ 
++/// The repaired sparse verifier has a fixed 32K indexed domain. The serving
++/// context may be larger because requests beyond that domain are admitted to
++/// the native/plain lane and keep MTP disabled; startup must still validate
++/// the verifier against its own bounded domain.
++pub(super) fn repair_context(context: usize) -> usize {
++    context.min(crate::speculative::glm_repair_policy::MAX_LONG_CONTEXT)
++}
++
+ impl BuildPolicy<'_> {
+     fn validate(&self, repaired: bool, long_context: bool) -> Result<()> {
+         ensure!(
+diff --git a/crates/spark-model/src/factory/glm_sparse_decode_tests.rs b/crates/spark-model/src/factory/glm_sparse_decode_tests.rs
+index 10aa425a240dd8e1c1cafc5e6cb47fedc705eef4..2512b0f469f0162545eb9bb25eef56c5da7404f1 100644
+--- a/crates/spark-model/src/factory/glm_sparse_decode_tests.rs
++++ b/crates/spark-model/src/factory/glm_sparse_decode_tests.rs
+@@ -71,3 +71,22 @@ fn glm_sparse_decode_build_rejects_wrong_rank_geometry() {
+         assert!(policy(&c).validate(true, true).is_err());
+     }
+ }
++
++#[test]
++fn larger_served_context_is_capped_only_for_repair_startup() {
++    assert_eq!(repair_context(2048), 2048);
++    assert_eq!(repair_context(32768), 32768);
++    assert_eq!(repair_context(36864), 32768);
++
++    let c = config();
++    let mut capped = policy(&c);
++    capped.context = repair_context(36864);
++    assert!(capped.validate(true, true).is_ok());
++
++    // Keep the verifier's upper bound strict. The cap belongs at the factory
++    // boundary; it must not turn an out-of-domain repair policy into a valid
++    // policy when callers construct one directly.
++    let mut uncapped = policy(&c);
++    uncapped.context = 36864;
++    assert!(uncapped.validate(true, true).is_err());
++}
 diff --git a/crates/spark-model/src/layers/mod.rs b/crates/spark-model/src/layers/mod.rs
 index 6692f2770b80152b895289f16b99d5b788749358..82f17eb617ec57aef4cca84fc9982f32391c2883 100644
 --- a/crates/spark-model/src/layers/mod.rs
@@ -337,6 +436,101 @@ index 6692f2770b80152b895289f16b99d5b788749358..82f17eb617ec57aef4cca84fc9982f32
  pub use vision_encoder::{MergerLayer, ViTBlock, VisionEncoder};
  
  use crate::layer::ForwardContext;
+diff --git a/crates/spark-model/src/layers/ops/glm_sparse_native.rs b/crates/spark-model/src/layers/ops/glm_sparse_native.rs
+index 75a27c296ea1370a190d21a4cf88afe23a5a27ba..a7451992a5f4887c414f969be9368e07a6973ca8 100644
+--- a/crates/spark-model/src/layers/ops/glm_sparse_native.rs
++++ b/crates/spark-model/src/layers/ops/glm_sparse_native.rs
+@@ -48,7 +48,7 @@ fn validate_startup(
+     ensure!(
+         rows == 4100
+             && c.max_batch_tokens == rows
+-            && seq == 32768
++            && seq == plan::MAX_CONTEXT
+             && block == 16
+             && active == 4
+             && dtype == KvCacheDtype::Bf16
+@@ -77,6 +77,10 @@ fn validate_startup(
+     Ok(())
+ }
+ 
++fn qualified_context(seq: usize) -> usize {
++    seq.min(plan::MAX_CONTEXT)
++}
++
+ /// Load/configure the optional module on the serving context before KV sizing.
+ /// The module init allocates no device buffers and never launches attention.
+ #[allow(clippy::too_many_arguments)]
+@@ -92,7 +96,15 @@ pub fn initialize_glm_sparse_native(
+     if !loader::enabled()? {
+         return Ok(());
+     }
+-    validate_startup(c, rows, seq, block, active, dtype, layer_dtypes)?;
++    let qualified_seq = qualified_context(seq);
++    if qualified_seq != seq {
++        tracing::warn!(
++            max_seq_len = seq,
++            native_context_limit = plan::MAX_CONTEXT,
++            "GLM native sparse prefill is qualified through the native context limit; longer rows use the Atlas sparse/plain fallback"
++        );
++    }
++    validate_startup(c, rows, qualified_seq, block, active, dtype, layer_dtypes)?;
+     ensure!(
+         cfg!(feature = "cuda"),
+         "native sparse requires the CUDA backend"
+diff --git a/crates/spark-model/src/layers/ops/glm_sparse_native_plan.rs b/crates/spark-model/src/layers/ops/glm_sparse_native_plan.rs
+index 135f48872c513ceacf2ade59ec7735a929982a4b..4a717f29a73e27206b930f507405080a03050a2e 100644
+--- a/crates/spark-model/src/layers/ops/glm_sparse_native_plan.rs
++++ b/crates/spark-model/src/layers/ops/glm_sparse_native_plan.rs
+@@ -1,6 +1,8 @@
+ // SPDX-License-Identifier: AGPL-3.0-only
+ //! Checked, allocation-free layout and ABI for the optional GLM sparse library.
+ 
++pub(crate) const MAX_CONTEXT: usize = crate::speculative::glm_repair_policy::MAX_LONG_CONTEXT;
++
+ #[derive(Clone, Copy, Debug)]
+ pub(crate) struct Span {
+     pub ptr: u64,
+@@ -45,7 +47,9 @@ pub(crate) fn admit(
+     {
+         return None;
+     }
+-    seq_start.checked_add(rows).filter(|&end| end <= 32768)
++    seq_start
++        .checked_add(rows)
++        .filter(|&end| end <= MAX_CONTEXT)
+ }
+ 
+ fn mul(a: usize, b: usize) -> Result<usize, &'static str> {
+@@ -125,7 +129,8 @@ impl Plan {
+     ) -> Result<Self, &'static str> {
+         let seq_end = admit(rows, seq_start, false, false, false)
+             .ok_or("native sparse unqualified prefill shape")?;
+-        if !(1..=32768).contains(&physical_blocks) || block_table_count < seq_end.div_ceil(16) {
++        if !(1..=MAX_CONTEXT).contains(&physical_blocks) || block_table_count < seq_end.div_ceil(16)
++        {
+             return Err("native sparse missing physical cache or logical block table");
+         }
+         let (required, metadata) =
+diff --git a/crates/spark-model/src/layers/ops/glm_sparse_native_tests.rs b/crates/spark-model/src/layers/ops/glm_sparse_native_tests.rs
+index 86e8d5425b38db6624eeaeb7b1039a53c8044e87..d86fd8ef2f6de96df198222500664369fad468d2 100644
+--- a/crates/spark-model/src/layers/ops/glm_sparse_native_tests.rs
++++ b/crates/spark-model/src/layers/ops/glm_sparse_native_tests.rs
+@@ -94,6 +94,15 @@ fn native_sparse_startup_uses_real_arena_formula_and_rejects_wrong_profile() {
+     );
+ }
+ 
++#[test]
++fn native_sparse_context_limit_is_a_fallback_boundary() {
++    assert_eq!(plan::MAX_CONTEXT, 32768);
++    assert_eq!(qualified_context(32768), 32768);
++    assert_eq!(qualified_context(36864), 32768);
++    assert!(plan::admit(4096, 28672, false, false, false).is_some());
++    assert!(plan::admit(4096, 32768, false, false, false).is_none());
++}
++
+ #[test]
+ fn native_sparse_exact_abi_call_and_native_failure_propagation() {
+     static SEEN: std::sync::Mutex<Option<plan::NativeArgs>> = std::sync::Mutex::new(None);
 diff --git a/crates/spark-model/src/layers/vision_encoder.rs b/crates/spark-model/src/layers/vision_encoder.rs
 index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76eabe480a 100644
 --- a/crates/spark-model/src/layers/vision_encoder.rs
@@ -2217,19 +2411,59 @@ index 265a62a2561b3fe61db996485269d5f16fdd7d8f..c14dd8f7487301b8168440f02f34e226
          );
          Ok(out)
 diff --git a/crates/spark-model/src/model/trait_impl/prefill_b/embed_chunk.rs b/crates/spark-model/src/model/trait_impl/prefill_b/embed_chunk.rs
-index 2d8ccc62ca5d63a885906be6ce5e65bd7b44bf17..cb1216ff4759a7eda65824a803f0b5eee9407750 100644
+index 2d8ccc62ca5d63a885906be6ce5e65bd7b44bf17..10a1af5b0201b25e37e1115e01185510c1395976 100644
 --- a/crates/spark-model/src/model/trait_impl/prefill_b/embed_chunk.rs
 +++ b/crates/spark-model/src/model/trait_impl/prefill_b/embed_chunk.rs
-@@ -5,7 +5,7 @@
+@@ -5,11 +5,47 @@
  
  #![allow(unused_imports, dead_code, clippy::too_many_arguments)]
  
 -use anyhow::Result;
-+use anyhow::{Result, ensure};
++use anyhow::{Result, bail, ensure};
  
  use super::super::super::types::TransformerModel;
  use crate::layers::ops;
-@@ -153,10 +153,38 @@ impl TransformerModel {
+ 
++/// Return the packed vision-row range covered by one prompt chunk. The
++/// encoder output follows the complete prompt's pad-token order, so a chunk
++/// starting in the middle of a media run must begin after every earlier image
++/// or video pad token. `row_base` is the request slice in co-dispatch output;
++/// `pending` is the complete packed output row count.
++fn vision_pad_row_range(
++    tokens: &[u32],
++    chunk_start: usize,
++    chunk_len: usize,
++    image_pad: u32,
++    video_pad: u32,
++    row_base: usize,
++    pending: usize,
++) -> Result<(usize, usize)> {
++    let chunk_tokens = &tokens[chunk_start..chunk_start + chunk_len];
++    let is_pad = |tok: &&u32| **tok == image_pad || **tok == video_pad;
++    let prior_pad_count = tokens[..chunk_start].iter().filter(is_pad).count();
++    let chunk_pad_count = chunk_tokens.iter().filter(is_pad).count();
++    let start = row_base
++        .checked_add(prior_pad_count)
++        .ok_or_else(|| anyhow::anyhow!("vision pad overlay row offset overflow"))?;
++    let end = start
++        .checked_add(chunk_pad_count)
++        .ok_or_else(|| anyhow::anyhow!("vision pad overlay row count overflow"))?;
++    if end > pending {
++        bail!(
++            "vision pad overlay exceeds packed encoder output: base={}, prior={}, chunk={}, pending={}",
++            row_base,
++            prior_pad_count,
++            chunk_pad_count,
++            pending
++        );
++    }
++    Ok((start, end))
++}
++
+ impl TransformerModel {
+     pub(super) fn prefill_b_embed_chunk(
+         &self,
+@@ -153,19 +189,57 @@ impl TransformerModel {
                  // embedding, and the model described a featureless gray field
                  // while every token count looked correct.
                  let (image_pad, video_pad) = self.vision_pad_ids();
@@ -2265,10 +2499,372 @@ index 2d8ccc62ca5d63a885906be6ce5e65bd7b44bf17..cb1216ff4759a7eda65824a803f0b5ee
 +                        "vision pad rows exceed co-dispatched slice: prior={prior_pad_rows}, chunk={chunk_pad_rows}, slice={slice_rows}"
 +                    );
 +                }
-+                let mut img_idx = prior_pad_rows; // global pad-row index, not chunk-local
++                // The encoder output is packed in prompt order, while this
++                // function may be called for several chunks. Starting at
++                // zero for every chunk would repeat earlier vision rows.
++                let (mut row_idx, _) = vision_pad_row_range(
++                    tokens,
++                    chunk_start,
++                    chunk_len,
++                    image_pad,
++                    video_pad,
++                    row_base,
++                    pending,
++                )?;
++
                  for (i, &tok) in chunk_tokens.iter().enumerate() {
                      if tok == image_pad || tok == video_pad {
-                         let src = ve
+-                        let src = ve
+-                            .buf_out
+-                            .offset((row_base + img_idx) * ve.out_hidden_size * 2);
++                        let src = ve.buf_out.offset(row_idx * ve.out_hidden_size * 2);
+                         let dst = hidden_dst.offset(i * h * elem_bytes);
+                         self.gpu
+                             .copy_d2d_async(src, dst, ve.out_hidden_size * 2, stream)?;
+-                        img_idx += 1;
++                        row_idx += 1;
+                     }
+                 }
+             }
+@@ -174,3 +248,38 @@ impl TransformerModel {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::vision_pad_row_range;
++
++    #[test]
++    fn vision_rows_follow_the_full_prompt_across_chunks() {
++        let image = 10;
++        let video = 11;
++        let text = 1;
++        let tokens = [text, image, image, text, image, video, video, text];
++
++        assert_eq!(
++            vision_pad_row_range(&tokens, 0, 3, image, video, 4, 9).unwrap(),
++            // `row_base` is already included in this absolute range; the
++            // copy site must not add it a second time.
++            (4, 6)
++        );
++        assert_eq!(
++            vision_pad_row_range(&tokens, 3, 3, image, video, 4, 9).unwrap(),
++            (6, 8)
++        );
++        assert_eq!(
++            vision_pad_row_range(&tokens, 6, 2, image, video, 4, 9).unwrap(),
++            (8, 9)
++        );
++    }
++
++    #[test]
++    fn vision_rows_fail_closed_when_the_packed_slice_is_short() {
++        let err = vision_pad_row_range(&[1, 10, 10], 1, 2, 10, 11, 3, 4)
++            .expect_err("two rows cannot fit in one packed row");
++        assert!(err.to_string().contains("exceeds packed encoder output"));
++    }
++}
+diff --git a/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos.rs b/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos.rs
+index 2d3aa24108f74d1f520d2967c5d31c03a603da31..2fed66098ae9c5cedf566879d943c9d0f9dd221d 100644
+--- a/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos.rs
++++ b/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos.rs
+@@ -80,6 +80,138 @@ pub(crate) fn build(
+     }
+ }
+ 
++/// GLM-5 position walk for the checkpoint's expanded prompt form. Images use
++/// one image marker triple. Videos use
++/// `video_start, (image_start, image_pad*, image_end, timestamp*)*, video_end`;
++/// each frame's patch plane is a separate multimodal range, so the structural
++/// boundary and timestamp tokens remain ordinary 1-D text positions. This is
++/// the same range layout produced by the pinned vLLM prompt updater.
++#[allow(clippy::too_many_arguments)]
++pub(crate) fn build_glm5(
++    chunk_tokens: &[u32],
++    grids: &[(usize, usize, usize)],
++    grid_base: usize,
++    grid_hi: usize,
++    start_pos: u32,
++    image_start: u32,
++    _image_end: u32,
++    video_start: u32,
++    video_end: u32,
++    image_pad: u32,
++    video_pad: u32,
++    t_out: &mut Vec<u32>,
++    h_out: &mut Vec<u32>,
++    w_out: &mut Vec<u32>,
++) {
++    let is_pad = |tok: u32| tok == image_pad || tok == video_pad;
++    let mut pos = start_pos;
++    let mut item = grid_base;
++    let mut video_item: Option<(usize, usize)> = None;
++    let mut i = 0usize;
++
++    let push_text =
++        |pos: &mut u32, t_out: &mut Vec<u32>, h_out: &mut Vec<u32>, w_out: &mut Vec<u32>| {
++            t_out.push(*pos);
++            h_out.push(*pos);
++            w_out.push(*pos);
++            *pos += 1;
++        };
++    let push_plane = |pos: &mut u32,
++                      t_out: &mut Vec<u32>,
++                      h_out: &mut Vec<u32>,
++                      w_out: &mut Vec<u32>,
++                      gh: usize,
++                      gw: usize,
++                      temporal: u32| {
++        let base = *pos;
++        for k in 0..gh.max(1) * gw.max(1) {
++            t_out.push(base + temporal);
++            h_out.push(base + (k / gw.max(1)) as u32);
++            w_out.push(base + (k % gw.max(1)) as u32);
++        }
++        *pos += gh.max(gw).max(1) as u32;
++    };
++
++    while i < chunk_tokens.len() {
++        if chunk_tokens[i] == video_start && video_item.is_none() {
++            if item < grid_hi {
++                video_item = Some((item, 0));
++            }
++            push_text(&mut pos, t_out, h_out, w_out);
++            i += 1;
++            continue;
++        }
++
++        if let Some((video_idx, frame)) = video_item {
++            if chunk_tokens[i] == video_end {
++                video_item = None;
++                item = item.saturating_add(1);
++                push_text(&mut pos, t_out, h_out, w_out);
++                i += 1;
++                continue;
++            }
++            if is_pad(chunk_tokens[i]) && video_idx < grid_hi {
++                let (t_len, gh, gw) = grids[video_idx];
++                let plane = gh.max(1) * gw.max(1);
++                let contiguous = i + plane <= chunk_tokens.len()
++                    && chunk_tokens[i..i + plane].iter().copied().all(is_pad);
++                if frame < t_len.max(1) && contiguous {
++                    // vLLM's per-frame ranges each have grid_t=1, so T is
++                    // the range base. Timestamp and boundary tokens advance
++                    // the next frame's base as ordinary text positions.
++                    push_plane(&mut pos, t_out, h_out, w_out, gh, gw, 0);
++                    video_item = Some((video_idx, frame + 1));
++                    i += plane;
++                    continue;
++                }
++            }
++            push_text(&mut pos, t_out, h_out, w_out);
++            i += 1;
++            continue;
++        }
++
++        if is_pad(chunk_tokens[i]) && item < grid_hi {
++            let (t_len, gh, gw) = grids[item];
++            let plane = gh.max(1) * gw.max(1);
++            // A still image is a single structured plane. A compact legacy
++            // video run is kept as a defensive fallback for a caller that
++            // bypasses the GLM prompt updater; normal GLM videos enter the
++            // branch above and carry their boundaries/timestamps.
++            let run = if t_len <= 1 {
++                plane
++            } else {
++                plane * t_len.max(1)
++            };
++            let contiguous = i + run <= chunk_tokens.len()
++                && chunk_tokens[i..i + run].iter().copied().all(is_pad);
++            if contiguous {
++                if t_len <= 1 {
++                    push_plane(&mut pos, t_out, h_out, w_out, gh, gw, 0);
++                } else {
++                    let base = pos;
++                    for k in 0..run {
++                        let g = (k / plane) as u32;
++                        let within = k % plane;
++                        t_out.push(base + g);
++                        h_out.push(base + (within / gw.max(1)) as u32);
++                        w_out.push(base + (within % gw.max(1)) as u32);
++                    }
++                    pos += t_len.max(gh).max(gw) as u32;
++                }
++                item += 1;
++                i += run;
++                continue;
++            }
++        }
++
++        // `image_start` is intentionally accepted as an ordinary text token;
++        // the following image pad plane is what carries the grid positions.
++        let _ = image_start;
++        push_text(&mut pos, t_out, h_out, w_out);
++        i += 1;
++    }
++}
++
+ #[cfg(test)]
+ #[path = "mrope_pos_tests.rs"]
+ mod tests;
+diff --git a/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos_tests.rs b/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos_tests.rs
+index bc223ab73ff597334d1bb2762d9eb053a7b95b1a..5c89bd7ac8dde2627cc4ff7e889da06e6bc1ce4c 100644
+--- a/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos_tests.rs
++++ b/crates/spark-model/src/model/trait_impl/prefill_b/mrope_pos_tests.rs
+@@ -195,6 +195,53 @@ fn a_one_group_video_matches_the_equivalent_image() {
+     );
+ }
+ 
++#[test]
++fn glm5_video_ranges_keep_boundaries_and_timestamps_in_text_positions() {
++    let tokens = [
++        TXT, 12, 10, 14, 14, 11, 90, 10, 14, 14, 11, 91, 13, TXT, 10, 14, 14, 11, TXT,
++    ];
++    let (mut t, mut h, mut w) = (Vec::new(), Vec::new(), Vec::new());
++    build_glm5(
++        &tokens,
++        &[(2, 1, 2), (1, 1, 2)],
++        0,
++        2,
++        0,
++        10,
++        11,
++        12,
++        13,
++        14,
++        15,
++        &mut t,
++        &mut h,
++        &mut w,
++    );
++    assert_eq!(t.len(), tokens.len());
++    assert_eq!(h.len(), tokens.len());
++    assert_eq!(w.len(), tokens.len());
++    // Video: start/text=0,1, frame0 at 3,4, end/timestamp=5,6, frame1 at
++    // 8,9, end/timestamp/video_end=10,11,12. Then trailing text starts 13.
++    assert_eq!(
++        t,
++        vec![
++            0, 1, 2, 3, 3, 5, 6, 7, 8, 8, 10, 11, 12, 13, 14, 15, 15, 17, 18
++        ]
++    );
++    assert_eq!(
++        h,
++        vec![
++            0, 1, 2, 3, 3, 5, 6, 7, 8, 8, 10, 11, 12, 13, 14, 15, 15, 17, 18
++        ]
++    );
++    assert_eq!(
++        w,
++        vec![
++            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
++        ]
++    );
++}
++
+ // ── bounds and degenerate input ──────────────────────────────────────────
+ 
+ /// Co-dispatch: a request owns `grids[base..hi]` of a shared vector. Pad runs
+diff --git a/crates/spark-model/src/model/trait_impl/prefill_b/upload_meta.rs b/crates/spark-model/src/model/trait_impl/prefill_b/upload_meta.rs
+index 540683a723b3a76686ccee3c103c28bd7a20856d..c9494ceff98b35090127c64c65a38c48df9a3de0 100644
+--- a/crates/spark-model/src/model/trait_impl/prefill_b/upload_meta.rs
++++ b/crates/spark-model/src/model/trait_impl/prefill_b/upload_meta.rs
+@@ -127,11 +127,21 @@ impl TransformerModel {
+                 let (pad_id, video_pad_id) = self.vision_pad_ids();
+                 let is_pad = |tok: u32| tok == pad_id || tok == video_pad_id;
+                 let chunk_tokens = &tokens[chunk_start..chunk_start + chunk_len];
+-                let have_vision = !grids.is_empty() && chunk_tokens.iter().copied().any(is_pad);
++                let glm_vision = self.config.vision.as_ref().filter(|v| v.is_glm5_next);
++                // GLM's expanded video has structural text tokens between
++                // frame planes, and post-media text inherits the compressed
++                // position base. Build against the complete prompt and slice
++                // the processed range below; looking only at this chunk loses
++                // the active video frame at a chunk boundary.
++                let have_vision = !grids.is_empty()
++                    && if glm_vision.is_some() {
++                        tokens.iter().copied().any(is_pad)
++                    } else {
++                        chunk_tokens.iter().copied().any(is_pad)
++                    };
+ 
+                 if have_vision {
+                     stg.positions.clear();
+-                    let current_pos: u32 = proc_start as u32;
+                     // Co-dispatch: this request owns grids[grid_base .. grid_base+owned]
+                     // of the shared packed vision_image_grids (0/all for legacy).
+                     let grid_base = *self.vision_grid_base.lock();
+@@ -141,18 +151,58 @@ impl TransformerModel {
+                     } else {
+                         grids.len()
+                     };
+-                    mrope_pos::build(
+-                        chunk_tokens,
+-                        &grids,
+-                        grid_base,
+-                        grid_hi,
+-                        current_pos,
+-                        pad_id,
+-                        video_pad_id,
+-                        &mut stg.positions,
+-                        &mut stg.positions_h,
+-                        &mut stg.positions_w,
+-                    );
++                    if let Some(v) = glm_vision {
++                        // GLM-5 expands a video into per-frame image markers
++                        // and timestamp text. The generic contiguous-pad
++                        // walker would skip the boundary/timestamp tokens and
++                        // assign the following image to the wrong grid.
++                        let (mut full_t, mut full_h, mut full_w) =
++                            (Vec::new(), Vec::new(), Vec::new());
++                        mrope_pos::build_glm5(
++                            tokens,
++                            &grids,
++                            grid_base,
++                            grid_hi,
++                            0,
++                            v.image_start_token_id,
++                            v.image_end_token_id,
++                            v.video_start_token_id,
++                            v.video_end_token_id,
++                            pad_id,
++                            video_pad_id,
++                            &mut full_t,
++                            &mut full_h,
++                            &mut full_w,
++                        );
++                        let end = proc_start.checked_add(proc_count).ok_or_else(|| {
++                            anyhow::anyhow!("GLM-5 MRoPE position range overflow")
++                        })?;
++                        if end > full_t.len() || end > full_h.len() || end > full_w.len() {
++                            anyhow::bail!(
++                                "GLM-5 MRoPE position range {}..{} exceeds prompt length {}",
++                                proc_start,
++                                end,
++                                full_t.len()
++                            );
++                        }
++                        stg.positions.extend_from_slice(&full_t[proc_start..end]);
++                        stg.positions_h.extend_from_slice(&full_h[proc_start..end]);
++                        stg.positions_w.extend_from_slice(&full_w[proc_start..end]);
++                    } else {
++                        let current_pos: u32 = proc_start as u32;
++                        mrope_pos::build(
++                            chunk_tokens,
++                            &grids,
++                            grid_base,
++                            grid_hi,
++                            current_pos,
++                            pad_id,
++                            video_pad_id,
++                            &mut stg.positions,
++                            &mut stg.positions_h,
++                            &mut stg.positions_w,
++                        );
++                    }
+                 } else {
+                     stg.positions_h.extend_from_slice(&stg.positions);
+                     stg.positions_w.extend_from_slice(&stg.positions);
 diff --git a/crates/spark-model/src/model/types.rs b/crates/spark-model/src/model/types.rs
 index d730a8aac38432831ecc849b4928c0d38500e798..51a2a1b80ac6f899cf4d7366e28cd88738ad2f9e 100644
 --- a/crates/spark-model/src/model/types.rs
@@ -2675,7 +3271,7 @@ index 7e5e0839c208d4e1e1895f5bae9fcb4b1bdc7fee..23379a67ce8dddaff8f19120736429e1
      /// (slot-aware seq_id preamble). Default false — pre-PR behaviour.
      fn ep_protocol_v2(&self) -> bool {
 diff --git a/crates/spark-model/src/video_preprocess.rs b/crates/spark-model/src/video_preprocess.rs
-index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd8463b963948 100644
+index 82f6f035988e3b89177efd5df3e938e7faf1a437..8fe3adf881246c0fbd3f605bcc43b1744dcb85f1 100644
 --- a/crates/spark-model/src/video_preprocess.rs
 +++ b/crates/spark-model/src/video_preprocess.rs
 @@ -4,23 +4,16 @@
@@ -2723,7 +3319,34 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd846
  
  /// Frames per second to sample at, when the caller has no better idea.
  /// Matches the `fps: 2` every Qwen3-VL `video_processor` block declares.
-@@ -152,6 +148,85 @@ pub fn sample_indices(
+@@ -60,6 +56,10 @@ pub struct PreprocessedVideo {
+     pub grid_t: usize,
+     pub grid_h: usize,
+     pub grid_w: usize,
++    /// One timestamp per temporal group, in source-video seconds. GLM's
++    /// prompt expansion places this text after each per-frame image marker;
++    /// retaining it here keeps the prompt and encoder group order coupled.
++    pub timestamps: Vec<f32>,
+ }
+ 
+ /// Summarised rather than derived: the payload is megabytes of f32 and a
+@@ -69,12 +69,13 @@ impl std::fmt::Debug for PreprocessedVideo {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         write!(
+             f,
+-            "PreprocessedVideo {{ grid_t: {}, grid_h: {}, grid_w: {}, groups: {} x {} f32 }}",
++            "PreprocessedVideo {{ grid_t: {}, grid_h: {}, grid_w: {}, groups: {} x {} f32, timestamps: {} }}",
+             self.grid_t,
+             self.grid_h,
+             self.grid_w,
+             self.groups.len(),
+-            self.groups.first().map_or(0, Vec::len)
++            self.groups.first().map_or(0, Vec::len),
++            self.timestamps.len()
+         )
+     }
+ }
+@@ -152,6 +153,85 @@ pub fn sample_indices(
      out
  }
  
@@ -2809,7 +3432,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd846
  /// Decode every frame of a container, choosing a backend by what the bytes
  /// actually are.
  ///
-@@ -259,14 +334,18 @@ pub fn preprocess_video(
+@@ -259,14 +339,18 @@ pub fn preprocess_video(
      let (frames, native_fps) = decode_frames(data_uri, target_fps, ffmpeg)?;
      let tp = vcfg.temporal_patch_size;
  
@@ -2836,7 +3459,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd846
      ensure!(!keep.is_empty(), "frame sampling selected no frames");
  
      // A clip shorter than one temporal group cannot be encoded as video.
-@@ -285,7 +364,24 @@ pub fn preprocess_video(
+@@ -285,7 +369,24 @@ pub fn preprocess_video(
      // count assumes a single grid.
      let first = &frames[keep[0]];
      let grid_unit = (vcfg.patch_size * vcfg.spatial_merge_size) as u32;
@@ -2862,7 +3485,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd846
  
      let ps = vcfg.patch_size;
      let grid_h = (th as usize) / ps;
-@@ -302,25 +398,37 @@ pub fn preprocess_video(
+@@ -302,25 +403,37 @@ pub fn preprocess_video(
          let resized: Vec<RgbImage> = (0..tp)
              .map(|k| {
                  let f = &frames[keep[g * tp + k]];
@@ -2915,8 +3538,22 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..69edd0aea25e3b03fd02360b621dd846
                          }
                      }
                  }
+@@ -334,6 +447,13 @@ pub fn preprocess_video(
+         grid_t,
+         grid_h,
+         grid_w,
++        // The pinned GLM processor's non-Glm4v path formats full-second
++        // timestamps (`"{:.1f} seconds"`) and takes one timestamp per
++        // temporal pair. Preserve that source-frame contract even when the
++        // decoder has already resampled an ffmpeg stream.
++        timestamps: (0..grid_t)
++            .map(|g| (keep[g * tp] as f32 / native_fps.max(f32::EPSILON)).floor())
++            .collect(),
+     })
+ }
+ 
 diff --git a/crates/spark-model/src/video_preprocess_tests.rs b/crates/spark-model/src/video_preprocess_tests.rs
-index 72364fe48e962ac16e8689bdc3b35a8a208848b2..da8b0c05f272ea35c457a2b642c9f1fbcd0c756d 100644
+index 72364fe48e962ac16e8689bdc3b35a8a208848b2..67a2af2126bec7b41fe47d3d4ff0a94c1b31ed8d 100644
 --- a/crates/spark-model/src/video_preprocess_tests.rs
 +++ b/crates/spark-model/src/video_preprocess_tests.rs
 @@ -17,6 +17,8 @@ fn no_ffmpeg() -> FfmpegPolicy {
@@ -2928,7 +3565,7 @@ index 72364fe48e962ac16e8689bdc3b35a8a208848b2..da8b0c05f272ea35c457a2b642c9f1fb
          depth: 2,
          hidden_size: 32,
          num_heads: 2,
-@@ -25,6 +27,9 @@ fn cfg() -> VisionConfig {
+@@ -25,9 +27,16 @@ fn cfg() -> VisionConfig {
          spatial_merge_size: 2,
          intermediate_size: 64,
          out_hidden_size: 32,
@@ -2938,6 +3575,30 @@ index 72364fe48e962ac16e8689bdc3b35a8a208848b2..da8b0c05f272ea35c457a2b642c9f1fb
          deepstack_visual_indexes: vec![],
          image_pad_token_id: 248_056,
          video_pad_token_id: 248_057,
++        image_start_token_id: 0,
++        image_end_token_id: 0,
++        video_start_token_id: 0,
++        video_end_token_id: 0,
+         max_pixels: None,
+     }
+ }
+@@ -135,6 +144,16 @@ fn one_frame_cannot_make_a_group_at_tp2() {
+     assert!(got.len() < 2, "and it is short of one tp=2 group");
+ }
+ 
++#[test]
++fn glm5_sampling_repairs_an_odd_number_of_temporal_frames() {
++    let got = sample_glm_indices(25, 10.0, 2.0, 2_048, 2);
++    assert_eq!(got.len() % 2, 0, "GLM temporal groups need pairs: {got:?}");
++    assert!(got.len() >= 2);
++    if got.len() > 1 {
++        assert_eq!(got[got.len() - 1], got[got.len() - 2]);
++    }
++}
++
+ // ── decode + grouping, against a real generated GIF ──────────────────────
+ 
+ /// Build an animated GIF of `n` solid-color frames at `size`x`size`.
 diff --git a/crates/spark-model/src/vision_preprocess.rs b/crates/spark-model/src/vision_preprocess.rs
 index 115c875a1cbf7e68e9907c0c856288c8654cdb6f..a225d67d65f8915960b89a209cbaca1785f4e624 100644
 --- a/crates/spark-model/src/vision_preprocess.rs
@@ -3285,7 +3946,7 @@ index 115c875a1cbf7e68e9907c0c856288c8654cdb6f..a225d67d65f8915960b89a209cbaca17
                  }
              }
 diff --git a/crates/spark-model/src/vision_preprocess_tests.rs b/crates/spark-model/src/vision_preprocess_tests.rs
-index 7746e9b5233a6751303bc118e56e12d14bf547f2..78dd3b6135d0e29b72f6b8ae82d44140033f0cb9 100644
+index 7746e9b5233a6751303bc118e56e12d14bf547f2..0770e4842266704532fc27ff98faf03ad038a691 100644
 --- a/crates/spark-model/src/vision_preprocess_tests.rs
 +++ b/crates/spark-model/src/vision_preprocess_tests.rs
 @@ -53,9 +53,121 @@ fn test_image_pad_count_zero_sms_clamps_to_one() {
@@ -3410,7 +4071,7 @@ index 7746e9b5233a6751303bc118e56e12d14bf547f2..78dd3b6135d0e29b72f6b8ae82d44140
          depth: 27,
          hidden_size: 1152,
          num_heads: 16,
-@@ -64,6 +176,9 @@ fn ok_cfg() -> VisionConfig {
+@@ -64,9 +176,16 @@ fn ok_cfg() -> VisionConfig {
          spatial_merge_size: 2,
          intermediate_size: 4304,
          out_hidden_size: 2048,
@@ -3420,6 +4081,13 @@ index 7746e9b5233a6751303bc118e56e12d14bf547f2..78dd3b6135d0e29b72f6b8ae82d44140
          deepstack_visual_indexes: vec![8, 16, 24],
          image_pad_token_id: 151_655,
          video_pad_token_id: 151_656,
++        image_start_token_id: 0,
++        image_end_token_id: 0,
++        video_start_token_id: 0,
++        video_end_token_id: 0,
+         // These tests drive `preprocess_image_with_max_pixels` directly
+         // with an explicit bound, so the config-carried one is not the
+         // subject here.
 diff --git a/crates/spark-model/src/weight_loader/glm5.rs b/crates/spark-model/src/weight_loader/glm5.rs
 index 8fc0b16cba42dbb917dbe3340df3a96a239a6e02..62afc3fe85c0903ac72d1d2eea801e439f1e5825 100644
 --- a/crates/spark-model/src/weight_loader/glm5.rs
@@ -3649,6 +4317,352 @@ index c92584686fa6dccce02c1e6e01ab91f6eb41e063..2c529acc2db68b06c748e8b589c2cfe4
      if state.chat.phase_timing {
          let us_sampling =
              _t_seg.elapsed().as_micros() - us_prepare - us_loop_detect - us_session_hash;
+diff --git a/crates/spark-server/src/api/chat/msg_entry.rs b/crates/spark-server/src/api/chat/msg_entry.rs
+index 4f7aa738734465e46b66e0e1e2663ab939d64a34..8e337b9cafc8a0fd92d8e515d553991759b4bc50 100644
+--- a/crates/spark-server/src/api/chat/msg_entry.rs
++++ b/crates/spark-server/src/api/chat/msg_entry.rs
+@@ -16,6 +16,7 @@ use atlas_core::config::VisionConfig;
+ use crate::ir::{ContentPart, ImageData, MediaKind, Message, Role};
+ 
+ use super::super::compact::openai_error_response;
++use crate::tokenizer::{Glm5VisionKind, Glm5VisionPlaceholder};
+ 
+ /// What the request path needs to decode a video: the operator's subprocess
+ /// policy and the sampling rate. Bundled so the signature does not grow two
+@@ -64,6 +65,10 @@ pub(super) struct BuildOut {
+     pub(super) cwd_hint: Option<String>,
+     pub(super) image_pixels: Vec<spark_model::VisionItem>,
+     pub(super) image_pad_counts: Vec<usize>,
++    /// GLM-5-specific placeholder geometry. Empty for Qwen/text families;
++    /// the template renderer uses this to expand GLM's image/video marker
++    /// triples after Jinja rendering.
++    pub(super) vision_placeholders: Vec<Glm5VisionPlaceholder>,
+ }
+ 
+ /// One media item on its way to the vision path: what it is, and the
+@@ -75,6 +80,20 @@ struct MediaInput {
+     uri: String,
+ }
+ 
++fn checked_glm5_video_timestamps(
++    timestamps: Vec<f32>,
++    frame_count: usize,
++) -> Result<Vec<f32>, String> {
++    if timestamps.len() != frame_count {
++        return Err(format!(
++            "GLM-5 video metadata has {} timestamps for {} temporal groups",
++            timestamps.len(),
++            frame_count
++        ));
++    }
++    Ok(timestamps)
++}
++
+ /// Append every media part on `m` to `media` **in content order**, growing
+ /// `image_pad_counts` in lockstep (each pad count is filled in later by the
+ /// preprocessor). Shared by the tool-message branch and the normal branch so
+@@ -145,7 +164,11 @@ fn resolve_media_uri(
+                     ),
+                 ));
+             }
+-            match super::remote_image::fetch_as_data_uri(url, remote) {
++            let remote_kind = match kind {
++                MediaKind::Image => super::remote_image::RemoteMediaKind::Image,
++                MediaKind::Video => super::remote_image::RemoteMediaKind::Video,
++            };
++            match super::remote_image::fetch_media_as_data_uri(url, remote, remote_kind) {
+                 Ok(data_uri) => Ok(data_uri),
+                 Err(why) => {
+                     // The reason is surfaced rather than flattened to "could
+@@ -177,6 +200,7 @@ pub(super) fn build_msg_entries(
+     let mut messages: Vec<MsgEntry> = Vec::with_capacity(input.len());
+     let mut media: Vec<MediaInput> = Vec::new();
+     let mut image_pad_counts: Vec<usize> = Vec::new();
++    let mut vision_placeholders: Vec<Glm5VisionPlaceholder> = Vec::new();
+     let mut consecutive_tool_errors: u32 = 0;
+     // BW1 bash-wandering watchdog: tally tool-call productivity across the
+     // conversation so a steering nudge can fire if the agent explores/runs
+@@ -404,16 +428,17 @@ pub(super) fn build_msg_entries(
+             ));
+         };
+         for (idx, input) in media.iter().enumerate() {
+-            let item = match input.kind {
++            let (item, video_timestamps) = match input.kind {
+                 MediaKind::Image => {
+                     match spark_model::vision_preprocess::preprocess_image_with_max_pixels(
+                         &input.uri,
+                         vcfg,
+                         vision_max_pixels,
+                     ) {
+-                        Ok((pixels, grid_h, grid_w)) => {
+-                            spark_model::VisionItem::image(pixels, grid_h, grid_w)
+-                        }
++                        Ok((pixels, grid_h, grid_w)) => (
++                            spark_model::VisionItem::image(pixels, grid_h, grid_w),
++                            Vec::new(),
++                        ),
+                         Err(e) => {
+                             return Err(openai_error_response(
+                                 StatusCode::BAD_REQUEST,
+@@ -430,11 +455,17 @@ pub(super) fn build_msg_entries(
+                         video.fps,
+                         video.ffmpeg,
+                     ) {
+-                        Ok(v) => spark_model::VisionItem {
+-                            groups: v.groups,
+-                            grid_h: v.grid_h,
+-                            grid_w: v.grid_w,
+-                        },
++                        Ok(v) => {
++                            let timestamps = v.timestamps.clone();
++                            (
++                                spark_model::VisionItem {
++                                    groups: v.groups,
++                                    grid_h: v.grid_h,
++                                    grid_w: v.grid_w,
++                                },
++                                timestamps,
++                            )
++                        }
+                         Err(e) => {
+                             return Err(openai_error_response(
+                                 StatusCode::BAD_REQUEST,
+@@ -445,6 +476,29 @@ pub(super) fn build_msg_entries(
+                 }
+             };
+             image_pad_counts[idx] = item.pad_count(vcfg.spatial_merge_size);
++            if vcfg.is_glm5_next {
++                let frame_count = item.t_len();
++                let frame_pad_count = image_pad_counts[idx] / frame_count.max(1);
++                let timestamps = if input.kind == MediaKind::Video {
++                    match checked_glm5_video_timestamps(video_timestamps, frame_count) {
++                        Ok(timestamps) => timestamps,
++                        Err(message) => {
++                            return Err(openai_error_response(StatusCode::BAD_REQUEST, message));
++                        }
++                    }
++                } else {
++                    Vec::new()
++                };
++                vision_placeholders.push(Glm5VisionPlaceholder {
++                    kind: match input.kind {
++                        MediaKind::Image => Glm5VisionKind::Image,
++                        MediaKind::Video => Glm5VisionKind::Video,
++                    },
++                    pad_count: image_pad_counts[idx],
++                    per_frame_pad_count: frame_pad_count,
++                    timestamps,
++                });
++            }
+             if input.kind == MediaKind::Video {
+                 // Logged at the media index, not a video ordinal: the index
+                 // is what lines the clip up with its pad run and its
+@@ -482,6 +536,7 @@ pub(super) fn build_msg_entries(
+         cwd_hint,
+         image_pixels,
+         image_pad_counts,
++        vision_placeholders,
+     })
+ }
+ 
+diff --git a/crates/spark-server/src/api/chat/msg_entry_tests.rs b/crates/spark-server/src/api/chat/msg_entry_tests.rs
+index af29d0efd28bdda5f733a7a5c4c88543be553db3..2ccae6e85d09d668f878b3d8198263cb3f66b52a 100644
+--- a/crates/spark-server/src/api/chat/msg_entry_tests.rs
++++ b/crates/spark-server/src/api/chat/msg_entry_tests.rs
+@@ -74,6 +74,18 @@ mod error_dedup_tests {
+     }
+ }
+ 
++#[cfg(test)]
++mod glm5_video_metadata_tests {
++    use super::super::checked_glm5_video_timestamps;
++
++    #[test]
++    fn timestamp_group_mismatch_is_rejected() {
++        let err = checked_glm5_video_timestamps(vec![0.0], 2)
++            .expect_err("metadata must cover every temporal group");
++        assert!(err.contains("1 timestamps for 2 temporal groups"));
++    }
++}
++
+ #[cfg(test)]
+ mod vacuous_system_tests {
+     use super::super::is_vacuous_system_content;
+diff --git a/crates/spark-server/src/api/chat/prepare.rs b/crates/spark-server/src/api/chat/prepare.rs
+index be4e3b7095c315df69a6a060d9c47bd6d42f1a0e..e01f5894a2adaa79adb9a2150fca6ddf038012f1 100644
+--- a/crates/spark-server/src/api/chat/prepare.rs
++++ b/crates/spark-server/src/api/chat/prepare.rs
+@@ -107,6 +107,7 @@ pub(crate) fn prepare_chat_prompt(
+         cwd_hint,
+         image_pixels,
+         image_pad_counts,
++        vision_placeholders,
+     } = msg_entry::build_msg_entries(
+         state.vision_config.as_ref(),
+         state.vision_max_pixels,
+@@ -152,6 +153,7 @@ pub(crate) fn prepare_chat_prompt(
+         &req.tools,
+         &messages,
+         &image_pad_counts,
++        &vision_placeholders,
+         enable_thinking,
+         thinking_budget,
+         reasoning_effort,
+diff --git a/crates/spark-server/src/api/chat/remote_image.rs b/crates/spark-server/src/api/chat/remote_image.rs
+index 5c7d5a104df236e790d9dc7153c4cf028681587b..6b0b3b0226ec7a516ea234095310ceadd6311050 100644
+--- a/crates/spark-server/src/api/chat/remote_image.rs
++++ b/crates/spark-server/src/api/chat/remote_image.rs
+@@ -30,7 +30,8 @@
+ //! - **Redirects**: followed a bounded number of times, and every hop is
+ //!   re-checked — a public URL that 302s to `127.0.0.1` is the standard way
+ //!   to walk past an address check applied only to the first request.
+-//! - **Type**: the response must declare an image content type.
++//! - **Type**: the response must declare an allowed image or video content
++//!   type for the requested media kind.
+ //!
+ //! # Where it runs
+ //!
+@@ -55,6 +56,14 @@ pub struct RemoteImagePolicy {
+     pub allow_private: bool,
+ }
+ 
++/// Media allowlist applied to a fetched response. GIF is accepted for video
++/// because the in-process decoder treats animated GIF as a video container.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum RemoteMediaKind {
++    Image,
++    Video,
++}
++
+ impl Default for RemoteImagePolicy {
+     fn default() -> Self {
+         Self {
+@@ -178,6 +187,17 @@ fn split_url(url: &str) -> Result<(&str, &str, u16), String> {
+ ///
+ /// `Err` carries an operator-readable reason; the caller turns it into a 400.
+ pub fn fetch_as_data_uri(url: &str, policy: &RemoteImagePolicy) -> Result<String, String> {
++    fetch_media_as_data_uri(url, policy, RemoteMediaKind::Image)
++}
++
++/// Fetch a remote image or video and return it as a `data:` URI. The legacy
++/// [`fetch_as_data_uri`] entry point remains image-only; callers handling
++/// structured video input must pass [`RemoteMediaKind::Video`] explicitly.
++pub fn fetch_media_as_data_uri(
++    url: &str,
++    policy: &RemoteImagePolicy,
++    media_kind: RemoteMediaKind,
++) -> Result<String, String> {
+     if !policy.enabled {
+         return Err("remote image fetching is disabled".to_string());
+     }
+@@ -227,8 +247,16 @@ pub fn fetch_as_data_uri(url: &str, policy: &RemoteImagePolicy) -> Result<String
+             .unwrap_or("")
+             .to_string();
+         let mime = ctype.split(';').next().unwrap_or("").trim().to_lowercase();
+-        if !mime.starts_with("image/") {
+-            return Err(format!("content-type {mime:?} is not an image"));
++        let allowed = match media_kind {
++            RemoteMediaKind::Image => mime.starts_with("image/"),
++            RemoteMediaKind::Video => mime.starts_with("video/") || mime == "image/gif",
++        };
++        if !allowed {
++            let expected = match media_kind {
++                RemoteMediaKind::Image => "an image",
++                RemoteMediaKind::Video => "a video or animated GIF",
++            };
++            return Err(format!("content-type {mime:?} is not {expected}"));
+         }
+ 
+         // Read one byte past the cap so the overrun is DETECTED rather than
+diff --git a/crates/spark-server/src/api/chat/remote_image_tests.rs b/crates/spark-server/src/api/chat/remote_image_tests.rs
+index f8e6725e96b25bd41a786d6339a5288b8823b6e3..5a506e457369cf9448a097a907d830df1f0c455f 100644
+--- a/crates/spark-server/src/api/chat/remote_image_tests.rs
++++ b/crates/spark-server/src/api/chat/remote_image_tests.rs
+@@ -198,6 +198,36 @@ fn a_non_image_content_type_is_refused() {
+     assert!(err.contains("not an image"), "{err}");
+ }
+ 
++#[test]
++fn image_fetcher_still_refuses_video_content() {
++    let url = one_shot(http_response("video/mp4", b"mp4bytes"));
++    let err = fetch_as_data_uri(&url, &enabled()).unwrap_err();
++    assert!(err.contains("not an image"), "{err}");
++}
++
++#[test]
++fn video_fetcher_accepts_video_content() {
++    let url = one_shot(http_response("video/mp4", b"mp4bytes"));
++    let uri = fetch_media_as_data_uri(&url, &enabled(), RemoteMediaKind::Video)
++        .expect("video MIME is allowed for video media");
++    assert!(uri.starts_with("data:video/mp4;base64,"), "{uri}");
++}
++
++#[test]
++fn video_fetcher_accepts_animated_gif_content() {
++    let url = one_shot(http_response("image/gif", b"gifbytes"));
++    let uri = fetch_media_as_data_uri(&url, &enabled(), RemoteMediaKind::Video)
++        .expect("animated GIF MIME is allowed for video media");
++    assert!(uri.starts_with("data:image/gif;base64,"), "{uri}");
++}
++
++#[test]
++fn video_fetcher_rejects_unrelated_content() {
++    let url = one_shot(http_response("image/png", b"pngbytes"));
++    let err = fetch_media_as_data_uri(&url, &enabled(), RemoteMediaKind::Video).unwrap_err();
++    assert!(err.contains("not a video"), "{err}");
++}
++
+ /// ★ The cap is enforced on BYTES READ, and the case that needs it is a
+ /// response that declares NO length: the body then runs until the peer closes,
+ /// so nothing but our own limit bounds it. `.take(cap + 1)` is what stops it,
+diff --git a/crates/spark-server/src/api/chat/template.rs b/crates/spark-server/src/api/chat/template.rs
+index 6188c1e580f3c507838d59faa4c47da180e139cd..329f5e21be3d5add75ae1cba95b58c1e4f437f50 100644
+--- a/crates/spark-server/src/api/chat/template.rs
++++ b/crates/spark-server/src/api/chat/template.rs
+@@ -11,6 +11,7 @@ use axum::response::Response;
+ use std::sync::Arc;
+ 
+ use crate::AppState;
++use crate::tokenizer::Glm5VisionPlaceholder;
+ 
+ use super::super::compact::{compact_messages, openai_error_response};
+ use super::msg_entry::MsgEntry;
+@@ -31,6 +32,7 @@ pub(super) fn render_template(
+     tools: &[crate::tool_parser::ToolDefinition],
+     messages: &[MsgEntry],
+     image_pad_counts: &[usize],
++    vision_placeholders: &[Glm5VisionPlaceholder],
+     enable_thinking: bool,
+     thinking_budget: Option<u32>,
+     reasoning_effort: Option<crate::ir::ReasoningEffort>,
+@@ -107,8 +109,25 @@ pub(super) fn render_template(
+         }
+     };
+ 
+-    // Expand image pads when needed.
+-    let prompt_tokens = if image_pad_counts.iter().any(|&c| c > 1) {
++    // GLM-5's shipped template intentionally emits canonical compact marker
++    // triples. Its checkpoint processor leaves the rendered text unchanged;
++    // expand those triples here so every image/video encoder row has a
++    // matching input token. Other model families keep the legacy pad-only
++    // expansion below.
++    let prompt_tokens = if !vision_placeholders.is_empty() {
++        match state
++            .tokenizer
++            .expand_glm5_vision_placeholders(prompt_tokens, vision_placeholders)
++        {
++            Ok(tokens) => tokens,
++            Err(e) => {
++                return Err(openai_error_response(
++                    StatusCode::BAD_REQUEST,
++                    format!("GLM-5 vision placeholder error: {e}"),
++                ));
++            }
++        }
++    } else if image_pad_counts.iter().any(|&c| c > 1) {
+         state
+             .tokenizer
+             .expand_vision_pads(prompt_tokens, image_pad_counts)
 diff --git a/crates/spark-server/src/api/chat/template_thinking_tests.rs b/crates/spark-server/src/api/chat/template_thinking_tests.rs
 index 0bf355a5a0e8fffb9ff08481a3cf6c9dd1c2678a..681bb49c3fb65f11f235f088a97ddfdee6cb08c6 100644
 --- a/crates/spark-server/src/api/chat/template_thinking_tests.rs
@@ -4856,6 +5870,322 @@ index 0000000000000000000000000000000000000000..ebc4e3919adc814b7c876f8256b4af5d
 +        } else {
 +            Lane::Mtp
 +        }
++    }
++}
+diff --git a/crates/spark-server/src/tokenizer.rs b/crates/spark-server/src/tokenizer.rs
+index dda0e11570e6a245b953ce81f5343a15d384bfcb..66a25e69e886c1c6e958c0dd9646bb3a621ba2de 100644
+--- a/crates/spark-server/src/tokenizer.rs
++++ b/crates/spark-server/src/tokenizer.rs
+@@ -92,6 +92,23 @@ pub struct ChatTokenizer {
+     openai_jinja_env: Option<minijinja::Environment<'static>>,
+ }
+ 
++/// One GLM-5 multimodal placeholder after CPU preprocessing. The chat
++/// template emits one compact marker per media item; the tokenizer expands
++/// it to the exact number of encoder rows before the prompt reaches prefill.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub(crate) enum Glm5VisionKind {
++    Image,
++    Video,
++}
++
++#[derive(Debug, Clone, PartialEq)]
++pub(crate) struct Glm5VisionPlaceholder {
++    pub(crate) kind: Glm5VisionKind,
++    pub(crate) pad_count: usize,
++    pub(crate) per_frame_pad_count: usize,
++    pub(crate) timestamps: Vec<f32>,
++}
++
+ /// Wrapper around tokenizers::DecodeStream that hides the generic parameters.
+ /// O(1) per step vs O(n) for full re-decode.
+ pub struct StreamingDecoder<'a> {
+diff --git a/crates/spark-server/src/tokenizer/chat_impl.rs b/crates/spark-server/src/tokenizer/chat_impl.rs
+index f68a6973452e88d4d7aeed7679f078684b59e842..cf5bc3460852ce953517da9545f1470c95ed7f61 100644
+--- a/crates/spark-server/src/tokenizer/chat_impl.rs
++++ b/crates/spark-server/src/tokenizer/chat_impl.rs
+@@ -2,13 +2,14 @@
+ 
+ //! `impl ChatTokenizer` body.
+ 
+-use anyhow::Result;
++use anyhow::{Result, bail};
+ use std::path::Path;
+ use tokenizers::Tokenizer;
+ 
+ use super::{
+-    ChatEncoding, ChatTokenizer, StreamingDecoder, autoclose_assistant_think,
+-    normalize_tool_call_arguments, remap_developer_role, resolve_think_control,
++    ChatEncoding, ChatTokenizer, Glm5VisionKind, Glm5VisionPlaceholder, StreamingDecoder,
++    autoclose_assistant_think, normalize_tool_call_arguments, remap_developer_role,
++    resolve_think_control,
+ };
+ 
+ /// Run Atlas's cross-cutting message preprocessing (formerly encoded in
+@@ -451,4 +452,201 @@ impl ChatTokenizer {
+         }
+         out
+     }
++
++    /// Expand the compact GLM-5 image/video triples emitted by the shipped
++    /// template. GLM's checkpoint processor keeps the template text unchanged
++    /// and vLLM performs this update afterwards: images become one image token
++    /// per merged patch, while videos become one image-marked frame per
++    /// temporal group with timestamp text between frames.
++    pub(crate) fn expand_glm5_vision_placeholders(
++        &self,
++        tokens: Vec<u32>,
++        placeholders: &[Glm5VisionPlaceholder],
++    ) -> Result<Vec<u32>> {
++        if placeholders.is_empty() {
++            return Ok(tokens);
++        }
++        let image_start = self.single_token("<|begin_of_image|>")?;
++        let image_end = self.single_token("<|end_of_image|>")?;
++        let video_start = self.single_token("<|begin_of_video|>")?;
++        let video_end = self.single_token("<|end_of_video|>")?;
++        let image_pad = self.single_token("<|image|>")?;
++        let video_pad = self.single_token("<|video|>")?;
++        expand_glm5_tokens(
++            &tokens,
++            placeholders,
++            Glm5TokenIds {
++                image_start,
++                image_end,
++                video_start,
++                video_end,
++                image_pad,
++                video_pad,
++            },
++            |text| self.encode(text),
++        )
++    }
++
++    fn single_token(&self, text: &str) -> Result<u32> {
++        let ids = self.encode(text)?;
++        if ids.len() != 1 {
++            bail!("GLM-5 vision marker {text:?} is not a single tokenizer token")
++        }
++        Ok(ids[0])
++    }
++}
++
++#[derive(Debug, Clone, Copy)]
++struct Glm5TokenIds {
++    image_start: u32,
++    image_end: u32,
++    video_start: u32,
++    video_end: u32,
++    image_pad: u32,
++    video_pad: u32,
++}
++
++fn find_subslice(haystack: &[u32], needle: &[u32], from: usize) -> Option<usize> {
++    haystack[from..]
++        .windows(needle.len())
++        .position(|window| window == needle)
++        .map(|offset| from + offset)
++}
++
++/// Pure GLM expansion, kept separate from the tokenizer wrapper so the
++/// marker/count contract has CPU tests without loading a checkpoint.
++fn expand_glm5_tokens<F>(
++    tokens: &[u32],
++    placeholders: &[Glm5VisionPlaceholder],
++    ids: Glm5TokenIds,
++    mut encode_timestamp: F,
++) -> Result<Vec<u32>>
++where
++    F: FnMut(&str) -> Result<Vec<u32>>,
++{
++    let mut out = Vec::with_capacity(tokens.len());
++    let mut search_from = 0usize;
++    for (placeholder_idx, placeholder) in placeholders.iter().enumerate() {
++        let (target, replacement) = match placeholder.kind {
++            Glm5VisionKind::Image => {
++                let target = [ids.image_start, ids.image_pad, ids.image_end];
++                let mut replacement = Vec::with_capacity(placeholder.pad_count + 2);
++                replacement.push(ids.image_start);
++                replacement.extend(std::iter::repeat_n(
++                    ids.image_pad,
++                    placeholder.pad_count.max(1),
++                ));
++                replacement.push(ids.image_end);
++                (target.to_vec(), replacement)
++            }
++            Glm5VisionKind::Video => {
++                let frame_count = placeholder.timestamps.len();
++                let per_frame = placeholder.per_frame_pad_count;
++                let expected_pad_count = per_frame.checked_mul(frame_count);
++                if frame_count == 0
++                    || per_frame == 0
++                    || expected_pad_count != Some(placeholder.pad_count)
++                {
++                    bail!(
++                        "GLM-5 video placeholder {} has pad_count={} frame_count={} per_frame={}",
++                        placeholder_idx,
++                        placeholder.pad_count,
++                        frame_count,
++                        per_frame
++                    );
++                }
++                let target = [ids.video_start, ids.video_pad, ids.video_end];
++                let mut replacement =
++                    Vec::with_capacity(2 + frame_count * (per_frame + 2) + frame_count * 3);
++                replacement.push(ids.video_start);
++                for timestamp in placeholder.timestamps.iter().copied().take(frame_count) {
++                    // GLM-5's pinned processor formats the old GLM4.1V
++                    // timestamp indices as one-decimal seconds.
++                    replacement.push(ids.image_start);
++                    replacement.extend(std::iter::repeat_n(ids.image_pad, per_frame));
++                    replacement.push(ids.image_end);
++                    let text = format!("{timestamp:.1} seconds");
++                    replacement.extend(encode_timestamp(&text)?);
++                }
++                replacement.push(ids.video_end);
++                (target.to_vec(), replacement)
++            }
++        };
++        let Some(pos) = find_subslice(tokens, &target, search_from) else {
++            bail!(
++                "GLM-5 vision placeholder {} was not found in rendered prompt",
++                placeholder_idx
++            );
++        };
++        out.extend_from_slice(&tokens[search_from..pos]);
++        out.extend(replacement);
++        search_from = pos + target.len();
++    }
++    out.extend_from_slice(&tokens[search_from..]);
++    Ok(out)
++}
++
++#[cfg(test)]
++mod glm5_vision_tests {
++    use super::*;
++
++    const IDS: Glm5TokenIds = Glm5TokenIds {
++        image_start: 10,
++        image_end: 11,
++        video_start: 12,
++        video_end: 13,
++        image_pad: 14,
++        video_pad: 15,
++    };
++
++    fn expand(tokens: &[u32], placeholders: &[Glm5VisionPlaceholder]) -> Vec<u32> {
++        expand_glm5_tokens(tokens, placeholders, IDS, |text| {
++            Ok(match text {
++                "0.0 seconds" => vec![90, 91],
++                "1.0 seconds" => vec![92, 93],
++                _ => vec![99],
++            })
++        })
++        .expect("synthetic GLM markers expand")
++    }
++
++    #[test]
++    fn two_images_expand_in_client_order() {
++        let input = [1, 10, 14, 11, 2, 10, 14, 11, 3];
++        let placeholders = [
++            Glm5VisionPlaceholder {
++                kind: Glm5VisionKind::Image,
++                pad_count: 4,
++                per_frame_pad_count: 4,
++                timestamps: vec![],
++            },
++            Glm5VisionPlaceholder {
++                kind: Glm5VisionKind::Image,
++                pad_count: 2,
++                per_frame_pad_count: 2,
++                timestamps: vec![],
++            },
++        ];
++        assert_eq!(
++            expand(&input, &placeholders),
++            vec![1, 10, 14, 14, 14, 14, 11, 2, 10, 14, 14, 11, 3]
++        );
++    }
++
++    #[test]
++    fn short_video_uses_image_frames_and_timestamp_tokens() {
++        let input = [5, 12, 15, 13, 6];
++        let p = Glm5VisionPlaceholder {
++            kind: Glm5VisionKind::Video,
++            pad_count: 8,
++            per_frame_pad_count: 4,
++            timestamps: vec![0.0, 1.0],
++        };
++        assert_eq!(
++            expand(&input, &[p]),
++            vec![
++                5, 12, 10, 14, 14, 14, 14, 11, 90, 91, 10, 14, 14, 14, 14, 11, 92, 93, 13, 6
++            ]
++        );
++    }
+ }
+diff --git a/crates/spark-server/src/tokenizer/tests/glm5_next.rs b/crates/spark-server/src/tokenizer/tests/glm5_next.rs
+index 4ca945436369399f223b44ec21c620f716a8e2ca..e1e16a23d34ed50aa507296f66c970fb7326d10a 100644
+--- a/crates/spark-server/src/tokenizer/tests/glm5_next.rs
++++ b/crates/spark-server/src/tokenizer/tests/glm5_next.rs
+@@ -63,3 +63,59 @@ fn glm5_without_tools_preserves_stock_reasoning_prompt() {
+         assert!(rendered.ends_with("<|assistant|><think>"));
+     }
+ }
++
++#[test]
++fn glm5_rendered_prompt_keeps_two_image_markers_in_order() {
++    let messages = [json!({
++        "role": "user",
++        "content": [
++            {"type": "image"},
++            {"type": "text", "text": "compare"},
++            {"type": "image"}
++        ]
++    })];
++    let rendered = render(&messages, None, false);
++    let marker = "<|begin_of_image|><|image|><|end_of_image|>";
++    assert_eq!(rendered.matches(marker).count(), 2, "{rendered}");
++    assert!(!rendered.contains("<|vision_start|>"));
++    assert!(!rendered.contains("<|image_pad|>"));
++}
++
++#[test]
++fn glm5_multiturn_media_markers_are_not_grouped_or_dropped() {
++    let messages = [
++        json!({"role": "user", "content": [{"type": "image"}, {"type": "text", "text": "first"}]}),
++        json!({"role": "assistant", "content": "noted"}),
++        json!({"role": "user", "content": [{"type": "text", "text": "second"}, {"type": "image"}]}),
++    ];
++    let rendered = render(&messages, None, false);
++    let marker = "<|begin_of_image|><|image|><|end_of_image|>";
++    assert_eq!(rendered.matches(marker).count(), 2, "{rendered}");
++    let first = rendered.find(marker).expect("first image marker");
++    let second = rendered[first + marker.len()..]
++        .find(marker)
++        .map(|offset| first + marker.len() + offset)
++        .expect("second image marker");
++    assert!(first < second);
++}
++
++#[test]
++fn glm5_video_template_emits_one_canonical_compact_marker() {
++    // Temporal grouping and odd-frame repair happen in the processor; the
++    // shipped chat template must contribute exactly one video triple for both
++    // a two-frame clip and a clip whose sampled frames are repaired to a pair.
++    for content in [
++        json!([{"type": "video"}, {"type": "text", "text": "two frames"}]),
++        json!([{"type": "video"}, {"type": "text", "text": "odd source"}]),
++    ] {
++        let rendered = render(&[json!({"role": "user", "content": content})], None, false);
++        assert_eq!(
++            rendered
++                .matches("<|begin_of_video|><|video|><|end_of_video|>")
++                .count(),
++            1,
++            "{rendered}"
++        );
++        assert!(!rendered.contains("<|vision_start|>"));
 +    }
 +}
 diff --git a/jinja-templates/openai/glm5_next.jinja b/jinja-templates/openai/glm5_next.jinja

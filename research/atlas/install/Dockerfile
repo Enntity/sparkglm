@@ -7,7 +7,9 @@ RUN git clone https://github.com/flashinfer-ai/flashinfer.git /opt/flashinfer &&
     git -C /opt/flashinfer checkout --detach 8eccd0c1352165302840c0e19066bc42d36dbd7a
 COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
 COPY engine/research/flash-kda-prefill /engine/research/flash-kda-prefill
-COPY product/research/atlas /product/research/atlas
+COPY product/research/atlas/install/build-native.sh /product/research/atlas/install/build-native.sh
+COPY product/research/atlas/flash_kda/ /product/research/atlas/flash_kda/
+COPY product/research/atlas/nvidia-mtp-converter/ /product/research/atlas/nvidia-mtp-converter/
 ENV NVCC_THREADS=2
 RUN bash /product/research/atlas/install/build-native.sh /engine /opt/flashinfer /product /opt/atlas/native
 WORKDIR /product/research/atlas/nvidia-mtp-converter
@@ -27,7 +29,7 @@ ENV LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 RUN git clone https://github.com/NVIDIA/cutlass.git /opt/cutlass && \
     git -C /opt/cutlass checkout cf064d2e6bad2886238ac565b3b49007764f4939
 WORKDIR /build
-COPY engine/Cargo.toml engine/Cargo.lock engine/rust-toolchain.toml ./
+COPY engine/Cargo.toml engine/Cargo.lock engine/rust-toolchain.toml engine/README.md ./
 COPY engine/crates/ crates/
 COPY engine/kernels/ kernels/
 COPY engine/vendor/ vendor/
