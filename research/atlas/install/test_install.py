@@ -31,6 +31,7 @@ class LaunchContract(unittest.TestCase):
             self.assertIn('--tp-size=2', argv)
             self.assertIn('--ep-size=2', argv)
             self.assertNotIn('--disable-tool-grammar=true', argv)
+            self.assertIn('--tool-call-parser=poolside_v1', argv)
             self.assertEqual(env['NCCL_SOCKET_IFNAME'], self.environment['FABRIC_INTERFACE'])
             self.assertNotIn('NCCL_IB_GID_INDEX', env)
 

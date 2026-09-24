@@ -53,3 +53,5 @@ receipt binds the host's image ID to the SparkGLM commit and reconstructed
 engine manifest. LLooM checks it again during setup. Runtime assets and engine
 source under this directory remain AGPL-3.0-only; third-party dependency
 notices are included in the image.
+
+The serving profile explicitly selects `poolside_v1`, which matches the checkpoint’s `<tool_call>name<arg_key>…</arg_key><arg_value>…</arg_value></tool_call>` syntax. This works without a checkpoint-local `MODEL.toml`.
