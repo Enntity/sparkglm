@@ -21,7 +21,7 @@ Atlas is an explicit operation; its research profiles never change the vLLM lane
 | Project | Entry point | Status |
 | --- | --- | --- |
 | **vLLM — default** | [Install and serve](SPARKGLM.md) | Selected NVIDIA NVFP4 source preview |
-| **Atlas — experimental** | [Active Atlas project](research/atlas/README.md) | NVIDIA NVFP4, native MTP2, 32K/four-owner research; parity not achieved |
+| **Atlas — experimental** | [Installable candidate](research/atlas/install/README.md) | Source-built NVIDIA NVFP4/MTP2 engine; qualification in progress |
 
 > **Source research preview:** this is the maintainer-selected measured default,
 > not a production certification. No prebuilt image or complete G5 qualification

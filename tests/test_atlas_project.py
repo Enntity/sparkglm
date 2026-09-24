@@ -35,6 +35,9 @@ class AtlasProjectChecks(unittest.TestCase):
     def test_portable_profile(self):
         self.run_python([PROJECT / "test_profile.py"], minimum_tests=3)
 
+    def test_installable_launch_contract(self):
+        self.run_python([PROJECT.parent / "install" / "test_install.py"], minimum_tests=3)
+
     def test_source_reconstruction_guards(self):
         # Optional real-upstream reconstruction is deliberately separate from G0.
         self.run_python([PROJECT / "test_reconstruct.py", "-v"], minimum_tests=8)

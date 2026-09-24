@@ -179,6 +179,21 @@ reference snapshot is not asserted to reproduce it. The provenance ledger record
 this explicitly without inventing a source commit; no native binary is shipped.
 See [the build boundary](../research/atlas/project/BUILD.md).
 
+The installable Atlas candidate replaces that cached object with source from
+https://github.com/flashinfer-ai/flashinfer at
+`8eccd0c1352165302840c0e19066bc42d36dbd7a`. NVIDIA's sparse-prefill code retains
+its BSD-3-Clause notice; FlashInfer's JIT arithmetic flags are reproduced by the
+AGPL build wrapper. This establishes provenance for the replacement, not for
+the historical object. The source-built replacement matched the retained
+library's output and LSE bytes on four bounded synthetic fixtures after the
+upstream compiler flags were matched. Full-model qualification is separate.
+
+The GLM vision architecture reference is vLLM's
+`vllm/models/glm5next/nvidia/multimodal.py` at
+https://github.com/vllm-project/vllm/tree/487ecf187d3dfe74d2cf6119a92881dba403c219.
+Its Apache-2.0 contributor notices remain applicable to adapted portions; the
+native integration stays within Atlas's AGPL boundary.
+
 ## Experimental NVMe prefix cache
 
 The direct-file GPU/SSD transport and hybrid-group handling are adapted from

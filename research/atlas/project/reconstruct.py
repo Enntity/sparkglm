@@ -9,7 +9,9 @@ import re
 import subprocess
 
 MANIFESTS = {"latest": Path(__file__).resolve().parent.parent / "nvidia-day2-source.json",
-             "measured": Path(__file__).resolve().parent.parent / "nvidia-r23-source.json"}
+             "measured": Path(__file__).resolve().parent.parent / "nvidia-r23-source.json",
+             "query": Path(__file__).resolve().parent.parent / "nvidia-query-source.json",
+             "installable": Path(__file__).resolve().parent.parent / "nvidia-installable-source.json"}
 DEFAULT_MANIFEST = MANIFESTS["latest"]
 ENV = dict(os.environ, GIT_LFS_SKIP_SMUDGE="1", GIT_TERMINAL_PROMPT="0")
 GIT = ["git", "-c", "filter.lfs.required=false", "-c", "filter.lfs.smudge=",
@@ -123,8 +125,8 @@ def prepare(manifest_path, source_repo, destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checkpoint", choices=("latest", "measured"), default="latest",
-                        help="latest diagnostic source (default) or exact measured r23 source")
+    parser.add_argument("--checkpoint", choices=tuple(MANIFESTS), default="latest",
+                        help="pinned diagnostic, measured r23, query, or installable engine source")
     parser.add_argument("--source-repo", required=True, type=Path,
                         help="clean local Mango-compatible Git checkout containing the pinned base")
     parser.add_argument("--destination", required=True, type=Path,

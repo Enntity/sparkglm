@@ -4,19 +4,21 @@ Atlas is SparkGLM's separate Rust/CUDA engine project. It is actively developed
 here on `main`, under **AGPL-3.0-only**. The root installer and serving defaults
 remain the **vLLM** project; nothing in this directory is enabled by default.
 
-The current NVIDIA NVFP4 campaign has working native MTP2, 32K context and four
-owners. The best retained staggered C4 took **137.129 seconds**, versus
-**205.468 seconds** for the first full run and **90.500 seconds** for the vLLM
-reference. These are bounded research measurements, not complete qualification
-or a claim of parity. See the [checksum-bound result](../../results/candidates/2026-09-11-atlas-day2/RESULT.md).
+The [installable candidate](install/README.md) adds a pinned source build and
+LLooM recipe, constrained generation, tool calls, and GLM image/video support.
+Its reconstructed source is bound by `nvidia-installable-source.json`. Hardware
+qualification is in progress; this is not a promoted default or a G5 release.
 
-Start with the [current source and operator project](project/README.md),
-[day's chronological report](DAY2_PROGRESS.md), and [next steps](NEXT_STEPS.md).
-The latest source includes a diagnostic after the best measured candidate;
-source, runtime profiles and diagnostic/performance results remain distinguished.
-The fastest measured native-prefill configuration depends on an excluded cached
-NVIDIA object whose exact source/build identity is unresolved. The bridge source
-is preserved, but that configuration is not a self-contained public binary build.
+The native dependencies now build from pinned FlashKDA and FlashInfer source.
+Focused operator parity results are recorded in the
+[source-build result](../../results/candidates/2026-09-24-atlas-native-source/RESULT.md).
+These checks cover operators, not full-model speed or semantic quality.
+
+The [earlier source project](project/README.md), [September 11 report](DAY2_PROGRESS.md)
+and [historical next steps](NEXT_STEPS.md) retain the prior campaign. Its best
+staggered C4 result was 137.129 seconds versus its 90.500-second vLLM reference;
+those older measurements do not describe the installable candidate. The older
+profile depended on a cached NVIDIA object with unresolved build provenance.
 
 The [initial bring-up](NVIDIA_REFRESH.md) and
 [previous handoff](NVIDIA_HANDOFF_2026-09-11.md) retain the original fork import,

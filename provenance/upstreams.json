@@ -199,7 +199,8 @@
         "research/atlas/flash_kda/**",
         "research/atlas/experiments/day2/flash-kda/**",
         "research/atlas/nvidia-day2.patch",
-        "research/atlas/nvidia-r23.patch"
+        "research/atlas/nvidia-r23.patch",
+        "research/atlas/install/**"
       ]
     },
     {
@@ -298,7 +299,9 @@
         "research/experiments/nvfp4-nvidia/**",
         "start-nvidia.sh",
         "docs/NVIDIA_PACKAGE.md",
-        "docs/nvidia-comparison.csv"
+        "docs/nvidia-comparison.csv",
+        "research/atlas/install/**",
+        "research/atlas/nvidia-installable*"
       ]
     },
     {
@@ -320,7 +323,10 @@
         "research/atlas/nvidia-day2*",
         "research/atlas/nvidia-r23*",
         "research/atlas/project/**",
-        "research/atlas/experiments/day2/**"
+        "research/atlas/experiments/day2/**",
+        "research/atlas/nvidia-query*",
+        "research/atlas/nvidia-installable*",
+        "research/atlas/install/**"
       ]
     },
     {
@@ -334,7 +340,8 @@
         "research/atlas/nvidia-prefill-rejected-standalones.patch",
         "research/atlas/nvidia-prefill/**",
         "research/atlas/project/**",
-        "research/atlas/experiments/day2/**"
+        "research/atlas/experiments/day2/**",
+        "research/atlas/install/**"
       ]
     },
     {
@@ -379,6 +386,35 @@
       "covered_paths": [
         "research/adaptive-verification/fixtures/**",
         "research/adaptive-verification/receipts/*.py"
+      ]
+    },
+    {
+      "id": "flashinfer-atlas-source-build",
+      "repository": "https://github.com/flashinfer-ai/flashinfer",
+      "revision": "8eccd0c1352165302840c0e19066bc42d36dbd7a",
+      "license_expression": "Apache-2.0 AND BSD-3-Clause",
+      "notice_ids": [
+        "Apache-2.0",
+        "BSD-3-Clause-NVIDIA-Native"
+      ],
+      "relationship": "Pinned source-built sparse MLA dependency. NVIDIA sparse-prefill source retains BSD-3-Clause; FlashInfer build flags are adapted. This replaces the historical cached object rather than asserting identical object provenance. Native synthetic byte-equivalence is measured separately.",
+      "covered_paths": [
+        "research/atlas/install/**",
+        "research/atlas/nvidia-installable*"
+      ]
+    },
+    {
+      "id": "vllm-atlas-glm-vision-reference",
+      "repository": "https://github.com/vllm-project/vllm",
+      "revision": "487ecf187d3dfe74d2cf6119a92881dba403c219",
+      "license_expression": "Apache-2.0",
+      "notice_ids": [
+        "Apache-2.0"
+      ],
+      "relationship": "Architecture and numerical reference for the original native GLM vision integration; pinned GLM5Next multimodal source exactly matches the inspected reference runtime. Rust/CUDA adaptation remains under the Atlas AGPL boundary.",
+      "covered_paths": [
+        "research/atlas/nvidia-installable*",
+        "docs/ATTRIBUTION.md"
       ]
     }
   ],

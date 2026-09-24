@@ -1,0 +1,94 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-24-atlas-native-source",
+  "title": "Atlas native libraries rebuilt from pinned source",
+  "date": "2026-09-24",
+  "state": "experiment",
+  "qualification_level": "G0",
+  "target": "Reproduce qualified native arithmetic without opaque cached objects",
+  "change": {
+    "baseline_ref": "a7e8163c87550ccb055b043c63513a2b71b244eb",
+    "candidate_ref": "4df730729df484870f4e26cc7a50cf2750112835",
+    "working_tree_clean": false,
+    "provenance": [
+      "Source-built FlashInfer https://github.com/flashinfer-ai/flashinfer at8eccd0c1352165302840c0e19066bc42d36dbd7a; adapted Atlas ABI wrappers and FlashKDA build recipe."
+    ]
+  },
+  "environment": {
+    "hardware": "DGX Spark GB10",
+    "gpu_capability": "12.1",
+    "torch": "2.13.0+cu130",
+    "cuda": "13.0",
+    "test_torch_memory_cap_bytes": 2147483648
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": "Bounded native replacement checks only; complete gate not claimed."
+    }
+  ],
+  "metrics": [],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "da3f7404c9bcafbb38d4eaa8e7a559ddeb1654e5fd8a384076c21ea9b8b2defb"
+    },
+    {
+      "path": "flash-gpu-check-baseline.jsonl",
+      "kind": "raw-receipt",
+      "sha256": "8583f5c31f42e696fee1587d0e40db02664ca3801dd7d07ca17e89508a9b3a36"
+    },
+    {
+      "path": "flash-gpu-check-candidate.jsonl",
+      "kind": "raw-receipt",
+      "sha256": "ad2f93c71f543928b1085d7961f03e4ceed454de93440b3dffa93747ace09c56"
+    },
+    {
+      "path": "native-gpu-check.jsonl",
+      "kind": "raw-receipt",
+      "sha256": "6ec6aa77a2ae5f1397c5b68738e10189326a8b4f96aa1a9c09b0d7483767012d"
+    },
+    {
+      "path": "source.json",
+      "kind": "raw-receipt",
+      "sha256": "a964e28d354464a2dfc6d45f3e08465fe4e554cc1683b7ec553b171efb5788a2"
+    }
+  ],
+  "limitations": [
+    "No full-model quality or speed claim.",
+    "No CUDA-graph or complete G1/G2 matrix in this bundle.",
+    "Source-build scripts were uncommitted at measurement; exact script and archive hashes retained."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

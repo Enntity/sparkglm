@@ -1,0 +1,2312 @@
+diff --git a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
+index 14c82cd52f11d4a1dc8fb798a91a5a4b7f10fb63..0d6d62a92a47b3777cd4df4b64ee1453645c807e 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
+@@ -121,6 +121,30 @@ impl Qwen3AttentionLayer {
+         ctx: &ForwardContext,
+         stream: u64,
+     ) -> Result<Option<(DevicePtr, u32)>> {
++        self.glm_index_decode_update_and_select_with_query(
++            normed, q_latent, pos, kv_cache, ctx, stream, None,
++        )
++    }
++
++    /// Variant used by the repaired K3 query stage.  Index maintenance and
++    /// selection stay exactly where the scalar consumer performs them; only
++    /// the stateless index-Q projection can be supplied from retained scratch.
++    pub(in crate::layers::qwen3_attention) fn glm_index_decode_update_and_select_with_query(
++        &self,
++        normed: DevicePtr,
++        q_latent: DevicePtr,
++        pos: u32,
++        kv_cache: &PagedKvCache,
++        ctx: &ForwardContext,
++        stream: u64,
++        precomputed_query: Option<DevicePtr>,
++    ) -> Result<Option<(DevicePtr, u32)>> {
++        if let Some(query) = precomputed_query {
++            ensure!(
++                !query.is_null() && query.0 % 16 == 0,
++                "GLM sparse decode precomputed index query is invalid"
++            );
++        }
+         self.glm_index_decode_update(normed, kv_cache, ctx, stream)?;
+         let mla = self.mla.as_ref().expect("GLM decode index without MLA");
+         let indexer = mla
+@@ -148,17 +172,22 @@ impl Qwen3AttentionLayer {
+         let pool_size = spec.tokens_per_pool as u32;
+         let logits_stride = seq_len.div_ceil(pool_size);
+         let output_width = topk + pool_size - 1;
+-        let query = ctx.buffers.ssm_deinterleaved();
+-        ops::dense_gemv(
+-            ctx.gpu,
+-            self.dense_gemv_k,
+-            q_latent,
+-            &indexer.wq_b,
+-            query,
+-            index_heads * index_dim,
+-            mla.q_lora_rank as u32,
+-            stream,
+-        )?;
++        let query = if let Some(query) = precomputed_query {
++            query
++        } else {
++            let query = ctx.buffers.ssm_deinterleaved();
++            ops::dense_gemv(
++                ctx.gpu,
++                self.dense_gemv_k,
++                q_latent,
++                &indexer.wq_b,
++                query,
++                index_heads * index_dim,
++                mla.q_lora_rank as u32,
++                stream,
++            )?;
++            query
++        };
+         let weights = ctx.buffers.ssm_gates();
+         ops::dense_gemv(
+             ctx.gpu,
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla.rs
+index c32bca3850f51bb156e8d9595854e8475f40b2bb..c4e596073548bd3f9993f234bfd41c8c9778d7f1 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla.rs
+@@ -101,6 +101,10 @@ impl Qwen3AttentionLayer {
+         }
+ 
+         let o_stage = self.glm_k3_o_stage(c, mla, long_verify, o_out)?;
++        let query_stage = self.glm_k3_query_stage(c, mla, long_verify)?;
++        if let Some(plan) = query_stage {
++            plan.project(self, c, mla)?;
++        }
+         for i in 0..c.n {
+             let normed_i = c.normed.offset(i * c.h * bf16);
+             // Per-sequence metadata views. The batched metadata packs
+@@ -208,6 +212,7 @@ impl Qwen3AttentionLayer {
+                 stream,
+                 c.seq_lens[i],
+                 o_stage.map(|p| p.row(i)).transpose()?,
++                query_stage.map(|p| p.row(i)).transpose()?,
+             )?;
+             if let Some(plan) = o_stage {
+                 plan.capture_scalar(c.fwd.gpu, self.dense_gemv_k, &mla.wo, i, stream)?;
+@@ -254,3 +259,5 @@ mod long_context_tests;
+ 
+ #[path = "mla_k3_o.rs"]
+ mod k3_o;
++#[path = "mla_k3_query.rs"]
++mod k3_query;
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_causal_dispatch_tests.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_causal_dispatch_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..e80d0b767fbb35862aa057cc87cb4e124a333f58
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_causal_dispatch_tests.rs
+@@ -0,0 +1,483 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++use super::*;
++
++#[test]
++fn actual_prompt_index_and_causal_verify_dispatch() {
++    const CHILD: &str = "ATLAS_TEST_LONG_MTP_ATTENTION";
++    if std::env::var_os(CHILD).is_none() {
++        let name = concat!(
++            module_path!(),
++            "::actual_prompt_index_and_causal_verify_dispatch"
++        );
++        for (tc, o_batch, o_compare, q_batch, q_compare) in [
++            ("0", "0", "0", "0", "0"),
++            ("1", "0", "0", "0", "0"),
++            ("0", "1", "0", "0", "0"),
++            ("1", "1", "0", "0", "0"),
++            ("0", "1", "1", "0", "0"),
++            ("1", "1", "1", "0", "0"),
++            // Query batching is checked with O batching disabled so each
++            // projection's handle and output slice remain unambiguous.
++            ("0", "0", "0", "1", "0"),
++            ("0", "0", "0", "1", "1"),
++            ("1", "1", "0", "1", "0"),
++            ("1", "1", "1", "1", "1"),
++        ] {
++            let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
++            cmd.args(["--exact", name.split_once("::").unwrap().1, "--nocapture"]);
++            for (k, _) in std::env::vars_os() {
++                if k.to_string_lossy().starts_with("ATLAS_") {
++                    cmd.env_remove(k);
++                }
++            }
++            let out = cmd
++                .env(CHILD, "1")
++                .env("ATLAS_GLM_MTP_LONG_CONTEXT", "1")
++                .env("ATLAS_GLM_MTP_REPAIR", "1")
++                .env("ATLAS_GLM_SPARSE_DECODE_TC", tc)
++                .env("ATLAS_GLM_K3_MLA_O_BATCHM", o_batch)
++                .env("ATLAS_GLM_K3_MLA_O_COMPARE", o_compare)
++                .env("ATLAS_GLM_K3_MLA_QUERY_BATCHM", q_batch)
++                .env("ATLAS_GLM_K3_MLA_QUERY_COMPARE", q_compare)
++                .output()
++                .unwrap();
++            assert!(String::from_utf8_lossy(&out.stdout).contains("running 1 test"));
++            assert!(
++                out.status.success(),
++                "TC={tc}, O batchm={o_batch}, O compare={o_compare}, \
++                 Q batchm={q_batch}, Q compare={q_compare}: {}\n{}",
++                String::from_utf8_lossy(&out.stdout),
++                String::from_utf8_lossy(&out.stderr)
++            );
++        }
++        return;
++    }
++    fixture(|gpu, config, layer| {
++        if std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1") {
++            use crate::layers::qwen3_attention::glm_k3_mla_o::initialize;
++            let ptr = layer.mla.as_ref().unwrap().wo.weight;
++            initialize(gpu, config, KvCacheDtype::Bf16, ptr, 4096, 8192).unwrap();
++            let mut wrong = config.clone();
++            wrong.num_attention_heads = 64;
++            assert!(initialize(gpu, &wrong, KvCacheDtype::Bf16, ptr, 4096, 8192).is_err());
++            assert!(initialize(gpu, config, KvCacheDtype::Fp8, ptr, 4096, 8192).is_err());
++        }
++        let sparse_kernel = if ops::glm_sparse_decode_tc_enabled(&config.model_type).unwrap() {
++            gpu.kernel(
++                "glm_sparse_prefill_kv_reuse",
++                "glm_sparse_mla_prefill_bf16_head32_tc_kv_pad",
++            )
++            .unwrap()
++            .0
++        } else {
++            804
++        };
++        let arena = BufferArena::new(config, 16, 32768, 16, 1, gpu).unwrap();
++        let mut dispatch = ops::GemmDispatch::defaults();
++        dispatch.cublas_gemm = false;
++        let derived = ops::DerivedWeights::new();
++        let levers = ops::ModelLevers::defaults();
++        let stats = ops::ModelStats::new();
++        let ptr = gpu.alloc(3 * 2049 * 4 + 1024).unwrap();
++        let meta = AttnMetadataDev {
++            positions: ptr,
++            positions_h: ptr,
++            positions_w: ptr,
++            slot: ptr.offset(256),
++            seq_len: ptr.offset(512),
++            block_table: ptr.offset(768),
++            max_blocks_per_seq: 2049,
++            num_seqs: 3,
++            seq_slot: DevicePtr::NULL,
++            moe_row_adapter: DevicePtr::NULL,
++        };
++        let ctx = ForwardContext {
++            buffers: &arena,
++            gpu,
++            config,
++            dispatch: &dispatch,
++            derived: &derived,
++            levers: &levers,
++            stats: &stats,
++            ssm_batch: None,
++            attn_metadata: Some(meta),
++            profile: false,
++            comm: None,
++            graph_capture: false,
++            gdn_exact_replay: false,
++            token_ids: None,
++            host_token_ids: None,
++            routed_lora_layers: None,
++            midchunk_capture: None,
++            moe_lora_route: crate::layer::MoeLoraRoute::Skip,
++        };
++        let mut cache = PagedKvCache::new(
++            KvCacheConfig {
++                block_size: 16,
++                num_kv_heads: 1,
++                head_dim: 512,
++                num_layers: 1,
++                dtype: KvCacheDtype::Bf16,
++                layer_dtypes: vec![],
++                layer_dims: vec![],
++                cache_blocks_per_seq: None,
++            },
++            2050,
++            gpu,
++        )
++        .unwrap();
++        cache
++            .attach_sparse_index(SparseIndexCacheConfig::bf16(4, 128), gpu)
++            .unwrap();
++        let before = gpu.launch_count();
++        layer
++            .prefill_mla_kv_only_impl(arena.hidden_states(), 3, &mut cache, meta.slot, &ctx, 0)
++            .unwrap();
++        let launches = gpu.launches_snapshot();
++        let index: Vec<_> = launches[before..]
++            .iter()
++            .filter(|x| (801..=804).contains(&x.func))
++            .map(|x| (x.func, x.grid[0]))
++            .collect();
++        assert_eq!(
++            index,
++            vec![(801, 3), (802, 3)],
++            "KV-only prompt/repair must populate raw and pooled index"
++        );
++        for positions in [[2046, 2048, 2049], [32767, 32768, 32769]] {
++            let c = MultiSeqCtx::new(
++                layer,
++                &ctx,
++                arena.hidden_states(),
++                arena.residual(),
++                3,
++                &positions,
++                16,
++                0,
++            );
++            let before = gpu.launch_count();
++            assert!(layer.ms_mla_decode(&c, &mut cache, meta).is_err());
++            assert_eq!(
++                gpu.launch_count(),
++                before,
++                "bad row extents must refuse before kernels"
++            );
++        }
++        let graph_ctx = ForwardContext {
++            graph_capture: true,
++            midchunk_capture: None,
++            ..ctx
++        };
++        let positions = [2046, 2047, 2048];
++        let c = MultiSeqCtx::new(
++            layer,
++            &graph_ctx,
++            arena.hidden_states(),
++            arena.residual(),
++            3,
++            &positions,
++            16,
++            0,
++        );
++        let before = gpu.launch_count();
++        assert!(layer.ms_mla_decode(&c, &mut cache, meta).is_err());
++        assert_eq!(gpu.launch_count(), before);
++        if std::env::var("ATLAS_GLM_K3_MLA_QUERY_BATCHM").as_deref() == Ok("1") {
++            // Exercise the full FP32 residual span: placing normed in its
++            // upper half must be rejected before any projection or cache
++            // launch. A BF16-sized residual liveness check would miss this
++            // overlap.
++            let positions = [2046, 2047, 2048];
++            let c = MultiSeqCtx::new(
++                layer,
++                &ctx,
++                arena.hidden_states(),
++                arena.residual(),
++                3,
++                &positions,
++                16,
++                0,
++            );
++            let residual_bytes = arena.sizes().ssm_conv_out_f32;
++            let input_bytes = 3 * 4096 * 2;
++            assert!(residual_bytes >= input_bytes);
++            let mut rejected = c;
++            rejected.residual = arena.ssm_conv_out_f32();
++            rejected.normed = arena
++                .ssm_conv_out_f32()
++                .offset(residual_bytes - input_bytes);
++            let before = gpu.launch_count();
++            assert!(layer.ms_mla_decode(&rejected, &mut cache, meta).is_err());
++            assert_eq!(
++                gpu.launch_count(),
++                before,
++                "FP32 residual upper-half alias must fail before query work"
++            );
++        }
++        for positions in [
++            [2045, 2046, 2047], // all short: query flag must fall back cleanly
++            [2046, 2047, 2048], // exact dense/sparse boundary
++            [32764, 32765, 32766],
++        ] {
++            let c = MultiSeqCtx::new(
++                layer,
++                &ctx,
++                arena.hidden_states(),
++                arena.residual(),
++                3,
++                &positions,
++                16,
++                0,
++            );
++            if std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1") {
++                let compare = std::env::var("ATLAS_GLM_K3_MLA_O_COMPARE").as_deref() == Ok("1");
++                for bad in 0..if compare { 3 } else { 2 } {
++                    let mut rejected = MultiSeqCtx::new(
++                        layer,
++                        &ctx,
++                        arena.hidden_states(),
++                        arena.residual(),
++                        3,
++                        &positions,
++                        16,
++                        0,
++                    );
++                    if bad == 0 {
++                        rejected.nq = 64;
++                    } else if bad == 1 {
++                        rejected.normed = arena.ssm_qkvz().offset(512);
++                    } else {
++                        rejected.normed = arena.attn_output();
++                    }
++                    let count = gpu.launch_count();
++                    assert!(layer.ms_mla_decode(&rejected, &mut cache, meta).is_err());
++                    assert_eq!(
++                        gpu.launch_count(),
++                        count,
++                        "bad O plan must reject before cache/index writes"
++                    );
++                }
++            }
++            let before = gpu.launch_count();
++            let args_before = gpu.1.lock().unwrap().len();
++            let alloc_before = gpu.alloc_count();
++            let copies_before = gpu.d2h_blocking_count();
++            layer.ms_mla_decode(&c, &mut cache, meta).unwrap();
++            assert_eq!(gpu.alloc_count(), alloc_before, "no forward allocation");
++            let args = gpu.1.lock().unwrap();
++            let calls = &args[args_before..];
++            let batched = std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1");
++            let compare = std::env::var("ATLAS_GLM_K3_MLA_O_COMPARE").as_deref() == Ok("1");
++            let query_batched =
++                std::env::var("ATLAS_GLM_K3_MLA_QUERY_BATCHM").as_deref() == Ok("1");
++            let query_compare =
++                std::env::var("ATLAS_GLM_K3_MLA_QUERY_COMPARE").as_deref() == Ok("1");
++            let query_active = query_batched && positions.iter().any(|&pos| pos >= 2048);
++            assert_eq!(
++                gpu.d2h_blocking_count() - copies_before,
++                (if compare { 2 } else { 0 }) + (if query_compare && query_active { 8 } else { 0 }),
++                "only diagnostic modes read full comparison buffers"
++            );
++            let mla = layer.mla.as_ref().unwrap();
++            let q_a_weight = mla.wq_a.weight.0.to_ne_bytes().to_vec();
++            let q_b_weight = mla.wq_b.weight.0.to_ne_bytes().to_vec();
++            let index_q_weight = mla.glm_indexer.as_ref().unwrap().wq_b.weight;
++            let index_q_weight = index_q_weight.0.to_ne_bytes().to_vec();
++            let query_batches: Vec<_> = calls
++                .iter()
++                .enumerate()
++                .filter(|(_, (k, a))| {
++                    *k == 807
++                        && (a[1] == q_a_weight || a[1] == q_b_weight || a[1] == index_q_weight)
++                })
++                .collect();
++            assert_eq!(
++                query_batches.len(),
++                if query_active { 3 } else { 0 },
++                "query batchm must be disabled for short or opt-out calls"
++            );
++            if query_active {
++                let first_cache_write = calls
++                    .iter()
++                    .position(|(k, _)| *k == 820)
++                    .expect("scalar MLA cache assembly must be recorded");
++                for (index, call) in query_batches.iter().enumerate() {
++                    let launch_index = call.0;
++                    let args = &call.1.1;
++                    assert!(
++                        launch_index < first_cache_write,
++                        "all query projections must precede the first cache write"
++                    );
++                    let (weight, output, dims) = match index {
++                        0 => (
++                            q_a_weight.clone(),
++                            arena.ssm_ba(),
++                            [3_u32, 1536, 4096, 1536],
++                        ),
++                        1 => (
++                            q_b_weight.clone(),
++                            arena.ssm_deinterleaved(),
++                            [3_u32, 8192, 1536, 8192],
++                        ),
++                        2 => (
++                            index_q_weight.clone(),
++                            arena.ssm_deinterleaved().offset(3 * 8192 * 2),
++                            [3_u32, 4096, 1536, 4096],
++                        ),
++                        _ => unreachable!(),
++                    };
++                    assert_eq!(args[1], weight);
++                    assert_eq!(args[2], output.0.to_ne_bytes().to_vec());
++                    assert_eq!(&args[3..], &dims.map(|value| value.to_ne_bytes().to_vec()));
++                }
++                let scalar_for = |weight: &[u8]| {
++                    calls
++                        .iter()
++                        .filter(|(k, a)| *k == 806 && a[1] == weight)
++                        .count()
++                };
++                assert_eq!(scalar_for(&q_a_weight), if query_compare { 3 } else { 0 });
++                assert_eq!(scalar_for(&q_b_weight), if query_compare { 3 } else { 0 });
++                assert_eq!(
++                    scalar_for(&index_q_weight),
++                    if query_compare { 3 } else { 0 }
++                );
++
++                // Selection must consume the retained per-row index-Q slice;
++                // it must not fall back to the scalar base projection or
++                // overwrite another row's tail before its logits launch.
++                let index_logits: Vec<_> = calls
++                    .iter()
++                    .enumerate()
++                    .filter(|(_, (k, _))| *k == 812)
++                    .collect();
++                let expected_index_logits = positions.iter().filter(|&&pos| pos >= 2048).count();
++                assert_eq!(index_logits.len(), expected_index_logits);
++                let mut row = 0;
++                for (position, (_, args)) in index_logits {
++                    while positions[row] < 2048 {
++                        row += 1;
++                    }
++                    assert_eq!(
++                        args[0],
++                        arena
++                            .ssm_deinterleaved()
++                            .offset(3 * 8192 * 2 + row * 4096 * 2)
++                            .0
++                            .to_ne_bytes()
++                            .to_vec(),
++                        "index logits must use row {row}'s retained index-Q"
++                    );
++                    assert!(position > first_cache_write);
++                    row += 1;
++                }
++            }
++            let o_weight = layer
++                .mla
++                .as_ref()
++                .unwrap()
++                .wo
++                .weight
++                .0
++                .to_ne_bytes()
++                .to_vec();
++            let o_calls: Vec<_> = calls
++                .iter()
++                .enumerate()
++                .filter(|(_, (k, a))| (*k == 806 || *k == 807) && a[1] == o_weight)
++                .collect();
++            assert_eq!(
++                o_calls.len(),
++                if compare {
++                    4
++                } else if batched {
++                    1
++                } else {
++                    3
++                }
++            );
++            let extracted: Vec<_> = calls
++                .iter()
++                .enumerate()
++                .filter(|(_, (k, a))| *k == 808 && a[3] == 256_u32.to_ne_bytes())
++                .collect();
++            assert_eq!(extracted.len(), 3);
++            let prefix_writes: Vec<_> = calls
++                .iter()
++                .filter(|(k, a)| {
++                    *k == 806
++                        && (a[2] == arena.ssm_qkvz().0.to_ne_bytes()
++                            || a[2] == arena.ssm_qkvz().offset(256).0.to_ne_bytes())
++                        && a[3] == 128_u32.to_ne_bytes()
++                })
++                .collect();
++            assert_eq!(
++                prefix_writes.len(),
++                6,
++                "three serial key/gate writes stay in512-byte prefix"
++            );
++            for (i, (_, (_, a))) in extracted.iter().enumerate() {
++                let offset = if batched { 512 + i * 8192 * 2 } else { 0 };
++                assert_eq!(a[2], arena.ssm_qkvz().offset(offset).0.to_ne_bytes());
++            }
++            if compare {
++                let scalar: Vec<_> = o_calls.iter().filter(|(_, (k, _))| *k == 806).collect();
++                assert_eq!(scalar.len(), 3);
++                for i in 0..3 {
++                    assert_eq!(
++                        scalar[i].0,
++                        extracted[i].0 + 1,
++                        "scalar baseline must immediately follow its V extract"
++                    );
++                    let a = &scalar[i].1.1;
++                    assert_eq!(
++                        a[0],
++                        arena.ssm_qkvz().offset(512 + i * 8192 * 2).0.to_ne_bytes()
++                    );
++                    assert_eq!(
++                        a[2],
++                        arena.moe_output().offset(i * 4096 * 2).0.to_ne_bytes()
++                    );
++                }
++            }
++            if batched {
++                let batched_o = o_calls.iter().find(|(_, (k, _))| *k == 807).unwrap();
++                assert!(
++                    batched_o.0 > extracted[2].0,
++                    "O must follow third V extraction"
++                );
++                assert_eq!(calls.last().unwrap().0, 807);
++                let a = &batched_o.1.1;
++                assert_eq!(a[0], arena.ssm_qkvz().offset(512).0.to_ne_bytes());
++                let expected_output = if compare {
++                    arena.attn_output()
++                } else {
++                    arena.moe_output()
++                };
++                assert_eq!(a[2], expected_output.0.to_ne_bytes());
++                assert_eq!(
++                    &a[3..],
++                    &[3_u32, 4096, 8192, 4096].map(|v| v.to_ne_bytes().to_vec())
++                );
++            }
++            drop(args);
++            let launches = gpu.launches_snapshot();
++            let index: Vec<_> = launches[before..]
++                .iter()
++                .filter(|x| (801..=804).contains(&x.func) || x.func == sparse_kernel)
++                .map(|x| x.func)
++                .collect();
++            let mut expected = vec![];
++            for pos in positions {
++                expected.extend([801, 802]);
++                if pos + 1 > 2048 {
++                    expected.extend([803, sparse_kernel]);
++                }
++            }
++            assert_eq!(
++                index, expected,
++                "causal rows must maintain index before selecting sparse attention"
++            );
++        }
++    });
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_glm_verify.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_glm_verify.rs
+index 483cef5ca93d54292133efda16b57c8444c27089..8eb20a72e6058a4a139cb0e5712ec3c278853415 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_glm_verify.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_glm_verify.rs
+@@ -160,6 +160,7 @@ impl Qwen3AttentionLayer {
+         position: usize,
+         d: &MlaDims,
+         stream: u64,
++        index_query: Option<DevicePtr>,
+     ) -> Result<bool> {
+         if !glm_long_context::enabled(&c.fwd.config.model_type) {
+             return Ok(false);
+@@ -171,13 +172,14 @@ impl Qwen3AttentionLayer {
+         };
+         // q_latent survives the zero-RoPE chain. Index scratch overwrites only
+         // consumed Q expansion / K/V assembly; normed and absorbed Q stay live.
+-        let selected = self.glm_index_decode_update_and_select(
++        let selected = self.glm_index_decode_update_and_select_with_query(
+             normed,
+             q_latent,
+             position as u32,
+             cache,
+             &row_ctx,
+             stream,
++            index_query,
+         )?;
+         let Some((ids, width)) = selected else {
+             return Ok(false);
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4ef97d31fb970efbf88681fab912ac4fa33f1d8e
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query.rs
+@@ -0,0 +1,487 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++//! Opt-in query projection staging for the repaired GLM-5 K3 MLA path.
++//!
++//! The three rows are independent only through the Qa/RMS/Qb/index-Q
++//! projections.  Cache mutation, semantic-index maintenance, selection,
++//! attention, and value extraction remain in the caller's causal row loop.
++//! This module owns the checked scratch partition and the diagnostic scalar
++//! comparison; it does not add a persistent allocation or replay model state.
++
++use anyhow::{Result, bail, ensure};
++use spark_runtime::gpu::{DevicePtr, GpuBackend};
++
++use super::super::ctx::MultiSeqCtx;
++use crate::layers::ops;
++use crate::layers::qwen3_attention::{MlaWeights, Qwen3AttentionLayer};
++
++const FLAG: &str = "ATLAS_GLM_K3_MLA_QUERY_BATCHM";
++const COMPARE_FLAG: &str = "ATLAS_GLM_K3_MLA_QUERY_COMPARE";
++
++const ROWS: usize = 3;
++const HIDDEN: usize = 4096;
++const Q_LORA: usize = 1536;
++const Q_DIM: usize = 8192;
++const INDEX_DIM: usize = 4096;
++const BF16: usize = 2;
++
++const LATENT_ROW: usize = Q_LORA * BF16;
++const Q_ROW: usize = Q_DIM * BF16;
++const INDEX_ROW: usize = INDEX_DIM * BF16;
++const LATENT_BYTES: usize = ROWS * LATENT_ROW;
++const Q_BYTES: usize = ROWS * Q_ROW;
++const INDEX_OFFSET: usize = Q_BYTES;
++const INDEX_BYTES: usize = ROWS * INDEX_ROW;
++const QUERY_BYTES: usize = Q_BYTES + INDEX_BYTES;
++
++// ssm_qkvz is dead before the causal row loop. Diagnostic references borrow
++// the whole arena for the scalar snapshots, then the row loop reuses its first
++// 512 bytes for the indexer's key and gate scratch and its remaining bytes for
++// retained O rows.
++const DIAGNOSTIC_BYTES: usize = QUERY_BYTES;
++
++fn parse_flag(value: Option<&str>) -> Result<bool> {
++    match value {
++        None | Some("0") => Ok(false),
++        Some("1") => Ok(true),
++        _ => bail!("{FLAG} must be 0 or 1"),
++    }
++}
++
++fn parse_compare(value: Option<&str>, batchm: bool) -> Result<bool> {
++    let compare = match value {
++        None | Some("0") => false,
++        Some("1") => true,
++        _ => bail!("{COMPARE_FLAG} must be 0 or 1"),
++    };
++    ensure!(!compare || batchm, "{COMPARE_FLAG} requires {FLAG}=1");
++    Ok(compare)
++}
++
++pub(super) fn enabled(model: &str) -> Result<bool> {
++    if model != "glm5_next" {
++        return Ok(false);
++    }
++    match std::env::var(FLAG) {
++        Ok(value) => parse_flag(Some(&value)),
++        Err(std::env::VarError::NotPresent) => Ok(false),
++        Err(_) => bail!("{FLAG} must be 0 or 1"),
++    }
++}
++
++fn compare_enabled(model: &str, batchm: bool) -> Result<bool> {
++    if model != "glm5_next" {
++        return Ok(false);
++    }
++    let value = match std::env::var(COMPARE_FLAG) {
++        Ok(value) => Some(value),
++        Err(std::env::VarError::NotPresent) => None,
++        Err(_) => bail!("{COMPARE_FLAG} must be 0 or 1"),
++    };
++    parse_compare(value.as_deref(), batchm)
++}
++
++fn span(ptr: DevicePtr, bytes: usize) -> Result<(u64, u64)> {
++    ensure!(ptr.0 != 0, "{FLAG}: null query staging pointer");
++    Ok((
++        ptr.0,
++        ptr.0
++            .checked_add(bytes as u64)
++            .ok_or_else(|| anyhow::anyhow!("{FLAG}: query staging address overflow"))?,
++    ))
++}
++
++fn disjoint(a: (u64, u64), b: (u64, u64)) -> bool {
++    a.1 <= b.0 || b.1 <= a.0
++}
++
++fn aligned_nonnull(ptr: DevicePtr, alignment: u64, name: &str) -> Result<()> {
++    ensure!(
++        ptr.0 != 0 && ptr.0 % alignment == 0,
++        "{FLAG}: {name} must be non-null and {alignment}-byte aligned"
++    );
++    Ok(())
++}
++
++/// Return the bytes remaining in the known arena that contains `ptr`.
++/// Multi-sequence callers normally pass arena bases, but using the containing
++/// range also makes alias checks safe for a row-offset or an FP32 scratch
++/// pointer supplied by a future caller.
++fn arena_remaining_capacity(
++    ptr: DevicePtr,
++    arenas: &[(DevicePtr, usize)],
++    name: &str,
++) -> Result<usize> {
++    ensure!(ptr.0 != 0, "{FLAG}: {name} pointer is null");
++    for &(base, capacity) in arenas {
++        if base.0 == 0 || capacity == 0 {
++            continue;
++        }
++        let end = base
++            .0
++            .checked_add(capacity as u64)
++            .ok_or_else(|| anyhow::anyhow!("{FLAG}: {name} arena address overflow"))?;
++        if (base.0..end).contains(&ptr.0) {
++            return Ok(capacity - (ptr.0 - base.0) as usize);
++        }
++    }
++    bail!("{FLAG}: {name} pointer is outside known arenas")
++}
++
++/// A retained row of the stateless query stage.  The pointers stay valid until
++/// the causal loop has consumed that row; no row may be recomputed after cache
++/// mutation because the query scratch is intentionally shared with the indexer.
++#[derive(Clone, Copy)]
++pub(super) struct QueryRow {
++    pub(super) q_latent: DevicePtr,
++    pub(super) q_full: DevicePtr,
++    pub(super) index_query: DevicePtr,
++}
++
++#[derive(Clone, Copy)]
++pub(super) struct QueryPlan {
++    latent: DevicePtr,
++    q_full: DevicePtr,
++    index_query: DevicePtr,
++    diagnostic: Option<DevicePtr>,
++}
++
++impl QueryPlan {
++    #[allow(clippy::too_many_arguments)]
++    pub(super) fn new(
++        input: DevicePtr,
++        input_capacity: usize,
++        latent: DevicePtr,
++        latent_capacity: usize,
++        q_scratch: DevicePtr,
++        q_capacity: usize,
++        diagnostic: Option<(DevicePtr, usize)>,
++        live: &[(DevicePtr, usize)],
++    ) -> Result<Self> {
++        ensure!(
++            input_capacity >= ROWS * HIDDEN * BF16,
++            "{FLAG}: normalized input capacity is too small"
++        );
++        ensure!(
++            latent_capacity >= LATENT_BYTES,
++            "{FLAG}: Q latent capacity requires {LATENT_BYTES} bytes"
++        );
++        ensure!(
++            q_capacity >= QUERY_BYTES,
++            "{FLAG}: Q/index staging capacity requires {QUERY_BYTES} bytes"
++        );
++        aligned_nonnull(input, 16, "normalized input")?;
++        aligned_nonnull(latent, 16, "Q latent")?;
++        aligned_nonnull(q_scratch, 16, "Q/index staging")?;
++
++        let input_span = span(input, ROWS * HIDDEN * BF16)?;
++        let latent_span = span(latent, LATENT_BYTES)?;
++        let query_span = span(q_scratch, QUERY_BYTES)?;
++        ensure!(
++            disjoint(input_span, latent_span) && disjoint(input_span, query_span),
++            "{FLAG}: query outputs alias normalized input"
++        );
++        ensure!(
++            disjoint(latent_span, query_span),
++            "{FLAG}: Q latent aliases Q/index staging"
++        );
++        for &(ptr, bytes) in live {
++            let other = span(ptr, bytes)?;
++            ensure!(
++                disjoint(input_span, other)
++                    && disjoint(latent_span, other)
++                    && disjoint(query_span, other),
++                "{FLAG}: query plan aliases live range"
++            );
++        }
++
++        let diagnostic_owner_index = diagnostic.and_then(|target| {
++            live.iter()
++                .enumerate()
++                .find_map(|(index, entry)| (*entry == target).then_some(index))
++        });
++        let diagnostic_ptr = if let Some((ptr, capacity)) = diagnostic {
++            ensure!(
++                capacity >= DIAGNOSTIC_BYTES,
++                "{COMPARE_FLAG}: diagnostic scratch requires {DIAGNOSTIC_BYTES} bytes"
++            );
++            aligned_nonnull(ptr, 16, "diagnostic scratch")?;
++            let scratch = span(ptr, DIAGNOSTIC_BYTES)?;
++            ensure!(
++                disjoint(scratch, input_span)
++                    && disjoint(scratch, latent_span)
++                    && disjoint(scratch, query_span),
++                "{COMPARE_FLAG}: diagnostic scratch aliases query state"
++            );
++            for (index, &(ptr, bytes)) in live.iter().enumerate() {
++                // Skip only the designated qkvz owner entry. A duplicate
++                // exact tuple is still checked and therefore rejected.
++                if diagnostic_owner_index == Some(index) {
++                    continue;
++                }
++                ensure!(
++                    disjoint(scratch, span(ptr, bytes)?),
++                    "{COMPARE_FLAG}: diagnostic scratch aliases live range"
++                );
++            }
++            Some(ptr)
++        } else {
++            None
++        };
++
++        Ok(Self {
++            latent,
++            q_full: q_scratch,
++            index_query: q_scratch.offset(INDEX_OFFSET),
++            diagnostic: diagnostic_ptr,
++        })
++    }
++
++    pub(super) fn row(self, row: usize) -> Result<QueryRow> {
++        ensure!(row < ROWS, "{FLAG}: query row outside K3");
++        Ok(QueryRow {
++            q_latent: self.latent.offset(row * LATENT_ROW),
++            q_full: self.q_full.offset(row * Q_ROW),
++            index_query: self.index_query.offset(row * INDEX_ROW),
++        })
++    }
++
++    #[allow(clippy::too_many_arguments)]
++    pub(super) fn project(
++        self,
++        layer: &Qwen3AttentionLayer,
++        c: &MultiSeqCtx<'_>,
++        mla: &MlaWeights,
++    ) -> Result<()> {
++        let gpu = c.fwd.gpu;
++        let stream = c.stream;
++        let batch_kernel = layer.dense_gemv_batchm_k;
++        ensure!(batch_kernel.0 != 0, "{FLAG}: batchm kernel unavailable");
++
++        ops::dense_gemv_batchm(
++            gpu,
++            batch_kernel,
++            c.normed,
++            &mla.wq_a,
++            self.latent,
++            ROWS as u32,
++            Q_LORA as u32,
++            HIDDEN as u32,
++            Q_LORA as u32,
++            stream,
++        )?;
++
++        if let Some(reference) = self.diagnostic {
++            // Compare the raw Qa result before the in-place RMS pass can
++            // overwrite it.  This runs before any KV/index state write.
++            for row in 0..ROWS {
++                ops::dense_gemv(
++                    gpu,
++                    layer.dense_gemv_k,
++                    c.normed.offset(row * HIDDEN * BF16),
++                    &mla.wq_a,
++                    reference.offset(row * LATENT_ROW),
++                    Q_LORA as u32,
++                    HIDDEN as u32,
++                    stream,
++                )?;
++            }
++            self.compare_rows(
++                gpu,
++                stream,
++                "raw Qa",
++                self.latent,
++                reference,
++                LATENT_ROW,
++                layer.attn_layer_idx,
++                c.fwd.config.tp_rank,
++            )?;
++        }
++
++        // Keep the production RMS arithmetic and alias exactly as the scalar
++        // lane.  A single packed launch would be mathematically equivalent,
++        // but this first integration does not widen the normalization change.
++        for row in 0..ROWS {
++            let candidate = self.latent.offset(row * LATENT_ROW);
++            ops::rms_norm(
++                gpu,
++                layer.rms_norm_w_k,
++                candidate,
++                &mla.q_a_norm,
++                candidate,
++                1,
++                Q_LORA as u32,
++                c.eps,
++                stream,
++            )?;
++        }
++
++        if let Some(reference) = self.diagnostic {
++            for row in 0..ROWS {
++                let row_ref = reference.offset(row * LATENT_ROW);
++                ops::rms_norm(
++                    gpu,
++                    layer.rms_norm_w_k,
++                    row_ref,
++                    &mla.q_a_norm,
++                    row_ref,
++                    1,
++                    Q_LORA as u32,
++                    c.eps,
++                    stream,
++                )?;
++            }
++            self.compare_rows(
++                gpu,
++                stream,
++                "normalized latent",
++                self.latent,
++                reference,
++                LATENT_ROW,
++                layer.attn_layer_idx,
++                c.fwd.config.tp_rank,
++            )?;
++        }
++
++        ops::dense_gemv_batchm(
++            gpu,
++            batch_kernel,
++            self.latent,
++            &mla.wq_b,
++            self.q_full,
++            ROWS as u32,
++            Q_DIM as u32,
++            Q_LORA as u32,
++            Q_DIM as u32,
++            stream,
++        )?;
++
++        let indexer = mla
++            .glm_indexer
++            .as_ref()
++            .expect("{FLAG}: validated GLM indexer missing");
++        ops::dense_gemv_batchm(
++            gpu,
++            batch_kernel,
++            self.latent,
++            &indexer.wq_b,
++            self.index_query,
++            ROWS as u32,
++            INDEX_DIM as u32,
++            Q_LORA as u32,
++            INDEX_DIM as u32,
++            stream,
++        )?;
++
++        if let Some(reference) = self.diagnostic {
++            let reference_q = reference;
++            let reference_index = reference.offset(INDEX_OFFSET);
++            for row in 0..ROWS {
++                ops::dense_gemv(
++                    gpu,
++                    layer.dense_gemv_k,
++                    self.latent.offset(row * LATENT_ROW),
++                    &mla.wq_b,
++                    reference_q.offset(row * Q_ROW),
++                    Q_DIM as u32,
++                    Q_LORA as u32,
++                    stream,
++                )?;
++                ops::dense_gemv(
++                    gpu,
++                    layer.dense_gemv_k,
++                    self.latent.offset(row * LATENT_ROW),
++                    &indexer.wq_b,
++                    reference_index.offset(row * INDEX_ROW),
++                    INDEX_DIM as u32,
++                    Q_LORA as u32,
++                    stream,
++                )?;
++            }
++            self.compare_rows(
++                gpu,
++                stream,
++                "Qb",
++                self.q_full,
++                reference_q,
++                Q_ROW,
++                layer.attn_layer_idx,
++                c.fwd.config.tp_rank,
++            )?;
++            self.compare_rows(
++                gpu,
++                stream,
++                "index-Q",
++                self.index_query,
++                reference_index,
++                INDEX_ROW,
++                layer.attn_layer_idx,
++                c.fwd.config.tp_rank,
++            )?;
++        }
++        Ok(())
++    }
++
++    fn compare_rows(
++        self,
++        gpu: &dyn GpuBackend,
++        stream: u64,
++        stage: &str,
++        candidate: DevicePtr,
++        reference: DevicePtr,
++        row_bytes: usize,
++        attention_layer: usize,
++        rank: usize,
++    ) -> Result<()> {
++        let candidate_bytes = row_bytes
++            .checked_mul(ROWS)
++            .ok_or_else(|| anyhow::anyhow!("{COMPARE_FLAG}: {stage} byte count overflow"))?;
++        ensure!(
++            candidate_bytes % 2 == 0,
++            "{COMPARE_FLAG}: odd {stage} bytes"
++        );
++        gpu.synchronize(stream)?;
++        let mut candidate_host = vec![0u8; candidate_bytes];
++        let mut reference_host = vec![0u8; candidate_bytes];
++        gpu.copy_d2h(candidate, &mut candidate_host)?;
++        gpu.copy_d2h(reference, &mut reference_host)?;
++        for (index, (actual, expected)) in candidate_host
++            .chunks_exact(2)
++            .zip(reference_host.chunks_exact(2))
++            .enumerate()
++        {
++            let actual = u16::from_le_bytes([actual[0], actual[1]]);
++            let expected = u16::from_le_bytes([expected[0], expected[1]]);
++            let actual_f = f32::from_bits(u32::from(actual) << 16);
++            let expected_f = f32::from_bits(u32::from(expected) << 16);
++            ensure!(
++                actual_f.is_finite() && expected_f.is_finite(),
++                "{COMPARE_FLAG}: {stage} nonfinite row={} element={} candidate_bits={actual:04x} scalar_bits={expected:04x}",
++                index / (row_bytes / 2),
++                index % (row_bytes / 2),
++            );
++            ensure!(
++                actual == expected,
++                "{COMPARE_FLAG}: {stage} mismatch row={} element={} candidate_bits={actual:04x} scalar_bits={expected:04x}",
++                index / (row_bytes / 2),
++                index % (row_bytes / 2),
++            );
++        }
++        tracing::info!(
++            stage,
++            rows = ROWS,
++            bytes = candidate_bytes,
++            attention_layer,
++            rank,
++            "GLM K3 query compare passed"
++        );
++        Ok(())
++    }
++}
++
++#[path = "mla_k3_query_stage.rs"]
++mod stage;
++
++#[cfg(test)]
++#[path = "mla_k3_query_tests.rs"]
++mod tests;
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_stage.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_stage.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..811a4c4f0839ae1bf76353a23a4d757e39b5f043
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_stage.rs
+@@ -0,0 +1,147 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++use anyhow::{Result, ensure};
++
++use super::*;
++
++impl Qwen3AttentionLayer {
++    pub(in crate::layers::qwen3_attention::trait_impl::multi_seq::mla) fn glm_k3_query_stage(
++        &self,
++        c: &MultiSeqCtx<'_>,
++        mla: &MlaWeights,
++        long_verify: bool,
++    ) -> Result<Option<QueryPlan>> {
++        let batchm = enabled(&c.fwd.config.model_type)?;
++        let compare = compare_enabled(&c.fwd.config.model_type, batchm)?;
++        if !batchm || !long_verify {
++            return Ok(None);
++        }
++        ensure!(
++            !c.fwd.graph_capture && !c.fwd.gpu.stream_is_capturing(c.stream),
++            "{FLAG} is eager-only and cannot run during graph capture"
++        );
++        ensure!(
++            c.n == ROWS
++                && c.h == HIDDEN
++                && c.nq == 32
++                && c.hd == 256
++                && c.bf16 == BF16
++                && c.bs > 0
++                && c.bs.is_multiple_of(4)
++                && mla.q_lora_rank == Q_LORA
++                && mla.kv_lora_rank == 512
++                && mla.nope == 256
++                && mla.v_dim == 256
++                && mla.rope == 0
++                && mla.o_lora_rank == 0
++                && mla.wq_a_nvfp4.is_none()
++                && mla.wq_b_nvfp4.is_none()
++                && mla.wq_a_fp8.is_none()
++                && mla.wq_b_fp8.is_none()
++                && mla.glm_indexer.is_some()
++                && c.fwd.config.index_n_heads == 32
++                && c.fwd.config.index_head_dim == 128,
++            "{FLAG}: unsupported GLM K3 query geometry"
++        );
++        ensure!(
++            c.seq_lens.len() == ROWS
++                && c.seq_lens
++                    .windows(2)
++                    .all(|p| p[0].checked_add(1) == Some(p[1])),
++            "{FLAG}: query rows must retain the validated causal order"
++        );
++        // The exact dense/sparse threshold boundary is valid: index-Q for a
++        // dense row is harmless and is ignored by the unchanged <=2048
++        // fallback. A fully short K3 call simply keeps the scalar path.
++        if !c.seq_lens.iter().any(|&position| position >= 2048) {
++            return Ok(None);
++        }
++        aligned_nonnull(c.normed, 16, "normalized input")?;
++        ensure!(
++            self.dense_gemv_batchm_k.0 != 0 && self.dense_gemv_k.0 != 0 && self.rms_norm_w_k.0 != 0,
++            "{FLAG}: scalar, batchm, or RMS query kernels are unavailable"
++        );
++        aligned_nonnull(mla.wq_a.weight, 16, "Qa weight")?;
++        aligned_nonnull(mla.wq_b.weight, 16, "Qb weight")?;
++        aligned_nonnull(mla.q_a_norm.weight, 16, "Qa RMS weight")?;
++        let indexer = mla
++            .glm_indexer
++            .as_ref()
++            .expect("{FLAG}: validated GLM indexer missing");
++        aligned_nonnull(indexer.wq_b.weight, 16, "index-Q weight")?;
++
++        let b = c.fwd.buffers;
++        let s = b.sizes();
++        let arenas = [
++            (b.hidden_states(), s.hidden_states),
++            (b.residual(), s.residual),
++            (b.norm_output(), s.norm_output),
++            (b.qkv_output(), s.qkv_output),
++            (b.attn_output(), s.attn_output),
++            (b.moe_output(), s.moe_output),
++            (b.expert_gate_out(), s.expert_gate_out),
++            (b.expert_up_out(), s.expert_up_out),
++            (b.expert_down_out(), s.expert_down_out),
++            (b.ssm_qkvz(), s.ssm_qkvz),
++            (b.ssm_ba(), s.ssm_ba),
++            (b.ssm_deinterleaved(), s.ssm_deinterleaved),
++            (b.ssm_gates(), s.ssm_gates),
++            (b.ssm_conv_out_f32(), s.ssm_conv_out_f32),
++        ];
++        aligned_nonnull(c.hidden, 16, "hidden input")?;
++        aligned_nonnull(c.residual, 16, "residual")?;
++        let live = [
++            (
++                c.hidden,
++                arena_remaining_capacity(c.hidden, &arenas, "hidden input")?,
++            ),
++            (
++                c.residual,
++                arena_remaining_capacity(c.residual, &arenas, "residual")?,
++            ),
++            (b.expert_gate_out(), s.expert_gate_out),
++            (b.expert_up_out(), s.expert_up_out),
++            (b.expert_down_out(), s.expert_down_out),
++            (b.qkv_output(), s.qkv_output),
++            (b.attn_output(), s.attn_output),
++            (b.moe_output(), s.moe_output),
++            (b.ssm_gates(), s.ssm_gates),
++            (b.ssm_conv_out_f32(), s.ssm_conv_out_f32),
++            (b.ssm_qkvz(), s.ssm_qkvz),
++            (mla.wq_a.weight, Q_LORA * HIDDEN * BF16),
++            (mla.wq_b.weight, Q_DIM * Q_LORA * BF16),
++            (mla.q_a_norm.weight, Q_LORA * BF16),
++            (indexer.wq_b.weight, INDEX_DIM * Q_LORA * BF16),
++        ];
++        // ssm_qkvz is intentionally the short-lived diagnostic reference
++        // arena. Query outputs remain disjoint from its whole allocation;
++        // diagnostic mode borrows that exact range only before the causal
++        // loop starts, as checked by QueryPlan::new.
++        let diagnostic = if compare {
++            Some((b.ssm_qkvz(), s.ssm_qkvz))
++        } else {
++            None
++        };
++        ensure!(
++            s.ssm_ba >= LATENT_BYTES,
++            "{FLAG}: Q latent arena is too small ({} < {LATENT_BYTES})",
++            s.ssm_ba
++        );
++        ensure!(
++            s.ssm_deinterleaved >= QUERY_BYTES,
++            "{FLAG}: Q/index arena is too small ({} < {QUERY_BYTES})",
++            s.ssm_deinterleaved
++        );
++        QueryPlan::new(
++            c.normed,
++            arena_remaining_capacity(c.normed, &arenas, "normalized input")?,
++            b.ssm_ba(),
++            s.ssm_ba,
++            b.ssm_deinterleaved(),
++            s.ssm_deinterleaved,
++            diagnostic,
++            &live,
++        )
++        .map(Some)
++    }
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_tests.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4098c724f0703eb2fee0c394efc355463ef1171f
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_k3_query_tests.rs
+@@ -0,0 +1,225 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++use super::*;
++
++#[test]
++fn flags_are_strict_and_compare_requires_batchm() {
++    assert!(!parse_flag(None).unwrap());
++    assert!(!parse_flag(Some("0")).unwrap());
++    assert!(parse_flag(Some("1")).unwrap());
++    for value in ["", "2", "true", " 1"] {
++        assert!(parse_flag(Some(value)).is_err());
++    }
++    assert!(!parse_compare(None, false).unwrap());
++    assert!(parse_compare(Some("1"), true).unwrap());
++    assert!(parse_compare(Some("1"), false).is_err());
++    for value in ["", "2", "true", " 1"] {
++        assert!(parse_compare(Some(value), true).is_err());
++    }
++}
++
++#[test]
++fn rows_use_contiguous_latent_q_and_padded_index_tail() {
++    let plan = QueryPlan::new(
++        DevicePtr(0x1000),
++        ROWS * HIDDEN * BF16,
++        DevicePtr(0x20000),
++        LATENT_BYTES,
++        DevicePtr(0x40000),
++        QUERY_BYTES,
++        None,
++        &[],
++    )
++    .unwrap();
++    for (row, (latent, q, index)) in [
++        (
++            0,
++            (0x20000u64, 0x40000u64, 0x40000u64 + INDEX_OFFSET as u64),
++        ),
++        (
++            1,
++            (
++                0x20000u64 + LATENT_ROW as u64,
++                0x40000u64 + Q_ROW as u64,
++                0x40000u64 + INDEX_OFFSET as u64 + INDEX_ROW as u64,
++            ),
++        ),
++        (
++            2,
++            (
++                0x20000u64 + 2 * LATENT_ROW as u64,
++                0x40000u64 + 2 * Q_ROW as u64,
++                0x40000u64 + INDEX_OFFSET as u64 + 2 * INDEX_ROW as u64,
++            ),
++        ),
++    ] {
++        let actual = plan.row(row).unwrap();
++        assert_eq!(actual.q_latent.0, latent);
++        assert_eq!(actual.q_full.0, q);
++        assert_eq!(actual.index_query.0, index);
++    }
++    assert!(plan.row(ROWS).is_err());
++}
++
++#[test]
++fn plan_rejects_short_or_aliasing_ranges() {
++    let good = || {
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            None,
++            &[],
++        )
++    };
++    assert!(good().is_ok());
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16 - 1,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            None,
++            &[]
++        )
++        .is_err()
++    );
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES - 1,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            None,
++            &[]
++        )
++        .is_err()
++    );
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES - 1,
++            None,
++            &[]
++        )
++        .is_err()
++    );
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            None,
++            &[(DevicePtr(0x20000 + LATENT_ROW as u64), 16)]
++        )
++        .is_err()
++    );
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            None,
++            &[(DevicePtr(0x40000 + INDEX_OFFSET as u64), 16)]
++        )
++        .is_err()
++    );
++}
++
++#[test]
++fn diagnostic_scratch_uses_dead_qkvz_arena() {
++    let plan = QueryPlan::new(
++        DevicePtr(0x1000),
++        ROWS * HIDDEN * BF16,
++        DevicePtr(0x20000),
++        LATENT_BYTES,
++        DevicePtr(0x40000),
++        QUERY_BYTES,
++        Some((DevicePtr(0x60000), DIAGNOSTIC_BYTES)),
++        &[],
++    )
++    .unwrap();
++    assert_eq!(plan.diagnostic.unwrap().0, 0x60000);
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            Some((DevicePtr(0x60000), DIAGNOSTIC_BYTES - 1)),
++            &[],
++        )
++        .is_err()
++    );
++    // The exact qkvz base is the intentional dead-scratch borrow; any
++    // distinct live range overlapping the diagnostic span is rejected.
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            Some((DevicePtr(0x60000), DIAGNOSTIC_BYTES)),
++            &[(DevicePtr(0x60000 + 16), 32)],
++        )
++        .is_err()
++    );
++}
++
++#[test]
++fn diagnostic_scratch_does_not_hide_equal_base_live_alias() {
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            Some((DevicePtr(0x60000), DIAGNOSTIC_BYTES)),
++            // Same base, different logical span: this is an accidental
++            // weight/live alias and must not be mistaken for qkvz owner.
++            &[(DevicePtr(0x60000), 16)],
++        )
++        .is_err()
++    );
++}
++
++#[test]
++fn diagnostic_scratch_rejects_duplicate_qkvz_owner_tuple() {
++    let qkvz = (DevicePtr(0x60000), DIAGNOSTIC_BYTES);
++    assert!(
++        QueryPlan::new(
++            DevicePtr(0x1000),
++            ROWS * HIDDEN * BF16,
++            DevicePtr(0x20000),
++            LATENT_BYTES,
++            DevicePtr(0x40000),
++            QUERY_BYTES,
++            Some(qkvz),
++            &[qkvz, qkvz],
++        )
++        .is_err()
++    );
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_long_context_tests.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_long_context_tests.rs
+index 404b9f6ce452a35ae17ccefbec5a6ed70863cef8..06fb89b0a63d76299d106b4d0b7fbfcc9c43383c 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_long_context_tests.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_long_context_tests.rs
+@@ -13,6 +13,8 @@ use spark_runtime::kv_cache::{KvCacheConfig, KvCacheDtype, SparseIndexCacheConfi
+ #[path = "mla_long_context_test_gpu.rs"]
+ mod gpu;
+ use gpu::TestGpu;
++#[path = "mla_query_dispatch_tests.rs"]
++mod query_dispatch_tests;
+ #[path = "mla_split_context_tests.rs"]
+ mod split_tests;
+ fn fixture(run: impl FnOnce(&TestGpu, &atlas_core::config::ModelConfig, &Qwen3AttentionLayer)) {
+@@ -37,8 +39,16 @@ fn fixture(run: impl FnOnce(&TestGpu, &atlas_core::config::ModelConfig, &Qwen3At
+     config.max_position_embeddings = 32768;
+     config.tp_world_size = 2;
+     config.ep_world_size = 2;
+-    let dense = |_bytes| DenseWeight {
+-        weight: gpu.alloc(2).unwrap(),
++    // The mock never dereferences weight data, but the query/O plans inspect
++    // the resident matrix spans for alias safety. Give each fake weight a
++    // credible, aligned logical range without allocating hundreds of MB of
++    // backing storage in the test GPU.
++    let mut next_weight = 0x1_0000_0000u64;
++    let mut dense = |bytes: usize| {
++        let bytes = bytes.max(2);
++        let ptr = DevicePtr(next_weight);
++        next_weight += ((bytes + 255) & !255) as u64;
++        DenseWeight { weight: ptr }
+     };
+     let absent = DenseWeight {
+         weight: DevicePtr::NULL,
+@@ -85,9 +95,7 @@ fn fixture(run: impl FnOnce(&TestGpu, &atlas_core::config::ModelConfig, &Qwen3At
+         wkv_a_rope: absent,
+         wkv_a_merged: dense(512 * 4096 * 2),
+         // Comparison mode validates the real operand range, not a two-byte stub.
+-        wo: DenseWeight {
+-            weight: gpu.alloc(4096 * 32 * 256 * 2).unwrap(),
+-        },
++        wo: dense(4096 * 32 * 256 * 2),
+         wo_nvfp4: None,
+         wo_a: absent,
+         wo_a_nvfp4: None,
+@@ -125,345 +133,15 @@ fn fixture(run: impl FnOnce(&TestGpu, &atlas_core::config::ModelConfig, &Qwen3At
+     layer.dense_gemv_k = KernelHandle(806);
+     layer.dense_gemv_batchm_k = KernelHandle(807);
+     layer.mla_batched_gemv_k = KernelHandle(808);
++    layer.mla_cache_assemble_k = KernelHandle(820);
++    layer.glm_index_layernorm_k = KernelHandle(800);
+     layer.glm_index_tail_write_k = KernelHandle(801);
+     layer.glm_index_kpool_finalize_k = KernelHandle(802);
++    layer.glm_index_logits_decode_k = KernelHandle(812);
+     layer.glm_index_topk_expand_k = KernelHandle(803);
+     layer.glm_sparse_attn_decode_k = KernelHandle(804);
+     run(&gpu, &config, &layer);
+ }
+-#[test]
+-fn actual_prompt_index_and_causal_verify_dispatch() {
+-    const CHILD: &str = "ATLAS_TEST_LONG_MTP_ATTENTION";
+-    if std::env::var_os(CHILD).is_none() {
+-        let name = concat!(
+-            module_path!(),
+-            "::actual_prompt_index_and_causal_verify_dispatch"
+-        );
+-        for (tc, o_batch, compare) in [
+-            ("0", "0", "0"),
+-            ("1", "0", "0"),
+-            ("0", "1", "0"),
+-            ("1", "1", "0"),
+-            ("0", "1", "1"),
+-            ("1", "1", "1"),
+-        ] {
+-            let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
+-            cmd.args(["--exact", name.split_once("::").unwrap().1, "--nocapture"]);
+-            for (k, _) in std::env::vars_os() {
+-                if k.to_string_lossy().starts_with("ATLAS_") {
+-                    cmd.env_remove(k);
+-                }
+-            }
+-            let out = cmd
+-                .env(CHILD, "1")
+-                .env("ATLAS_GLM_MTP_LONG_CONTEXT", "1")
+-                .env("ATLAS_GLM_MTP_REPAIR", "1")
+-                .env("ATLAS_GLM_SPARSE_DECODE_TC", tc)
+-                .env("ATLAS_GLM_K3_MLA_O_BATCHM", o_batch)
+-                .env("ATLAS_GLM_K3_MLA_O_COMPARE", compare)
+-                .output()
+-                .unwrap();
+-            assert!(String::from_utf8_lossy(&out.stdout).contains("running 1 test"));
+-            assert!(
+-                out.status.success(),
+-                "TC={tc}, batchm={o_batch}, compare={compare}: {}\n{}",
+-                String::from_utf8_lossy(&out.stdout),
+-                String::from_utf8_lossy(&out.stderr)
+-            );
+-        }
+-        return;
+-    }
+-    fixture(|gpu, config, layer| {
+-        if std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1") {
+-            use crate::layers::qwen3_attention::glm_k3_mla_o::initialize;
+-            let ptr = layer.mla.as_ref().unwrap().wo.weight;
+-            initialize(gpu, config, KvCacheDtype::Bf16, ptr, 4096, 8192).unwrap();
+-            let mut wrong = config.clone();
+-            wrong.num_attention_heads = 64;
+-            assert!(initialize(gpu, &wrong, KvCacheDtype::Bf16, ptr, 4096, 8192).is_err());
+-            assert!(initialize(gpu, config, KvCacheDtype::Fp8, ptr, 4096, 8192).is_err());
+-        }
+-        let sparse_kernel = if ops::glm_sparse_decode_tc_enabled(&config.model_type).unwrap() {
+-            gpu.kernel(
+-                "glm_sparse_prefill_kv_reuse",
+-                "glm_sparse_mla_prefill_bf16_head32_tc_kv_pad",
+-            )
+-            .unwrap()
+-            .0
+-        } else {
+-            804
+-        };
+-        let arena = BufferArena::new(config, 16, 32768, 16, 1, gpu).unwrap();
+-        let mut dispatch = ops::GemmDispatch::defaults();
+-        dispatch.cublas_gemm = false;
+-        let derived = ops::DerivedWeights::new();
+-        let levers = ops::ModelLevers::defaults();
+-        let stats = ops::ModelStats::new();
+-        let ptr = gpu.alloc(3 * 2049 * 4 + 1024).unwrap();
+-        let meta = AttnMetadataDev {
+-            positions: ptr,
+-            positions_h: ptr,
+-            positions_w: ptr,
+-            slot: ptr.offset(256),
+-            seq_len: ptr.offset(512),
+-            block_table: ptr.offset(768),
+-            max_blocks_per_seq: 2049,
+-            num_seqs: 3,
+-            seq_slot: DevicePtr::NULL,
+-            moe_row_adapter: DevicePtr::NULL,
+-        };
+-        let ctx = ForwardContext {
+-            buffers: &arena,
+-            gpu,
+-            config,
+-            dispatch: &dispatch,
+-            derived: &derived,
+-            levers: &levers,
+-            stats: &stats,
+-            ssm_batch: None,
+-            attn_metadata: Some(meta),
+-            profile: false,
+-            comm: None,
+-            graph_capture: false,
+-            gdn_exact_replay: false,
+-            token_ids: None,
+-            host_token_ids: None,
+-            routed_lora_layers: None,
+-            midchunk_capture: None,
+-            moe_lora_route: crate::layer::MoeLoraRoute::Skip,
+-        };
+-        let mut cache = PagedKvCache::new(
+-            KvCacheConfig {
+-                block_size: 16,
+-                num_kv_heads: 1,
+-                head_dim: 512,
+-                num_layers: 1,
+-                dtype: KvCacheDtype::Bf16,
+-                layer_dtypes: vec![],
+-                layer_dims: vec![],
+-                cache_blocks_per_seq: None,
+-            },
+-            2050,
+-            gpu,
+-        )
+-        .unwrap();
+-        cache
+-            .attach_sparse_index(SparseIndexCacheConfig::bf16(4, 128), gpu)
+-            .unwrap();
+-        let before = gpu.launch_count();
+-        layer
+-            .prefill_mla_kv_only_impl(arena.hidden_states(), 3, &mut cache, meta.slot, &ctx, 0)
+-            .unwrap();
+-        let launches = gpu.launches_snapshot();
+-        let index: Vec<_> = launches[before..]
+-            .iter()
+-            .filter(|x| (801..=804).contains(&x.func))
+-            .map(|x| (x.func, x.grid[0]))
+-            .collect();
+-        assert_eq!(
+-            index,
+-            vec![(801, 3), (802, 3)],
+-            "KV-only prompt/repair must populate raw and pooled index"
+-        );
+-        for positions in [[2046, 2048, 2049], [32767, 32768, 32769]] {
+-            let c = MultiSeqCtx::new(
+-                layer,
+-                &ctx,
+-                arena.hidden_states(),
+-                arena.residual(),
+-                3,
+-                &positions,
+-                16,
+-                0,
+-            );
+-            let before = gpu.launch_count();
+-            assert!(layer.ms_mla_decode(&c, &mut cache, meta).is_err());
+-            assert_eq!(
+-                gpu.launch_count(),
+-                before,
+-                "bad row extents must refuse before kernels"
+-            );
+-        }
+-        let graph_ctx = ForwardContext {
+-            graph_capture: true,
+-            midchunk_capture: None,
+-            ..ctx
+-        };
+-        let positions = [2046, 2047, 2048];
+-        let c = MultiSeqCtx::new(
+-            layer,
+-            &graph_ctx,
+-            arena.hidden_states(),
+-            arena.residual(),
+-            3,
+-            &positions,
+-            16,
+-            0,
+-        );
+-        let before = gpu.launch_count();
+-        assert!(layer.ms_mla_decode(&c, &mut cache, meta).is_err());
+-        assert_eq!(gpu.launch_count(), before);
+-        for positions in [[2046, 2047, 2048], [32764, 32765, 32766]] {
+-            let c = MultiSeqCtx::new(
+-                layer,
+-                &ctx,
+-                arena.hidden_states(),
+-                arena.residual(),
+-                3,
+-                &positions,
+-                16,
+-                0,
+-            );
+-            if std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1") {
+-                let compare = std::env::var("ATLAS_GLM_K3_MLA_O_COMPARE").as_deref() == Ok("1");
+-                for bad in 0..if compare { 3 } else { 2 } {
+-                    let mut rejected = MultiSeqCtx::new(
+-                        layer,
+-                        &ctx,
+-                        arena.hidden_states(),
+-                        arena.residual(),
+-                        3,
+-                        &positions,
+-                        16,
+-                        0,
+-                    );
+-                    if bad == 0 {
+-                        rejected.nq = 64;
+-                    } else if bad == 1 {
+-                        rejected.normed = arena.ssm_qkvz().offset(512);
+-                    } else {
+-                        rejected.normed = arena.attn_output();
+-                    }
+-                    let count = gpu.launch_count();
+-                    assert!(layer.ms_mla_decode(&rejected, &mut cache, meta).is_err());
+-                    assert_eq!(
+-                        gpu.launch_count(),
+-                        count,
+-                        "bad O plan must reject before cache/index writes"
+-                    );
+-                }
+-            }
+-            let before = gpu.launch_count();
+-            let args_before = gpu.1.lock().unwrap().len();
+-            let alloc_before = gpu.alloc_count();
+-            let copies_before = gpu.d2h_blocking_count();
+-            layer.ms_mla_decode(&c, &mut cache, meta).unwrap();
+-            assert_eq!(gpu.alloc_count(), alloc_before, "no forward allocation");
+-            let args = gpu.1.lock().unwrap();
+-            let calls = &args[args_before..];
+-            let batched = std::env::var("ATLAS_GLM_K3_MLA_O_BATCHM").as_deref() == Ok("1");
+-            let compare = std::env::var("ATLAS_GLM_K3_MLA_O_COMPARE").as_deref() == Ok("1");
+-            assert_eq!(
+-                gpu.d2h_blocking_count() - copies_before,
+-                if compare { 2 } else { 0 },
+-                "only diagnostic mode reads both full output buffers"
+-            );
+-            let o_weight = layer
+-                .mla
+-                .as_ref()
+-                .unwrap()
+-                .wo
+-                .weight
+-                .0
+-                .to_ne_bytes()
+-                .to_vec();
+-            let o_calls: Vec<_> = calls
+-                .iter()
+-                .enumerate()
+-                .filter(|(_, (k, a))| (*k == 806 || *k == 807) && a[1] == o_weight)
+-                .collect();
+-            assert_eq!(
+-                o_calls.len(),
+-                if compare {
+-                    4
+-                } else if batched {
+-                    1
+-                } else {
+-                    3
+-                }
+-            );
+-            let extracted: Vec<_> = calls
+-                .iter()
+-                .enumerate()
+-                .filter(|(_, (k, a))| *k == 808 && a[3] == 256_u32.to_ne_bytes())
+-                .collect();
+-            assert_eq!(extracted.len(), 3);
+-            let prefix_writes: Vec<_> = calls
+-                .iter()
+-                .filter(|(k, a)| {
+-                    *k == 806
+-                        && (a[2] == arena.ssm_qkvz().0.to_ne_bytes()
+-                            || a[2] == arena.ssm_qkvz().offset(256).0.to_ne_bytes())
+-                        && a[3] == 128_u32.to_ne_bytes()
+-                })
+-                .collect();
+-            assert_eq!(
+-                prefix_writes.len(),
+-                6,
+-                "three serial key/gate writes stay in512-byte prefix"
+-            );
+-            for (i, (_, (_, a))) in extracted.iter().enumerate() {
+-                let offset = if batched { 512 + i * 8192 * 2 } else { 0 };
+-                assert_eq!(a[2], arena.ssm_qkvz().offset(offset).0.to_ne_bytes());
+-            }
+-            if compare {
+-                let scalar: Vec<_> = o_calls.iter().filter(|(_, (k, _))| *k == 806).collect();
+-                assert_eq!(scalar.len(), 3);
+-                for i in 0..3 {
+-                    assert_eq!(
+-                        scalar[i].0,
+-                        extracted[i].0 + 1,
+-                        "scalar baseline must immediately follow its V extract"
+-                    );
+-                    let a = &scalar[i].1.1;
+-                    assert_eq!(
+-                        a[0],
+-                        arena.ssm_qkvz().offset(512 + i * 8192 * 2).0.to_ne_bytes()
+-                    );
+-                    assert_eq!(
+-                        a[2],
+-                        arena.moe_output().offset(i * 4096 * 2).0.to_ne_bytes()
+-                    );
+-                }
+-            }
+-            if batched {
+-                let batched_o = o_calls.iter().find(|(_, (k, _))| *k == 807).unwrap();
+-                assert!(
+-                    batched_o.0 > extracted[2].0,
+-                    "O must follow third V extraction"
+-                );
+-                assert_eq!(calls.last().unwrap().0, 807);
+-                let a = &batched_o.1.1;
+-                assert_eq!(a[0], arena.ssm_qkvz().offset(512).0.to_ne_bytes());
+-                let expected_output = if compare {
+-                    arena.attn_output()
+-                } else {
+-                    arena.moe_output()
+-                };
+-                assert_eq!(a[2], expected_output.0.to_ne_bytes());
+-                assert_eq!(
+-                    &a[3..],
+-                    &[3_u32, 4096, 8192, 4096].map(|v| v.to_ne_bytes().to_vec())
+-                );
+-            }
+-            drop(args);
+-            let launches = gpu.launches_snapshot();
+-            let index: Vec<_> = launches[before..]
+-                .iter()
+-                .filter(|x| (801..=804).contains(&x.func) || x.func == sparse_kernel)
+-                .map(|x| x.func)
+-                .collect();
+-            let mut expected = vec![];
+-            for pos in positions {
+-                expected.extend([801, 802]);
+-                if pos + 1 > 2048 {
+-                    expected.extend([803, sparse_kernel]);
+-                }
+-            }
+-            assert_eq!(
+-                index, expected,
+-                "causal rows must maintain index before selecting sparse attention"
+-            );
+-        }
+-    });
+-}
++
++#[path = "mla_causal_dispatch_tests.rs"]
++mod causal_dispatch_tests;
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_query_dispatch_tests.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_query_dispatch_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..e00f7205e48c0698147f69bb5cceda8e225a846a
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_query_dispatch_tests.rs
+@@ -0,0 +1,275 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++// Focused child module for mla_long_context_tests.rs.
++//
++// Required inclusion in mla_long_context_tests.rs:
++//   #[path = "mla_query_dispatch_tests.rs"]
++//   mod query_dispatch_tests;
++//
++// This deliberately runs with O staging disabled.  It isolates the query
++// stage's three batchm launches and covers the guards that an O-enabled test
++// can otherwise satisfy before reaching query planning.
++use super::*;
++
++#[test]
++fn query_batch_dispatch_boundary_fallback_and_guards() {
++    const CHILD: &str = "ATLAS_TEST_GLM_K3_QUERY_DISPATCH";
++    if std::env::var_os(CHILD).is_none() {
++        let name = concat!(
++            module_path!(),
++            "::query_batch_dispatch_boundary_fallback_and_guards"
++        );
++        let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
++        cmd.args(["--exact", name.split_once("::").unwrap().1, "--nocapture"]);
++        for (key, _) in std::env::vars_os() {
++            if key.to_string_lossy().starts_with("ATLAS_") {
++                cmd.env_remove(key);
++            }
++        }
++        let output = cmd
++            .env(CHILD, "1")
++            .env("ATLAS_GLM_MTP_LONG_CONTEXT", "1")
++            .env("ATLAS_GLM_MTP_REPAIR", "1")
++            .env("ATLAS_GLM_SPARSE_DECODE_TC", "0")
++            .env("ATLAS_GLM_K3_MLA_O_BATCHM", "0")
++            .env("ATLAS_GLM_K3_MLA_O_COMPARE", "0")
++            .env("ATLAS_GLM_K3_MLA_QUERY_BATCHM", "1")
++            .env("ATLAS_GLM_K3_MLA_QUERY_COMPARE", "0")
++            .output()
++            .unwrap();
++        assert!(String::from_utf8_lossy(&output.stdout).contains("running 1 test"));
++        assert!(
++            output.status.success(),
++            "{}\n{}",
++            String::from_utf8_lossy(&output.stdout),
++            String::from_utf8_lossy(&output.stderr)
++        );
++        return;
++    }
++
++    fixture(|gpu, config, layer| {
++        let arena = BufferArena::new(config, 16, 32768, 16, 1, gpu).unwrap();
++        let mut dispatch = ops::GemmDispatch::defaults();
++        dispatch.cublas_gemm = false;
++        let derived = ops::DerivedWeights::new();
++        let levers = ops::ModelLevers::defaults();
++        let stats = ops::ModelStats::new();
++        let metadata = gpu.alloc(3 * 2049 * 4 + 1024).unwrap();
++        let meta = AttnMetadataDev {
++            positions: metadata,
++            positions_h: metadata,
++            positions_w: metadata,
++            slot: metadata.offset(256),
++            seq_len: metadata.offset(512),
++            block_table: metadata.offset(768),
++            max_blocks_per_seq: 2049,
++            num_seqs: 3,
++            seq_slot: DevicePtr::NULL,
++            moe_row_adapter: DevicePtr::NULL,
++        };
++        let ctx = ForwardContext {
++            buffers: &arena,
++            gpu,
++            config,
++            dispatch: &dispatch,
++            derived: &derived,
++            levers: &levers,
++            stats: &stats,
++            ssm_batch: None,
++            attn_metadata: Some(meta),
++            profile: false,
++            comm: None,
++            graph_capture: false,
++            gdn_exact_replay: false,
++            token_ids: None,
++            host_token_ids: None,
++            routed_lora_layers: None,
++            midchunk_capture: None,
++            moe_lora_route: crate::layer::MoeLoraRoute::Skip,
++        };
++        let mut cache = PagedKvCache::new(
++            KvCacheConfig {
++                block_size: 16,
++                num_kv_heads: 1,
++                head_dim: 512,
++                num_layers: 1,
++                dtype: KvCacheDtype::Bf16,
++                layer_dtypes: vec![],
++                layer_dims: vec![],
++                cache_blocks_per_seq: None,
++            },
++            2050,
++            gpu,
++        )
++        .unwrap();
++        cache
++            .attach_sparse_index(SparseIndexCacheConfig::bf16(4, 128), gpu)
++            .unwrap();
++        layer
++            .prefill_mla_kv_only_impl(arena.hidden_states(), 3, &mut cache, meta.slot, &ctx, 0)
++            .unwrap();
++
++        let q_a = layer
++            .mla
++            .as_ref()
++            .unwrap()
++            .wq_a
++            .weight
++            .0
++            .to_ne_bytes()
++            .to_vec();
++        let q_b = layer
++            .mla
++            .as_ref()
++            .unwrap()
++            .wq_b
++            .weight
++            .0
++            .to_ne_bytes()
++            .to_vec();
++        let index_q = layer
++            .mla
++            .as_ref()
++            .unwrap()
++            .glm_indexer
++            .as_ref()
++            .unwrap()
++            .wq_b
++            .weight
++            .0
++            .to_ne_bytes()
++            .to_vec();
++        let args_for = |calls: &[(u64, Vec<Vec<u8>>)], kernel: u64, weight: &[u8]| {
++            calls
++                .iter()
++                .filter(|(func, args)| *func == kernel && args.get(1).is_some_and(|x| x == weight))
++                .count()
++        };
++
++        // Position 2048 is both the first sparse row (seq_len > topk) and a
++        // fresh four-token pool. All three stateless projections must finish
++        // before row 0 can mutate the semantic cache.
++        let boundary = [2047, 2048, 2049];
++        let c = MultiSeqCtx::new(
++            layer,
++            &ctx,
++            arena.hidden_states(),
++            arena.residual(),
++            3,
++            &boundary,
++            16,
++            0,
++        );
++        let launch_before = gpu.launch_count();
++        let record_before = gpu.1.lock().unwrap().len();
++        layer.ms_mla_decode(&c, &mut cache, meta).unwrap();
++        let calls = gpu.1.lock().unwrap()[record_before..].to_vec();
++        let query_batches: Vec<_> = calls
++            .iter()
++            .enumerate()
++            .filter(|(_, (func, args))| {
++                *func == 807
++                    && [q_a.as_slice(), q_b.as_slice(), index_q.as_slice()]
++                        .iter()
++                        .any(|weight| args.get(1).is_some_and(|x| x == *weight))
++            })
++            .collect();
++        assert_eq!(query_batches.len(), 3);
++        let first_cache = calls
++            .iter()
++            .position(|(func, _)| *func == 820)
++            .expect("cache assembly must be recorded");
++        assert!(query_batches.iter().all(|(i, _)| *i < first_cache));
++        assert_eq!(args_for(&calls, 807, &q_a), 1);
++        assert_eq!(args_for(&calls, 807, &q_b), 1);
++        assert_eq!(args_for(&calls, 807, &index_q), 1);
++
++        // The retained index-Q must follow the query layout row by row. The
++        // first row remains dense, while rows 1 and 2 select sparse attention
++        // only after their own key/gate update and top-k expansion.
++        let logits: Vec<_> = calls.iter().filter(|(func, _)| *func == 812).collect();
++        assert_eq!(logits.len(), 2);
++        for (row, (_, args)) in logits.iter().enumerate() {
++            let row = row + 1;
++            assert_eq!(
++                args[0],
++                arena
++                    .ssm_deinterleaved()
++                    .offset(3 * 8192 * 2 + row * 4096 * 2)
++                    .0
++                    .to_ne_bytes()
++                    .to_vec()
++            );
++        }
++        let causal: Vec<_> = gpu.launches_snapshot()[launch_before..]
++            .iter()
++            .filter(|launch| matches!(launch.func, 801 | 802 | 803 | 804 | 812))
++            .map(|launch| launch.func)
++            .collect();
++        assert_eq!(
++            causal,
++            vec![801, 802, 801, 802, 812, 803, 804, 801, 802, 812, 803, 804]
++        );
++
++        // Fully short K3 must keep the scalar path. The query flag is enabled
++        // globally, but no batchm launch is permitted when every row is <=topk.
++        let short = [2045, 2046, 2047];
++        let c = MultiSeqCtx::new(
++            layer,
++            &ctx,
++            arena.hidden_states(),
++            arena.residual(),
++            3,
++            &short,
++            16,
++            0,
++        );
++        let record_before = gpu.1.lock().unwrap().len();
++        layer.ms_mla_decode(&c, &mut cache, meta).unwrap();
++        let calls = gpu.1.lock().unwrap()[record_before..].to_vec();
++        assert_eq!(args_for(&calls, 807, &q_a), 0);
++        assert_eq!(args_for(&calls, 807, &q_b), 0);
++        assert_eq!(args_for(&calls, 807, &index_q), 0);
++        assert_eq!(args_for(&calls, 806, &q_a), 3);
++        assert_eq!(args_for(&calls, 806, &q_b), 3);
++        assert_eq!(args_for(&calls, 806, &index_q), 0);
++        assert!(
++            !calls
++                .iter()
++                .any(|(func, _)| matches!(*func, 812 | 803 | 804))
++        );
++
++        // Query-only guards must fail before the first cache write. These
++        // cases are intentionally run with O staging disabled, so an O plan
++        // cannot mask a query geometry or liveness failure.
++        for bad in ["nq", "normed_alias", "latent_alias"] {
++            let positions = [2047, 2048, 2049];
++            let mut rejected = MultiSeqCtx::new(
++                layer,
++                &ctx,
++                arena.hidden_states(),
++                arena.residual(),
++                3,
++                &positions,
++                16,
++                0,
++            );
++            match bad {
++                "nq" => rejected.nq = 64,
++                "normed_alias" => rejected.normed = arena.ssm_qkvz().offset(512),
++                "latent_alias" => rejected.normed = arena.ssm_ba(),
++                _ => unreachable!(),
++            }
++            let before = gpu.launch_count();
++            assert!(
++                layer.ms_mla_decode(&rejected, &mut cache, meta).is_err(),
++                "{bad}"
++            );
++            assert_eq!(
++                gpu.launch_count(),
++                before,
++                "{bad} must reject before cache writes"
++            );
++        }
++    });
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_serial.rs b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_serial.rs
+index a07780c38ccf2c502ce921e3459c9932bdeb436b..f038a9d5d3bfb23c8669fe2ba0030cbfbc871295 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_serial.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/trait_impl/multi_seq/mla_serial.rs
+@@ -19,70 +19,79 @@ impl Qwen3AttentionLayer {
+         stream: u64,
+         position: usize,
+         staged_v: Option<DevicePtr>,
++        prepared_query: Option<super::k3_query::QueryRow>,
+     ) -> Result<()> {
+         let gpu = c.fwd.gpu;
+         let buffers = c.fwd.buffers;
+ 
+         // ── Step 1: Q latent → norm → expand ──
+-        let q_latent = buffers.ssm_ba();
+-        if let Some(ref wqa_nvfp4) = mla.wq_a_nvfp4 {
+-            self.nvfp4_decode_gemv(
+-                gpu,
+-                c.fwd.levers.gemv_sw,
+-                normed,
+-                wqa_nvfp4,
+-                q_latent,
+-                d.q_lora,
+-                d.h,
+-                stream,
+-            )?;
++        let (q_latent, q_full, index_query) = if let Some(query) = prepared_query {
++            // The opt-in K3 query stage has already completed Qa, the exact
++            // in-place RMS, Qb, and index-Q for every row.  Keep every causal
++            // operation below on this row's retained slices.
++            (query.q_latent, query.q_full, Some(query.index_query))
+         } else {
+-            ops::dense_gemv(
+-                gpu,
+-                self.dense_gemv_k,
+-                normed,
+-                &mla.wq_a,
+-                q_latent,
+-                d.q_lora,
+-                d.h,
+-                stream,
+-            )?;
+-        }
+-        ops::rms_norm(
+-            gpu,
+-            self.rms_norm_w_k,
+-            q_latent,
+-            &mla.q_a_norm,
+-            q_latent,
+-            1,
+-            d.q_lora,
+-            d.eps,
+-            stream,
+-        )?;
+-        let q_full = buffers.ssm_deinterleaved();
+-        if let Some(ref wqb_nvfp4) = mla.wq_b_nvfp4 {
+-            self.nvfp4_decode_gemv(
++            let q_latent = buffers.ssm_ba();
++            if let Some(ref wqa_nvfp4) = mla.wq_a_nvfp4 {
++                self.nvfp4_decode_gemv(
++                    gpu,
++                    c.fwd.levers.gemv_sw,
++                    normed,
++                    wqa_nvfp4,
++                    q_latent,
++                    d.q_lora,
++                    d.h,
++                    stream,
++                )?;
++            } else {
++                ops::dense_gemv(
++                    gpu,
++                    self.dense_gemv_k,
++                    normed,
++                    &mla.wq_a,
++                    q_latent,
++                    d.q_lora,
++                    d.h,
++                    stream,
++                )?;
++            }
++            ops::rms_norm(
+                 gpu,
+-                c.fwd.levers.gemv_sw,
++                self.rms_norm_w_k,
+                 q_latent,
+-                wqb_nvfp4,
+-                q_full,
+-                d.q_dim,
+-                d.q_lora,
+-                stream,
+-            )?;
+-        } else {
+-            ops::dense_gemv(
+-                gpu,
+-                self.dense_gemv_k,
++                &mla.q_a_norm,
+                 q_latent,
+-                &mla.wq_b,
+-                q_full,
+-                d.q_dim,
++                1,
+                 d.q_lora,
++                d.eps,
+                 stream,
+             )?;
+-        }
++            let q_full = buffers.ssm_deinterleaved();
++            if let Some(ref wqb_nvfp4) = mla.wq_b_nvfp4 {
++                self.nvfp4_decode_gemv(
++                    gpu,
++                    c.fwd.levers.gemv_sw,
++                    q_latent,
++                    wqb_nvfp4,
++                    q_full,
++                    d.q_dim,
++                    d.q_lora,
++                    stream,
++                )?;
++            } else {
++                ops::dense_gemv(
++                    gpu,
++                    self.dense_gemv_k,
++                    q_latent,
++                    &mla.wq_b,
++                    q_full,
++                    d.q_dim,
++                    d.q_lora,
++                    stream,
++                )?;
++            }
++            (q_latent, q_full, None)
++        };
+ 
+         // ── Step 2: Q_absorbed (Q_nope @ W_UK_T) ──
+         let q_absorbed_buf = buffers.expert_up_out();
+@@ -281,6 +290,7 @@ impl Qwen3AttentionLayer {
+             position,
+             &d,
+             stream,
++            index_query,
+         )? {
+             ops::paged_decode_attn_bf16(
+                 gpu,
