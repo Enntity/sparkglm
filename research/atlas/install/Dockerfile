@@ -38,6 +38,41 @@ COPY engine/tests/fixtures/ tests/fixtures/
 ENV ATLAS_TARGET_HW=gb10 ATLAS_TARGET_MODEL=glm-5.3-flash-nvfp4 ATLAS_TARGET_QUANT=nvfp4
 ARG BUILD_JOBS=4
 RUN cargo build --locked --release -j "$BUILD_JOBS" -p spark-server
+# Check the actual compiled GLM module set and the startup vision selector.
+# CUDA stubs permit these CPU-only tests without GPU build entitlements.
+RUN mkdir -p /opt/cuda-stubs && \
+    ln -s /usr/local/cuda/lib64/stubs/libcuda.so /opt/cuda-stubs/libcuda.so.1
+RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p atlas-kernels --lib \
+    glm5_target_ships_native_vision_module -- --ignored > /tmp/atlas-kernel-check.log 2>&1 || \
+    { cat /tmp/atlas-kernel-check.log; exit 1; }; \
+    cat /tmp/atlas-kernel-check.log && grep -F 'test result: ok. 1 passed;' /tmp/atlas-kernel-check.log
+RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    vision_guard_ > /tmp/atlas-vision-check.log 2>&1 || \
+    { cat /tmp/atlas-vision-check.log; exit 1; }; \
+    cat /tmp/atlas-vision-check.log && grep -F 'test result: ok. 2 passed;' /tmp/atlas-vision-check.log
+
+# Exercise the serving-capacity boundary and terminal error delivery on the
+# same Linux/CUDA build as the shipped binary. Require each filter to match.
+RUN set -eu; for filter in glm_repair_policy glm_pair_plan; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-model --lib "$filter" \
+        > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; }; \
+      cat /tmp/atlas-model-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-model-check.log; \
+    done
+RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    scheduler::lifecycle_tests > /tmp/atlas-lifecycle-check.log 2>&1 || \
+    { cat /tmp/atlas-lifecycle-check.log; exit 1; }; \
+    cat /tmp/atlas-lifecycle-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-lifecycle-check.log
+
+RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    auto_tool_eos_tests > /tmp/atlas-tool-stop-check.log 2>&1 || \
+    { cat /tmp/atlas-tool-stop-check.log; exit 1; }; \
+    cat /tmp/atlas-tool-stop-check.log && grep -F 'test result: ok. 7 passed;' /tmp/atlas-tool-stop-check.log
 
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
 ARG SPARKGLM_REVISION

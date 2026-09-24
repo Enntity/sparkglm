@@ -365,6 +365,37 @@ index 089ecaeff2cbf9d7edeba2b254a4a22f5e71aa98..2c64c568b8dcb4378b0898ff1f9e29c9
      let quant = cfg.quantization_config.unwrap();
      assert_eq!(quant.quant_method, "modelopt");
      assert_eq!(quant.quant_algo, "NVFP4");
+diff --git a/crates/atlas-kernels/src/lib_tests.rs b/crates/atlas-kernels/src/lib_tests.rs
+index 47ff95269ffbd30de2e43e52c4d617664735b9e7..f2b9e37bbee7c69136b405975708987228c57680 100644
+--- a/crates/atlas-kernels/src/lib_tests.rs
++++ b/crates/atlas-kernels/src/lib_tests.rs
+@@ -59,6 +59,26 @@ fn all_targets_have_modules() {
+     }
+ }
+ 
++#[test]
++#[ignore = "requires nvcc and ATLAS_SKIP_BUILD unset"]
++fn glm5_target_ships_native_vision_module() {
++    let target = ptx_for_exact_target("glm-5.3-flash-nvfp4", "nvfp4")
++        .expect("the GLM-5.3 NVFP4 kernel target must be compiled");
++    assert!(
++        target
++            .modules
++            .iter()
++            .any(|(name, _)| *name == "glm_vision_encoder"),
++        "GLM-5.3 target must ship glm_vision_encoder; available modules: {:?}",
++        target
++            .modules
++            .iter()
++            .map(|(name, _)| *name)
++            .filter(|name| name.contains("vision"))
++            .collect::<Vec<_>>()
++    );
++}
++
+ /// #438: the exact-verify `_snap` twins (#435) ship ONLY in
+ /// qwen3.6-27b/nvfp4's shadow set, but `qwen3_ssm::init` issues their three
+ /// lookups on EVERY GDN model. The boot gate fails CLOSED on an unresolved
 diff --git a/crates/spark-model/src/factory/build.rs b/crates/spark-model/src/factory/build.rs
 index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..363656eb698406c34bc49fec2990fefc5f12b72a 100644
 --- a/crates/spark-model/src/factory/build.rs
@@ -1994,6 +2025,26 @@ index 4d55b958f1cacc9dd71c082cac400ba73b238fa7..0f3afcfc0a1e0974c9c573808af67f5d
              slot_idx: slot,
              ssm_slot: Some(slot_guard),
              marconi_skip_to: 0,
+diff --git a/crates/spark-model/src/model/glm_mtp_repair.rs b/crates/spark-model/src/model/glm_mtp_repair.rs
+index 8642c2faea77c1156be31bca9114331703268875..37a0877525d6d1bddb289f69be36c3f1b700ca6a 100644
+--- a/crates/spark-model/src/model/glm_mtp_repair.rs
++++ b/crates/spark-model/src/model/glm_mtp_repair.rs
+@@ -114,7 +114,14 @@ impl TransformerModel {
+             generation: seq.mtp_capture_gen,
+             capture_generation,
+             captured_rows: self.mtp_prefill_capture_len.load(Ordering::Relaxed),
+-            context_tokens: self.mtp_prefill_capacity,
++            // The served arena may be larger than the repaired verifier's
++            // indexed domain. Requests whose prompt+output budget crosses
++            // this bound are admitted to the native lane with disable_mtp;
++            // keep the repair plan itself inside the domain for short
++            // requests on a larger (for example 36K) serving profile.
++            context_tokens: crate::speculative::glm_repair_policy::repair_context(
++                self.mtp_prefill_capacity,
++            ),
+             capture: RepairSpan {
+                 ptr: self.mtp_prefill_hidden,
+                 bytes: capture_bytes,
 diff --git a/crates/spark-model/src/model/impl_a1.rs b/crates/spark-model/src/model/impl_a1.rs
 index 012b5a199f31f6841580ccf76f27755cb2baced2..96223601dc1bc82eab5a210e70d764aecec4159c 100644
 --- a/crates/spark-model/src/model/impl_a1.rs
@@ -3216,6 +3267,77 @@ index 0000000000000000000000000000000000000000..7c153c869e4a1be8252bdc793ff98531
 +        assert_eq!(pad_rows_before_chunk(&tokens, 99, 11, 12), 4);
 +    }
 +}
+diff --git a/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs b/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs
+index 98432552011a0acf175f7428e0e835085ffd517d..ba915265462459855671e40955853d3a307846b5 100644
+--- a/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs
++++ b/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs
+@@ -2,6 +2,37 @@
+ 
+ use super::*;
+ 
++#[test]
++fn served_36k_profile_is_bounded_before_mtp2_limits() {
++    let served_context = 36_864;
++    let repair_context = crate::speculative::glm_repair_policy::repair_context(served_context);
++    assert_eq!(repair_context, 32_768);
++    assert!(
++        Limits::new(
++            Profile {
++                drafts: 2,
++                ..profile()
++            },
++            repair_context,
++            32_784,
++            2,
++        )
++        .is_ok()
++    );
++    assert!(
++        Limits::new(
++            Profile {
++                drafts: 2,
++                ..profile()
++            },
++            served_context,
++            32_784,
++            2,
++        )
++        .is_err()
++    );
++}
++
+ #[test]
+ fn two_draft_limits_cover_all_verdicts_and_keep_fixed_width() {
+     let limits = Limits::new(
+diff --git a/crates/spark-model/src/speculative/glm_repair_policy.rs b/crates/spark-model/src/speculative/glm_repair_policy.rs
+index dc77ce1a0a350ee355ba27804310ab817583f008..f4f3ee72beac0b9235cb8eb432cf2b022a535014 100644
+--- a/crates/spark-model/src/speculative/glm_repair_policy.rs
++++ b/crates/spark-model/src/speculative/glm_repair_policy.rs
+@@ -15,6 +15,13 @@ pub fn long_context_enabled() -> bool {
+ 
+ pub const MAX_LONG_CONTEXT: usize = 32_768;
+ 
++/// Bound a serving arena's context before it is handed to the repaired
++/// verifier. The native serving lane may expose a larger context; requests
++/// beyond this indexed domain are admitted with MTP disabled.
++pub fn repair_context(context: usize) -> usize {
++    context.min(MAX_LONG_CONTEXT)
++}
++
+ /// The legacy prompt capture has one writer. Retained owner tails and repair
+ /// staging allow other requests to decode while that one prompt is chunked.
+ pub fn new_prompt_capacity(active: usize, prefilling: usize, capacity: usize) -> usize {
+@@ -271,4 +278,10 @@ mod tests {
+         assert_eq!(new_prompt_capacity(2, 1, 4), 0);
+         assert_eq!(new_prompt_capacity(4, 0, 4), 0);
+     }
++
++    #[test]
++    fn repair_context_bounds_larger_serving_profiles() {
++        assert_eq!(repair_context(MAX_LONG_CONTEXT), MAX_LONG_CONTEXT);
++        assert_eq!(repair_context(MAX_LONG_CONTEXT + 4096), MAX_LONG_CONTEXT);
++    }
+ }
 diff --git a/crates/spark-model/src/traits.rs b/crates/spark-model/src/traits.rs
 index da353289798b4b49c45f547a6e14c4ca7dda9a98..69bff34cd63c0255a8d7089473fc57fd975d26cf 100644
 --- a/crates/spark-model/src/traits.rs
@@ -4971,10 +5093,36 @@ index 1bcb97ac07150778aea3cf5d4b3e067f1d10f0bc..1f016a538b78c611ead64fec4280875f
  /// its historical 1280px long-side clamp).
  ///
 diff --git a/crates/spark-server/src/main_modules/serve_load.rs b/crates/spark-server/src/main_modules/serve_load.rs
-index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..592d63b6acfd05edb70ff976e7a845bd9ab2af03 100644
+index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..3135334026cf72c4994f5c1e3dcb97260c6eb38b 100644
 --- a/crates/spark-server/src/main_modules/serve_load.rs
 +++ b/crates/spark-server/src/main_modules/serve_load.rs
-@@ -160,7 +160,7 @@ pub(crate) fn load_model_selected(
+@@ -37,6 +37,25 @@ use crate::{
+     session_manager,
+ };
+ 
++/// Return the PTX module that implements the checkpoint's vision tower.
++///
++/// Qwen-shaped towers use the historical `vision_encoder` module name. GLM-
++/// 5.3 has intentionally separate kernels and therefore ships
++/// `glm_vision_encoder`; accepting that name only for the corresponding
++/// parsed config keeps the startup guard fail-closed for every other model.
++fn required_vision_module(is_glm5_next: bool) -> &'static str {
++    if is_glm5_next {
++        "glm_vision_encoder"
++    } else {
++        "vision_encoder"
++    }
++}
++
++fn target_has_required_vision_module(is_glm5_next: bool, modules: &[(&str, &[u8])]) -> bool {
++    let required = required_vision_module(is_glm5_next);
++    modules.iter().any(|(name, _)| *name == required)
++}
++
+ mod selected_handoff;
+ use selected_handoff::ServingModel;
+ 
+@@ -160,7 +179,7 @@ pub(crate) fn load_model_selected(
      // whose TOP LEVEL is already the quantization block.
      serve_phases::merge_sidecar_quant_config(&model_dir, &mut config);
  
@@ -4983,7 +5131,7 @@ index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..592d63b6acfd05edb70ff976e7a845bd
      // anything derived from it exists.
      //
      // Ordering is load-bearing: the vision encoder sizes every device buffer
-@@ -175,7 +175,7 @@ pub(crate) fn load_model_selected(
+@@ -175,7 +194,7 @@ pub(crate) fn load_model_selected(
      }
      match vision_max_pixels {
          Some(px) => tracing::info!(
@@ -4992,7 +5140,7 @@ index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..592d63b6acfd05edb70ff976e7a845bd
              px,
              if args.vision_max_pixels > 0 {
                  "--vision-max-pixels"
-@@ -190,7 +190,7 @@ pub(crate) fn load_model_selected(
+@@ -190,7 +209,7 @@ pub(crate) fn load_model_selected(
              }
          ),
          None => tracing::info!(
@@ -5001,6 +5149,70 @@ index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..592d63b6acfd05edb70ff976e7a845bd
          ),
      }
  
+@@ -360,21 +379,22 @@ pub(crate) fn load_model_selected(
+     );
+ 
+     // Text-only kernel target + a checkpoint that ships a vision tower: honor the
+-    // TARGET spec and serve text-only rather than failing the build at
+-    // `vision_encoder module not loaded`. Some VL checkpoints (e.g.
+-    // Kbenkhaled/Qwen3.5-27B-NVFP4) carry a `vision_config`, but their Atlas
+-    // kernel target (qwen3.5-27b) ships no `vision_encoder` PTX module. Drop the
+-    // vision tower to text-only; image inputs are unsupported until the target
+-    // is rebuilt with vision.
+-    if config.vision.is_some()
+-        && !ptx_set
+-            .modules
+-            .iter()
+-            .any(|(name, _)| *name == "vision_encoder")
+-    {
++    // TARGET spec and serve text-only rather than failing the build at a missing
++    // vision module. Qwen-shaped VL targets use `vision_encoder`; native GLM-
++    // 5.3 uses the separate `glm_vision_encoder` module. Some VL checkpoints
++    // (e.g. Kbenkhaled/Qwen3.5-27B-NVFP4) carry a `vision_config`, but their
++    // Atlas kernel target ships no corresponding PTX module. Drop the vision
++    // tower to text-only; image inputs are unsupported until the target is
++    // rebuilt with vision.
++    let missing_vision_module = config.vision.as_ref().and_then(|vision| {
++        let required = required_vision_module(vision.is_glm5_next);
++        (!target_has_required_vision_module(vision.is_glm5_next, &ptx_set.modules))
++            .then_some(required)
++    });
++    if let Some(required_vision) = missing_vision_module {
+         tracing::warn!(
+             "Checkpoint declares a vision tower but kernel target {} ships no \
+-             vision_encoder module — serving TEXT-ONLY (image inputs ignored). \
++             {required_vision} module — serving TEXT-ONLY (image inputs ignored). \
+              Rebuild the target with vision to enable images.",
+             ptx_set.target,
+         );
+diff --git a/crates/spark-server/src/main_modules/serve_load_tests.rs b/crates/spark-server/src/main_modules/serve_load_tests.rs
+index eccfd820c55a83bfdfcad5ea9c74005d7de2a503..2a0aec719911a6b0a0bb7b01e9287ea82ef4ba5b 100644
+--- a/crates/spark-server/src/main_modules/serve_load_tests.rs
++++ b/crates/spark-server/src/main_modules/serve_load_tests.rs
+@@ -54,3 +54,23 @@ fn carried_uses_the_process_limiter_rather_than_minting_its_own() {
+         "the host's limiter IS the one the model's AppState will hold"
+     );
+ }
++
++#[test]
++fn glm_vision_guard_requires_the_native_glm_module() {
++    let glm = [("glm_vision_encoder", &[][..])];
++    let qwen = [("vision_encoder", &[][..])];
++
++    assert_eq!(required_vision_module(true), "glm_vision_encoder");
++    assert!(target_has_required_vision_module(true, &glm));
++    assert!(!target_has_required_vision_module(true, &qwen));
++}
++
++#[test]
++fn qwen_vision_guard_keeps_the_generic_module_name() {
++    let qwen = [("vision_encoder", &[][..])];
++    let glm = [("glm_vision_encoder", &[][..])];
++
++    assert_eq!(required_vision_module(false), "vision_encoder");
++    assert!(target_has_required_vision_module(false, &qwen));
++    assert!(!target_has_required_vision_module(false, &glm));
++}
 diff --git a/crates/spark-server/src/main_modules/serve_phases/build.rs b/crates/spark-server/src/main_modules/serve_phases/build.rs
 index 2fb8d8c579763b46dd670dde0b5dae8f68b70b0f..b4b4f048f15854b0721ccb5e9ff51f899684ed22 100644
 --- a/crates/spark-server/src/main_modules/serve_phases/build.rs
@@ -5055,10 +5267,35 @@ index e1b0d66619756db24af8f056cfaaec6dcd703c0f..09f984104acf191746638dafcf2ecdb5
          && a.content_tokens.is_multiple_of(CONTENT_LOOP_CHECK_STRIDE)
          && (detect_content_token_loop_with(&a.output_tokens, loop_params)
 diff --git a/crates/spark-server/src/scheduler/decode_logits_step.rs b/crates/spark-server/src/scheduler/decode_logits_step.rs
-index 75eaa251596290e7832fba801d726d78cc70bf85..b3e65f2cedb9bc6d4b5bb6bae71807478cb0372b 100644
+index 75eaa251596290e7832fba801d726d78cc70bf85..b61ee5af59315e74f11dc17fa3242652c57ad19b 100644
 --- a/crates/spark-server/src/scheduler/decode_logits_step.rs
 +++ b/crates/spark-server/src/scheduler/decode_logits_step.rs
-@@ -532,6 +532,7 @@ pub fn process_decode_logits(
+@@ -76,6 +76,24 @@ fn parallel_sample_enabled() -> bool {
+     *CACHED.get_or_init(|| std::env::var("ATLAS_PARALLEL_SAMPLE").as_deref() != Ok("0"))
+ }
+ 
++const POST_THINK_MIN_CONTENT: u32 = 16;
++
++/// Whether a short post-thinking EOS must be held for a real tool obligation.
++///
++/// `ActiveSeq::tool_request` is sticky tool availability, not evidence that
++/// this assistant turn currently has to emit a call. In particular, an
++/// auto-tools request answering a preceding tool result must be able to end
++/// with a short plain-text answer. Required calls and actually opened,
++/// incomplete calls still keep the post-thinking guard armed.
++pub(super) fn should_suppress_post_think_eos(
++    a: &ActiveSeq,
++    post_think_content_tokens: u32,
++) -> bool {
++    let tools_armed =
++        a.require_tool_call || a.inside_tool_body || (a.tool_call_opened && !a.tool_call_completed);
++    tools_armed && a.think_ended && post_think_content_tokens < POST_THINK_MIN_CONTENT
++}
++
+ /// DIAG (ATLAS_DECODE_TIMING=1): localize the host-path decode cost. Splits the
+ /// per-token wall into `copy` (D2H of the full 248k-vocab logits + the GPU
+ /// forward-wait absorbed by that sync) vs `sample` (the host scalar loops over
+@@ -532,6 +550,7 @@ pub fn process_decode_logits(
                  if !sched.levers.disable_watchdogs
                      && sched.watchdog.enable_think_loop_watchdog
                      && !a.force_end_thinking
@@ -5066,7 +5303,41 @@ index 75eaa251596290e7832fba801d726d78cc70bf85..b3e65f2cedb9bc6d4b5bb6bae7180747
                      && a.thinking_tokens >= THINK_LOOP_MIN_TOKENS
                      && a.thinking_tokens.is_multiple_of(THINK_LOOP_CHECK_STRIDE)
                      && detect_thinking_token_loop_with(
-@@ -983,6 +984,7 @@ pub fn process_decode_logits(
+@@ -767,23 +786,20 @@ pub fn process_decode_logits(
+         // a short post-thinking answer is the expected output and EOS
+         // should fire normally. `min_tokens_suppresses` still enforces
+         // any explicit caller-set floor.
+-        const POST_THINK_MIN_CONTENT: u32 = 16;
+         let post_think_content_tokens =
+             (a.output_tokens.len() as u32).saturating_sub(a.thinking_tokens);
+         // Tools-armed scoping (the narrowing the 2026-05-24 comment above
+-        // describes but was never coded into this branch): the post-think guard
+-        // exists to give the model room to OPEN a `<tool_call>` after the
+-        // watchdog force-closes `</think>` mid-narration. That is only relevant
+-        // when tools are armed for this turn. On a plain (no-tool) thinking turn
+-        // a short post-`</think>` answer ("2+2"→"4", "say hello"→"Hello") plus
+-        // its `<|im_end|>`/`<|endoftext|>` IS the expected output, so the guard
+-        // must NOT fire — otherwise the legitimate EOS is discarded and the
+-        // model runs on into chat-template scaffold (`\nuser\nassistant`). The
+-        // MTP-verify emit path (`emit_step.rs`) has no such guard, which is why
+-        // MTP-on stopped here while MTP-off leaked; this restores parity.
+-        let tools_armed = a.require_tool_call || a.tool_request;
++        // describes): the post-think guard exists to give the model room to
++        // OPEN a `<tool_call>` after the watchdog force-closes `</think>`
++        // mid-narration. `tool_request` is deliberately sticky for the whole
++        // request, so it is too broad here: an auto-tools turn answering an
++        // existing tool result has tools available but no current call to
++        // open. In that case a short plain answer must be allowed to end,
++        // including when thinking was disabled and `think_ended` is already
++        // true at prefill. Keep the guard for a required call and for a call
++        // that the output has actually opened but not closed.
+         let post_think_suppresses_eos =
+-            tools_armed && a.think_ended && post_think_content_tokens < POST_THINK_MIN_CONTENT;
++            should_suppress_post_think_eos(a, post_think_content_tokens);
+         let suppress_eos = grammar_suppresses_eos
+             || legacy_suppresses_eos
+             || min_tokens_suppresses
+@@ -983,6 +999,7 @@ pub fn process_decode_logits(
              if sched.levers.loop_watchdog()
                  && !a.finished
                  && !a.inside_thinking
@@ -5074,6 +5345,121 @@ index 75eaa251596290e7832fba801d726d78cc70bf85..b3e65f2cedb9bc6d4b5bb6bae7180747
                  && !inside_tool_call
                  && let Some((pattern_len, mis_a, mis_b)) = detect_fuzzy_repetition(
                      &a.output_tokens,
+@@ -1025,3 +1042,114 @@ pub fn process_decode_logits(
+         }
+     }
+ }
++
++#[cfg(test)]
++#[path = "cancel_test_model.rs"]
++mod auto_tool_eos_test_model;
++
++#[cfg(test)]
++mod auto_tool_eos_tests {
++    use super::{
++        auto_tool_eos_test_model as model, process_decode_logits, should_suppress_post_think_eos,
++    };
++    use crate::scheduler::sched_ctx::SchedCtx;
++    use crate::scheduler::test_support::test_seq;
++    use spark_runtime::gpu::DevicePtr;
++    use std::time::Instant;
++
++    fn post_think_state() -> crate::scheduler::types::ActiveSeq {
++        let (mut a, _rx) = test_seq(vec![10], 20, None, 12);
++        a.finished = false;
++        a.think_ended = true;
++        a.tool_request = true;
++        a
++    }
++
++    #[test]
++    fn auto_tools_without_current_call_allow_short_plain_answer() {
++        let a = post_think_state();
++        assert!(!a.require_tool_call);
++        assert!(!a.tool_call_opened);
++        assert!(!a.inside_tool_body);
++        assert!(!a.tool_call_completed);
++        assert!(
++            !should_suppress_post_think_eos(&a, 0),
++            "sticky auto-tools availability must not hold EOS for a plain answer"
++        );
++    }
++
++    #[test]
++    fn thinking_disabled_auto_tools_still_allow_short_plain_answer() {
++        let mut a = post_think_state();
++        a.enable_thinking = false;
++        assert!(!should_suppress_post_think_eos(&a, 0));
++    }
++
++    #[test]
++    fn auto_tools_plain_eos_is_not_held_by_sticky_request() {
++        const EOS: u32 = 101;
++        let (mut a, _rx) = test_seq(vec![10], 20, None, 12);
++        a.finished = false;
++        a.min_tokens = 0;
++        a.eos_tokens = vec![EOS];
++        a.enable_thinking = false;
++        a.think_ended = true;
++        a.tool_request = true;
++        a.tools_present = true;
++        a.tool_call_start_token = Some(900);
++        a.tool_call_end_token = Some(901);
++        let mut rows = vec![a];
++        let sched = SchedCtx::for_test();
++
++        process_decode_logits(
++            &model::TestModel {
++                tokens: vec![EOS],
++                host_logits: true,
++                cancel_after_sampling: None,
++                cancel_after_row_commit: None,
++            },
++            &mut rows,
++            DevicePtr::NULL,
++            Instant::now(),
++            Some(901),
++            Some(900),
++            None,
++            Some(900),
++            Some(901),
++            false,
++            &sched,
++        );
++
++        assert!(rows[0].finished, "a plain auto-tools EOS must finish");
++        assert_eq!(rows[0].output_tokens, [10, EOS]);
++    }
++
++    #[test]
++    fn required_tool_call_still_holds_post_think_eos() {
++        let mut a = post_think_state();
++        a.require_tool_call = true;
++        assert!(should_suppress_post_think_eos(&a, 0));
++    }
++
++    #[test]
++    fn opened_incomplete_tool_call_still_holds_post_think_eos() {
++        let mut a = post_think_state();
++        a.tool_call_opened = true;
++        assert!(should_suppress_post_think_eos(&a, 0));
++    }
++
++    #[test]
++    fn active_tool_body_still_holds_post_think_eos() {
++        let mut a = post_think_state();
++        a.inside_tool_body = true;
++        assert!(should_suppress_post_think_eos(&a, 0));
++    }
++
++    #[test]
++    fn completed_tool_call_can_end_after_tool_result() {
++        let mut a = post_think_state();
++        a.tool_call_opened = true;
++        a.tool_call_completed = true;
++        assert!(!should_suppress_post_think_eos(&a, 0));
++    }
++}
 diff --git a/crates/spark-server/src/scheduler/emit_step.rs b/crates/spark-server/src/scheduler/emit_step.rs
 index 684b90c7b5ad4c29260f0f168c46138a06f17fd6..9e855a76f86049a159e2ec0ff08aab0a0d2282c8 100644
 --- a/crates/spark-server/src/scheduler/emit_step.rs
@@ -5130,10 +5516,21 @@ index e4d8d2930186109746a9fbcee53ebf8bb81fcf4e..c66bb2c6c01b9db2dd0ec4b52b11a7b3
      fn raised_min_repeats_passes_code_shaped_period_2_tails() {
          // Daniel's firing shape (#328 follow-up): 48 content tokens ending in
 diff --git a/crates/spark-server/src/scheduler/lifecycle.rs b/crates/spark-server/src/scheduler/lifecycle.rs
-index ca2ba80ac22f79d1a773b7aaf9a694ad5bbede36..1716313a31b0eb28737cb55a6cd7ffd998ad6181 100644
+index ca2ba80ac22f79d1a773b7aaf9a694ad5bbede36..c67beb4058c42c660baa7319c97deddc659566d3 100644
 --- a/crates/spark-server/src/scheduler/lifecycle.rs
 +++ b/crates/spark-server/src/scheduler/lifecycle.rs
-@@ -328,6 +328,11 @@ pub fn resume_swapped_seq(
+@@ -134,6 +134,10 @@ pub(super) fn derive_finish_reason(
+ /// 0 = unlimited) — needed so the `"length"` decision reuses the exact
+ /// stop predicate from `emit_step`/`decode_logits_step`.
+ pub fn finish_sequence(model: &dyn Model, a: &mut ActiveSeq, max_seq_len: usize) {
++    if let Some(error) = a.terminal_error.take() {
++        send_error(model, a, &error);
++        return;
++    }
+     finish_response(a, max_seq_len);
+     // Cache the full sequence (prompt + generated) in the prefix cache.
+     // Must happen BEFORE free_sequence() so block indices are still valid.
+@@ -328,6 +332,11 @@ pub fn resume_swapped_seq(
      model.restore_sequence_state(&mut seq, s.num_blocks, &mut reader)?;
      drop(reader);
      spill.remove_file(s.swap_id)?;
@@ -5145,6 +5542,72 @@ index ca2ba80ac22f79d1a773b7aaf9a694ad5bbede36..1716313a31b0eb28737cb55a6cd7ffd9
  
      // Restore CPU-side metadata.
      seq.tokens = s.tokens;
+@@ -350,6 +359,7 @@ pub fn resume_swapped_seq(
+         min_tokens: s.min_tokens,
+         eos_tokens: s.eos_tokens,
+         finished: false,
++        terminal_error: None,
+         guard_stop: None,
+         param_close_pending: 0,
+         sink: s.sink,
+diff --git a/crates/spark-server/src/scheduler/lifecycle_tests.rs b/crates/spark-server/src/scheduler/lifecycle_tests.rs
+index b9a7641342375504bb9b3ac900e13b4a341df160..7341fb5d9ecf2a35325d01129ac660abac471284 100644
+--- a/crates/spark-server/src/scheduler/lifecycle_tests.rs
++++ b/crates/spark-server/src/scheduler/lifecycle_tests.rs
+@@ -13,7 +13,7 @@
+ use super::lifecycle::{derive_finish_reason, finish_sequence};
+ use super::types::{ActiveSeq, GUARD_STOP_REQUEST_TIMEOUT, ResponseSink};
+ use super::{DEFAULT_LZ_PENALTY, SsmDecodeRing};
+-use crate::api::InferenceResponse;
++use crate::api::{InferenceResponse, StreamEvent};
+ use crate::ir::FINISH_REASON_TIMEOUT;
+ use anyhow::Result;
+ use spark_model::traits::{Model, SequenceState};
+@@ -349,6 +349,7 @@ pub(super) fn test_seq(
+         min_tokens: 7,
+         eos_tokens: EOS.to_vec(),
+         finished: true,
++        terminal_error: None,
+         guard_stop,
+         param_close_pending: 0,
+         sink: ResponseSink::Blocking(Some(tx)),
+@@ -473,3 +474,36 @@ fn call_site_passes_the_real_guard() {
+     let (a, rx) = test_seq(vec![5, 6, 42], 3, Some("fuzzy_repetition"), 10);
+     assert_eq!(finish_and_recv(a, rx).finish_reason, "length");
+ }
++
++#[test]
++fn terminal_model_error_is_sent_as_error_without_successful_done() {
++    let (mut a, mut rx) = test_seq(vec![5, 6, 42], 7, None, 10);
++    a.terminal_error = Some("MTP proposal failed: indexed context envelope".into());
++    finish_sequence(&StubModel::default(), &mut a, MAX_SEQ_LEN);
++    let response = rx
++        .try_recv()
++        .expect("terminal model error must reach the blocking client");
++    let error = match response {
++        Ok(_) => panic!("a terminal model error became a successful response"),
++        Err(error) => error,
++    };
++    assert!(error.to_string().contains("indexed context envelope"));
++}
++
++#[tokio::test]
++async fn terminal_model_error_is_streamed_without_successful_done() {
++    let (mut a, _blocking_rx) = test_seq(vec![5, 6, 42], 7, None, 10);
++    let (tx, mut rx) = tokio::sync::mpsc::channel(4);
++    a.sink = ResponseSink::Streaming(tx);
++    a.terminal_error = Some("MTP proposal failed: indexed context envelope".into());
++    finish_sequence(&StubModel::default(), &mut a, MAX_SEQ_LEN);
++    let event = rx
++        .recv()
++        .await
++        .expect("terminal model error must reach the streaming client");
++    match event {
++        StreamEvent::Error(message) => assert!(message.contains("indexed context envelope")),
++        _ => panic!("terminal model error became a non-error event"),
++    }
++    assert!(rx.try_recv().is_err(), "error path must not also emit Done");
++}
 diff --git a/crates/spark-server/src/scheduler/mod.rs b/crates/spark-server/src/scheduler/mod.rs
 index c6b70b13fffa4d627dd3d54df574a433dbbfdbdc..aa4dfd2bcee403cdfed0d5c110909285e6a9e9fa 100644
 --- a/crates/spark-server/src/scheduler/mod.rs
@@ -5207,6 +5670,89 @@ index 1c82e369e7d80b8b8c85a1fff5e169a5318685c2..6d25e408c4caedb9a8317dd6a67171eb
  
      // Remove selected indices from pending (reverse order to preserve indices).
      let mut remove_indices = selected.clone();
+diff --git a/crates/spark-server/src/scheduler/mtp_step.rs b/crates/spark-server/src/scheduler/mtp_step.rs
+index 050a0768f3835e2dad67b9d65ede45678b48d281..fb2096160d8beb9f2f591fa96f48680fb9e1f5c7 100644
+--- a/crates/spark-server/src/scheduler/mtp_step.rs
++++ b/crates/spark-server/src/scheduler/mtp_step.rs
+@@ -4,6 +4,16 @@
+ 
+ use super::*;
+ 
++/// Mark an MTP failure for the normal retirement pass. Sending the error
++/// immediately would free the live owner while it is still present in the
++/// active set; leaving only `finished=true` would instead synthesize a
++/// successful `stop` response and cache the partial prefix. `finish_sequence`
++/// consumes this marker and uses the terminal error/free path exactly once.
++fn mark_terminal_error(a: &mut ActiveSeq, error: impl Into<String>) {
++    a.terminal_error = Some(error.into());
++    a.finished = true;
++}
++
+ /// MTP-aware step: bootstrap sequences without drafts, then verify via CUDA graph.
+ /// Supports K=2 (num_drafts=1) and K=3 (num_drafts=2).
+ ///
+@@ -248,14 +258,14 @@ pub fn step_mtp(
+         // EP: broadcast token to worker before decode (worker runs decode in lockstep).
+         if let Err(e) = model.ep_broadcast_cmd_for_seq(a.seq.slot_idx as u32, a.last_token) {
+             tracing::error!("EP broadcast bootstrap token: {e:#}");
+-            a.finished = true;
++            mark_terminal_error(a, format!("EP broadcast bootstrap token failed: {e:#}"));
+             continue;
+         }
+         let logits = match model.decode(a.last_token, &mut a.seq, 0) {
+             Ok(l) => l,
+             Err(e) => {
+                 tracing::error!("bootstrap decode error: {e:#}");
+-                a.finished = true;
++                mark_terminal_error(a, format!("bootstrap decode failed: {e:#}"));
+                 continue;
+             }
+         };
+@@ -303,7 +313,7 @@ pub fn step_mtp(
+             Ok(t) => t,
+             Err(e) => {
+                 tracing::error!("bootstrap sample error: {e:#}");
+-                a.finished = true;
++                mark_terminal_error(a, format!("bootstrap sampling failed: {e:#}"));
+                 continue;
+             }
+         };
+@@ -359,7 +369,7 @@ pub fn step_mtp(
+         if let Err(e) = model.save_hidden_for_mtp(0, 0) {
+             tracing::error!("save_hidden_for_mtp: {e:#}");
+             if spark_model::speculative::glm_repair_policy::enabled() {
+-                a.finished = true;
++                mark_terminal_error(a, format!("save_hidden_for_mtp failed: {e:#}"));
+             }
+             continue;
+         }
+@@ -399,18 +409,24 @@ pub fn step_mtp(
+                 Ok(_) => {
+                     tracing::warn!("MTP propose returned empty");
+                     if spark_model::speculative::glm_repair_policy::enabled() {
+-                        a.finished = true;
++                        mark_terminal_error(a, "MTP propose returned empty");
+                     }
+                 }
+                 Err(e) => {
+                     tracing::error!("run_mtp_propose_multi: {e:#}");
+                     if spark_model::speculative::glm_repair_policy::enabled() {
+-                        a.finished = true;
++                        mark_terminal_error(a, format!("MTP proposal failed: {e:#}"));
+                     }
+                 }
+             }
+         }
+ 
++        // A terminal proposal failure must not start a checkpoint on the
++        // partially-mutated proposer state before retirement frees it.
++        if a.finished {
++            continue;
++        }
++
+         if let Err(e) = model.start_checkpoint_async(&mut a.seq) {
+             tracing::error!("bootstrap start_checkpoint_async: {e:#}");
+         }
 diff --git a/crates/spark-server/src/scheduler/phase_continue_prefills/run_standard.rs b/crates/spark-server/src/scheduler/phase_continue_prefills/run_standard.rs
 index dc1ed2c8d9172d1ac34fcb42f96bd6460faa732f..0e576560a4037b5bbaa90955d0916ef9bdb74c9f 100644
 --- a/crates/spark-server/src/scheduler/phase_continue_prefills/run_standard.rs
@@ -5220,7 +5766,7 @@ index dc1ed2c8d9172d1ac34fcb42f96bd6460faa732f..0e576560a4037b5bbaa90955d0916ef9
          model.ep_broadcast_cmd(chunk_len as u32)?;
          model.ep_broadcast_cmd(p.chunk_offset as u32)?;
 diff --git a/crates/spark-server/src/scheduler/phase_promote_prefills.rs b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
-index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..c5ca86cacabd5487b4b423ce08dfa62cc339b7f3 100644
+index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..a75a7c962a94c3af6a1bd0e7ed8d64271e019f52 100644
 --- a/crates/spark-server/src/scheduler/phase_promote_prefills.rs
 +++ b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
 @@ -33,7 +33,11 @@ pub(super) fn promote_completed_prefills(
@@ -5236,7 +5782,15 @@ index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..c5ca86cacabd5487b4b423ce08dfa62c
              let mut seq = p.seq;
              if let Err(e) = model.free_sequence(&mut seq) {
                  tracing::error!("phase_promote_prefills: free_sequence (error path): {e:#}");
-@@ -238,3 +242,72 @@ pub(super) fn build_active_seq_from_prefill(
+@@ -161,6 +165,7 @@ pub(super) fn build_active_seq_from_prefill(
+         min_tokens: p.min_tokens,
+         eos_tokens: p.eos_tokens,
+         finished: immediate_finish,
++        terminal_error: None,
+         guard_stop: None,
+         param_close_pending: 0,
+         sink: p.sink,
+@@ -238,3 +243,72 @@ pub(super) fn build_active_seq_from_prefill(
          adaptive: crate::adaptive_sampler::AdaptiveSamplingState::new(temperature),
      }
  }
@@ -5612,7 +6166,7 @@ index ba125539bc09e684890baaba8857cd52b8bc75fc..9c59ff51fdfdc07f4d872d75b13cbae9
  fn resume_loop_gates_on_blocks_and_reclaims_from_prefix_cache() {
      let model = PreemptStubModel {
 diff --git a/crates/spark-server/src/scheduler/prefill_a_step.rs b/crates/spark-server/src/scheduler/prefill_a_step.rs
-index 0f7853c687a154d140f5f3f91da878553999807c..cae4f0626519709d3a72a86e9afa9105701a80b8 100644
+index 0f7853c687a154d140f5f3f91da878553999807c..1c955e4443626db0819a0990bef23ce6c1f2f07f 100644
 --- a/crates/spark-server/src/scheduler/prefill_a_step.rs
 +++ b/crates/spark-server/src/scheduler/prefill_a_step.rs
 @@ -141,6 +141,9 @@ pub fn start_chunked_prefill(
@@ -5625,7 +6179,15 @@ index 0f7853c687a154d140f5f3f91da878553999807c..cae4f0626519709d3a72a86e9afa9105
      seq.session_hash = req_session_hash;
      seq.adapter_slot = req_adapter_slot;
      seq.src_lang_id = req_src_lang;
-@@ -280,6 +283,8 @@ pub fn start_chunked_prefill(
+@@ -193,6 +196,7 @@ pub fn start_chunked_prefill(
+             min_tokens: req_min_tokens,
+             eos_tokens: eos_tokens.to_vec(),
+             finished: true,
++            terminal_error: None,
+             guard_stop: None,
+             param_close_pending: 0,
+             sink,
+@@ -280,6 +284,8 @@ pub fn start_chunked_prefill(
          if let Err(e) = (|| -> Result<()> {
              // EP: broadcast chunk 0 to worker (no-op on single-GPU; the batched
              // step does NOT re-broadcast, so this stays the only broadcast site).
@@ -5634,7 +6196,7 @@ index 0f7853c687a154d140f5f3f91da878553999807c..cae4f0626519709d3a72a86e9afa9105
              model.ep_broadcast_cmd_for_seq(seq.slot_idx as u32, 0xFFFFFFF0)?;
              model.ep_broadcast_cmd(chunk_len as u32)?;
              model.ep_broadcast_cmd(0)?; // chunk_start
-@@ -357,25 +362,50 @@ pub fn start_chunked_prefill(
+@@ -357,25 +363,50 @@ pub fn start_chunked_prefill(
              model.stream_wait_event(prefill_stream, prefill_event)?;
          }
  
@@ -5693,7 +6255,7 @@ index 0f7853c687a154d140f5f3f91da878553999807c..cae4f0626519709d3a72a86e9afa9105
          let _pt0 = std::time::Instant::now();
          let chunk_res = model.prefill_chunk(
              &prompt_tokens,
-@@ -395,7 +425,7 @@ pub fn start_chunked_prefill(
+@@ -395,7 +426,7 @@ pub fn start_chunked_prefill(
              );
          }
          if vision_slice.is_some() {
@@ -5702,8 +6264,24 @@ index 0f7853c687a154d140f5f3f91da878553999807c..cae4f0626519709d3a72a86e9afa9105
          }
          let logits = chunk_res?;
          super::prefill_normalization::initial(model, &seq)?;
+@@ -543,6 +574,7 @@ pub fn start_chunked_prefill(
+                 min_tokens: req_min_tokens,
+                 eos_tokens: eos_tokens.to_vec(),
+                 finished: true,
++                terminal_error: None,
+                 guard_stop: None,
+                 param_close_pending: 0,
+                 sink,
+@@ -631,6 +663,7 @@ pub fn start_chunked_prefill(
+                 min_tokens: req_min_tokens,
+                 eos_tokens: eos_tokens.to_vec(),
+                 finished: false,
++                terminal_error: None,
+                 guard_stop: None,
+                 param_close_pending: 0,
+                 sink,
 diff --git a/crates/spark-server/src/scheduler/prefill_b_step.rs b/crates/spark-server/src/scheduler/prefill_b_step.rs
-index 3585a561c5d310a64ddfa023f7375ae2c6a718a5..31532ecf95c14c9dd56265944f084ef9c4e446e8 100644
+index 3585a561c5d310a64ddfa023f7375ae2c6a718a5..8402dcb8c1ece70114ecfea9f41ff3320c770e72 100644
 --- a/crates/spark-server/src/scheduler/prefill_b_step.rs
 +++ b/crates/spark-server/src/scheduler/prefill_b_step.rs
 @@ -120,6 +120,9 @@ pub fn prefill_request(
@@ -5716,7 +6294,15 @@ index 3585a561c5d310a64ddfa023f7375ae2c6a718a5..31532ecf95c14c9dd56265944f084ef9
      seq.session_hash = req_session_hash;
      seq.adapter_slot = req_adapter_slot;
      seq.src_lang_id = req_src_lang;
-@@ -254,6 +257,15 @@ pub fn prefill_request(
+@@ -170,6 +173,7 @@ pub fn prefill_request(
+             min_tokens: req_min_tokens,
+             eos_tokens: eos_tokens.to_vec(),
+             finished: true,
++            terminal_error: None,
+             guard_stop: None,
+             param_close_pending: 0,
+             sink,
+@@ -254,6 +258,15 @@ pub fn prefill_request(
          }
  
          // EP: broadcast prefill command + tokens to worker (bulk, single NCCL op).
@@ -5732,6 +6318,22 @@ index 3585a561c5d310a64ddfa023f7375ae2c6a718a5..31532ecf95c14c9dd56265944f084ef9
          model.ep_broadcast_cmd_for_seq(seq.slot_idx as u32, 0xFFFFFFF0)?;
          model.ep_broadcast_cmd(prompt_tokens.len() as u32)?;
          model.ep_broadcast_cmd(0)?; // chunk_start = 0 (non-chunked)
+@@ -373,6 +386,7 @@ pub fn prefill_request(
+             min_tokens: req_min_tokens,
+             eos_tokens: eos_tokens.to_vec(),
+             finished: true,
++            terminal_error: None,
+             guard_stop: None,
+             param_close_pending: 0,
+             sink,
+@@ -458,6 +472,7 @@ pub fn prefill_request(
+         min_tokens: req_min_tokens,
+         eos_tokens: eos_tokens.to_vec(),
+         finished: false,
++        terminal_error: None,
+         guard_stop: None,
+         param_close_pending: 0,
+         sink,
 diff --git a/crates/spark-server/src/scheduler/repair_admission_gate.rs b/crates/spark-server/src/scheduler/repair_admission_gate.rs
 new file mode 100644
 index 0000000000000000000000000000000000000000..ebc4e3919adc814b7c876f8256b4af5d58601674
@@ -6019,6 +6621,33 @@ index 0000000000000000000000000000000000000000..ebc4e3919adc814b7c876f8256b4af5d
 +        }
 +    }
 +}
+diff --git a/crates/spark-server/src/scheduler/test_support.rs b/crates/spark-server/src/scheduler/test_support.rs
+index 7f3b726079e4e57b988c4a95505b7d654dd8a169..da37a7aabade73436ee994a2f98165954be41f28 100644
+--- a/crates/spark-server/src/scheduler/test_support.rs
++++ b/crates/spark-server/src/scheduler/test_support.rs
+@@ -57,6 +57,7 @@ pub(super) fn test_owned_seq(
+         min_tokens: 7,
+         eos_tokens: EOS.to_vec(),
+         finished: true,
++        terminal_error: None,
+         guard_stop,
+         param_close_pending: 0,
+         sink: ResponseSink::Blocking(Some(tx)),
+diff --git a/crates/spark-server/src/scheduler/types.rs b/crates/spark-server/src/scheduler/types.rs
+index 3f0cda64a24b301580be63b768128345ce678274..baf19d0feb63690e0ed72b936c0e320e962c13ac 100644
+--- a/crates/spark-server/src/scheduler/types.rs
++++ b/crates/spark-server/src/scheduler/types.rs
+@@ -168,6 +168,10 @@ pub(super) struct ActiveSeq {
+     pub min_tokens: usize,
+     pub eos_tokens: Vec<u32>,
+     pub finished: bool,
++    /// Terminal scheduler/model failure. Retired through `send_error` so a
++    /// failed request cannot be reported as a natural stop or cached as a
++    /// usable prefix.
++    pub terminal_error: Option<String>,
+     /// Which server-side guard force-finished this sequence (e.g.
+     /// "fuzzy_repetition"), if any. Surfaced in the synthesized --dump body
+     /// so a guard-cut turn is attributable without log archaeology (the
 diff --git a/crates/spark-server/src/tokenizer.rs b/crates/spark-server/src/tokenizer.rs
 index dda0e11570e6a245b953ce81f5343a15d384bfcb..66a25e69e886c1c6e958c0dd9646bb3a621ba2de 100644
 --- a/crates/spark-server/src/tokenizer.rs
