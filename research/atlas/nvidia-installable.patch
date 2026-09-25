@@ -2582,10 +2582,29 @@ index 4d55b958f1cacc9dd71c082cac400ba73b238fa7..0f3afcfc0a1e0974c9c573808af67f5d
              ssm_slot: Some(slot_guard),
              marconi_skip_to: 0,
 diff --git a/crates/spark-model/src/model/glm_mtp_repair.rs b/crates/spark-model/src/model/glm_mtp_repair.rs
-index 8642c2faea77c1156be31bca9114331703268875..37a0877525d6d1bddb289f69be36c3f1b700ca6a 100644
+index 8642c2faea77c1156be31bca9114331703268875..32ddb690ffa840c9df42162b8c8724e21ccc8e9b 100644
 --- a/crates/spark-model/src/model/glm_mtp_repair.rs
 +++ b/crates/spark-model/src/model/glm_mtp_repair.rs
-@@ -114,7 +114,14 @@ impl TransformerModel {
+@@ -42,7 +42,17 @@ impl TransformerModel {
+             levers: &self.levers,
+             stats: &self.stats,
+             attn_metadata: None,
+-            profile: false,
++            // Honour `--profile` here too. This context used to hardcode
++            // `false`, which made the SERVED verify path invisible to every
++            // in-tree profiler: the highway verify profiler
++            // (`ATLAS_QWEN4EXP_VERIFY_PROF`, in `decode_batched_hc_out`) never
++            // fires because with `ATLAS_GLM_MTP_REPAIR=1` the verify runs
++            // through here instead, and the per-layer profiler is this field.
++            // Net effect was that the ~106 ms verify forward had no
++            // attribution available at all, so every explanation for it was
++            // unfalsified. Profiling syncs per layer and skips graphs, so this
++            // stays off unless the operator sets `--profile`/`ATLAS_PROFILE`.
++            profile: self.config.profile,
+             comm: self.comm_ref(),
+             graph_capture: false,
+             gdn_exact_replay: false,
+@@ -114,7 +124,14 @@ impl TransformerModel {
              generation: seq.mtp_capture_gen,
              capture_generation,
              captured_rows: self.mtp_prefill_capture_len.load(Ordering::Relaxed),
