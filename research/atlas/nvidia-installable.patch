@@ -1028,6 +1028,84 @@ index 4f49d1c04d4fb9f7838ba3fb5c84b227c39078c9..a351d7259e235a07bd9105d41d5b70dc
          let selected = ctx.buffers.expert_down_out();
          let query_row_bytes = index_heads as usize * index_dim as usize * 2;
          let weights_row_bytes = index_heads as usize * 2;
+diff --git a/crates/spark-model/src/layers/qwen3_ssm/trait_decode_batched_hc.rs b/crates/spark-model/src/layers/qwen3_ssm/trait_decode_batched_hc.rs
+index 9ff6fb5629dac2b7ba1c0577cbfb91821e166fd9..9e2d679fd9e3d7a20193d84c0704b853688efbc6 100644
+--- a/crates/spark-model/src/layers/qwen3_ssm/trait_decode_batched_hc.rs
++++ b/crates/spark-model/src/layers/qwen3_ssm/trait_decode_batched_hc.rs
+@@ -295,8 +295,33 @@ impl Qwen3SsmLayer {
+         // The batched MoE arms all leave `[num_tokens, h]` in `moe_output`,
+         // which is what `hc_post` needs. The non-hc path's per-token fallback
+         // does NOT: `ffn.forward` reuses row 0 every call, so it would need
+-        // per-row staging. Rather than stage it subtly wrong, refuse — K=2 (the
+-        // num_drafts=1 verify) and K=3 are the widths this model actually runs.
++        // per-row staging.
++        //
++        // K=4..8 used to bail for MoE here, because `try_forward_km` is
++        // dense-only. That capped the verify width at K=3 and therefore capped
++        // speculative yield at 3 tokens/step for this model.
++        //
++        // Why that cap is worth removing: the A/B in `verify_max_drafts` that
++        // condemned wide K was taken at **256-token completions**, where `fwd`
++        // grows ~40 % from K=2 to K=3 (+29.78 ms of a 786.9 us/layer verify) and
++        // that growth is what made K=3 lose — its own profiler table shows the
++        // *attention/SSM* half scaling only 1.126x, BELOW the 1.354 token ratio,
++        // so "on the SSM half alone K=3 would win". At long context the forward
++        // is weight-read bound and flat in row count instead: measured `fwd`
++        // ~= 106 ms at both 3 rows (C1) and 12 rows (C4), and the whole step
++        // ~= 119 ms. The row-count penalty that decided the 256-token A/B is
++        // largely absent here, which is exactly the regime change that makes
++        // deeper speculation worth re-measuring.
++        //
++        // `forward_batched` is the generic multi-token MoE dispatcher, and it is
++        // already what `forward_k2`/`forward_k3` themselves fall back to (LoRA
++        // adapters, BF16-dequant experts, E8M0 scale kinds). It stages every row
++        // into `moe_output` and is the same entry ordinary batched decode uses.
++        // Routing the remaining widths through it beats refusing: the caller
++        // answers a verify error by finishing the request, so refusing is not a
++        // safe default — it is a truncated answer. Set
++        // `ATLAS_HC_GENERIC_MOE_ARM=0` to restore the old refusal.
++        let generic_arm = std::env::var("ATLAS_HC_GENERIC_MOE_ARM").as_deref() != Ok("0");
+         stage!("hc_pre_ffn");
+ 
+         if num_tokens == 3 {
+@@ -313,6 +338,8 @@ impl Qwen3SsmLayer {
+             // try_forward_km already wrote moe_output for all rows.
+         } else if self.ffn.is_dense() {
+             self.ffn.forward_prefill(normed2, num_tokens, ctx, stream)?;
++        } else if generic_arm {
++            self.ffn.forward_batched(normed2, num_tokens, ctx, stream)?;
+         } else {
+             anyhow::bail!(
+                 "qwen3_ssm mHC batched decode: no batched MoE arm for K={num_tokens}. \
+diff --git a/crates/spark-model/src/layers/qwen3_ssm/trait_layer.rs b/crates/spark-model/src/layers/qwen3_ssm/trait_layer.rs
+index 4cbc0181622b48c45abda928dc621210e691cbd2..c4037207f2dd3cf37152ac98b50dff265923645a 100644
+--- a/crates/spark-model/src/layers/qwen3_ssm/trait_layer.rs
++++ b/crates/spark-model/src/layers/qwen3_ssm/trait_layer.rs
+@@ -67,6 +67,24 @@ impl TransformerLayer for Qwen3SsmLayer {
+         if self.hc.is_none() || self.ffn.is_dense() {
+             return None;
+         }
++        // The ceiling this returns is already tunable: `ATLAS_MTP_MAX_DRAFTS`
++        // below (default 1 = two verify rows) lifts it without a rebuild, and
++        // the scheduler's own `--num-drafts` / `ATLAS_MTP_K_LADDER` decide how
++        // many drafts are actually proposed. So the only thing that ever made
++        // K>=4 unreachable was the MoE arm refusing the width — see
++        // `trait_decode_batched_hc`, which now routes K=4..8 through
++        // `forward_batched` instead of bailing. A verify error there finishes
++        // the request, so the previous refusal silently truncated answers
++        // rather than merely speculating less.
++        //
++        // Everything below this line was measured on ONE GB10 with 256-TOKEN
++        // COMPLETIONS. That regime is where the ceiling came from: `fwd` grows
++        // +29.78 ms from K=2 to K=3 there, out of a 786.9 us/layer verify, and
++        // that growth is what made K=3 lose. At long context the forward
++        // instead measures flat in row count (`fwd` ~= 106 ms at both 3 and 12
++        // rows), so the row penalty that decided that comparison is the part
++        // least likely to transfer. Re-measure on the target workload before
++        // treating any of it as a recommendation.
+         // ONE draft (K=2 verify rows), not two. Two reasons, both measured on
+         // one GB10 with 256-token completions, agg tok/s:
+         //
 diff --git a/crates/spark-model/src/layers/vision_encoder.rs b/crates/spark-model/src/layers/vision_encoder.rs
 index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76eabe480a 100644
 --- a/crates/spark-model/src/layers/vision_encoder.rs
