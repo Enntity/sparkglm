@@ -35,6 +35,16 @@ class LaunchContract(unittest.TestCase):
             self.assertEqual(env['NCCL_SOCKET_IFNAME'], self.environment['FABRIC_INTERFACE'])
             self.assertNotIn('NCCL_IB_GID_INDEX', env)
 
+    def test_shared_context_profile_reserves_real_capacity(self):
+        argv, env = serve.launch(self.environment, self.profile)
+        self.assertIn('--max-seq-len=262144', argv)
+        self.assertEqual(env['ATLAS_GLM_SHARED_KV_TOKENS'], '270336')
+        self.assertEqual(env['ATLAS_GLM_KV_CAP_TO_CONTEXTS'], '0')
+        self.assertEqual(env['ATLAS_KV_ADMIT_WATERMARK'], '262144')
+        self.assertEqual(env['ATLAS_KV_OVERCOMMIT'], '0')
+        self.assertIn('--oom-guard-mb=4096', argv)
+        self.assertIn('--video-max-frames=32', argv)
+
     def test_ambient_experiments_cannot_change_qualified_profile(self):
         argv, env = serve.launch(dict(self.environment, ATLAS_GLM_MTP_REPAIR='0',
                                       ATLAS_GLM_UNREVIEWED_EXPERIMENT='1'), self.profile)

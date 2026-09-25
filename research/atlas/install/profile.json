@@ -73,7 +73,7 @@
     "ATLAS_HC_CUBLAS_PREFILL": "1",
     "ATLAS_KDA_REGRESIDENT_PREFILL": "1",
     "ATLAS_KV_OVERCOMMIT": "0",
-    "ATLAS_GLM_KV_CAP_TO_CONTEXTS": "1",
+    "ATLAS_GLM_KV_CAP_TO_CONTEXTS": "0",
     "ATLAS_MOE_GROUPED_CUTLASS": "0",
     "ATLAS_MOE_PREFILL_EXACT_TILES": "1",
     "ATLAS_MOE_PREFILL_MAX_LOAD_FACTOR": "8",
@@ -120,7 +120,9 @@
     "ATLAS_GLM_PREFILL_4096": "1",
     "ATLAS_GLM_ROUTER_PREFILL_BN32": "1",
     "ATLAS_GLM_HC_PREFILL_VEC": "1",
-    "ATLAS_GLM_KDA_PREFILL_LT_FP8": "1"
+    "ATLAS_GLM_KDA_PREFILL_LT_FP8": "1",
+    "ATLAS_GLM_SHARED_KV_TOKENS": "270336",
+    "ATLAS_KV_ADMIT_WATERMARK": "262144"
   },
   "server_argv": [
     "serve",
@@ -128,11 +130,11 @@
     "--world-size=2",
     "--tp-size=2",
     "--ep-size=2",
-    "--max-seq-len=36864",
+    "--max-seq-len=262144",
     "--max-prefill-tokens=4096",
     "--max-batch-size=4",
     "--max-num-seqs=4",
-    "--gpu-memory-utilization=0.921",
+    "--gpu-memory-utilization=0.95",
     "--oom-guard-mb=4096",
     "--kv-cache-dtype=bf16",
     "--ssm-h-dtype=f32",
@@ -145,12 +147,13 @@
     "--no-auto-swap",
     "--no-tui",
     "--lm-head-dtype=bf16",
-    "--request-timeout=600",
+    "--request-timeout=0",
     "--speculative",
     "--num-drafts=2",
     "--mtp-gate=force",
     "--video-allow-ffmpeg",
     "--vision-allow-remote-images",
-    "--tool-call-parser=poolside_v1"
+    "--tool-call-parser=poolside_v1",
+    "--video-max-frames=32"
   ]
 }

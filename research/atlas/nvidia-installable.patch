@@ -397,7 +397,7 @@ index 47ff95269ffbd30de2e43e52c4d617664735b9e7..f2b9e37bbee7c69136b4059757089872
  /// qwen3.6-27b/nvfp4's shadow set, but `qwen3_ssm::init` issues their three
  /// lookups on EVERY GDN model. The boot gate fails CLOSED on an unresolved
 diff --git a/crates/spark-model/src/factory/build.rs b/crates/spark-model/src/factory/build.rs
-index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..c2a19042e8bb23a196fb1c0d7c30f5598afa35f6 100644
+index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..7197d4cc9e41d70f04f4b27ced6de509b5576f23 100644
 --- a/crates/spark-model/src/factory/build.rs
 +++ b/crates/spark-model/src/factory/build.rs
 @@ -101,7 +101,7 @@ pub fn build_model(
@@ -418,7 +418,7 @@ index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..c2a19042e8bb23a196fb1c0d7c30f559
          Some(cap) => {
              // Phase 6.3 (original): pool = max_batch × cap + 1 dummy + 1 spare per seq.
              // Issue #31 (2026-05-08): the cap×bs sizing assumed prefill would
-@@ -729,6 +729,42 @@ pub fn build_model(
+@@ -729,9 +729,86 @@ pub fn build_model(
              n
          }
      };
@@ -433,6 +433,46 @@ index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..c2a19042e8bb23a196fb1c0d7c30f559
 +            .ok()
 +            .as_deref(),
 +    )?;
++    let shared_kv = crate::speculative::glm_shared_kv::parse(
++        std::env::var(crate::speculative::glm_shared_kv::ENV)
++            .ok()
++            .as_deref(),
++    )?;
++    if let Some(tokens) = shared_kv {
++        anyhow::ensure!(
++            !cap && config.model_type == "glm5_next"
++                && crate::speculative::glm_repair_policy::enabled()
++                && crate::speculative::glm_repair_policy::long_context_enabled()
++                && hss_cache_blocks_per_seq.is_none()
++                && max_batch_size == 4
++                && num_drafts == 2,
++            "shared GLM KV requires repaired MTP2/C4, no HSS, and ATLAS_GLM_KV_CAP_TO_CONTEXTS disabled"
++        );
++        crate::speculative::glm_shared_kv::validate_watermark(
++            std::env::var("ATLAS_KV_ADMIT_WATERMARK").ok().as_deref(),
++            max_seq_len,
++        )?;
++        let physical = crate::speculative::glm_shared_kv::physical_blocks(
++            tokens,
++            max_seq_len,
++            max_batch_size,
++            num_drafts,
++            kv_block_size,
++        )?;
++        anyhow::ensure!(
++            num_kv_blocks >= physical,
++            "shared GLM KV needs {physical} physical blocks including its dummy, but only {num_kv_blocks} fit the memory budget"
++        );
++        tracing::info!(
++            "GLM shared KV: budget={} blocks, allocating={} physical/{} usable blocks, served context={}, repaired context={}",
++            num_kv_blocks,
++            physical,
++            physical - 1,
++            max_seq_len,
++            crate::speculative::glm_repair_policy::repair_context(max_seq_len)
++        );
++        num_kv_blocks = physical;
++    }
 +    if let Some(capped) = glm_mtp_capacity::capped_blocks(
 +        cap,
 +        config.model_type == "glm5_next",
@@ -461,6 +501,19 @@ index 94b4c03d2e31d7ea38dd545bb7e3bdd392b0f3ca..c2a19042e8bb23a196fb1c0d7c30f559
      if config.model_type == "glm5_next"
          && crate::speculative::glm_repair_policy::enabled()
          && crate::speculative::glm_repair_policy::long_context_enabled()
++        && shared_kv.is_none()
+     {
+         // Selected retained owners must fit every transient K-row verifier,
+         // independently of the legacy paged-KV overcommit setting below.
+@@ -757,7 +834,7 @@ pub fn build_model(
+         None => max_seq_len.div_ceil(kv_block_size),
+     };
+     let max_concurrent = num_kv_blocks / blocks_per_seq.max(1);
+-    if max_concurrent < max_batch_size {
++    if max_concurrent < max_batch_size && shared_kv.is_none() {
+         // Suggest a max_seq_len that lets the requested batch size fit.
+         let suggested_max_seq_len = (num_kv_blocks / max_batch_size.max(1)) * kv_block_size;
+         // The check is WORST-CASE: it assumes every concurrent sequence reaches
 diff --git a/crates/spark-model/src/factory/glm_mtp_capacity.rs b/crates/spark-model/src/factory/glm_mtp_capacity.rs
 index abd8f4d8855a8e9a79e58f4dc2bfe6d7d019c3f0..67d8d8dd5c3c615fb43750c20316cc6dda48d659 100644
 --- a/crates/spark-model/src/factory/glm_mtp_capacity.rs
@@ -739,6 +792,31 @@ index 10aa425a240dd8e1c1cafc5e6cb47fedc705eef4..2512b0f469f0162545eb9bb25eef56c5
 +    uncapped.context = 36864;
 +    assert!(uncapped.validate(true, true).is_err());
 +}
+diff --git a/crates/spark-model/src/layers/glm5_mtp/storage.rs b/crates/spark-model/src/layers/glm5_mtp/storage.rs
+index cbc01178c2b571cec1a87a7ab4b577f0b09ae6e0..43eafccff3809075ae9101aa8bbf1c35e71411e5 100644
+--- a/crates/spark-model/src/layers/glm5_mtp/storage.rs
++++ b/crates/spark-model/src/layers/glm5_mtp/storage.rs
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: AGPL-3.0-only
+ //! One checked private-cache layout for construction and preflight accounting.
+ use super::*;
++use crate::speculative::glm_repair_policy::repair_context;
+ use anyhow::Context;
+ use spark_runtime::kv_cache::SparseIndexCacheConfig;
+ 
+@@ -35,8 +36,10 @@ impl PrivateStoragePlan {
+         let (blocks, slab) = if let Some((context, capacity)) = paired {
+             (capacity.cache_blocks(context)?, capacity.slab_bytes())
+         } else if repair_owned::enabled() {
+-            // Four independently owned full contexts plus speculative overflow.
+-            let blocks = max_seq_len
++            // Four independently owned full contexts plus speculative
++            // overflow. The bounded repair window is the arena actually
++            // indexed, even when the native lane serves a larger context.
++            let blocks = repair_context(max_seq_len)
+                 .checked_add(4)
+                 .context("GLM concurrent repair context overflow")?
+                 .div_ceil(kv.block_size)
 diff --git a/crates/spark-model/src/layers/mod.rs b/crates/spark-model/src/layers/mod.rs
 index 6692f2770b80152b895289f16b99d5b788749358..82f17eb617ec57aef4cca84fc9982f32391c2883 100644
 --- a/crates/spark-model/src/layers/mod.rs
@@ -846,6 +924,110 @@ index 86e8d5425b38db6624eeaeb7b1039a53c8044e87..d86fd8ef2f6de96df198222500664369
  #[test]
  fn native_sparse_exact_abi_call_and_native_failure_propagation() {
      static SEEN: std::sync::Mutex<Option<plan::NativeArgs>> = std::sync::Mutex::new(None);
+diff --git a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
+index 0d6d62a92a47b3777cd4df4b64ee1453645c807e..5cc06d1e14cc84e52a9d2429ce3781af61b8ae02 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
+@@ -199,6 +199,11 @@ impl Qwen3AttentionLayer {
+             h,
+             stream,
+         )?;
++        super::super::glm_index_capacity::tile_rows(
++            1,
++            logits_stride as usize,
++            ctx.buffers.sizes().expert_down_out,
++        )?;
+         let logits = ctx.buffers.expert_down_out();
+         ops::glm_index_logits(
+             ctx.gpu,
+diff --git a/crates/spark-model/src/layers/qwen3_attention/glm_index_capacity.rs b/crates/spark-model/src/layers/qwen3_attention/glm_index_capacity.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bd1a72a4543aa3d94292f85608a933391d40f09
+--- /dev/null
++++ b/crates/spark-model/src/layers/qwen3_attention/glm_index_capacity.rs
+@@ -0,0 +1,44 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Capacity checks for the existing tiled GLM semantic selector.
++use anyhow::{Context, Result, ensure};
++
++pub(super) fn tile_rows(rows: usize, stride: usize, capacity_bytes: usize) -> Result<usize> {
++    ensure!(
++        rows > 0 && stride > 0,
++        "GLM index rows and stride must be positive"
++    );
++    let row_bytes = stride
++        .checked_mul(std::mem::size_of::<f32>())
++        .context("GLM index row size overflow")?;
++    ensure!(
++        row_bytes <= capacity_bytes,
++        "GLM index logits require {row_bytes} bytes for one row, but the allocated arena has {capacity_bytes} bytes"
++    );
++    Ok(rows.min(capacity_bytes / row_bytes))
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn final_short_chunk_uses_allocated_arena_at_large_context() {
++        let arena = 4096 * 8 * 2048 * 2;
++        for context in [262144, 524288] {
++            for rows in [1, 2, 7, 15] {
++                assert_eq!(tile_rows(rows, context / 4, arena).unwrap(), rows);
++            }
++            assert_eq!(
++                tile_rows(4096, context / 4, arena).unwrap(),
++                arena / context
++            );
++        }
++    }
++    #[test]
++    fn exact_row_fits_and_short_or_invalid_arena_fails() {
++        assert_eq!(tile_rows(1, 65536, 262144).unwrap(), 1);
++        assert!(tile_rows(1, 65536, 262143).is_err());
++        assert!(tile_rows(0, 1, 4).is_err());
++        assert!(tile_rows(1, 0, 4).is_err());
++        assert!(tile_rows(1, usize::MAX, usize::MAX).is_err());
++    }
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/mod.rs b/crates/spark-model/src/layers/qwen3_attention/mod.rs
+index a561a240cbeca9ab7d75bfffea8eee8adcf5ed05..842558ae9e5933c336fca6db70db449edfb192f2 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/mod.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/mod.rs
+@@ -18,6 +18,7 @@ mod decode;
+ // V4: `pub(crate)` so the DeepSeek-V4 weight loader (`weight_loader::deepseek_v4`)
+ // and the V4 attention submodules can call `helpers::yarn_rope_mscale`. Non-V4
+ // code paths are unaffected by the wider visibility.
++mod glm_index_capacity;
+ pub(crate) mod glm_k3_mla_o;
+ mod glm_long_context;
+ mod glm_sparse_graphs_policy;
+diff --git a/crates/spark-model/src/layers/qwen3_attention/prefill/glm_index.rs b/crates/spark-model/src/layers/qwen3_attention/prefill/glm_index.rs
+index 4f49d1c04d4fb9f7838ba3fb5c84b227c39078c9..a351d7259e235a07bd9105d41d5b70dc206b5f18 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/prefill/glm_index.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/prefill/glm_index.rs
+@@ -212,16 +212,11 @@ impl Qwen3AttentionLayer {
+         )?;
+ 
+         let logits = ctx.buffers.expert_up_out();
+-        let routed_width = ctx.config.num_experts_per_tok * ctx.config.moe_intermediate_size;
+-        let logits_capacity_bytes = n as usize * routed_width * 2;
+-        let bytes_per_row = logits_stride as usize * std::mem::size_of::<f32>();
+-        let tile_rows = (logits_capacity_bytes / bytes_per_row)
+-            .max(1)
+-            .min(n as usize);
+-        ensure!(
+-            tile_rows * bytes_per_row <= logits_capacity_bytes,
+-            "GLM index logits require {bytes_per_row} bytes for one row, but the bounded arena has {logits_capacity_bytes} bytes"
+-        );
++        let tile_rows = super::super::glm_index_capacity::tile_rows(
++            n as usize,
++            logits_stride as usize,
++            ctx.buffers.sizes().expert_up_out,
++        )?;
+         let selected = ctx.buffers.expert_down_out();
+         let query_row_bytes = index_heads as usize * index_dim as usize * 2;
+         let weights_row_bytes = index_heads as usize * 2;
 diff --git a/crates/spark-model/src/layers/vision_encoder.rs b/crates/spark-model/src/layers/vision_encoder.rs
 index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76eabe480a 100644
 --- a/crates/spark-model/src/layers/vision_encoder.rs
@@ -2330,10 +2512,70 @@ index 8642c2faea77c1156be31bca9114331703268875..37a0877525d6d1bddb289f69be36c3f1
                  ptr: self.mtp_prefill_hidden,
                  bytes: capture_bytes,
 diff --git a/crates/spark-model/src/model/impl_a1.rs b/crates/spark-model/src/model/impl_a1.rs
-index 012b5a199f31f6841580ccf76f27755cb2baced2..96223601dc1bc82eab5a210e70d764aecec4159c 100644
+index 012b5a199f31f6841580ccf76f27755cb2baced2..d03894644026c439ecec8c6d14b82ceed1bfc719 100644
 --- a/crates/spark-model/src/model/impl_a1.rs
 +++ b/crates/spark-model/src/model/impl_a1.rs
-@@ -854,6 +854,7 @@ impl TransformerModel {
+@@ -6,7 +6,7 @@ use parking_lot::Mutex;
+ use std::collections::HashMap;
+ use std::sync::Arc;
+ 
+-use anyhow::{Result, bail};
++use anyhow::{Context, Result, bail};
+ use atlas_core::config::{LayerType, ModelConfig};
+ use spark_runtime::buffers::BufferArena;
+ use spark_runtime::gpu::{DevicePtr, GpuBackend, GraphHandle, KernelHandle};
+@@ -438,7 +438,7 @@ impl TransformerModel {
+             DevicePtr::NULL
+         };
+ 
+-        // Whole-prompt hidden capture buffer, [max_seq_len, hidden_size] BF16 —
++        // Prompt hidden capture buffer, [mtp_arena_context, hidden_size] BF16 —
+         // 335 MB at 32k/h=5120. Backs BOTH halves of the drafter-context
+         // feature (see `crate::model::drafter_context`); NULL here disables
+         // prefill AND carry, since the carry path reads this buffer.
+@@ -447,16 +447,30 @@ impl TransformerModel {
+         // not be killed, and the head must be a precision the batched prefill
+         // can actually run at — an NVFP4/FP8 MTP head would allocate this and
+         // never write it.
++        // The repaired GLM long-context lane indexes a bounded 32K arena even
++        // when the native lane serves a larger context; the capture below and
++        // every stored capacity must quote that same arena. `arena_context`
++        // is the SSOT for the bound, so the private-cache quote
++        // (`PrivateStoragePlan`) cannot disagree with this allocation.
++        let mtp_arena_context = crate::speculative::glm_repair_policy::arena_context(
++            &config.model_type,
++            crate::speculative::glm_repair_policy::enabled()
++                && crate::speculative::glm_repair_policy::long_context_enabled(),
++            max_seq_len,
++        );
+         let mtp_prefill_hidden = if has_mtp
+             && mtp_quant.supports_drafter_prefill()
+             && crate::layers::mtp_drafter_prefill_enabled(&levers)
+         {
+-            let bytes = max_seq_len * config.hidden_size * 2;
++            let bytes = mtp_arena_context
++                .checked_mul(config.hidden_size)
++                .and_then(|n| n.checked_mul(2))
++                .context("MTP drafter context capture reserve overflow")?;
+             tracing::info!(
+                 "MTP drafter context: allocating {:.0} MB prompt-hidden capture \
+                  ({} x {} BF16)",
+                 bytes as f64 / 1e6,
+-                max_seq_len,
++                mtp_arena_context,
+                 config.hidden_size,
+             );
+             gpu.alloc(bytes)?
+@@ -818,7 +832,7 @@ impl TransformerModel {
+             mtp_prefill_capacity: if mtp_prefill_hidden.is_null() {
+                 0
+             } else {
+-                max_seq_len
++                mtp_arena_context
+             },
+             mtp_prefill_capture_len: std::sync::atomic::AtomicUsize::new(0),
+             mtp_prefill_capture_gen: std::sync::atomic::AtomicU64::new(0),
+@@ -854,6 +868,7 @@ impl TransformerModel {
              vision_row_base: Mutex::new(0),
              vision_grid_base: Mutex::new(0),
              vision_owned_images: Mutex::new(0),
@@ -3235,6 +3477,21 @@ index 540683a723b3a76686ccee3c103c28bd7a20856d..c9494ceff98b35090127c64c65a38c48
                  } else {
                      stg.positions_h.extend_from_slice(&stg.positions);
                      stg.positions_w.extend_from_slice(&stg.positions);
+diff --git a/crates/spark-model/src/model/trait_impl/sequence.rs b/crates/spark-model/src/model/trait_impl/sequence.rs
+index d614ea5315e495fbdcaf23eb432b08449d91f219..23453d0e75cb12ca12c887a30d57777d4941b478 100644
+--- a/crates/spark-model/src/model/trait_impl/sequence.rs
++++ b/crates/spark-model/src/model/trait_impl/sequence.rs
+@@ -463,7 +463,9 @@ impl TransformerModel {
+     }
+ 
+     pub(super) fn num_total_blocks_dispatch(&self) -> usize {
+-        self.kv_cache.lock().num_blocks()
++        // The constructor permanently owns one zeroed padding block. Admission
++        // and occupancy report only capacity available to real sequences.
++        self.kv_cache.lock().num_blocks().saturating_sub(1)
+     }
+ 
+     pub(super) fn reclaim_prefix_blocks_dispatch(&self, num_blocks: usize) -> usize {
 diff --git a/crates/spark-model/src/model/types.rs b/crates/spark-model/src/model/types.rs
 index d730a8aac38432831ecc849b4928c0d38500e798..51a2a1b80ac6f899cf4d7366e28cd88738ad2f9e 100644
 --- a/crates/spark-model/src/model/types.rs
@@ -3551,6 +3808,18 @@ index 0000000000000000000000000000000000000000..7c153c869e4a1be8252bdc793ff98531
 +        assert_eq!(pad_rows_before_chunk(&tokens, 99, 11, 12), 4);
 +    }
 +}
+diff --git a/crates/spark-model/src/speculative.rs b/crates/spark-model/src/speculative.rs
+index d62a10e274e783fa5d4eabc62029183b6a3379e6..5c8677f13d9fba997521945fb531bd114522184d 100644
+--- a/crates/spark-model/src/speculative.rs
++++ b/crates/spark-model/src/speculative.rs
+@@ -9,6 +9,7 @@ pub mod glm_pair_plan;
+ pub mod glm_paired_execution;
+ pub mod glm_repair;
+ pub mod glm_repair_policy;
++pub mod glm_shared_kv;
+ pub mod ladder;
+ pub mod tree_shape;
+ pub mod verify_key;
 diff --git a/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs b/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs
 index 98432552011a0acf175f7428e0e835085ffd517d..ba915265462459855671e40955853d3a307846b5 100644
 --- a/crates/spark-model/src/speculative/glm_pair_plan_long_tests.rs
@@ -3594,10 +3863,10 @@ index 98432552011a0acf175f7428e0e835085ffd517d..ba915265462459855671e40955853d3a
  fn two_draft_limits_cover_all_verdicts_and_keep_fixed_width() {
      let limits = Limits::new(
 diff --git a/crates/spark-model/src/speculative/glm_repair_policy.rs b/crates/spark-model/src/speculative/glm_repair_policy.rs
-index dc77ce1a0a350ee355ba27804310ab817583f008..f4f3ee72beac0b9235cb8eb432cf2b022a535014 100644
+index dc77ce1a0a350ee355ba27804310ab817583f008..299dbef3276101851583ece49891087a914c4a21 100644
 --- a/crates/spark-model/src/speculative/glm_repair_policy.rs
 +++ b/crates/spark-model/src/speculative/glm_repair_policy.rs
-@@ -15,6 +15,13 @@ pub fn long_context_enabled() -> bool {
+@@ -15,6 +15,26 @@ pub fn long_context_enabled() -> bool {
  
  pub const MAX_LONG_CONTEXT: usize = 32_768;
  
@@ -3608,10 +3877,23 @@ index dc77ce1a0a350ee355ba27804310ab817583f008..f4f3ee72beac0b9235cb8eb432cf2b02
 +    context.min(MAX_LONG_CONTEXT)
 +}
 +
++/// The arena domain the repaired verifier actually indexes: the bounded repair
++/// window only on the opt-in long-context GLM lane, and the plain served
++/// context everywhere else (other models, repair off, long context off). Both
++/// the prompt-capture allocation and the private-cache quote derive from this
++/// one function so the two cannot disagree.
++pub fn arena_context(model_type: &str, repair_long_enabled: bool, served_context: usize) -> usize {
++    if model_type == "glm5_next" && repair_long_enabled {
++        repair_context(served_context)
++    } else {
++        served_context
++    }
++}
++
  /// The legacy prompt capture has one writer. Retained owner tails and repair
  /// staging allow other requests to decode while that one prompt is chunked.
  pub fn new_prompt_capacity(active: usize, prefilling: usize, capacity: usize) -> usize {
-@@ -271,4 +278,10 @@ mod tests {
+@@ -271,4 +291,21 @@ mod tests {
          assert_eq!(new_prompt_capacity(2, 1, 4), 0);
          assert_eq!(new_prompt_capacity(4, 0, 4), 0);
      }
@@ -3621,7 +3903,139 @@ index dc77ce1a0a350ee355ba27804310ab817583f008..f4f3ee72beac0b9235cb8eb432cf2b02
 +        assert_eq!(repair_context(MAX_LONG_CONTEXT), MAX_LONG_CONTEXT);
 +        assert_eq!(repair_context(MAX_LONG_CONTEXT + 4096), MAX_LONG_CONTEXT);
 +    }
++    #[test]
++    fn arena_context_only_bounds_selected_glm_repair() {
++        for context in [2048, 32768, 36864, 262144, 524288] {
++            assert_eq!(
++                arena_context("glm5_next", true, context),
++                context.min(32768)
++            );
++            assert_eq!(arena_context("glm5_next", false, context), context);
++            assert_eq!(arena_context("qwen3", true, context), context);
++        }
++    }
  }
+diff --git a/crates/spark-model/src/speculative/glm_shared_kv.rs b/crates/spark-model/src/speculative/glm_shared_kv.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..b276653cfc8884ea176c72ba7f1383e19fc94fd4
+--- /dev/null
++++ b/crates/spark-model/src/speculative/glm_shared_kv.rs
+@@ -0,0 +1,115 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++//! Explicit physical shared KV capacity, independent of the served window.
++use anyhow::{Context, Result, ensure};
++
++pub const ENV: &str = "ATLAS_GLM_SHARED_KV_TOKENS";
++
++pub fn parse(raw: Option<&str>) -> Result<Option<usize>> {
++    raw.map(|value| {
++        ensure!(
++            !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()),
++            "{ENV} must be a positive integer"
++        );
++        let tokens = value
++            .parse::<usize>()
++            .context("shared KV token count overflow")?;
++        ensure!(tokens > 0, "{ENV} must be positive");
++        Ok(tokens)
++    })
++    .transpose()
++}
++
++/// Reserve the scheduler's pending row plus transient speculative spill.
++/// This intentionally retains the scheduler's conservative full-block boundary.
++pub fn commitment(tokens: usize, block_size: usize, drafts: usize) -> Result<usize> {
++    ensure!(block_size > 0, "shared KV block size must be positive");
++    (tokens / block_size)
++        .checked_add(1)
++        .and_then(|n| n.checked_add(drafts.div_ceil(block_size)))
++        .context("shared KV commitment overflow")
++}
++
++/// All counts include the permanent target dummy exactly once, while each
++/// retained owner includes its own transient verifier spill.
++pub fn physical_blocks(
++    tokens: usize,
++    context: usize,
++    owners: usize,
++    drafts: usize,
++    block_size: usize,
++) -> Result<usize> {
++    ensure!(
++        context > 0 && owners > 0 && drafts > 0 && block_size > 0,
++        "shared KV geometry must be positive"
++    );
++    let short = super::glm_repair_policy::repair_context(context);
++    let minimum = commitment(context, block_size, drafts)?.max(
++        commitment(short, block_size, drafts)?
++            .checked_mul(owners)
++            .context("shared KV owner capacity overflow")?,
++    );
++    let usable = tokens.div_ceil(block_size);
++    ensure!(
++        usable >= minimum,
++        "{ENV} provides {usable} usable blocks, needs at least {minimum} for one full context or {owners} repaired contexts"
++    );
++    usable
++        .checked_add(1)
++        .context("shared KV dummy capacity overflow")
++}
++
++pub fn validate_watermark(raw: Option<&str>, context: usize) -> Result<()> {
++    if let Some(raw) = raw {
++        let watermark = raw
++            .parse::<usize>()
++            .context("invalid KV admission watermark")?;
++        ensure!(
++            watermark >= context,
++            "{ENV} requires the full generation reservation; ATLAS_KV_ADMIT_WATERMARK must be unset or >= served context"
++        );
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn shared_pool_covers_one_long_or_four_short_not_four_long() {
++        let physical = physical_blocks(270336, 262144, 4, 2, 16).unwrap();
++        assert_eq!(physical, 16897);
++        let usable = physical - 1;
++        assert!(commitment(262144, 16, 2).unwrap() <= usable);
++        assert!(4 * commitment(32768, 16, 2).unwrap() <= usable);
++        assert!(2 * commitment(262144, 16, 2).unwrap() > usable);
++    }
++    #[test]
++    fn exact_capacity_accounts_for_dummy_and_spill() {
++        let minimum = commitment(262144, 16, 2).unwrap();
++        assert_eq!(
++            physical_blocks(minimum * 16, 262144, 4, 2, 16).unwrap(),
++            minimum + 1
++        );
++        assert!(physical_blocks((minimum - 1) * 16, 262144, 4, 2, 16).is_err());
++    }
++    #[test]
++    fn invalid_and_overflowing_inputs_fail_closed() {
++        for raw in ["", "0", "-1", "1.5", " 16", "99999999999999999999999999"] {
++            assert!(parse(Some(raw)).is_err());
++        }
++        assert_eq!(parse(None).unwrap(), None);
++        assert_eq!(parse(Some("270336")).unwrap(), Some(270336));
++        assert!(physical_blocks(1, 0, 4, 2, 16).is_err());
++        assert!(physical_blocks(usize::MAX, 262144, usize::MAX, 2, 16).is_err());
++        assert!(physical_blocks(usize::MAX, 262144, 4, 2, 0).is_err());
++        assert!(commitment(usize::MAX, 1, 2).is_err());
++    }
++    #[test]
++    fn shared_policy_cannot_reduce_generation_reservations() {
++        assert!(validate_watermark(None, 262144).is_ok());
++        assert!(validate_watermark(Some("262144"), 262144).is_ok());
++        for value in ["0", "32768", "invalid"] {
++            assert!(validate_watermark(Some(value), 262144).is_err());
++        }
++    }
++}
 diff --git a/crates/spark-model/src/traits.rs b/crates/spark-model/src/traits.rs
 index da353289798b4b49c45f547a6e14c4ca7dda9a98..69bff34cd63c0255a8d7089473fc57fd975d26cf 100644
 --- a/crates/spark-model/src/traits.rs
@@ -5520,7 +5934,7 @@ index 2fb8d8c579763b46dd670dde0b5dae8f68b70b0f..b4b4f048f15854b0721ccb5e9ff51f89
              }
          }
 diff --git a/crates/spark-server/src/main_modules/serve_phases/preflight.rs b/crates/spark-server/src/main_modules/serve_phases/preflight.rs
-index 2f51f49f0e38bb08962d92f094a0bb11a9f31409..7aaf46ac7aa41abf9f2aef14d5cc54532c1ed508 100644
+index 2f51f49f0e38bb08962d92f094a0bb11a9f31409..a8ed1e0b5d0dc75d2971db39a3e26f483a331c2d 100644
 --- a/crates/spark-server/src/main_modules/serve_phases/preflight.rs
 +++ b/crates/spark-server/src/main_modules/serve_phases/preflight.rs
 @@ -104,7 +104,13 @@ pub(crate) fn preflight_reserve(
@@ -5538,6 +5952,606 @@ index 2f51f49f0e38bb08962d92f094a0bb11a9f31409..7aaf46ac7aa41abf9f2aef14d5cc5453
              drafts: args.resolved_num_drafts(),
              native_only: args.speculative
                  && !(args.dflash || args.self_speculative || args.ngram_speculative),
+@@ -450,11 +456,16 @@ pub(crate) fn preflight_reserve(
+             config,
+             args.max_seq_len,
+         )?;
+-        let capture = args
+-            .max_seq_len
+-            .checked_mul(config.hidden_size)
+-            .and_then(|n| n.checked_mul(2))
+-            .context("GLM MTP prompt capture reserve overflow")?;
++        // Same bounded arena the runtime capture allocates: `arena_context`
++        // is the SSOT, so the quote tracks the private block plan above.
++        let capture = spark_model::speculative::glm_repair_policy::arena_context(
++            &config.model_type,
++            long_mtp,
++            args.max_seq_len,
++        )
++        .checked_mul(config.hidden_size)
++        .and_then(|n| n.checked_mul(2))
++        .context("GLM MTP prompt capture reserve overflow")?;
+         tracing::info!(
+             "GLM MTP2 owned reserve: private={} MiB, prompt_capture={} MiB",
+             private / (1024 * 1024),
+diff --git a/crates/spark-server/src/scheduler/admission.rs b/crates/spark-server/src/scheduler/admission.rs
+index 437d766894bd2a3047dcfb9362576289f4f7ec13..0996077f1856bc894c2222928eadce7fda602274 100644
+--- a/crates/spark-server/src/scheduler/admission.rs
++++ b/crates/spark-server/src/scheduler/admission.rs
+@@ -127,6 +127,27 @@ pub(super) fn admit_count(
+     watermark: usize,
+     max_seq_len: usize,
+     block_size: usize,
++) -> (usize, bool) {
++    admit_with_spill(
++        total_blocks,
++        committed,
++        reqs,
++        watermark,
++        max_seq_len,
++        block_size,
++        None,
++    )
++}
++
++#[allow(clippy::too_many_arguments)]
++fn admit_with_spill(
++    total_blocks: usize,
++    committed: usize,
++    reqs: &[(usize, usize)],
++    watermark: usize,
++    max_seq_len: usize,
++    block_size: usize,
++    shared_spill: Option<usize>,
+ ) -> (usize, bool) {
+     let mut used = committed;
+     let mut n = 0usize;
+@@ -139,11 +160,12 @@ pub(super) fn admit_count(
+             watermark,
+             max_seq_len,
+             block_size,
+-        );
++        )
++        .saturating_add(shared_spill.unwrap_or(0));
+         if used.saturating_add(need) <= total_blocks {
+             used += need;
+             n += 1;
+-        } else if n == 0 && committed == 0 {
++        } else if n == 0 && committed == 0 && shared_spill.is_none() {
+             return (1, true);
+         } else {
+             break;
+@@ -152,6 +174,42 @@ pub(super) fn admit_count(
+     (n, false)
+ }
+ 
++fn reject_oversized(
++    new_reqs: Vec<InferenceRequest>,
++    total_blocks: usize,
++    watermark: usize,
++    max_seq_len: usize,
++    block_size: usize,
++    spill: usize,
++) -> Vec<InferenceRequest> {
++    new_reqs
++        .into_iter()
++        .filter_map(|req| {
++            let demand = SeqDemand {
++                current_tokens: req.prompt_len(),
++                budget_tokens: req.max_tokens(),
++            };
++            let need = seq_commitment_blocks(&demand, watermark, max_seq_len, block_size)
++                .saturating_add(spill);
++            if need <= total_blocks {
++                return Some(req);
++            }
++            let message = format!(
++                "Request needs {need} KV blocks including generation and spill, \
++                 but the shared pool has {total_blocks} usable blocks"
++            );
++            let mut sink = match req {
++                InferenceRequest::Streaming { token_tx, .. } => ResponseSink::Streaming(token_tx),
++                InferenceRequest::Blocking { response_tx, .. } => {
++                    ResponseSink::Blocking(Some(response_tx))
++                }
++            };
++            lifecycle::send_error_to_sink(&mut sink, &message);
++            None
++        })
++        .collect()
++}
++
+ /// Runtime gate: split this tick's drained requests into an admissible
+ /// prefix (returned) and an overflow tail (pushed back to the FRONT of the
+ /// pending queue, preserving arrival order ahead of newer requests).
+@@ -167,16 +225,29 @@ pub(super) fn gate_admissions(
+     watermark: usize,
+     max_seq_len: usize,
+     block_size: usize,
++    shared_spill: Option<usize>,
+ ) -> Vec<InferenceRequest> {
+     if new_reqs.is_empty() {
+         return new_reqs;
+     }
+     let total_blocks = model.num_total_blocks();
+-    if total_blocks == 0 {
++    if total_blocks == 0 && shared_spill.is_none() {
+         // Backend without a paged KV pool (or no occupancy info): nothing to
+         // reserve against — admit as before.
+         return new_reqs;
+     }
++    let new_reqs = if let Some(spill) = shared_spill {
++        reject_oversized(
++            new_reqs,
++            total_blocks,
++            watermark,
++            max_seq_len,
++            block_size,
++            spill,
++        )
++    } else {
++        new_reqs
++    };
+     let mut demands: Vec<SeqDemand> =
+         Vec::with_capacity(active.len() + prefilling.len() + swapped.len() + preempted.len());
+     demands.extend(active.iter().map(|a| SeqDemand {
+@@ -196,19 +267,32 @@ pub(super) fn gate_admissions(
+         current_tokens: p.tokens.len() + 1,
+         budget_tokens: p.a.remaining,
+     }));
+-    let committed = committed_blocks(&demands, watermark, max_seq_len, block_size);
++    let committed = committed_blocks(&demands, watermark, max_seq_len, block_size)
++        .saturating_add(shared_spill.unwrap_or(0).saturating_mul(demands.len()));
+     let infos: Vec<(usize, usize)> = new_reqs
+         .iter()
+         .map(|r| (r.prompt_len(), r.max_tokens()))
+         .collect();
+-    let (admit, forced) = admit_count(
+-        total_blocks,
+-        committed,
+-        &infos,
+-        watermark,
+-        max_seq_len,
+-        block_size,
+-    );
++    let (admit, forced) = if shared_spill.is_some() {
++        admit_with_spill(
++            total_blocks,
++            committed,
++            &infos,
++            watermark,
++            max_seq_len,
++            block_size,
++            shared_spill,
++        )
++    } else {
++        admit_count(
++            total_blocks,
++            committed,
++            &infos,
++            watermark,
++            max_seq_len,
++            block_size,
++        )
++    };
+     if forced {
+         tracing::warn!(
+             "admitting a request whose reservation exceeds the whole KV pool \
+@@ -249,139 +333,5 @@ pub(super) fn gate_admissions(
+ }
+ 
+ #[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    // The forensic C=128 ladder shape (2026-08-15, Qwen3.8-27B/GB10):
+-    // pool 102k tokens, per-request demand ~1226 tokens (prompt ~202 +
+-    // max_tokens 1024), 128 requests ⇒ 157k demand. block_size 16.
+-    const BS: usize = 16;
+-    const POOL_BLOCKS: usize = 102_000 / BS; // 6375
+-    const PROMPT: usize = 202;
+-    const MAX_TOK: usize = 1024;
+-    const MAX_SEQ_LEN: usize = 8192;
+-
+-    fn req_blocks() -> usize {
+-        blocks_for_tokens(PROMPT + MAX_TOK, BS) // 77
+-    }
+-
+-    #[test]
+-    fn block_math_matches_legacy_formula() {
+-        // Same `tokens / block_size + 1` shape admission always used.
+-        assert_eq!(blocks_for_tokens(0, 16), 1);
+-        assert_eq!(blocks_for_tokens(15, 16), 1);
+-        assert_eq!(blocks_for_tokens(16, 16), 2);
+-        assert_eq!(blocks_for_tokens(1226, 16), 77);
+-    }
+-
+-    #[test]
+-    fn watermark_caps_the_decode_reservation() {
+-        let d = SeqDemand {
+-            current_tokens: 200,
+-            budget_tokens: 4096,
+-        };
+-        // Watermark below max_tokens: reserve prompt + watermark.
+-        assert_eq!(
+-            seq_commitment_blocks(&d, 512, MAX_SEQ_LEN, BS),
+-            blocks_for_tokens(200 + 512, BS)
+-        );
+-        // Watermark above max_tokens: the request's own budget bounds it.
+-        assert_eq!(
+-            seq_commitment_blocks(&d, usize::MAX, MAX_SEQ_LEN, BS),
+-            blocks_for_tokens(200 + 4096, BS)
+-        );
+-        // Watermark 0 = legacy prompt-only reservation.
+-        assert_eq!(
+-            seq_commitment_blocks(&d, 0, MAX_SEQ_LEN, BS),
+-            blocks_for_tokens(200, BS)
+-        );
+-        // The served context ceiling clamps the depth: no sequence can grow
+-        // past max_seq_len, so nothing more is ever reserved.
+-        let long = SeqDemand {
+-            current_tokens: 8000,
+-            budget_tokens: 4096,
+-        };
+-        assert_eq!(
+-            seq_commitment_blocks(&long, usize::MAX, MAX_SEQ_LEN, BS),
+-            blocks_for_tokens(MAX_SEQ_LEN, BS)
+-        );
+-    }
+-
+-    #[test]
+-    fn fits_everything_admission_unchanged() {
+-        // C<=64 rung: 64 × 77 = 4928 blocks ≤ 6375 — ALL admitted, exactly
+-        // as the pre-gate code admitted them. Pins the no-regression claim.
+-        let reqs = vec![(PROMPT, MAX_TOK); 64];
+-        let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
+-        assert_eq!(n, 64);
+-        assert!(!forced);
+-    }
+-
+-    #[test]
+-    fn c128_overflow_queues_instead_of_admit_then_shoot() {
+-        // The measured failure: 128 requests whose true demand (157k tokens)
+-        // exceeds the 102k pool. The gate admits what fits and QUEUES the
+-        // rest — no admit-then-preempt thrash.
+-        let reqs = vec![(PROMPT, MAX_TOK); 128];
+-        let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
+-        assert_eq!(n, POOL_BLOCKS / req_blocks()); // 82: every admitted seq fits fully
+-        assert!(n < 128);
+-        assert!(!forced);
+-        // The admitted set can never exhaust the pool.
+-        assert!(n * req_blocks() <= POOL_BLOCKS);
+-    }
+-
+-    #[test]
+-    fn in_flight_commitments_reduce_capacity() {
+-        // 40 active sequences mid-decode still owe their remaining budget.
+-        let demands: Vec<SeqDemand> = (0..40)
+-            .map(|_| SeqDemand {
+-                current_tokens: 600,
+-                budget_tokens: 700,
+-            })
+-            .collect();
+-        let committed = committed_blocks(&demands, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
+-        assert_eq!(committed, 40 * blocks_for_tokens(1300, BS));
+-        let reqs = vec![(PROMPT, MAX_TOK); 128];
+-        let (n, _) = admit_count(POOL_BLOCKS, committed, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
+-        assert_eq!(n, (POOL_BLOCKS - committed) / req_blocks());
+-    }
+-
+-    #[test]
+-    fn admission_stops_at_first_misfit_no_head_of_line_bypass() {
+-        // A huge request mid-queue blocks later small ones from jumping it.
+-        let reqs = vec![
+-            (PROMPT, MAX_TOK),
+-            (100_000, MAX_TOK), // cannot fit
+-            (PROMPT, MAX_TOK),  // must NOT bypass
+-        ];
+-        let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, usize::MAX, 0, BS);
+-        assert_eq!(n, 1);
+-        assert!(!forced);
+-    }
+-
+-    #[test]
+-    fn liveness_oversized_lone_request_still_admits() {
+-        // Nothing in flight + a request bigger than the whole pool: admit it
+-        // (runtime back-pressure applies), never queue it forever.
+-        let reqs = vec![(200_000, MAX_TOK)];
+-        let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, usize::MAX, 0, BS);
+-        assert_eq!(n, 1);
+-        assert!(forced);
+-        // But with ANYTHING in flight it waits its turn.
+-        let (n, forced) = admit_count(POOL_BLOCKS, 10, &reqs, usize::MAX, 0, BS);
+-        assert_eq!(n, 0);
+-        assert!(!forced);
+-    }
+-
+-    #[test]
+-    fn watermark_zero_reserves_prompt_only_legacy() {
+-        // Escape hatch pinned: watermark 0 ⇒ the C=128 set is admitted in
+-        // full (128 × blocks(202) = 128 × 13 = 1664 ≤ 6375) — byte-for-byte
+-        // the legacy prompt-only admission decision.
+-        let reqs = vec![(PROMPT, MAX_TOK); 128];
+-        let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, 0, MAX_SEQ_LEN, BS);
+-        assert_eq!(n, 128);
+-        assert!(!forced);
+-    }
+-}
++#[path = "admission_tests.rs"]
++mod tests;
+diff --git a/crates/spark-server/src/scheduler/admission_tests.rs b/crates/spark-server/src/scheduler/admission_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4608bc766e69074233a3c45731ed33b18d2c9af4
+--- /dev/null
++++ b/crates/spark-server/src/scheduler/admission_tests.rs
+@@ -0,0 +1,267 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++use super::*;
++
++// The forensic C=128 ladder shape (2026-08-15, Qwen3.8-27B/GB10):
++// pool 102k tokens, per-request demand ~1226 tokens (prompt ~202 +
++// max_tokens 1024), 128 requests ⇒ 157k demand. block_size 16.
++const BS: usize = 16;
++const POOL_BLOCKS: usize = 102_000 / BS; // 6375
++const PROMPT: usize = 202;
++const MAX_TOK: usize = 1024;
++const MAX_SEQ_LEN: usize = 8192;
++
++fn req_blocks() -> usize {
++    blocks_for_tokens(PROMPT + MAX_TOK, BS) // 77
++}
++
++#[test]
++fn block_math_matches_legacy_formula() {
++    // Same `tokens / block_size + 1` shape admission always used.
++    assert_eq!(blocks_for_tokens(0, 16), 1);
++    assert_eq!(blocks_for_tokens(15, 16), 1);
++    assert_eq!(blocks_for_tokens(16, 16), 2);
++    assert_eq!(blocks_for_tokens(1226, 16), 77);
++}
++
++#[test]
++fn watermark_caps_the_decode_reservation() {
++    let d = SeqDemand {
++        current_tokens: 200,
++        budget_tokens: 4096,
++    };
++    // Watermark below max_tokens: reserve prompt + watermark.
++    assert_eq!(
++        seq_commitment_blocks(&d, 512, MAX_SEQ_LEN, BS),
++        blocks_for_tokens(200 + 512, BS)
++    );
++    // Watermark above max_tokens: the request's own budget bounds it.
++    assert_eq!(
++        seq_commitment_blocks(&d, usize::MAX, MAX_SEQ_LEN, BS),
++        blocks_for_tokens(200 + 4096, BS)
++    );
++    // Watermark 0 = legacy prompt-only reservation.
++    assert_eq!(
++        seq_commitment_blocks(&d, 0, MAX_SEQ_LEN, BS),
++        blocks_for_tokens(200, BS)
++    );
++    // The served context ceiling clamps the depth: no sequence can grow
++    // past max_seq_len, so nothing more is ever reserved.
++    let long = SeqDemand {
++        current_tokens: 8000,
++        budget_tokens: 4096,
++    };
++    assert_eq!(
++        seq_commitment_blocks(&long, usize::MAX, MAX_SEQ_LEN, BS),
++        blocks_for_tokens(MAX_SEQ_LEN, BS)
++    );
++}
++
++#[test]
++fn fits_everything_admission_unchanged() {
++    // C<=64 rung: 64 × 77 = 4928 blocks ≤ 6375 — ALL admitted, exactly
++    // as the pre-gate code admitted them. Pins the no-regression claim.
++    let reqs = vec![(PROMPT, MAX_TOK); 64];
++    let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
++    assert_eq!(n, 64);
++    assert!(!forced);
++}
++
++#[test]
++fn c128_overflow_queues_instead_of_admit_then_shoot() {
++    // The measured failure: 128 requests whose true demand (157k tokens)
++    // exceeds the 102k pool. The gate admits what fits and QUEUES the
++    // rest — no admit-then-preempt thrash.
++    let reqs = vec![(PROMPT, MAX_TOK); 128];
++    let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
++    assert_eq!(n, POOL_BLOCKS / req_blocks()); // 82: every admitted seq fits fully
++    assert!(n < 128);
++    assert!(!forced);
++    // The admitted set can never exhaust the pool.
++    assert!(n * req_blocks() <= POOL_BLOCKS);
++}
++
++#[test]
++fn in_flight_commitments_reduce_capacity() {
++    // 40 active sequences mid-decode still owe their remaining budget.
++    let demands: Vec<SeqDemand> = (0..40)
++        .map(|_| SeqDemand {
++            current_tokens: 600,
++            budget_tokens: 700,
++        })
++        .collect();
++    let committed = committed_blocks(&demands, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
++    assert_eq!(committed, 40 * blocks_for_tokens(1300, BS));
++    let reqs = vec![(PROMPT, MAX_TOK); 128];
++    let (n, _) = admit_count(POOL_BLOCKS, committed, &reqs, MAX_SEQ_LEN, MAX_SEQ_LEN, BS);
++    assert_eq!(n, (POOL_BLOCKS - committed) / req_blocks());
++}
++
++#[test]
++fn admission_stops_at_first_misfit_no_head_of_line_bypass() {
++    // A huge request mid-queue blocks later small ones from jumping it.
++    let reqs = vec![
++        (PROMPT, MAX_TOK),
++        (100_000, MAX_TOK), // cannot fit
++        (PROMPT, MAX_TOK),  // must NOT bypass
++    ];
++    let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, usize::MAX, 0, BS);
++    assert_eq!(n, 1);
++    assert!(!forced);
++}
++
++#[test]
++fn liveness_oversized_lone_request_still_admits() {
++    // Nothing in flight + a request bigger than the whole pool: admit it
++    // (runtime back-pressure applies), never queue it forever.
++    let reqs = vec![(200_000, MAX_TOK)];
++    let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, usize::MAX, 0, BS);
++    assert_eq!(n, 1);
++    assert!(forced);
++    // But with ANYTHING in flight it waits its turn.
++    let (n, forced) = admit_count(POOL_BLOCKS, 10, &reqs, usize::MAX, 0, BS);
++    assert_eq!(n, 0);
++    assert!(!forced);
++}
++
++#[test]
++fn watermark_zero_reserves_prompt_only_legacy() {
++    // Escape hatch pinned: watermark 0 ⇒ the C=128 set is admitted in
++    // full (128 × blocks(202) = 128 × 13 = 1664 ≤ 6375) — byte-for-byte
++    // the legacy prompt-only admission decision.
++    let reqs = vec![(PROMPT, MAX_TOK); 128];
++    let (n, forced) = admit_count(POOL_BLOCKS, 0, &reqs, 0, MAX_SEQ_LEN, BS);
++    assert_eq!(n, 128);
++    assert!(!forced);
++}
++#[test]
++fn shared_long_and_short_demands_queue_with_spill_reserved() {
++    let usable = 16896;
++    let context = 262144;
++    let long = (context - 1024, 1024);
++    let short = (16384, 400);
++    assert_eq!(
++        admit_with_spill(usable, 0, &[long, short], context, context, 16, Some(1)),
++        (1, false)
++    );
++    assert_eq!(
++        admit_with_spill(usable, 0, &[short; 4], context, context, 16, Some(1)),
++        (4, false)
++    );
++    assert_eq!(
++        admit_with_spill(usable, 16386, &[short], context, context, 16, Some(1)),
++        (0, false)
++    );
++    // An impossible singleton must be rejected by the gate, never forced.
++    assert_eq!(
++        admit_with_spill(100, 0, &[long], context, context, 16, Some(1)),
++        (0, false)
++    );
++    assert_eq!(
++        admit_count(100, 0, &[long], context, context, 16),
++        (1, true)
++    );
++}
++#[test]
++fn shared_exact_fit_excludes_dummy_and_charges_every_owner() {
++    let request = (32766, 2);
++    let need = 2050;
++    assert_eq!(
++        admit_with_spill(need, 0, &[request], 262144, 262144, 16, Some(1)),
++        (1, false)
++    );
++    assert_eq!(
++        admit_with_spill(need - 1, 0, &[request], 262144, 262144, 16, Some(1)),
++        (0, false)
++    );
++    assert_eq!(
++        admit_with_spill(4 * need - 1, 0, &[request; 4], 262144, 262144, 16, Some(1)),
++        (3, false)
++    );
++}
++
++macro_rules! oversized_request {
++    ($variant:ident, $($extra:tt)*) => {
++        InferenceRequest::$variant {
++            prompt_tokens: std::sync::Arc::new(vec![1, 2, 3]),
++            session_hash: 0,
++            adapter_slot: -1,
++            src_lang_id: 0,
++            tgt_lang_id: 0,
++            num_beams: 1,
++            length_penalty: 1.0,
++            early_stopping: false,
++            image_pixels: vec![],
++            max_tokens: 600,
++            min_tokens: 0,
++            temperature: 0.0,
++            top_k: 0,
++            top_p: 1.0,
++            top_n_sigma: 0.0,
++            min_p: 0.0,
++            repetition_penalty: 1.0,
++            presence_penalty: 0.0,
++            frequency_penalty: 0.0,
++            dry_multiplier: 0.0,
++            dry_base: 1.75,
++            dry_allowed_length: 2,
++            lz_penalty: 0.0,
++            logit_bias: vec![],
++            stop_tokens: vec![],
++            enable_thinking: false,
++            thinking_budget: None,
++            repetition_detection: None,
++            require_tool_call: false,
++            tools_present: true,
++            suppress_tool_call: false,
++            disable_mtp: false,
++            grammar_spec: None,
++            seed: Some(1),
++            top_logprobs: None,
++            prompt_logprobs: None,
++            echo: false,
++            timeout_at: None,
++            $($extra)*
++        }
++    };
++}
++
++#[test]
++fn shared_oversized_blocking_request_gets_error_before_allocation() {
++    let (response_tx, mut response_rx) = tokio::sync::oneshot::channel();
++    let request = oversized_request!(Blocking, response_tx,);
++    assert!(reject_oversized(vec![request], 16, 262144, 262144, 16, 1).is_empty());
++    let error = response_rx
++        .try_recv()
++        .unwrap()
++        .err()
++        .expect("capacity error");
++    assert!(
++        error
++            .to_string()
++            .contains("shared pool has 16 usable blocks")
++    );
++}
++
++#[test]
++fn shared_oversized_stream_gets_terminal_error_before_allocation() {
++    let (token_tx, mut token_rx) = tokio::sync::mpsc::channel(4);
++    let request = oversized_request!(Streaming, token_tx,
++        cancel_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),);
++    assert!(reject_oversized(vec![request], 16, 262144, 262144, 16, 1).is_empty());
++    match token_rx.try_recv().unwrap() {
++        StreamEvent::Error(message) => {
++            assert!(message.contains("shared pool has 16 usable blocks"))
++        }
++        _ => panic!("expected explicit capacity error"),
++    }
++    assert!(token_rx.try_recv().is_err());
++}
++
++#[test]
++fn shared_zero_capacity_rejects_even_a_single_request() {
++    let (response_tx, mut response_rx) = tokio::sync::oneshot::channel();
++    let request = oversized_request!(Blocking, response_tx,);
++    assert!(reject_oversized(vec![request], 0, 262144, 262144, 16, 1).is_empty());
++    assert!(response_rx.try_recv().unwrap().is_err());
++}
 diff --git a/crates/spark-server/src/scheduler/decode_logits_content.rs b/crates/spark-server/src/scheduler/decode_logits_content.rs
 index e1b0d66619756db24af8f056cfaaec6dcd703c0f..09f984104acf191746638dafcf2ecdb52b483d2a 100644
 --- a/crates/spark-server/src/scheduler/decode_logits_content.rs
@@ -5893,7 +6907,7 @@ index b9a7641342375504bb9b3ac900e13b4a341df160..7341fb5d9ecf2a35325d01129ac660ab
 +    assert!(rx.try_recv().is_err(), "error path must not also emit Done");
 +}
 diff --git a/crates/spark-server/src/scheduler/mod.rs b/crates/spark-server/src/scheduler/mod.rs
-index c6b70b13fffa4d627dd3d54df574a433dbbfdbdc..aa4dfd2bcee403cdfed0d5c110909285e6a9e9fa 100644
+index c6b70b13fffa4d627dd3d54df574a433dbbfdbdc..76a7c7dfb930b00ba9e2f954b412215f435090f8 100644
 --- a/crates/spark-server/src/scheduler/mod.rs
 +++ b/crates/spark-server/src/scheduler/mod.rs
 @@ -67,6 +67,7 @@ mod prefill_a_step;
@@ -5904,7 +6918,23 @@ index c6b70b13fffa4d627dd3d54df574a433dbbfdbdc..aa4dfd2bcee403cdfed0d5c110909285
  mod repetition;
  mod rollback;
  mod sample_step;
-@@ -434,6 +435,8 @@ pub fn run(
+@@ -351,6 +352,15 @@ pub fn run(
+     // context ceiling, i.e. reserve each request's own max_tokens; see
+     // `admission` module docs and ATLAS_KV_ADMIT_WATERMARK).
+     let admit_watermark = admission::resolve_admit_watermark(sched.limits.max_seq_len);
++    // The factory validates this opt-in and forbids a reduced watermark.
++    // Charge transient draft blocks per owner in addition to ordinary decode.
++    let shared_kv_spill = spark_model::speculative::glm_shared_kv::parse(
++        std::env::var(spark_model::speculative::glm_shared_kv::ENV)
++            .ok()
++            .as_deref(),
++    )
++    .expect("shared KV policy must pass factory validation before scheduler startup")
++    .map(|_| num_drafts.div_ceil(block_size.max(1)));
+ 
+     let pending = Arc::new((
+         Mutex::new(PendingQueue {
+@@ -434,6 +444,8 @@ pub fn run(
              &pending,
              &active,
              &prefilling,
@@ -5913,6 +6943,14 @@ index c6b70b13fffa4d627dd3d54df574a433dbbfdbdc..aa4dfd2bcee403cdfed0d5c110909285
              &*policy,
              max_batch_size,
              // Parked sequences (spilled or requeued) are waiting on blocks,
+@@ -454,6 +466,7 @@ pub fn run(
+             admit_watermark,
+             sched.limits.max_seq_len,
+             block_size,
++            shared_kv_spill,
+         );
+         sched.timing.record(mtp_timing::Phase::LoopDrain, t_loop);
+ 
 diff --git a/crates/spark-server/src/scheduler/mod_helpers.rs b/crates/spark-server/src/scheduler/mod_helpers.rs
 index 1c82e369e7d80b8b8c85a1fff5e169a5318685c2..6d25e408c4caedb9a8317dd6a67171eb3ad1639d 100644
 --- a/crates/spark-server/src/scheduler/mod_helpers.rs

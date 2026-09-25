@@ -36,16 +36,38 @@ ordering. Supported behavior and hardware results must be read with the
 associated qualification record; a successful source build alone is not a
 capability or performance result.
 
-The frozen launch profile uses a 36,864-token total sequence budget, four
-text sequences, BF16 KV and FP32 recurrent state. The memory utilization is
-0.921 to include the enabled vision tower and its preallocated workspace;
-KV overcommit stays disabled and the 4096 MiB free-memory guard remains active.
-The target cache is capped at the blocks needed for the four configured
-contexts plus speculative spill rows, after verifying that the memory budget
-can hold them. Extra budget does not turn into unused cache allocations. Prompts plus requested output
-must fit that sequence budget. Vision resolution is bounded by the native
-encoder allocation; large images are resized before encoding. These limits
-are independent of the vLLM recipe's context and vision capacity.
+The candidate launch profile requests a 262,144-token total sequence budget
+from a shared 270,336-token BF16 KV pool. Four ordinary text requests can use
+the speculative decoder within its 32K domain. Longer requests, tools and
+multimodal work use the serial native path. Admission reserves each request's
+prompt, output budget and speculative spill; work that does not currently fit
+queues. This does not promise four simultaneous full context windows.
+
+Memory utilization is 0.95, with KV overcommit disabled and the 4096 MiB
+free-memory guard active. The pool is capped only after validating that its
+physical allocation fits the measured budget. The image includes vision weights
+and preallocated scratch. The 262K profile is pending live qualification; 512K
+is not advertised as supported by this Atlas build.
+
+A stock LLooM installation can have a stricter memory reserve than this recipe
+needs. Preview and explicitly configure numeric policy on each participating
+Spark before starting the model:
+
+```sh
+lloom runtime-policy --max-memory-utilization 0.97 --reserve-memory-gb 4
+lloom runtime-policy --max-memory-utilization 0.97 --reserve-memory-gb 4 --apply --yes
+```
+
+These candidate values require live memory qualification. This command preserves
+the existing enforcement mode and per-node overrides; inspect its report and
+keep normal memory enforcement enabled. It does not enable YOLO mode.
+
+Prompts plus requested output must fit the total context. The gateway allows
+output budgets up to 131,072 tokens with a four-hour request limit; this is not
+a claim of full-length generation endurance. Clients can choose shorter
+per-request deadlines. Large images are resized to the native encoder capacity,
+and video decoding is capped at 32 frames. Aggregate visual output capacity
+is separate from the language model's context window.
 
 For a source-only build from a clean SparkGLM checkout on a Spark:
 

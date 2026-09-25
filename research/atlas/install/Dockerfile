@@ -56,7 +56,7 @@ RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
-RUN set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity; do \
+RUN set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity glm_shared_kv glm_index_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
       cargo test --locked --release -j "$BUILD_JOBS" -p spark-model --lib "$filter" \
         > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; }; \
@@ -74,6 +74,12 @@ RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     auto_tool_eos_tests > /tmp/atlas-tool-stop-check.log 2>&1 || \
     { cat /tmp/atlas-tool-stop-check.log; exit 1; }; \
     cat /tmp/atlas-tool-stop-check.log && grep -F 'test result: ok. 7 passed;' /tmp/atlas-tool-stop-check.log
+
+RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    scheduler::admission::tests > /tmp/atlas-admission-check.log 2>&1 || \
+    { cat /tmp/atlas-admission-check.log; exit 1; }; \
+    cat /tmp/atlas-admission-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-admission-check.log
 
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
 ARG SPARKGLM_REVISION
