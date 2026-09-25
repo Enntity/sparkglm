@@ -43,11 +43,25 @@ multimodal work use the serial native path. Admission reserves each request's
 prompt, output budget and speculative spill; work that does not currently fit
 queues. This does not promise four simultaneous full context windows.
 
-Memory utilization is 0.95, with KV overcommit disabled and the 4096 MiB
+Memory utilization is 0.97, with KV overcommit disabled and the 4096 MiB
 free-memory guard active. The pool is capped only after validating that its
 physical allocation fits the measured budget. The image includes vision weights
-and preallocated scratch. The 262K profile is pending live qualification; 512K
-is not advertised as supported by this Atlas build.
+and preallocated scratch. 512K is not advertised as supported by this Atlas
+build.
+
+0.97 is required rather than incidental. The 262,144-token pool needs 16,897
+physical blocks; at 0.95 the budget measured on a 121.7 GB host admitted only
+15,681, because 101.6 GB of pre-KV footprint plus the 6.2 GB inference reserve
+left 6.7 GB for a pool needing 7.3 GB. The engine's own 4096 MiB guard remains
+the backstop.
+
+The 262K profile passed live long-context qualification on 2026-09-25: a
+261,085-token prompt (counted by the engine's own tokenizer through the gateway)
+retrieved labelled records at early, middle and late positions, continued from
+its own response, and refused a 263,903-token over-budget prompt with HTTP 400
+before prefill. Retrieval exactness was also verified at 4,215 / 25,841 / 77,263
+/ 153,253 / 205,195 / 237,903 / 254,477 tokens. That evidence does not cover
+512K, long output budgets, structured output or vision at full context.
 
 A stock LLooM installation can have a stricter memory reserve than this recipe
 needs. Preview and explicitly configure numeric policy on each participating
