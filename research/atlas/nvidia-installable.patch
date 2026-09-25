@@ -4503,7 +4503,7 @@ index 9db987685e1e26be6e4a59c97d0f1b9532435682..4c7a602c25cb886fe49418ec2d70d201
              "image2pipe",
              "-vcodec",
 diff --git a/crates/spark-model/src/video_preprocess.rs b/crates/spark-model/src/video_preprocess.rs
-index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb24dddffba 100644
+index 82f6f035988e3b89177efd5df3e938e7faf1a437..360a05b73d60923fce428511c1118b65e0e5e90e 100644
 --- a/crates/spark-model/src/video_preprocess.rs
 +++ b/crates/spark-model/src/video_preprocess.rs
 @@ -4,23 +4,16 @@
@@ -4578,7 +4578,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
          )
      }
  }
-@@ -152,14 +153,119 @@ pub fn sample_indices(
+@@ -152,14 +153,42 @@ pub fn sample_indices(
      out
  }
  
@@ -4610,83 +4610,6 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
 +    (0..whole).collect()
 +}
 +
-+fn sample_glm_indices(
-+    n_frames: usize,
-+    native_fps: f32,
-+    target_fps: f32,
-+    max_frames: usize,
-+    temporal_patch_size: usize,
-+) -> Vec<usize> {
-+    if n_frames == 0 {
-+        return Vec::new();
-+    }
-+    let fps = if native_fps.is_finite() && native_fps > 0.0 {
-+        native_fps
-+    } else {
-+        DEFAULT_FPS
-+    };
-+    let target = if target_fps.is_finite() && target_fps > 0.0 {
-+        target_fps
-+    } else {
-+        DEFAULT_FPS
-+    };
-+    let duration = n_frames as f32 / fps;
-+    let wanted = ((duration * target).floor() as usize).min(max_frames);
-+    // This is the reference processor's behavior for a clip shorter than one
-+    // requested sample interval: return no indices and let the caller reject
-+    // the video rather than inventing a frame.
-+    if wanted == 0 {
-+        return Vec::new();
-+    }
-+    let mut picked = if n_frames < wanted {
-+        (0..wanted)
-+            .map(|i| i * n_frames / wanted)
-+            .collect::<Vec<_>>()
-+    } else {
-+        let mut out = Vec::new();
-+        let mut current = 0.0f32;
-+        let step = 1.0 / (temporal_patch_size.max(1) as f32 * target);
-+        let max_second = duration.floor();
-+        for index in 0..n_frames {
-+            if index as f32 / fps >= current {
-+                current += step;
-+                out.push(index);
-+                if current >= max_second {
-+                    break;
-+                }
-+            }
-+        }
-+        out
-+    };
-+    let linspace = |start: usize, end: usize, count: usize| -> Vec<usize> {
-+        if count <= 1 {
-+            return vec![start];
-+        }
-+        (0..count)
-+            .map(|i| start + end.saturating_sub(start) * i / (count - 1))
-+            .collect()
-+    };
-+    if picked.len() < wanted {
-+        let start = picked.first().copied().unwrap_or(0);
-+        let end = picked.last().copied().unwrap_or(n_frames - 1);
-+        picked = linspace(start, end, wanted);
-+    } else if picked.len() > wanted {
-+        picked = linspace(0, n_frames - 1, wanted);
-+    }
-+    let mut unique = Vec::with_capacity(picked.len() + 1);
-+    for index in picked {
-+        if unique.last().copied() != Some(index) {
-+            unique.push(index);
-+        }
-+    }
-+    if unique.len() % 2 == 1 {
-+        if let Some(last) = unique.last().copied() {
-+            unique.push(last);
-+        }
-+    }
-+    unique
-+}
-+
  /// Decode every frame of a container, choosing a backend by what the bytes
  /// actually are.
  ///
@@ -4703,7 +4626,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
  ///
  /// Dispatch is on MAGIC BYTES, not the declared MIME. A client that labels an
  /// mp4 `video/gif`, or sends `application/octet-stream`, still gets the right
-@@ -168,21 +274,20 @@ pub fn decode_frames(
+@@ -168,21 +197,20 @@ pub fn decode_frames(
      data_uri: &str,
      target_fps: f32,
      ffmpeg: &crate::video_decode_ffmpeg::FfmpegPolicy,
@@ -4728,7 +4651,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
  }
  
  /// Best-effort container name for error messages. Cosmetic only — nothing
-@@ -205,42 +310,138 @@ fn sniff_container(bytes: &[u8], mime: &str) -> String {
+@@ -205,42 +233,138 @@ fn sniff_container(bytes: &[u8], mime: &str) -> String {
      }
  }
  
@@ -4817,14 +4740,14 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
 +
 +    let native_fps = if total_ms > 0.0 {
 +        (count as f64 * 1000.0 / total_ms) as f32
-+    } else {
-+        DEFAULT_FPS
-+    };
-+    let fps = if target_fps.is_finite() && target_fps > 0.0 {
-+        target_fps
      } else {
          DEFAULT_FPS
      };
++    let fps = if target_fps.is_finite() && target_fps > 0.0 {
++        target_fps
++    } else {
++        DEFAULT_FPS
++    };
 +    let want = crate::video_sample::wanted_frames(
 +        (total_ms / 1000.0) as f32,
 +        native_fps,
@@ -4833,7 +4756,12 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
 +        fps,
 +    );
 +    let plan = crate::video_sample::sample_plan(want, (total_ms / 1000.0) as f32)?;
-+
+ 
+-    let rgb: Vec<RgbImage> = frames
+-        .into_iter()
+-        .map(|f| image::DynamicImage::ImageRgba8(f.into_buffer()).to_rgb8())
+-        .collect();
+-    Ok((rgb, fps))
 +    // The plan's times are source seconds; a GIF has one frame per delay, so
 +    // the frame for time `t` is the one whose cumulative delay covers `t`.
 +    let mut cumulative = Vec::with_capacity(count);
@@ -4860,12 +4788,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
 +            .saturating_sub(1)
 +            .min(count - 1)
 +    };
- 
--    let rgb: Vec<RgbImage> = frames
--        .into_iter()
--        .map(|f| image::DynamicImage::ImageRgba8(f.into_buffer()).to_rgb8())
--        .collect();
--    Ok((rgb, fps))
++
 +    // Decode once, keeping only the frames the plan selected, in plan order.
 +    let wanted_indices: Vec<usize> = plan.times.iter().map(|&t| index_for(t)).collect();
 +    let keep: std::collections::BTreeSet<usize> = wanted_indices.iter().copied().collect();
@@ -4897,7 +4820,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
  }
  
  /// Full pipeline: a base64 `data:` URI holding an animated container becomes
-@@ -256,17 +457,16 @@ pub fn preprocess_video(
+@@ -256,17 +380,16 @@ pub fn preprocess_video(
          vcfg.patch_size > 0 && vcfg.spatial_merge_size > 0 && vcfg.temporal_patch_size > 0,
          "vision_config geometry is invalid (patch/merge/temporal size is 0)"
      );
@@ -4923,7 +4846,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
      ensure!(!keep.is_empty(), "frame sampling selected no frames");
  
      // A clip shorter than one temporal group cannot be encoded as video.
-@@ -285,7 +485,24 @@ pub fn preprocess_video(
+@@ -285,7 +408,24 @@ pub fn preprocess_video(
      // count assumes a single grid.
      let first = &frames[keep[0]];
      let grid_unit = (vcfg.patch_size * vcfg.spatial_merge_size) as u32;
@@ -4949,7 +4872,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
  
      let ps = vcfg.patch_size;
      let grid_h = (th as usize) / ps;
-@@ -302,25 +519,37 @@ pub fn preprocess_video(
+@@ -302,25 +442,37 @@ pub fn preprocess_video(
          let resized: Vec<RgbImage> = (0..tp)
              .map(|k| {
                  let f = &frames[keep[g * tp + k]];
@@ -5002,7 +4925,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
                          }
                      }
                  }
-@@ -334,6 +563,14 @@ pub fn preprocess_video(
+@@ -334,6 +486,14 @@ pub fn preprocess_video(
          grid_t,
          grid_h,
          grid_w,
@@ -5018,7 +4941,7 @@ index 82f6f035988e3b89177efd5df3e938e7faf1a437..1143ebc6b1d53c48da800b82c48e6eb2
  }
  
 diff --git a/crates/spark-model/src/video_preprocess_tests.rs b/crates/spark-model/src/video_preprocess_tests.rs
-index 72364fe48e962ac16e8689bdc3b35a8a208848b2..66e042746db4031dfb5a6b9f6b76ed11b4fb493c 100644
+index 72364fe48e962ac16e8689bdc3b35a8a208848b2..e504a8b52386dafbcf931ee820a0f05879d687c8 100644
 --- a/crates/spark-model/src/video_preprocess_tests.rs
 +++ b/crates/spark-model/src/video_preprocess_tests.rs
 @@ -17,6 +17,8 @@ fn no_ffmpeg() -> FfmpegPolicy {
@@ -5047,24 +4970,41 @@ index 72364fe48e962ac16e8689bdc3b35a8a208848b2..66e042746db4031dfb5a6b9f6b76ed11
          max_pixels: None,
      }
  }
-@@ -135,6 +144,16 @@ fn one_frame_cannot_make_a_group_at_tp2() {
+@@ -135,6 +144,33 @@ fn one_frame_cannot_make_a_group_at_tp2() {
      assert!(got.len() < 2, "and it is short of one tp=2 group");
  }
  
 +#[test]
-+fn glm5_sampling_repairs_an_odd_number_of_temporal_frames() {
-+    let got = sample_glm_indices(25, 10.0, 2.0, 2_048, 2);
-+    assert_eq!(got.len() % 2, 0, "GLM temporal groups need pairs: {got:?}");
-+    assert!(got.len() >= 2);
-+    if got.len() > 1 {
-+        assert_eq!(got[got.len() - 1], got[got.len() - 2]);
++fn glm5_sampling_plans_whole_temporal_groups() {
++    // The old sampler asked ffmpeg for an odd count and then duplicated the
++    // last frame so `group_indices` had a full pair. Duplicating charged the
++    // model for a frame it could not learn from. The split now is: the planner
++    // chooses how many frames to take, and the group step keeps whole pairs of
++    // them. So the contract to hold is that grouping never drops a frame the
++    // planner asked the decoder for, and that a short clip still yields at
++    // least one group.
++    for (duration, native, target) in [(2.5, 10.0, 2.0), (1.0, 8.0, 2.0), (300.0, 8.0, 2.0)] {
++        let want = crate::video_sample::wanted_frames(duration, native, target, 2_048, DEFAULT_FPS);
++        assert!(want >= 1, "planner returned no frames for {duration}s");
++        let plan = crate::video_sample::sample_plan(want, duration).expect("plan");
++        assert_eq!(plan.times.len(), want);
++        let grouped = group_indices(plan.times.len(), 2);
++        assert!(!grouped.is_empty(), "one group at tp=2 needs two frames");
++        // At most the odd trailing frame is dropped, and the planner's count
++        // was available to the caller to round before it got here.
++        assert!(
++            plan.times.len() - grouped.len() <= 1,
++            "grouping dropped {} of {} planned frames",
++            plan.times.len() - grouped.len(),
++            plan.times.len()
++        );
 +    }
 +}
 +
  // ── decode + grouping, against a real generated GIF ──────────────────────
  
  /// Build an animated GIF of `n` solid-color frames at `size`x`size`.
-@@ -170,10 +189,16 @@ fn make_gif(n: u16, size: u16) -> String {
+@@ -170,10 +206,16 @@ fn make_gif(n: u16, size: u16) -> String {
  #[test]
  fn an_animated_gif_decodes_to_its_frames() {
      let uri = make_gif(6, 64);
