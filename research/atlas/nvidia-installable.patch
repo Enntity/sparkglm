@@ -3601,6 +3601,28 @@ index d614ea5315e495fbdcaf23eb432b08449d91f219..23453d0e75cb12ca12c887a30d57777d
      }
  
      pub(super) fn reclaim_prefix_blocks_dispatch(&self, num_blocks: usize) -> usize {
+diff --git a/crates/spark-model/src/model/trait_impl/verify_c.rs b/crates/spark-model/src/model/trait_impl/verify_c.rs
+index 61cc6b224a947e1c8e5fe4b968c72c41f44713d7..a5cf8460a77c9dba46871681f53ea3260e5de26c 100644
+--- a/crates/spark-model/src/model/trait_impl/verify_c.rs
++++ b/crates/spark-model/src/model/trait_impl/verify_c.rs
+@@ -221,7 +221,16 @@ impl TransformerModel {
+             levers: &self.levers,
+             stats: &self.stats,
+             attn_metadata: Some(metadata),
+-            profile: false,
++            // Honour `--profile`. This is the context the K=3 verify actually
++            // runs its layers in, so hardcoding `false` left the served verify
++            // — ~106 ms, about 90 % of every decode step — unattributable by
++            // any in-tree profiler: the highway verify profiler sits on a path
++            // this configuration does not take, and the per-layer profiler is
++            // this field. Graphs are already off here for a multi-rank world
++            // (`use_graphs` above requires `comm.is_none()` and our comm is
++            // Some), so enabling profiling does not have to disable capture
++            // and cannot perturb what it measures.
++            profile: self.config.profile,
+             comm: self.comm_ref(),
+             graph_capture: use_graphs,
+             gdn_exact_replay: false,
 diff --git a/crates/spark-model/src/model/types.rs b/crates/spark-model/src/model/types.rs
 index d730a8aac38432831ecc849b4928c0d38500e798..51a2a1b80ac6f899cf4d7366e28cd88738ad2f9e 100644
 --- a/crates/spark-model/src/model/types.rs
