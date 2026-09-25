@@ -56,7 +56,7 @@ RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
-RUN set -eu; for filter in glm_repair_policy glm_pair_plan; do \
+RUN set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
       cargo test --locked --release -j "$BUILD_JOBS" -p spark-model --lib "$filter" \
         > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; }; \
