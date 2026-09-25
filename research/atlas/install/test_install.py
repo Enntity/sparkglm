@@ -50,7 +50,7 @@ class LaunchContract(unittest.TestCase):
                                       ATLAS_GLM_UNREVIEWED_EXPERIMENT='1'), self.profile)
         self.assertEqual(env['ATLAS_GLM_MTP_REPAIR'], '1')
         self.assertNotIn('ATLAS_GLM_UNREVIEWED_EXPERIMENT', env)
-        self.assertIn('--num-drafts=2', argv)
+        self.assertIn('--num-drafts=3', argv)
 
     def test_invalid_cluster_configuration_fails_before_process_launch(self):
         for key, value in [('NODE_RANK', '2'), ('MASTER_ADDR', 'not-an-address'),
