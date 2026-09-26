@@ -8,6 +8,45 @@ from pathlib import Path
 import re
 
 
+def fabric_hcas(value, sysfs=Path('/sys/class/infiniband')):
+    """RDMA devices for the fabric: the requested ones plus, for each, the
+    active device on the same physical port behind the other PCIe domain.
+
+    GB10 attaches its ConnectX-7 through two PCIe x4 links, so one 200G cable
+    shows up as two RDMA devices (e.g. rocep1s0f0 and roceP2p1s0f0), each
+    capped near 112 Gb/s. Filling the cable needs both.
+    """
+    names = value.split(',')
+    if not all(re.fullmatch(r'[A-Za-z0-9_.:-]+', name) for name in names):
+        raise ValueError('Invalid fabric interface or HCA')
+
+    def pci(dev):
+        try:
+            return (sysfs/dev/'device').resolve().name
+        except OSError:
+            return None
+
+    def active(dev):
+        try:
+            return 'ACTIVE' in (sysfs/dev/'ports'/'1'/'state').read_text()
+        except OSError:
+            return False
+
+    hcas = list(names)
+    others = sorted(p.name for p in sysfs.iterdir()) if sysfs.is_dir() else []
+    for name in names:
+        addr = pci(name)
+        if not addr or ':' not in addr:
+            continue
+        slot = addr.split(':', 1)[1]
+        for dev in others:
+            sibling = pci(dev)
+            if (dev not in hcas and sibling and ':' in sibling and sibling != addr
+                    and sibling.split(':', 1)[1] == slot and active(dev)):
+                hcas.append(dev)
+    return hcas
+
+
 def launch(environ, profile):
     rank = environ.get('NODE_RANK', '')
     if rank not in ('0', '1'):
@@ -17,10 +56,9 @@ def launch(environ, profile):
     if not 1 <= port <= 65535:
         raise ValueError('Invalid MASTER_PORT')
     interface = environ['FABRIC_INTERFACE']
-    hca = environ.get('FABRIC_HCA', 'rocep1s0f0')
-    for value in (interface, hca):
-        if not re.fullmatch(r'[A-Za-z0-9_.:-]+', value):
-            raise ValueError('Invalid fabric interface or HCA')
+    if not re.fullmatch(r'[A-Za-z0-9_.:-]+', interface):
+        raise ValueError('Invalid fabric interface or HCA')
+    hcas = fabric_hcas(environ.get('FABRIC_HCA', 'rocep1s0f0'))
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
     if not Path(model).is_absolute() or any(c in model for c in '\r\n\0'):
         raise ValueError('MODEL_PATH must be an absolute path')
@@ -29,7 +67,9 @@ def launch(environ, profile):
     env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
     env.update(profile['environment'])
     env['NCCL_SOCKET_IFNAME'] = interface
-    env['NCCL_IB_HCA'] = hca
+    env['NCCL_IB_HCA'] = ','.join(hcas)
+    # The engine's direct RDMA all-reduce stripes over the same devices.
+    env['ATLAS_RDMA_RAILS'] = env['NCCL_IB_HCA']
     args = [str(arg).replace('${model}', model) for arg in profile['server_argv']]
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):

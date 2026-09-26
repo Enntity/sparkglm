@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +52,32 @@ class LaunchContract(unittest.TestCase):
         self.assertEqual(env['ATLAS_GLM_MTP_REPAIR'], '1')
         self.assertNotIn('ATLAS_GLM_UNREVIEWED_EXPERIMENT', env)
         self.assertIn('--num-drafts=2', argv)
+
+    def test_fabric_hca_lists_and_same_port_siblings(self):
+        # GB10 attaches its ConnectX-7 through two PCIe domains, so one cable
+        # appears as two RDMA devices (domain 0000 and 0002, same bus:dev.fn).
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            pci = root/'pci'
+            for dev, addr, state in [('rocep1s0f0', '0000:01:00.0', '4: ACTIVE'),
+                                     ('roceP2p1s0f0', '0002:01:00.0', '4: ACTIVE'),
+                                     ('rocep1s0f1', '0000:01:00.1', '4: ACTIVE'),
+                                     ('roceP2p1s0f1', '0002:01:00.1', '1: DOWN')]:
+                (pci/addr).mkdir(parents=True)
+                (root/dev/'ports'/'1').mkdir(parents=True)
+                (root/dev/'ports'/'1'/'state').write_text(state + '\n')
+                (root/dev/'device').symlink_to(pci/addr)
+            self.assertEqual(serve.fabric_hcas('rocep1s0f0', root), ['rocep1s0f0', 'roceP2p1s0f0'])
+            self.assertEqual(serve.fabric_hcas('rocep1s0f1', root), ['rocep1s0f1'])
+            self.assertEqual(serve.fabric_hcas('rocep1s0f0,roceP2p1s0f0', root),
+                             ['rocep1s0f0', 'roceP2p1s0f0'])
+            self.assertEqual(serve.fabric_hcas('mlx5_0', root/'missing'), ['mlx5_0'])
+        argv, env = serve.launch(dict(self.environment, FABRIC_HCA='a0,b1'), self.profile)
+        self.assertEqual(env['NCCL_IB_HCA'], 'a0,b1')
+        self.assertEqual(env['ATLAS_RDMA_RAILS'], 'a0,b1')
+        for bad in ('', 'a0,', 'a0,b1\nX=1', 'a0;b1'):
+            with self.subTest(hca=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, FABRIC_HCA=bad), self.profile)
 
     def test_invalid_cluster_configuration_fails_before_process_launch(self):
         for key, value in [('NODE_RANK', '2'), ('MASTER_ADDR', 'not-an-address'),
