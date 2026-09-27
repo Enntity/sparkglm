@@ -60,8 +60,10 @@ def launch(environ, profile):
         raise ValueError('Invalid fabric interface or HCA')
     hcas = fabric_hcas(environ.get('FABRIC_HCA', 'rocep1s0f0'))
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
-    if not Path(model).is_absolute() or any(c in model for c in '\r\n\0'):
-        raise ValueError('MODEL_PATH must be an absolute path')
+    drafter = environ.get('DRAFTER_PATH', '/models/drafter')
+    for label, path in (('MODEL_PATH', model), ('DRAFTER_PATH', drafter)):
+        if not Path(path).is_absolute() or any(c in path for c in '\r\n\0'):
+            raise ValueError(f'{label} must be an absolute path')
     # Profile values intentionally win over ambient optimization flags. Runtime
     # changes require a new reviewed image/profile instead of accidental tuning.
     env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
@@ -70,7 +72,8 @@ def launch(environ, profile):
     env['NCCL_IB_HCA'] = ','.join(hcas)
     # The engine's direct RDMA all-reduce stripes over the same devices.
     env['ATLAS_RDMA_RAILS'] = env['NCCL_IB_HCA']
-    args = [str(arg).replace('${model}', model) for arg in profile['server_argv']]
+    args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
+            for arg in profile['server_argv']]
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
         raise ValueError('Invalid SERVED_MODEL_NAME')
@@ -89,6 +92,9 @@ def main():
     # Full tensor verification is a separate installation step, before serving.
     if not (model/'config.json').is_file() or not (model/'model.safetensors.index.json').is_file():
         raise ValueError('Incomplete model overlay')
+    drafter = Path(env.get('DRAFTER_PATH', '/models/drafter'))
+    if not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file():
+        raise ValueError('Incomplete DFlash drafter')
     print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'],
                       'source': json.loads((here/'source-manifest.json').read_text())['engine_revision']}), flush=True)
     os.execve(argv[0], argv, env)

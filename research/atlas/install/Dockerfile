@@ -37,17 +37,32 @@ COPY engine/jinja-templates/ jinja-templates/
 COPY engine/tests/fixtures/ tests/fixtures/
 ENV ATLAS_TARGET_HW=gb10 ATLAS_TARGET_MODEL=glm-5.3-flash-nvfp4 ATLAS_TARGET_QUANT=nvfp4
 ARG BUILD_JOBS=4
-RUN cargo build --locked --release -j "$BUILD_JOBS" -p spark-server
+# BuildKit cache mount for the cargo target directory.
+#
+# Without it, iterating on engine source costs a full cold rebuild: the COPY
+# above takes the whole `crates/` tree as ONE layer, so editing a single .rs
+# file invalidates it, and with no cache the dependency graph plus every nvcc
+# kernel is recompiled from scratch — measured at ~18 min per iteration.
+# Requiring BuildKit is deliberate; the legacy builder ignores the mount, which
+# would only look like the old slow behaviour rather than an error.
+#
+# Every cargo step below mounts the same cache (`sharing=shared`), and the
+# binary is copied out of the mount because mounted paths never reach a layer.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    cargo build --locked --release -j "$BUILD_JOBS" -p spark-server && \
+    install -D target/release/spark /build/dist/spark
 # Check the actual compiled GLM module set and the startup vision selector.
 # CUDA stubs permit these CPU-only tests without GPU build entitlements.
 RUN mkdir -p /opt/cuda-stubs && \
     ln -s /usr/local/cuda/lib64/stubs/libcuda.so /opt/cuda-stubs/libcuda.so.1
-RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     cargo test --locked --release -j "$BUILD_JOBS" -p atlas-kernels --lib \
     glm5_target_ships_native_vision_module -- --ignored > /tmp/atlas-kernel-check.log 2>&1 || \
     { cat /tmp/atlas-kernel-check.log; exit 1; }; \
     cat /tmp/atlas-kernel-check.log && grep -F 'test result: ok. 1 passed;' /tmp/atlas-kernel-check.log
-RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
     vision_guard_ > /tmp/atlas-vision-check.log 2>&1 || \
     { cat /tmp/atlas-vision-check.log; exit 1; }; \
@@ -56,26 +71,30 @@ RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
-RUN set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity glm_shared_kv glm_index_capacity; do \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity glm_shared_kv glm_index_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
       cargo test --locked --release -j "$BUILD_JOBS" -p spark-model --lib "$filter" \
         > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; }; \
       cat /tmp/atlas-model-check.log; \
       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-model-check.log; \
     done
-RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
     scheduler::lifecycle_tests > /tmp/atlas-lifecycle-check.log 2>&1 || \
     { cat /tmp/atlas-lifecycle-check.log; exit 1; }; \
     cat /tmp/atlas-lifecycle-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-lifecycle-check.log
 
-RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
     auto_tool_eos_tests > /tmp/atlas-tool-stop-check.log 2>&1 || \
     { cat /tmp/atlas-tool-stop-check.log; exit 1; }; \
     cat /tmp/atlas-tool-stop-check.log && grep -F 'test result: ok. 7 passed;' /tmp/atlas-tool-stop-check.log
 
-RUN LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
     cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
     scheduler::admission::tests > /tmp/atlas-admission-check.log 2>&1 || \
     { cat /tmp/atlas-admission-check.log; exit 1; }; \
@@ -90,7 +109,7 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow-change-held-packages \
     python3 ca-certificates ffmpeg libnccl2=2.31.2-1+cuda13.3 libibverbs1 librdmacm1 \
     ibverbs-providers libnl-3-200 libnl-route-3-200 && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /build/target/release/spark /usr/local/bin/spark
+COPY --from=builder /build/dist/spark /usr/local/bin/spark
 COPY --from=builder /build/jinja-templates/ /jinja-templates/
 COPY --from=native /opt/atlas/native/*.so /opt/atlas/native/
 COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
