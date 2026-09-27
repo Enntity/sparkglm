@@ -11653,7 +11653,7 @@ index 4cbc0181622b48c45abda928dc621210e691cbd2..c4037207f2dd3cf37152ac98b50dff26
          // one GB10 with 256-token completions, agg tok/s:
          //
 diff --git a/crates/spark-model/src/layers/vision_encoder.rs b/crates/spark-model/src/layers/vision_encoder.rs
-index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76eabe480a 100644
+index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..f88a2c40176dc46736419ccd057fbd30d1b44367 100644
 --- a/crates/spark-model/src/layers/vision_encoder.rs
 +++ b/crates/spark-model/src/layers/vision_encoder.rs
 @@ -9,6 +9,11 @@
@@ -11676,7 +11676,7 @@ index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76
      pub patch_embed_w: DevicePtr,      // [1152, 1536] BF16
      pub patch_embed_b: DevicePtr,      // [1152] BF16
      pub pos_embed: DevicePtr,          // [2304, 1152] BF16 (untouched, kept for reference)
-@@ -111,3 +117,7 @@ pub struct VisionEncoder {
+@@ -111,3 +117,11 @@ pub struct VisionEncoder {
  }
  
  mod enc_impl;
@@ -11684,11 +11684,15 @@ index 45a1bdf237b4fc9661e775971e90f6e6ab1e7a7e..b18676342904ba77b09bf4f0ce413e76
 +#[cfg(all(test, feature = "cuda"))]
 +#[path = "vision_encoder/glm_oracle_tests.rs"]
 +mod glm_oracle_tests;
++
++#[cfg(all(test, feature = "cuda"))]
++#[path = "vision_encoder/glm_attention_gpu_tests.rs"]
++mod glm_attention_gpu_tests;
 diff --git a/crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs b/crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs
-index f669a3d8b6d7df07950ed702c7365514203740da..fb922d77dc8582f67e5a97921c3b47dfe5b47176 100644
+index f669a3d8b6d7df07950ed702c7365514203740da..3821d710cf841add36132caa175e9a464dee4080 100644
 --- a/crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs
 +++ b/crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs
-@@ -13,6 +13,28 @@ use spark_runtime::gpu::GpuBackend;
+@@ -13,6 +13,36 @@ use spark_runtime::gpu::GpuBackend;
  use super::super::VisionEncoder;
  
  impl VisionEncoder {
@@ -11714,10 +11718,18 @@ index f669a3d8b6d7df07950ed702c7365514203740da..fb922d77dc8582f67e5a97921c3b47df
 +        self.forward_batched(&images, gpu, stream)
 +    }
 +
++    /// Merged rows `buf_out` can hold for one request: the bound on the
++    /// vision rows a prefill may splice and a rank may receive. The Qwen tower
++    /// packs every image into one `p_max` batch; native GLM encodes items
++    /// separately into a larger packed output.
++    pub fn output_rows(&self) -> usize {
++        self.glm.as_ref().map_or(self.p_max, |glm| glm.out_rows)
++    }
++
      /// Single-image forward (back-compat shim). For N=1 this issues the SAME
      /// kernels with the SAME args in the SAME order as the old per-image path
      /// → byte-identical output. Returns `total_rows = (1+n_deepstack)*merged_p`
-@@ -50,6 +72,9 @@ impl VisionEncoder {
+@@ -50,6 +80,9 @@ impl VisionEncoder {
          gpu: &dyn GpuBackend,
          stream: u64,
      ) -> Result<Vec<(usize, usize, usize)>> {
@@ -11856,10 +11868,10 @@ index 391cc039c001a5193884bb2566fe8a19500a15b3..a5a0c997f6a867028d007fdcef831306
  mod pos_embed;
 diff --git a/crates/spark-model/src/layers/vision_encoder/glm.rs b/crates/spark-model/src/layers/vision_encoder/glm.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa591ca18867
+index 0000000000000000000000000000000000000000..62a824c5b006ba5a3cc4d01c96136ac1fc352cbf
 --- /dev/null
 +++ b/crates/spark-model/src/layers/vision_encoder/glm.rs
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,213 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! Native GLM-5.3 visual tower state.
@@ -11875,7 +11887,22 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +use crate::vision_preprocess::derive_glm_max_patches;
 +
 +mod forward;
++#[cfg(test)]
++#[path = "glm/forward_tests.rs"]
++mod forward_tests;
 +mod ops;
++
++/// Queries per flash-attention block (four warps of 16 rows).
++const FLASH_QUERY_ROWS: u32 = 64;
++/// Head width the flash-attention kernel is compiled for.
++const FLASH_HEAD_DIM: usize = 64;
++
++/// Merged rows `buf_out` holds for one request. Every item is encoded as its
++/// own attention sequence (at most `p_max` input patches), but the merged rows
++/// of all items are packed back to back and spliced from this one buffer, so
++/// a request may carry several full-size images: 16384 rows is eleven
++/// 1024x1024 images at 1369 rows each (128 MiB at `out_hidden_size` 4096).
++pub(crate) const GLM_MAX_OUTPUT_ROWS: usize = 16_384;
 +
 +#[derive(Clone, Copy)]
 +pub(crate) struct GlmVisionBlockWeights {
@@ -11916,6 +11943,8 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +    pub buf_out: DevicePtr,
 +    pub out_hidden_size: usize,
 +    pub p_max: usize,
++    /// Row capacity of `buf_out`; see [`GLM_MAX_OUTPUT_ROWS`].
++    pub out_rows: usize,
 +    patch_embed_w: DevicePtr,
 +    patch_embed_b: DevicePtr,
 +    blocks: Vec<GlmVisionBlockWeights>,
@@ -11932,14 +11961,15 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +    rms_norm_eps: f32,
 +    swiglu_limit: f32,
 +    k_gemm: KernelHandle,
-+    k_gemm_bias: KernelHandle,
++    k_add_bias: KernelHandle,
 +    k_rms_norm: KernelHandle,
++    k_qk_norm_rope: KernelHandle,
 +    k_attention: KernelHandle,
 +    k_swiglu: KernelHandle,
 +    k_add: KernelHandle,
 +    k_layer_norm: KernelHandle,
 +    k_gelu: KernelHandle,
-+    k_conv2d: KernelHandle,
++    k_merge_reorder: KernelHandle,
 +    k_f32_bf16: KernelHandle,
 +    buf_f32: DevicePtr,
 +    buf_pixels: DevicePtr,
@@ -11983,6 +12013,10 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +            );
 +        }
 +        let head_dim = config.hidden_size / config.num_heads;
++        ensure!(
++            head_dim == FLASH_HEAD_DIM,
++            "GLM vision attention supports head_dim {FLASH_HEAD_DIM}, got {head_dim}"
++        );
 +        let patch_dim =
 +            config.in_channels * config.temporal_patch_size * config.patch_size * config.patch_size;
 +        let wide = (config.hidden_size * 3)
@@ -12003,13 +12037,14 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +        )?;
 +        let buf_conv = gpu.alloc(p_max * config.out_hidden_size * 2)?;
 +        let buf_merger = gpu.alloc(p_max * config.out_hidden_size * 2)?;
-+        let buf_out = gpu.alloc(p_max * config.out_hidden_size * 2)?;
++        let buf_out = gpu.alloc(GLM_MAX_OUTPUT_ROWS * config.out_hidden_size * 2)?;
 +        let buf_rope_cos = gpu.alloc(p_max * head_dim * 2)?;
 +        let buf_rope_sin = gpu.alloc(p_max * head_dim * 2)?;
 +        Ok(Self {
 +            buf_out,
 +            out_hidden_size: config.out_hidden_size,
 +            p_max,
++            out_rows: GLM_MAX_OUTPUT_ROWS,
 +            patch_embed_w: weights.patch_embed_w,
 +            patch_embed_b: weights.patch_embed_b,
 +            blocks: weights.blocks,
@@ -12025,15 +12060,16 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +            projection_intermediate_size: config.projection_intermediate_size,
 +            rms_norm_eps: config.rms_norm_eps as f32,
 +            swiglu_limit: config.swiglu_limit,
-+            k_gemm: gpu.kernel("gemm", "dense_gemm_bf16")?,
-+            k_gemm_bias: gpu.kernel("glm_vision_encoder", "glm_vision_gemm_bias")?,
++            k_gemm: gpu.kernel("gemm", "dense_gemm_bf16_pipelined")?,
++            k_add_bias: gpu.kernel("glm_vision_encoder", "glm_vision_add_bias")?,
 +            k_rms_norm: gpu.kernel("glm_vision_encoder", "glm_vision_rms_norm")?,
-+            k_attention: gpu.kernel("glm_vision_encoder", "glm_vision_attention")?,
++            k_qk_norm_rope: gpu.kernel("glm_vision_encoder", "glm_vision_qk_norm_rope")?,
++            k_attention: gpu.kernel("glm_vision_encoder", "glm_vision_flash_attention")?,
 +            k_swiglu: gpu.kernel("glm_vision_encoder", "glm_vision_swiglu_clamp")?,
 +            k_add: gpu.kernel("glm_vision_encoder", "glm_vision_add")?,
 +            k_layer_norm: gpu.kernel("glm_vision_encoder", "glm_vision_layer_norm")?,
 +            k_gelu: gpu.kernel("glm_vision_encoder", "glm_vision_gelu")?,
-+            k_conv2d: gpu.kernel("glm_vision_encoder", "glm_vision_conv2d")?,
++            k_merge_reorder: gpu.kernel("glm_vision_encoder", "glm_vision_merge_reorder")?,
 +            k_f32_bf16: gpu.kernel("glm_vision_encoder", "glm_vision_f32_to_bf16")?,
 +            buf_f32,
 +            buf_pixels,
@@ -12051,10 +12087,10 @@ index 0000000000000000000000000000000000000000..43167b593ff93c3242c49b1f8c70aa59
 +}
 diff --git a/crates/spark-model/src/layers/vision_encoder/glm/forward.rs b/crates/spark-model/src/layers/vision_encoder/glm/forward.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea9262feb0
+index 0000000000000000000000000000000000000000..66f28e0f46d81fed21939b74db174c22f3ab1431
 --- /dev/null
 +++ b/crates/spark-model/src/layers/vision_encoder/glm/forward.rs
-@@ -0,0 +1,413 @@
+@@ -0,0 +1,370 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! GLM-5.3 visual forward path. Every image/video group is kept as its own
@@ -12072,12 +12108,7 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +    ((bits.wrapping_add(rounding)) >> 16) as u16
 +}
 +
-+fn rope_table(
-+    grid_h: usize,
-+    grid_w: usize,
-+    temporal_groups: usize,
-+    head_dim: usize,
-+) -> (Vec<u8>, Vec<u8>) {
++fn rope_table(grid_h: usize, grid_w: usize, head_dim: usize) -> (Vec<u8>, Vec<u8>) {
 +    let rotary_dim = head_dim / 2;
 +    let half = rotary_dim / 2;
 +    let theta = 10_000.0f32;
@@ -12093,18 +12124,16 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +    let mut sin = Vec::with_capacity(grid_h * grid_w * rotary_dim * 2);
 +    // vLLM's 2-D position ids visit each spatial-merge block, then its 2x2
 +    // members.  This is also the order expected by the post-ViT conv2d.
-+    for _ in 0..temporal_groups {
-+        for block_h in 0..grid_h / 2 {
-+            for block_w in 0..grid_w / 2 {
-+                for inner_h in 0..2 {
-+                    for inner_w in 0..2 {
-+                        let positions = [block_h * 2 + inner_h, block_w * 2 + inner_w];
-+                        for &position in &positions {
-+                            for dim in 0..half {
-+                                let angle = position as f32 * inv[dim];
-+                                cos.extend_from_slice(&bf16_bits(angle.cos()).to_le_bytes());
-+                                sin.extend_from_slice(&bf16_bits(angle.sin()).to_le_bytes());
-+                            }
++    for block_h in 0..grid_h / 2 {
++        for block_w in 0..grid_w / 2 {
++            for inner_h in 0..2 {
++                for inner_w in 0..2 {
++                    let positions = [block_h * 2 + inner_h, block_w * 2 + inner_w];
++                    for &position in &positions {
++                        for dim in 0..half {
++                            let angle = position as f32 * inv[dim];
++                            cos.extend_from_slice(&bf16_bits(angle.cos()).to_le_bytes());
++                            sin.extend_from_slice(&bf16_bits(angle.sin()).to_le_bytes());
 +                        }
 +                    }
 +                }
@@ -12121,9 +12150,46 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +        gpu: &dyn GpuBackend,
 +        stream: u64,
 +    ) -> Result<Vec<(usize, usize, usize)>> {
-+        let mut out = Vec::with_capacity(images.len());
++        self.encode_sequences(images, gpu, stream)
++    }
++
++    /// Encode vision items, one attention sequence per temporal group. The
++    /// reference supplies one cu_seqlens segment per temporal group; joining a
++    /// video's groups into one attention sequence would let later frames
++    /// attend to earlier frames and diverge from the checkpoint even though
++    /// the final row count matched.
++    pub(crate) fn forward_items(
++        &self,
++        items: &[&crate::VisionItem],
++        gpu: &dyn GpuBackend,
++        stream: u64,
++    ) -> Result<Vec<(usize, usize, usize)>> {
++        let mut sequences = Vec::new();
++        for item in items {
++            ensure!(
++                !item.groups.is_empty(),
++                "GLM vision item has no temporal groups"
++            );
++            for group in &item.groups {
++                sequences.push((group.as_slice(), item.grid_h, item.grid_w));
++            }
++        }
++        self.encode_sequences(&sequences, gpu, stream)
++    }
++
++    /// Validate every sequence and the packed output capacity before the
++    /// first launch, then encode each sequence into consecutive `buf_out`
++    /// rows. Rejecting late would leave earlier sequences' work queued on
++    /// `stream` behind an error the caller has already reported.
++    fn encode_sequences(
++        &self,
++        sequences: &[(&[f32], usize, usize)],
++        gpu: &dyn GpuBackend,
++        stream: u64,
++    ) -> Result<Vec<(usize, usize, usize)>> {
++        let mut out = Vec::with_capacity(sequences.len());
 +        let mut out_rows = 0usize;
-+        for &(pixels, grid_h, grid_w) in images {
++        for &(pixels, grid_h, grid_w) in sequences {
 +            ensure!(grid_h > 0 && grid_w > 0, "GLM vision grid must be non-zero");
 +            ensure!(
 +                grid_h % 2 == 0 && grid_w % 2 == 0,
@@ -12144,111 +12210,44 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +                self.p_max
 +            );
 +            let merged = (grid_h / 2) * (grid_w / 2);
++            out_rows += merged;
 +            ensure!(
-+                out_rows + merged <= self.p_max,
-+                "GLM vision output capacity exceeded"
++                out_rows <= self.out_rows,
++                "GLM vision request needs more than {} merged rows",
++                self.out_rows
 +            );
++            out.push((grid_h / 2, grid_w / 2, merged));
++        }
++        let mut row = 0usize;
++        for (&(pixels, grid_h, grid_w), &(_, _, merged)) in sequences.iter().zip(&out) {
 +            self.forward_sequence(
-+                std::slice::from_ref(&pixels),
++                pixels,
 +                grid_h,
 +                grid_w,
-+                self.buf_out.offset(out_rows * self.out_hidden_size * 2),
++                self.buf_out.offset(row * self.out_hidden_size * 2),
 +                gpu,
 +                stream,
 +            )?;
-+            out.push((grid_h / 2, grid_w / 2, merged));
-+            out_rows += merged;
-+        }
-+        Ok(out)
-+    }
-+
-+    #[allow(clippy::too_many_arguments)]
-+    pub(crate) fn forward_items(
-+        &self,
-+        items: &[&crate::VisionItem],
-+        gpu: &dyn GpuBackend,
-+        stream: u64,
-+    ) -> Result<Vec<(usize, usize, usize)>> {
-+        let mut out = Vec::new();
-+        let mut out_rows = 0usize;
-+        for item in items {
-+            ensure!(
-+                !item.groups.is_empty(),
-+                "GLM vision item has no temporal groups"
-+            );
-+            ensure!(
-+                item.grid_h > 0 && item.grid_w > 0 && item.grid_h % 2 == 0 && item.grid_w % 2 == 0,
-+                "GLM vision grid must be non-zero and divisible by spatial merge 2"
-+            );
-+            for group in &item.groups {
-+                ensure!(
-+                    group.len() == item.grid_h * item.grid_w * self.patch_dim,
-+                    "GLM vision item group geometry mismatch"
-+                );
-+            }
-+            let merged = (item.grid_h / 2) * (item.grid_w / 2);
-+            let item_rows = merged
-+                .checked_mul(item.groups.len())
-+                .ok_or_else(|| anyhow::anyhow!("GLM vision output row count overflow"))?;
-+            ensure!(
-+                out_rows + item_rows <= self.p_max,
-+                "GLM vision output capacity exceeded"
-+            );
-+            // The reference supplies one cu_seqlens segment per temporal
-+            // group. Joining a video's groups into one attention sequence
-+            // would let later frames attend to earlier frames and diverge
-+            // from the checkpoint even though the final row count matched.
-+            for (group_idx, group) in item.groups.iter().enumerate() {
-+                let group = group.as_slice();
-+                self.forward_sequence(
-+                    std::slice::from_ref(&group),
-+                    item.grid_h,
-+                    item.grid_w,
-+                    self.buf_out
-+                        .offset((out_rows + group_idx * merged) * self.out_hidden_size * 2),
-+                    gpu,
-+                    stream,
-+                )?;
-+                out.push((item.grid_h / 2, item.grid_w / 2, merged));
-+            }
-+            out_rows += item_rows;
++            row += merged;
 +        }
 +        Ok(out)
 +    }
 +
 +    fn forward_sequence(
 +        &self,
-+        groups: &[&[f32]],
++        pixels: &[f32],
 +        grid_h: usize,
 +        grid_w: usize,
 +        output: DevicePtr,
 +        gpu: &dyn GpuBackend,
 +        stream: u64,
 +    ) -> Result<()> {
-+        let patches_per_group = grid_h * grid_w;
-+        let temporal_groups = groups.len();
-+        ensure!(
-+            temporal_groups == 1,
-+            "GLM vision temporal groups must be dispatched as separate attention sequences"
-+        );
-+        let patches = patches_per_group
-+            .checked_mul(temporal_groups)
-+            .ok_or_else(|| anyhow::anyhow!("GLM vision sequence patch count overflow"))?;
-+        ensure!(
-+            patches <= self.p_max,
-+            "GLM vision sequence exceeds capacity"
-+        );
-+        for (group_idx, pixels) in groups.iter().enumerate() {
-+            let pixel_bytes = unsafe {
-+                std::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 4)
-+            };
-+            gpu.copy_h2d_async(
-+                pixel_bytes,
-+                self.buf_f32
-+                    .offset(group_idx * patches_per_group * self.patch_dim * 4),
-+                stream,
-+            )?;
-+        }
++        let patches = grid_h * grid_w;
++        // SAFETY: reinterpreting a live `&[f32]` as its exact byte span; u8 has
++        // alignment 1.
++        let pixel_bytes =
++            unsafe { std::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 4) };
++        gpu.copy_h2d_async(pixel_bytes, self.buf_f32, stream)?;
 +        KernelLaunch::new(gpu, self.k_f32_bf16)
 +            .grid([div_ceil((patches * self.patch_dim) as u32, 256), 1, 1])
 +            .block([256, 1, 1])
@@ -12267,7 +12266,7 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +            self.patch_dim,
 +            stream,
 +        )?;
-+        let (cos, sin) = rope_table(grid_h, grid_w, temporal_groups, self.head_dim);
++        let (cos, sin) = rope_table(grid_h, grid_w, self.head_dim);
 +        gpu.copy_h2d_async(&cos, self.buf_rope_cos, stream)?;
 +        gpu.copy_h2d_async(&sin, self.buf_rope_sin, stream)?;
 +        for block in &self.blocks {
@@ -12377,69 +12376,63 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +            stream,
 +        )?;
 +        let merged = (grid_h / 2) * (grid_w / 2);
-+        for group_idx in 0..temporal_groups {
-+            self.conv2d(
-+                gpu,
-+                self.buf_norm
-+                    .offset(group_idx * patches_per_group * self.hidden_size * 2),
-+                self.buf_conv
-+                    .offset(group_idx * merged * self.out_hidden_size * 2),
-+                grid_h,
-+                grid_w,
-+                stream,
-+            )?;
-+            let group_out = output.offset(group_idx * merged * self.out_hidden_size * 2);
-+            self.gemm(
-+                gpu,
-+                self.buf_conv
-+                    .offset(group_idx * merged * self.out_hidden_size * 2),
-+                self.merger.proj_w,
-+                self.buf_merger,
-+                merged,
-+                self.out_hidden_size,
-+                self.out_hidden_size,
-+                stream,
-+            )?;
-+            self.layer_norm(
-+                gpu,
-+                self.buf_merger,
-+                self.merger.post_norm_w,
-+                self.merger.post_norm_b,
-+                merged,
-+                self.out_hidden_size,
-+                stream,
-+            )?;
-+            self.gelu(gpu, self.buf_merger, merged * self.out_hidden_size, stream)?;
-+            self.gemm(
-+                gpu,
-+                self.buf_merger,
-+                self.merger.gate_up_w,
-+                self.buf_wide,
-+                merged,
-+                2 * self.projection_intermediate_size,
-+                self.out_hidden_size,
-+                stream,
-+            )?;
-+            self.swiglu(
-+                gpu,
-+                self.buf_wide,
-+                self.buf_act,
-+                merged,
-+                self.projection_intermediate_size,
-+                stream,
-+            )?;
-+            self.gemm(
-+                gpu,
-+                self.buf_act,
-+                self.merger.down_w,
-+                group_out,
-+                merged,
-+                self.out_hidden_size,
-+                self.projection_intermediate_size,
-+                stream,
-+            )?;
-+        }
-+        Ok(())
++        self.conv2d(
++            gpu,
++            self.buf_norm,
++            self.buf_wide,
++            self.buf_conv,
++            grid_h,
++            grid_w,
++            stream,
++        )?;
++        self.gemm(
++            gpu,
++            self.buf_conv,
++            self.merger.proj_w,
++            self.buf_merger,
++            merged,
++            self.out_hidden_size,
++            self.out_hidden_size,
++            stream,
++        )?;
++        self.layer_norm(
++            gpu,
++            self.buf_merger,
++            self.merger.post_norm_w,
++            self.merger.post_norm_b,
++            merged,
++            self.out_hidden_size,
++            stream,
++        )?;
++        self.gelu(gpu, self.buf_merger, merged * self.out_hidden_size, stream)?;
++        self.gemm(
++            gpu,
++            self.buf_merger,
++            self.merger.gate_up_w,
++            self.buf_wide,
++            merged,
++            2 * self.projection_intermediate_size,
++            self.out_hidden_size,
++            stream,
++        )?;
++        self.swiglu(
++            gpu,
++            self.buf_wide,
++            self.buf_act,
++            merged,
++            self.projection_intermediate_size,
++            stream,
++        )?;
++        self.gemm(
++            gpu,
++            self.buf_act,
++            self.merger.down_w,
++            output,
++            merged,
++            self.out_hidden_size,
++            self.projection_intermediate_size,
++            stream,
++        )
 +    }
 +}
 +
@@ -12453,7 +12446,7 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +
 +    #[test]
 +    fn rope_table_tracks_h_and_w_in_merge_block_order() {
-+        let (cos, sin) = rope_table(2, 2, 1, 64);
++        let (cos, sin) = rope_table(2, 2, 64);
 +        assert_eq!(cos.len(), 2 * 2 * (64 / 2) * 2);
 +        assert_eq!(sin.len(), cos.len());
 +        let row = |bytes: &[u8], index: usize| bf16_to_f32(&bytes[index * 2..index * 2 + 2]);
@@ -12468,12 +12461,244 @@ index 0000000000000000000000000000000000000000..199b677f2d6e954a60dd27f8d74adaea
 +        assert!(row(&sin, 80).abs() < 0.01);
 +    }
 +}
+diff --git a/crates/spark-model/src/layers/vision_encoder/glm/forward_tests.rs b/crates/spark-model/src/layers/vision_encoder/glm/forward_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..460f8397aae88e998b526f62b1888e1278ef48be
+--- /dev/null
++++ b/crates/spark-model/src/layers/vision_encoder/glm/forward_tests.rs
+@@ -0,0 +1,226 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++//! Launch-shape regressions for the native GLM visual tower.
++//!
++//! The first native tower ran scalar reference kernels (one thread per
++//! (query, head) recomputing every key's norm and RoPE per output channel), so
++//! a 1024x1024 image kept the head's default stream busy for hours while the
++//! EP worker idled at its next command: a hang in production.
++
++use std::ffi::c_void;
++use std::sync::Mutex;
++
++use anyhow::Result;
++use atlas_core::config::VisionConfig;
++use spark_runtime::gpu::mock::MockGpuBackend;
++use spark_runtime::gpu::{DevicePtr, GpuBackend, KernelHandle};
++
++use super::{
++    GLM_MAX_OUTPUT_ROWS, GlmVisionBlockWeights, GlmVisionEncoder, GlmVisionMergerWeights,
++    GlmVisionWeights,
++};
++use crate::VisionItem;
++
++/// Mock backend that hands out one handle per requested kernel name.
++#[derive(Default)]
++struct NamedGpu {
++    inner: MockGpuBackend,
++    names: Mutex<Vec<String>>,
++}
++
++impl NamedGpu {
++    /// `(kernel name, grid, block)` for every launch so far.
++    fn launches(&self) -> Vec<(String, [u32; 3], [u32; 3])> {
++        let names = self.names.lock().unwrap();
++        self.inner
++            .launches_snapshot()
++            .into_iter()
++            .map(|l| (names[l.func as usize - 1].clone(), l.grid, l.block))
++            .collect()
++    }
++}
++
++impl GpuBackend for NamedGpu {
++    fn alloc(&self, n: usize) -> Result<DevicePtr> {
++        self.inner.alloc(n)
++    }
++    fn alloc_managed(&self, n: usize) -> Result<DevicePtr> {
++        self.inner.alloc_managed(n)
++    }
++    fn free(&self, p: DevicePtr) -> Result<()> {
++        self.inner.free(p)
++    }
++    fn copy_h2d(&self, s: &[u8], d: DevicePtr) -> Result<()> {
++        self.inner.copy_h2d(s, d)
++    }
++    fn copy_d2h(&self, s: DevicePtr, d: &mut [u8]) -> Result<()> {
++        self.inner.copy_d2h(s, d)
++    }
++    fn copy_d2d(&self, s: DevicePtr, d: DevicePtr, n: usize) -> Result<()> {
++        self.inner.copy_d2d(s, d, n)
++    }
++    fn synchronize(&self, s: u64) -> Result<()> {
++        self.inner.synchronize(s)
++    }
++    fn default_stream(&self) -> u64 {
++        0
++    }
++    fn kernel(&self, module: &str, symbol: &str) -> Result<KernelHandle> {
++        let mut names = self.names.lock().unwrap();
++        names.push(format!("{module}::{symbol}"));
++        Ok(KernelHandle(names.len() as u64))
++    }
++    fn op_cache(&self) -> &spark_runtime::op_cache::OpCache {
++        self.inner.op_cache()
++    }
++    fn launch(
++        &self,
++        kernel: KernelHandle,
++        grid: [u32; 3],
++        block: [u32; 3],
++        shared: u32,
++        stream: u64,
++        params: &mut [*mut c_void],
++    ) -> Result<()> {
++        self.inner
++            .launch(kernel, grid, block, shared, stream, params)
++    }
++    fn memset(&self, p: DevicePtr, v: u8, n: usize) -> Result<()> {
++        self.inner.memset(p, v, n)
++    }
++    fn memset_async(&self, p: DevicePtr, v: u8, n: usize, s: u64) -> Result<()> {
++        self.inner.memset_async(p, v, n, s)
++    }
++    fn total_memory(&self) -> Result<usize> {
++        self.inner.total_memory()
++    }
++    fn free_memory(&self) -> Result<usize> {
++        self.inner.free_memory()
++    }
++    fn sm_count(&self) -> Result<u32> {
++        self.inner.sm_count()
++    }
++}
++
++const PATCH: usize = 14;
++const TEMPORAL: usize = 2;
++const PATCH_DIM: usize = 3 * TEMPORAL * PATCH * PATCH;
++const HEADS: usize = 2;
++
++/// A two-block tower with the checkpoint's head width and patch geometry but
++/// tiny hidden sizes, capped at 16x16 input patches.
++fn encoder(gpu: &NamedGpu) -> GlmVisionEncoder {
++    let config = VisionConfig {
++        is_glm5_next: true,
++        in_channels: 3,
++        depth: 2,
++        hidden_size: 64 * HEADS,
++        num_heads: HEADS,
++        patch_size: PATCH,
++        temporal_patch_size: TEMPORAL,
++        spatial_merge_size: 2,
++        intermediate_size: 96,
++        out_hidden_size: 32,
++        projection_intermediate_size: 48,
++        rms_norm_eps: 1e-5,
++        swiglu_limit: 10.0,
++        deepstack_visual_indexes: Vec::new(),
++        image_pad_token_id: 0,
++        video_pad_token_id: 0,
++        image_start_token_id: 0,
++        image_end_token_id: 0,
++        video_start_token_id: 0,
++        video_end_token_id: 0,
++        max_pixels: Some(256 * TEMPORAL * PATCH * PATCH),
++    };
++    let w = DevicePtr(0x1000);
++    let block = GlmVisionBlockWeights {
++        norm1_w: w,
++        qkv_w: w,
++        qkv_b: w,
++        q_norm_w: w,
++        k_norm_w: w,
++        proj_w: w,
++        proj_b: w,
++        norm2_w: w,
++        gate_up_w: w,
++        gate_up_b: w,
++        down_w: w,
++        down_b: w,
++    };
++    let weights = GlmVisionWeights {
++        patch_embed_w: w,
++        patch_embed_b: w,
++        blocks: vec![block; config.depth],
++        post_layernorm_w: w,
++        downsample_w: w,
++        downsample_b: w,
++        merger: GlmVisionMergerWeights {
++            proj_w: w,
++            post_norm_w: w,
++            post_norm_b: w,
++            gate_up_w: w,
++            down_w: w,
++        },
++    };
++    let encoder = GlmVisionEncoder::new(weights, &config, gpu).unwrap();
++    assert_eq!(encoder.p_max, 256);
++    encoder
++}
++
++fn image(grid: usize) -> VisionItem {
++    VisionItem::image(vec![0.0; grid * grid * PATCH_DIM], grid, grid)
++}
++
++#[test]
++fn every_launch_is_a_parallel_tile_and_attention_is_flash_tiled() {
++    let gpu = NamedGpu::default();
++    let enc = encoder(&gpu);
++    let item = image(16);
++    let geometry = enc.forward_items(&[&item], &gpu, 0).unwrap();
++    assert_eq!(geometry, vec![(8, 8, 64)]);
++
++    let launches = gpu.launches();
++    for (name, grid, block) in &launches {
++        assert!(
++            block.iter().product::<u32>() >= 32,
++            "{name} launched {grid:?} with a {block:?} block; single-thread \
++             blocks made a 1024x1024 image take hours"
++        );
++    }
++    let attention: Vec<_> = launches
++        .iter()
++        .filter(|(name, ..)| name.ends_with("glm_vision_flash_attention"))
++        .collect();
++    assert_eq!(attention.len(), 2, "one flash launch per block");
++    for (_, grid, block) in attention {
++        // 256 patches in 64-query tiles, one tile column per head.
++        assert_eq!(*grid, [4, HEADS as u32, 1]);
++        assert_eq!(*block, [128, 1, 1]);
++    }
++}
++
++#[test]
++fn over_capacity_request_fails_before_queuing_any_work() {
++    // Eight 1024x1024 images (74x74 patches, 1369 merged rows each) must fit
++    // the packed output a GLM request splices from.
++    assert!(8 * 37 * 37 <= GLM_MAX_OUTPUT_ROWS);
++
++    let gpu = NamedGpu::default();
++    let mut enc = encoder(&gpu);
++    enc.out_rows = 64 + 16;
++    let (large, small) = (image(16), image(8));
++    enc.forward_items(&[&large, &small], &gpu, 0).unwrap();
++    let launched = gpu.inner.launch_count();
++    assert!(launched > 0);
++
++    let err = enc
++        .forward_items(&[&large, &small, &small], &gpu, 0)
++        .unwrap_err();
++    assert!(err.to_string().contains("merged rows"), "{err:#}");
++    assert_eq!(
++        gpu.inner.launch_count(),
++        launched,
++        "a rejected request must not leave earlier items encoding"
++    );
++}
 diff --git a/crates/spark-model/src/layers/vision_encoder/glm/ops.rs b/crates/spark-model/src/layers/vision_encoder/glm/ops.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f963b009d
+index 0000000000000000000000000000000000000000..e37958de622245f905498b5964eabb9ef22f7d50
 --- /dev/null
 +++ b/crates/spark-model/src/layers/vision_encoder/glm/ops.rs
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,243 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! CUDA launch wrappers for the native GLM visual tower.
@@ -12482,16 +12707,22 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +use spark_runtime::gpu::{DevicePtr, GpuBackend};
 +use spark_runtime::kernel_args::{KernelLaunch, div_ceil};
 +
-+use crate::layers::ops::dense_gemm;
++use crate::layers::ops::dense_gemm_bf16_pipelined;
 +use crate::weight_map::DenseWeight;
 +
-+use super::GlmVisionEncoder;
++use super::{FLASH_QUERY_ROWS, GlmVisionEncoder};
++
++/// Threads per row for the block-reduction norms.
++const NORM_THREADS: u32 = 256;
 +
 +fn dense(ptr: DevicePtr) -> DenseWeight {
 +    DenseWeight { weight: ptr }
 +}
 +
 +impl GlmVisionEncoder {
++    /// Tensor-core BF16 GEMM: `output[m, n] = input[m, k] @ weight[n, k]^T`.
++    /// Every GLM visual `k` (1176, 1024, 4096, 10240) is a multiple of 8, the
++    /// pipelined kernel's vectorised-load alignment.
 +    pub(super) fn gemm(
 +        &self,
 +        gpu: &dyn GpuBackend,
@@ -12503,7 +12734,7 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +        k: usize,
 +        stream: u64,
 +    ) -> Result<()> {
-+        dense_gemm(
++        dense_gemm_bf16_pipelined(
 +            gpu,
 +            self.k_gemm,
 +            input,
@@ -12528,16 +12759,14 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +        k: usize,
 +        stream: u64,
 +    ) -> Result<()> {
-+        KernelLaunch::new(gpu, self.k_gemm_bias)
-+            .grid([div_ceil(n as u32, 16), div_ceil(m as u32, 16), 1])
-+            .block([16, 16, 1])
-+            .arg_ptr(input)
-+            .arg_ptr(weight)
-+            .arg_ptr(bias)
++        self.gemm(gpu, input, weight, output, m, n, k, stream)?;
++        KernelLaunch::new(gpu, self.k_add_bias)
++            .grid([div_ceil((m * n) as u32, 256), 1, 1])
++            .block([256, 1, 1])
 +            .arg_ptr(output)
++            .arg_ptr(bias)
 +            .arg_u32(m as u32)
 +            .arg_u32(n as u32)
-+            .arg_u32(k as u32)
 +            .launch(stream)
 +    }
 +
@@ -12553,7 +12782,7 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +    ) -> Result<()> {
 +        KernelLaunch::new(gpu, self.k_rms_norm)
 +            .grid([rows as u32, 1, 1])
-+            .block([1, 1, 1])
++            .block([NORM_THREADS, 1, 1])
 +            .arg_ptr(input)
 +            .arg_ptr(weight)
 +            .arg_ptr(output)
@@ -12563,6 +12792,8 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +            .launch(stream)
 +    }
 +
++    /// Attention over one image sequence held in the fused `qkv` rows:
++    /// q/k RMSNorm + RoPE in place, then tensor-core flash attention.
 +    pub(super) fn attention(
 +        &self,
 +        gpu: &dyn GpuBackend,
@@ -12575,18 +12806,29 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +        rows: usize,
 +        stream: u64,
 +    ) -> Result<()> {
-+        KernelLaunch::new(gpu, self.k_attention)
-+            .grid([rows as u32, self.num_heads as u32, 1])
-+            .block([1, 1, 1])
++        KernelLaunch::new(gpu, self.k_qk_norm_rope)
++            .grid([rows as u32, self.num_heads as u32, 2])
++            .block([self.head_dim as u32, 1, 1])
 +            .arg_ptr(qkv)
 +            .arg_ptr(q_norm)
 +            .arg_ptr(k_norm)
 +            .arg_ptr(cos)
 +            .arg_ptr(sin)
-+            .arg_ptr(output)
 +            .arg_u32(rows as u32)
 +            .arg_u32(self.num_heads as u32)
 +            .arg_u32(self.head_dim as u32)
++            .launch(stream)?;
++        KernelLaunch::new(gpu, self.k_attention)
++            .grid([
++                div_ceil(rows as u32, FLASH_QUERY_ROWS),
++                self.num_heads as u32,
++                1,
++            ])
++            .block([128, 1, 1])
++            .arg_ptr(qkv)
++            .arg_ptr(output)
++            .arg_u32(rows as u32)
++            .arg_u32(self.num_heads as u32)
 +            .launch(stream)
 +    }
 +
@@ -12639,7 +12881,7 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +    ) -> Result<()> {
 +        KernelLaunch::new(gpu, self.k_layer_norm)
 +            .grid([rows as u32, 1, 1])
-+            .block([1, 1, 1])
++            .block([NORM_THREADS, 1, 1])
 +            .arg_ptr(data)
 +            .arg_ptr(weight)
 +            .arg_ptr(bias)
@@ -12664,39 +12906,158 @@ index 0000000000000000000000000000000000000000..15353c1649bd160fe39d771672eae59f
 +            .launch(stream)
 +    }
 +
++    /// The merger's 2x2 stride-2 Conv2d as one GEMM: reorder each merge
++    /// block's four rows into the weight's `(c, ih, iw)` K order, then
++    /// multiply by the `[out, hidden * 4]` view of the weight. `scratch` holds
++    /// `patches * hidden` BF16 elements.
 +    pub(super) fn conv2d(
 +        &self,
 +        gpu: &dyn GpuBackend,
 +        input: DevicePtr,
++        scratch: DevicePtr,
 +        output: DevicePtr,
 +        grid_h: usize,
 +        grid_w: usize,
 +        stream: u64,
 +    ) -> Result<()> {
-+        KernelLaunch::new(gpu, self.k_conv2d)
-+            .grid([
-+                self.out_hidden_size as u32,
-+                ((grid_h / 2) * (grid_w / 2)) as u32,
-+                1,
-+            ])
-+            .block([1, 1, 1])
++        let tokens = (grid_h / 2) * (grid_w / 2);
++        KernelLaunch::new(gpu, self.k_merge_reorder)
++            .grid([div_ceil((tokens * 4 * self.hidden_size) as u32, 256), 1, 1])
++            .block([256, 1, 1])
 +            .arg_ptr(input)
-+            .arg_ptr(self.downsample_w)
-+            .arg_ptr(self.downsample_b)
-+            .arg_ptr(output)
-+            .arg_u32(grid_h as u32)
-+            .arg_u32(grid_w as u32)
++            .arg_ptr(scratch)
++            .arg_u32(tokens as u32)
 +            .arg_u32(self.hidden_size as u32)
-+            .arg_u32(self.out_hidden_size as u32)
-+            .launch(stream)
++            .launch(stream)?;
++        self.gemm_bias(
++            gpu,
++            scratch,
++            self.downsample_w,
++            self.downsample_b,
++            output,
++            tokens,
++            self.out_hidden_size,
++            4 * self.hidden_size,
++            stream,
++        )
 +    }
++}
+diff --git a/crates/spark-model/src/layers/vision_encoder/glm_attention_gpu_tests.rs b/crates/spark-model/src/layers/vision_encoder/glm_attention_gpu_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..74a4af9293af8762dbbcce93809a03d6b91828bb
+--- /dev/null
++++ b/crates/spark-model/src/layers/vision_encoder/glm_attention_gpu_tests.rs
+@@ -0,0 +1,104 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++
++//! Ignored, CUDA-only check of the GLM visual flash-attention kernel against
++//! an FP32 host reference on sequences spanning several key tiles.
++
++use anyhow::{Context, Result, ensure};
++use spark_runtime::gpu::GpuBackend;
++use spark_runtime::kernel_args::{KernelLaunch, div_ceil};
++
++const HEADS: usize = 3;
++const HEAD_DIM: usize = 64;
++
++fn bf16(value: f32) -> u16 {
++    let bits = value.to_bits();
++    ((bits.wrapping_add(0x7fff + ((bits >> 16) & 1))) >> 16) as u16
++}
++
++fn f32_of(bits: u16) -> f32 {
++    f32::from_bits((bits as u32) << 16)
++}
++
++/// Deterministic values in roughly [-2, 2), so scores span a wide range.
++fn values(n: usize, seed: u32) -> Vec<u16> {
++    let mut state = seed.wrapping_mul(0x9e37_79b9) | 1;
++    (0..n)
++        .map(|_| {
++            state ^= state << 13;
++            state ^= state >> 17;
++            state ^= state << 5;
++            bf16((state >> 8) as f32 / (1u32 << 22) as f32 - 2.0)
++        })
++        .collect()
++}
++
++fn reference(qkv: &[u16], seq: usize) -> Vec<f32> {
++    let hidden = HEADS * HEAD_DIM;
++    let at = |row: usize, part: usize, head: usize, d: usize| {
++        f32_of(qkv[row * 3 * hidden + part * hidden + head * HEAD_DIM + d])
++    };
++    let mut out = vec![0.0f32; seq * hidden];
++    for head in 0..HEADS {
++        for q in 0..seq {
++            let scores: Vec<f32> = (0..seq)
++                .map(|k| {
++                    (0..HEAD_DIM)
++                        .map(|d| at(q, 0, head, d) * at(k, 1, head, d))
++                        .sum::<f32>()
++                        / (HEAD_DIM as f32).sqrt()
++                })
++                .collect();
++            let max = scores.iter().copied().fold(f32::NEG_INFINITY, f32::max);
++            let probs: Vec<f32> = scores.iter().map(|s| (s - max).exp()).collect();
++            let total: f32 = probs.iter().sum();
++            for d in 0..HEAD_DIM {
++                out[q * hidden + head * HEAD_DIM + d] =
++                    (0..seq).map(|k| probs[k] * at(k, 2, head, d)).sum::<f32>() / total;
++            }
++        }
++    }
++    out
++}
++
++#[test]
++#[ignore = "requires a CUDA host"]
++fn glm_vision_flash_attention_matches_fp32_reference() -> Result<()> {
++    let target = atlas_kernels::ptx_for_exact_target("glm-5.3-flash-nvfp4", "nvfp4")
++        .context("resolve exact GLM CUDA kernel target")?;
++    let gpu = spark_runtime::cuda_backend::AtlasCudaBackend::new(0, &target.modules)
++        .context("create CUDA backend")?;
++    let gpu: &dyn GpuBackend = &gpu;
++    let kernel = gpu.kernel("glm_vision_encoder", "glm_vision_flash_attention")?;
++    let stream = gpu.default_stream();
++    let hidden = HEADS * HEAD_DIM;
++    // One partial tile, exact tiles, and several tiles with a partial tail.
++    for seq in [40usize, 128, 300] {
++        let qkv = values(seq * 3 * hidden, seq as u32);
++        let qkv_bytes: Vec<u8> = qkv.iter().flat_map(|v| v.to_le_bytes()).collect();
++        let d_qkv = gpu.alloc(qkv_bytes.len())?;
++        let d_out = gpu.alloc(seq * hidden * 2)?;
++        gpu.copy_h2d(&qkv_bytes, d_qkv)?;
++        KernelLaunch::new(gpu, kernel)
++            .grid([div_ceil(seq as u32, 64), HEADS as u32, 1])
++            .block([128, 1, 1])
++            .arg_ptr(d_qkv)
++            .arg_ptr(d_out)
++            .arg_u32(seq as u32)
++            .arg_u32(HEADS as u32)
++            .launch(stream)?;
++        gpu.synchronize(stream)?;
++        let mut out_bytes = vec![0u8; seq * hidden * 2];
++        gpu.copy_d2h(d_out, &mut out_bytes)?;
++        gpu.free(d_qkv)?;
++        gpu.free(d_out)?;
++        let expected = reference(&qkv, seq);
++        let mut worst = 0.0f32;
++        for (i, pair) in out_bytes.chunks_exact(2).enumerate() {
++            let got = f32_of(u16::from_le_bytes([pair[0], pair[1]]));
++            worst = worst.max((got - expected[i]).abs());
++        }
++        // BF16 output and BF16 probabilities: a few BF16 ulps at |v| <= 2.
++        ensure!(worst < 0.01, "seq {seq}: max |flash - reference| = {worst}");
++    }
++    Ok(())
 +}
 diff --git a/crates/spark-model/src/layers/vision_encoder/glm_oracle_tests.rs b/crates/spark-model/src/layers/vision_encoder/glm_oracle_tests.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..2552eeedd87adb7a52d63bb8ade21c490f582bc0
+index 0000000000000000000000000000000000000000..695913260da39aab8b253aecf9669a65c2975a94
 --- /dev/null
 +++ b/crates/spark-model/src/layers/vision_encoder/glm_oracle_tests.rs
-@@ -0,0 +1,282 @@
+@@ -0,0 +1,299 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! Ignored, GPU-only GLM-5.3 vision dump oracle.
@@ -12724,6 +13085,10 @@ index 0000000000000000000000000000000000000000..2552eeedd87adb7a52d63bb8ade21c49
 +
 +const REFERENCE_REVISION: &str = "487ecf187d3dfe74d2cf6119a92881dba403c219";
 +const MIN_FREE_BYTES_BEFORE_LOAD: usize = 5 * 1024 * 1024 * 1024;
++/// Wall-time budget for one fixture, including first-launch module loading.
++/// A 1024x1024 image encodes in well under a second; the scalar reference
++/// kernels this replaced needed hours.
++const MAX_ENCODE: std::time::Duration = std::time::Duration::from_secs(10);
 +
 +fn sha256_hex(bytes: &[u8]) -> String {
 +    let digest = Sha256::digest(bytes);
@@ -12909,7 +13274,14 @@ index 0000000000000000000000000000000000000000..2552eeedd87adb7a52d63bb8ade21c49
 +        .context("native GLM vision loader returned no encoder")?;
 +    let stream = gpu.default_stream();
 +
-+    let fixtures = [("square_112", 112, 112), ("wide_112x224", 224, 112)];
++    // `odd_196x140` leaves the last 64-query attention tile partial;
++    // `square_1024` is the full-size image whose encode used to take hours.
++    let fixtures = [
++        ("square_112", 112, 112),
++        ("wide_112x224", 224, 112),
++        ("odd_196x140", 196, 140),
++        ("square_1024", 1024, 1024),
++    ];
 +    let mut cases = Vec::with_capacity(fixtures.len());
 +    for (name, width, height) in fixtures {
 +        let uri = fixture_png(width, height)?;
@@ -12921,11 +13293,17 @@ index 0000000000000000000000000000000000000000..2552eeedd87adb7a52d63bb8ade21c49
 +        );
 +        let item = VisionItem::image(pixels.clone(), grid_h, grid_w);
 +        let items = [&item];
++        let started = std::time::Instant::now();
 +        let geometry = encoder
 +            .forward_items(&items, gpu, stream)
 +            .with_context(|| format!("native GLM forward {name}"))?;
 +        gpu.synchronize(stream)
 +            .context("synchronize native encoder")?;
++        let encode = started.elapsed();
++        ensure!(
++            encode < MAX_ENCODE,
++            "native GLM forward {name} ({grid_h}x{grid_w} patches) took {encode:?}"
++        );
 +        ensure!(
 +            geometry.len() == 1,
 +            "one fixture must produce one output geometry"
@@ -14633,7 +15011,7 @@ index 012b5a199f31f6841580ccf76f27755cb2baced2..c06cdc16ccf33ad0fc6b0d3c369be01c
              ssm_checkpoint_interval,
              ssm_state_norm_kernel: ssm_norm_k,
 diff --git a/crates/spark-model/src/model/impl_a2.rs b/crates/spark-model/src/model/impl_a2.rs
-index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3fe0503e1 100644
+index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..fbfd71a2b653190db5d09fc4ffa1c667eb306838 100644
 --- a/crates/spark-model/src/model/impl_a2.rs
 +++ b/crates/spark-model/src/model/impl_a2.rs
 @@ -19,6 +19,10 @@ use super::block_mgmt::{
@@ -14752,8 +15130,8 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
 +                owned_images,
 +                slice_rows: if owned_images == 0 { rows } else { slice_rows },
 +            };
-+            let state = validate_state(&state, ve.p_max)?;
-+            let payload = payload_bytes(&state, ve.out_hidden_size, ve.p_max)?;
++            let state = validate_state(&state, ve.output_rows())?;
++            let payload = payload_bytes(&state, ve.out_hidden_size, ve.output_rows())?;
 +            anyhow::ensure!(
 +                payload > 0,
 +                "vision request produced an empty encoder payload"
@@ -14868,13 +15246,16 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
          if cmd == super::glm_c2_pair_transport::EP_GLM_PAIR_VERIFY {
              return self.paired_receive_verify_pair(seq_id, slots);
          }
-@@ -508,6 +696,53 @@ impl TransformerModel {
+@@ -508,6 +696,56 @@ impl TransformerModel {
          let stream = self.gpu.default_stream();
  
          match cmd {
 +            EP_CMD_VISION_STATE => {
 +                let header = self.ep_broadcast_tokens(&vec![0; VISION_HEADER_WORDS])?;
-+                let max_rows = self.vision_encoder.as_ref().map_or(0, |ve| ve.p_max);
++                let max_rows = self
++                    .vision_encoder
++                    .as_ref()
++                    .map_or(0, |ve| ve.output_rows());
 +                let state = parse_state_header(&header, max_rows)?;
 +                let grid_words = if state.grid_count > 0 {
 +                    self.ep_broadcast_tokens(&vec![0; state.grid_count * 3])?
@@ -14883,7 +15264,7 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
 +                };
 +                let grids = parse_grid_words(&grid_words, &state)?;
 +                let payload = if let Some(ve) = &self.vision_encoder {
-+                    payload_bytes(&state, ve.out_hidden_size, ve.p_max)?
++                    payload_bytes(&state, ve.out_hidden_size, ve.output_rows())?
 +                } else {
 +                    anyhow::ensure!(
 +                        state.rows == 0,
@@ -14922,7 +15303,7 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
              EP_CMD_GLM_MTP_PROPOSE => {
                  if self.paired_handoff().is_some() {
                      return self.paired_receive_propose(seq);
-@@ -692,7 +927,6 @@ impl TransformerModel {
+@@ -692,7 +930,6 @@ impl TransformerModel {
                              ),
                          ));
                      }
@@ -14930,7 +15311,7 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
                      let verify_base = if let Some(base) = paired_base {
                          base
                      } else if crate::speculative::glm_repair_policy::enabled() {
-@@ -702,23 +936,7 @@ impl TransformerModel {
+@@ -702,23 +939,7 @@ impl TransformerModel {
                      } else {
                          0
                      };
@@ -14955,7 +15336,7 @@ index 55589ae8da68ed70b7402c87ae3e85d91cb454f3..b0ab2f0a963722df6bf3d88d5c0d9fd3
                  })();
                  result.map_err(|error| {
                      if selected {
-@@ -741,6 +959,38 @@ impl TransformerModel {
+@@ -741,6 +962,38 @@ impl TransformerModel {
          Ok(true)
      }
  
@@ -25675,10 +26056,10 @@ index 7469d1b76b27de405302e49c2b104c24bcc93fdd..d74a71f448700fd13c7c40dc9177f44f
  // logits. The cache remains paged with the main KV block table.
 diff --git a/kernels/gb10/common/glm_vision_encoder.cu b/kernels/gb10/common/glm_vision_encoder.cu
 new file mode 100644
-index 0000000000000000000000000000000000000000..c8724510655bdb4c5284f6c54b8edef7eafe2178
+index 0000000000000000000000000000000000000000..d525b7530be44d90fbfa3b2f62ba449035013962
 --- /dev/null
 +++ b/kernels/gb10/common/glm_vision_encoder.cu
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,328 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +// Native GLM-5.3 vision primitives.  These deliberately live in a separate
@@ -25699,38 +26080,47 @@ index 0000000000000000000000000000000000000000..c8724510655bdb4c5284f6c54b8edef7
 +    if (i < n) dst[i] = glm_bf16_from_f32(src[i]);
 +}
 +
-+extern "C" __global__ void glm_vision_gemm_bias(
-+    const __nv_bfloat16* __restrict__ a,
-+    const __nv_bfloat16* __restrict__ b,
-+    const __nv_bfloat16* __restrict__ bias,
-+    __nv_bfloat16* __restrict__ c,
-+    unsigned int m, unsigned int n, unsigned int k) {
-+    unsigned int row = blockIdx.y * 16 + threadIdx.y;
-+    unsigned int col = blockIdx.x * 16 + threadIdx.x;
-+    if (row >= m || col >= n) return;
-+    float acc = 0.0f;
-+    for (unsigned int i = 0; i < k; ++i)
-+        acc += glm_bf16(a[row * k + i]) * glm_bf16(b[col * k + i]);
-+    c[row * n + col] = glm_bf16_from_f32(acc + glm_bf16(bias[col]));
++// Block-wide sum for the one-row-per-block norms (blockDim.x a multiple of 32,
++// at most 1024). Every thread receives the total.
++__device__ inline float glm_block_sum(float v) {
++    __shared__ float partial[32];
++    for (int offset = 16; offset > 0; offset >>= 1) v += __shfl_xor_sync(0xffffffffu, v, offset);
++    unsigned int warp = threadIdx.x >> 5, lane = threadIdx.x & 31;
++    __syncthreads();  // `partial` may still be read by a previous call
++    if (lane == 0) partial[warp] = v;
++    __syncthreads();
++    v = lane < (blockDim.x >> 5) ? partial[lane] : 0.0f;
++    for (int offset = 16; offset > 0; offset >>= 1) v += __shfl_xor_sync(0xffffffffu, v, offset);
++    return v;
 +}
 +
++// One block per row.
 +extern "C" __global__ void glm_vision_rms_norm(
 +    const __nv_bfloat16* __restrict__ x,
 +    const __nv_bfloat16* __restrict__ w,
 +    __nv_bfloat16* __restrict__ y,
 +    unsigned int rows, unsigned int hidden, float eps) {
 +    unsigned int row = blockIdx.x;
-+    if (row >= rows || threadIdx.x != 0) return;
-+    const __nv_bfloat16* xr = x + row * hidden;
-+    __nv_bfloat16* yr = y + row * hidden;
++    if (row >= rows) return;
++    const __nv_bfloat16* xr = x + (size_t)row * hidden;
++    __nv_bfloat16* yr = y + (size_t)row * hidden;
 +    float sum = 0.0f;
-+    for (unsigned int d = 0; d < hidden; ++d) {
++    for (unsigned int d = threadIdx.x; d < hidden; d += blockDim.x) {
 +        float v = glm_bf16(xr[d]);
 +        sum += v * v;
 +    }
-+    float inv = rsqrtf(sum / hidden + eps);
-+    for (unsigned int d = 0; d < hidden; ++d)
++    float inv = rsqrtf(glm_block_sum(sum) / hidden + eps);
++    for (unsigned int d = threadIdx.x; d < hidden; d += blockDim.x)
 +        yr[d] = glm_bf16_from_f32(glm_bf16(xr[d]) * inv * glm_bf16(w[d]));
++}
++
++// Row-broadcast bias for the tensor-core GEMM output: c[m, n] += bias[n].
++extern "C" __global__ void glm_vision_add_bias(
++    __nv_bfloat16* __restrict__ c,
++    const __nv_bfloat16* __restrict__ bias,
++    unsigned int m, unsigned int n) {
++    unsigned int i = blockIdx.x * 256 + threadIdx.x;
++    if (i < m * n) c[i] = glm_bf16_from_f32(glm_bf16(c[i]) + glm_bf16(bias[i % n]));
 +}
 +
 +extern "C" __global__ void glm_vision_add(
@@ -25741,24 +26131,25 @@ index 0000000000000000000000000000000000000000..c8724510655bdb4c5284f6c54b8edef7
 +    if (i < n) dst[i] = glm_bf16_from_f32(glm_bf16(dst[i]) + glm_bf16(src[i]));
 +}
 +
++// One block per row, in place.
 +extern "C" __global__ void glm_vision_layer_norm(
 +    __nv_bfloat16* __restrict__ x,
 +    const __nv_bfloat16* __restrict__ w,
 +    const __nv_bfloat16* __restrict__ b,
 +    unsigned int rows, unsigned int hidden, float eps) {
 +    unsigned int row = blockIdx.x;
-+    if (row >= rows || threadIdx.x != 0) return;
-+    __nv_bfloat16* xr = x + row * hidden;
-+    float mean = 0.0f;
-+    for (unsigned int d = 0; d < hidden; ++d) mean += glm_bf16(xr[d]);
-+    mean /= hidden;
++    if (row >= rows) return;
++    __nv_bfloat16* xr = x + (size_t)row * hidden;
++    float sum = 0.0f;
++    for (unsigned int d = threadIdx.x; d < hidden; d += blockDim.x) sum += glm_bf16(xr[d]);
++    float mean = glm_block_sum(sum) / hidden;
 +    float var = 0.0f;
-+    for (unsigned int d = 0; d < hidden; ++d) {
++    for (unsigned int d = threadIdx.x; d < hidden; d += blockDim.x) {
 +        float delta = glm_bf16(xr[d]) - mean;
 +        var += delta * delta;
 +    }
-+    float inv = rsqrtf(var / hidden + eps);
-+    for (unsigned int d = 0; d < hidden; ++d) {
++    float inv = rsqrtf(glm_block_sum(var) / hidden + eps);
++    for (unsigned int d = threadIdx.x; d < hidden; d += blockDim.x) {
 +        float v = (glm_bf16(xr[d]) - mean) * inv;
 +        xr[d] = glm_bf16_from_f32(v * glm_bf16(w[d]) + glm_bf16(b[d]));
 +    }
@@ -25788,141 +26179,214 @@ index 0000000000000000000000000000000000000000..c8724510655bdb4c5284f6c54b8edef7
 +    y[i] = glm_bf16_from_f32((gate / (1.0f + expf(-gate))) * up);
 +}
 +
-+__device__ inline float glm_rotated(
-+    const __nv_bfloat16* qkv, unsigned int base, unsigned int dim,
-+    const __nv_bfloat16* cos_row, const __nv_bfloat16* sin_row,
-+    const __nv_bfloat16* norm, float inv, unsigned int rotary_dim) {
-+    // ApplyRotaryEmb is Neox-style over the full head.  GLM's partial rotary
-+    // factor makes the cache row `head_dim / 2` wide; its first half carries
-+    // H frequencies and its second half W frequencies, while the two halves
-+    // of the head are paired by the rotary transform.
-+    unsigned int partner = dim < rotary_dim ? dim + rotary_dim : dim - rotary_dim;
-+    // fused_q_kv_rmsnorm returns BF16.  Preserve that write boundary before
-+    // loading the values for the subsequent BF16 rotary operation.
-+    float x = glm_bf16(glm_bf16_from_f32(
-+        glm_bf16(qkv[base + dim]) * inv * glm_bf16(norm[dim])));
-+    float p = glm_bf16(glm_bf16_from_f32(
-+        glm_bf16(qkv[base + partner]) * inv * glm_bf16(norm[partner])));
-+    float c = glm_bf16(cos_row[dim % rotary_dim]);
-+    float s = glm_bf16(sin_row[dim % rotary_dim]);
-+    float rotated = dim < rotary_dim ? x * c - p * s : x * c + p * s;
-+    // The CUDA rotary op writes back to the BF16 q/k tensor before attention.
-+    return glm_bf16(glm_bf16_from_f32(rotated));
-+}
 +
-+// One thread computes one (query, head) row.  It is intentionally a scalar
-+// correctness kernel while the numerical reference is established; it keeps
-+// q/k RMSNorm, partial 2-D RoPE, and variable-sequence softmax in one place.
-+extern "C" __global__ void glm_vision_attention(
-+    const __nv_bfloat16* __restrict__ qkv,
++// q/k RMSNorm followed by GLM's partial 2-D RoPE, written back in place over
++// the Q and K thirds of the fused [rows, 3 * heads * head_dim] QKV tensor so
++// attention reads ready BF16 operands. One block of `head_dim` threads per
++// (row, head, q|k); blockIdx.z selects Q (0) or K (1).
++extern "C" __global__ void glm_vision_qk_norm_rope(
++    __nv_bfloat16* __restrict__ qkv,
 +    const __nv_bfloat16* __restrict__ q_norm,
 +    const __nv_bfloat16* __restrict__ k_norm,
 +    const __nv_bfloat16* __restrict__ cos_table,
 +    const __nv_bfloat16* __restrict__ sin_table,
-+    __nv_bfloat16* __restrict__ out,
-+    unsigned int seq, unsigned int heads, unsigned int head_dim) {
-+    unsigned int query = blockIdx.x;
-+    unsigned int head = blockIdx.y;
-+    if (query >= seq || head >= heads || threadIdx.x != 0) return;
++    unsigned int rows, unsigned int heads, unsigned int head_dim) {
++    __shared__ float normed[128];
++    unsigned int row = blockIdx.x, head = blockIdx.y, dim = threadIdx.x;
++    if (row >= rows || head >= heads || dim >= head_dim) return;
 +    unsigned int hidden = heads * head_dim;
-+    unsigned int row_stride = 3 * hidden;
-+    unsigned int q_base = query * row_stride + head * head_dim;
++    size_t base = (size_t)row * 3 * hidden + blockIdx.z * hidden + head * head_dim;
++    const __nv_bfloat16* norm = blockIdx.z ? k_norm : q_norm;
++    float raw = glm_bf16(qkv[base + dim]);
++    float inv = rsqrtf(glm_block_sum(raw * raw) / head_dim + 1.0e-5f);
++    // fused_q_kv_rmsnorm returns BF16; keep that boundary before the rotary op.
++    normed[dim] = glm_bf16(glm_bf16_from_f32(raw * inv * glm_bf16(norm[dim])));
++    __syncthreads();
++    // ApplyRotaryEmb is Neox-style over the full head. GLM's partial rotary
++    // factor makes the cache row `head_dim / 2` wide; its first half carries
++    // H frequencies and its second half W frequencies, while the two halves
++    // of the head are paired by the rotary transform.
 +    unsigned int rotary_dim = head_dim / 2;
-+    float q[128];
-+    float q_sq = 0.0f;
-+    for (unsigned int d = 0; d < head_dim; ++d) {
-+        float raw = glm_bf16(qkv[q_base + d]);
-+        q[d] = raw;
-+        q_sq += raw * raw;
-+    }
-+    float q_inv = rsqrtf(q_sq / head_dim + 1.0e-5f);
-+    const __nv_bfloat16* cos_q = cos_table + query * rotary_dim;
-+    const __nv_bfloat16* sin_q = sin_table + query * rotary_dim;
-+    for (unsigned int d = 0; d < head_dim; ++d)
-+        q[d] = glm_rotated(qkv, q_base, d, cos_q, sin_q, q_norm, q_inv, rotary_dim);
++    unsigned int partner = dim < rotary_dim ? dim + rotary_dim : dim - rotary_dim;
++    float c = glm_bf16(cos_table[row * rotary_dim + dim % rotary_dim]);
++    float s = glm_bf16(sin_table[row * rotary_dim + dim % rotary_dim]);
++    float x = normed[dim], p = normed[partner];
++    qkv[base + dim] = glm_bf16_from_f32(dim < rotary_dim ? x * c - p * s : x * c + p * s);
++}
 +
-+    float max_score = -3.402823466e+38f;
-+    for (unsigned int key = 0; key < seq; ++key) {
-+        unsigned int k_base = key * row_stride + hidden + head * head_dim;
-+        float k_sq = 0.0f;
-+        for (unsigned int d = 0; d < head_dim; ++d) {
-+            float raw = glm_bf16(qkv[k_base + d]);
-+            k_sq += raw * raw;
-+        }
-+        float k_inv = rsqrtf(k_sq / head_dim + 1.0e-5f);
-+        const __nv_bfloat16* cos_k = cos_table + key * rotary_dim;
-+        const __nv_bfloat16* sin_k = sin_table + key * rotary_dim;
-+        float score = 0.0f;
-+        for (unsigned int d = 0; d < head_dim; ++d)
-+            score += q[d] * glm_rotated(qkv, k_base, d, cos_k, sin_k, k_norm, k_inv, rotary_dim);
-+        score *= rsqrtf((float)head_dim);
-+        max_score = fmaxf(max_score, score);
++// Bidirectional flash attention over one image sequence, reading the rotated
++// Q/K and raw V straight out of the fused QKV rows and writing the
++// [rows, heads * 64] output. Four warps own 16 queries each; K/V tiles of 64
++// keys are staged in shared memory (V transposed so P.V uses the same
++// K-contiguous B-fragment layout as Q.K^T). Scores and the online softmax stay
++// in FP32; P is rounded to BF16 for the P.V MMA as in FlashAttention-2.
++#define GLM_FA_D 64
++#define GLM_FA_BM 64
++#define GLM_FA_BN 64
++#define GLM_FA_STRIDE (GLM_FA_D + 8)
++
++__device__ __forceinline__ void glm_mma_bf16(float c[4], const unsigned int a[4],
++                                             unsigned int b0, unsigned int b1) {
++    asm volatile(
++        "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
++        "{%0, %1, %2, %3}, {%4, %5, %6, %7}, {%8, %9}, {%0, %1, %2, %3};"
++        : "+f"(c[0]), "+f"(c[1]), "+f"(c[2]), "+f"(c[3])
++        : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b0), "r"(b1));
++}
++
++__device__ __forceinline__ unsigned int glm_pack_bf16(float lo, float hi) {
++    __nv_bfloat162 v = __floats2bfloat162_rn(lo, hi);
++    return *reinterpret_cast<unsigned int*>(&v);
++}
++
++extern "C" __global__ void __launch_bounds__(128) glm_vision_flash_attention(
++    const __nv_bfloat16* __restrict__ qkv,
++    __nv_bfloat16* __restrict__ out,
++    unsigned int seq, unsigned int heads) {
++    __shared__ __align__(16) __nv_bfloat16 s_k[GLM_FA_BN][GLM_FA_STRIDE];
++    __shared__ __align__(16) __nv_bfloat16 s_vt[GLM_FA_D][GLM_FA_STRIDE];
++    const unsigned int head = blockIdx.y;
++    const unsigned int hidden = heads * GLM_FA_D;
++    const size_t row_stride = 3 * (size_t)hidden;
++    const __nv_bfloat16* q_base = qkv + head * GLM_FA_D;
++    const __nv_bfloat16* k_base = q_base + hidden;
++    const __nv_bfloat16* v_base = q_base + 2 * hidden;
++    const unsigned int warp = threadIdx.x >> 5, lane = threadIdx.x & 31;
++    const unsigned int group = lane >> 2, quad = lane & 3;
++    const unsigned int r0 = blockIdx.x * GLM_FA_BM + warp * 16 + group, r1 = r0 + 8;
++
++    // Q A-fragments for the four 16-wide K steps of the head dimension.
++    unsigned int qa[4][4];
++    #pragma unroll
++    for (int ks = 0; ks < 4; ++ks) {
++        unsigned int c0 = ks * 16 + quad * 2, c1 = c0 + 8;
++        qa[ks][0] = r0 < seq ? *(const unsigned int*)(q_base + r0 * row_stride + c0) : 0u;
++        qa[ks][1] = r1 < seq ? *(const unsigned int*)(q_base + r1 * row_stride + c0) : 0u;
++        qa[ks][2] = r0 < seq ? *(const unsigned int*)(q_base + r0 * row_stride + c1) : 0u;
++        qa[ks][3] = r1 < seq ? *(const unsigned int*)(q_base + r1 * row_stride + c1) : 0u;
 +    }
-+    float denom = 0.0f;
-+    for (unsigned int key = 0; key < seq; ++key) {
-+        unsigned int k_base = key * row_stride + hidden + head * head_dim;
-+        float k_sq = 0.0f;
-+        for (unsigned int d = 0; d < head_dim; ++d) {
-+            float raw = glm_bf16(qkv[k_base + d]);
-+            k_sq += raw * raw;
-+        }
-+        float k_inv = rsqrtf(k_sq / head_dim + 1.0e-5f);
-+        const __nv_bfloat16* cos_k = cos_table + key * rotary_dim;
-+        const __nv_bfloat16* sin_k = sin_table + key * rotary_dim;
-+        float score = 0.0f;
-+        for (unsigned int d = 0; d < head_dim; ++d)
-+            score += q[d] * glm_rotated(qkv, k_base, d, cos_k, sin_k, k_norm, k_inv, rotary_dim);
-+        denom += expf(score * rsqrtf((float)head_dim) - max_score);
-+    }
-+    for (unsigned int d = 0; d < head_dim; ++d) {
-+        float acc = 0.0f;
-+        for (unsigned int key = 0; key < seq; ++key) {
-+            unsigned int k_base = key * row_stride + hidden + head * head_dim;
-+            float k_sq = 0.0f;
-+            for (unsigned int j = 0; j < head_dim; ++j) {
-+                float raw = glm_bf16(qkv[k_base + j]);
-+                k_sq += raw * raw;
++
++    const float scale_log2 = 0.125f * 1.4426950408889634f;  // head_dim^-0.5 * log2(e)
++    float m0 = -INFINITY, m1 = -INFINITY, l0 = 0.0f, l1 = 0.0f;
++    float o[8][4];
++    #pragma unroll
++    for (int i = 0; i < 8; ++i) o[i][0] = o[i][1] = o[i][2] = o[i][3] = 0.0f;
++
++    for (unsigned int kv0 = 0; kv0 < seq; kv0 += GLM_FA_BN) {
++        __syncthreads();  // the previous tile is no longer being read
++        for (unsigned int c = threadIdx.x; c < GLM_FA_BN * GLM_FA_D / 8; c += 128) {
++            unsigned int key = c / (GLM_FA_D / 8), d = (c % (GLM_FA_D / 8)) * 8;
++            uint4 kv = make_uint4(0, 0, 0, 0), vv = make_uint4(0, 0, 0, 0);
++            if (kv0 + key < seq) {
++                kv = *(const uint4*)(k_base + (kv0 + key) * row_stride + d);
++                vv = *(const uint4*)(v_base + (kv0 + key) * row_stride + d);
 +            }
-+            float k_inv = rsqrtf(k_sq / head_dim + 1.0e-5f);
-+            const __nv_bfloat16* cos_k = cos_table + key * rotary_dim;
-+            const __nv_bfloat16* sin_k = sin_table + key * rotary_dim;
-+            float score = 0.0f;
-+            for (unsigned int j = 0; j < head_dim; ++j)
-+                score += q[j] * glm_rotated(qkv, k_base, j, cos_k, sin_k, k_norm, k_inv, rotary_dim);
-+            float p = expf(score * rsqrtf((float)head_dim) - max_score) / denom;
-+            acc += p * glm_bf16(qkv[key * row_stride + 2 * hidden + head * head_dim + d]);
++            *(uint4*)&s_k[key][d] = kv;
++            const __nv_bfloat16* v8 = reinterpret_cast<const __nv_bfloat16*>(&vv);
++            #pragma unroll
++            for (int e = 0; e < 8; ++e) s_vt[d + e][key] = v8[e];
 +        }
-+        out[query * hidden + head * head_dim + d] = glm_bf16_from_f32(acc);
++        __syncthreads();
++
++        float s[8][4];
++        #pragma unroll
++        for (int nt = 0; nt < 8; ++nt) {
++            s[nt][0] = s[nt][1] = s[nt][2] = s[nt][3] = 0.0f;
++            const __nv_bfloat16* krow = s_k[nt * 8 + group];
++            #pragma unroll
++            for (int ks = 0; ks < 4; ++ks)
++                glm_mma_bf16(s[nt], qa[ks], *(const unsigned int*)(krow + ks * 16 + quad * 2),
++                             *(const unsigned int*)(krow + ks * 16 + 8 + quad * 2));
++        }
++
++        float t0 = m0, t1 = m1;
++        #pragma unroll
++        for (int nt = 0; nt < 8; ++nt) {
++            unsigned int key = kv0 + nt * 8 + quad * 2;
++            #pragma unroll
++            for (int j = 0; j < 2; ++j) {
++                bool valid = key + j < seq;
++                s[nt][j] = valid ? s[nt][j] * scale_log2 : -INFINITY;
++                s[nt][2 + j] = valid ? s[nt][2 + j] * scale_log2 : -INFINITY;
++                t0 = fmaxf(t0, s[nt][j]);
++                t1 = fmaxf(t1, s[nt][2 + j]);
++            }
++        }
++        #pragma unroll
++        for (int offset = 1; offset < 4; offset <<= 1) {
++            t0 = fmaxf(t0, __shfl_xor_sync(0xffffffffu, t0, offset));
++            t1 = fmaxf(t1, __shfl_xor_sync(0xffffffffu, t1, offset));
++        }
++        // Every tile holds at least one valid key, so the new maxima are finite.
++        float alpha0 = exp2f(m0 - t0), alpha1 = exp2f(m1 - t1);
++        m0 = t0;
++        m1 = t1;
++        l0 *= alpha0;
++        l1 *= alpha1;
++        #pragma unroll
++        for (int dt = 0; dt < 8; ++dt) {
++            o[dt][0] *= alpha0; o[dt][1] *= alpha0;
++            o[dt][2] *= alpha1; o[dt][3] *= alpha1;
++        }
++        #pragma unroll
++        for (int nt = 0; nt < 8; ++nt) {
++            s[nt][0] = exp2f(s[nt][0] - m0); s[nt][1] = exp2f(s[nt][1] - m0);
++            s[nt][2] = exp2f(s[nt][2] - m1); s[nt][3] = exp2f(s[nt][3] - m1);
++            l0 += s[nt][0] + s[nt][1];
++            l1 += s[nt][2] + s[nt][3];
++        }
++
++        // The score accumulator layout of key tiles (2j, 2j+1) is exactly the
++        // A-fragment layout of the j-th 16-key step of P.
++        #pragma unroll
++        for (int j = 0; j < 4; ++j) {
++            unsigned int pa[4] = {
++                glm_pack_bf16(s[2 * j][0], s[2 * j][1]),
++                glm_pack_bf16(s[2 * j][2], s[2 * j][3]),
++                glm_pack_bf16(s[2 * j + 1][0], s[2 * j + 1][1]),
++                glm_pack_bf16(s[2 * j + 1][2], s[2 * j + 1][3]),
++            };
++            #pragma unroll
++            for (int dt = 0; dt < 8; ++dt) {
++                const __nv_bfloat16* vrow = s_vt[dt * 8 + group];
++                glm_mma_bf16(o[dt], pa, *(const unsigned int*)(vrow + j * 16 + quad * 2),
++                             *(const unsigned int*)(vrow + j * 16 + 8 + quad * 2));
++            }
++        }
++    }
++
++    #pragma unroll
++    for (int offset = 1; offset < 4; offset <<= 1) {
++        l0 += __shfl_xor_sync(0xffffffffu, l0, offset);
++        l1 += __shfl_xor_sync(0xffffffffu, l1, offset);
++    }
++    float inv0 = 1.0f / l0, inv1 = 1.0f / l1;
++    #pragma unroll
++    for (int dt = 0; dt < 8; ++dt) {
++        unsigned int col = head * GLM_FA_D + dt * 8 + quad * 2;
++        if (r0 < seq)
++            *(__nv_bfloat162*)(out + (size_t)r0 * hidden + col) =
++                __floats2bfloat162_rn(o[dt][0] * inv0, o[dt][1] * inv0);
++        if (r1 < seq)
++            *(__nv_bfloat162*)(out + (size_t)r1 * hidden + col) =
++                __floats2bfloat162_rn(o[dt][2] * inv1, o[dt][3] * inv1);
 +    }
 +}
 +
-+extern "C" __global__ void glm_vision_conv2d(
-+    const __nv_bfloat16* __restrict__ input,
-+    const __nv_bfloat16* __restrict__ weight,
-+    const __nv_bfloat16* __restrict__ bias,
-+    __nv_bfloat16* __restrict__ output,
-+    unsigned int grid_h, unsigned int grid_w, unsigned int hidden, unsigned int out_hidden) {
-+    unsigned int out_col = blockIdx.x;
-+    unsigned int token = blockIdx.y;
-+    unsigned int out_h = grid_h / 2;
-+    unsigned int out_w = grid_w / 2;
-+    if (out_col >= out_hidden || token >= out_h * out_w || threadIdx.x != 0) return;
-+    unsigned int bh = token / out_w;
-+    unsigned int bw = token % out_w;
-+    float acc = glm_bf16(bias[out_col]);
-+    for (unsigned int ih = 0; ih < 2; ++ih)
-+        for (unsigned int iw = 0; iw < 2; ++iw)
-+            for (unsigned int c = 0; c < hidden; ++c) {
-+                // The processor emits each 2x2 merge block contiguously
-+                // (`bh`, `bw`, `ih`, `iw`). The post-layernorm tensor is
-+                // therefore already laid out as Conv2d's [N,C,H,W] view;
-+                // indexing it as a row-major patch plane would mix the four
-+                // members of neighbouring merge blocks.
-+                unsigned int row = (bh * out_w + bw) * 4 + ih * 2 + iw;
-+                unsigned int woff = ((out_col * hidden + c) * 2 + ih) * 2 + iw;
-+                acc += glm_bf16(input[row * hidden + c]) * glm_bf16(weight[woff]);
-+            }
-+    output[token * out_hidden + out_col] = glm_bf16_from_f32(acc);
++// Lay each 2x2 merge block out in Conv2d weight order so the merger's
++// downsample becomes one GEMM against the [out, hidden, 2, 2] weight viewed as
++// [out, hidden * 4]. The processor emits the four members of a block as
++// consecutive rows (`bh`, `bw`, `ih`, `iw`), so row `token * 4 + q` of `src`
++// holds member q = ih * 2 + iw: dst[token][c * 4 + q] = src[token * 4 + q][c].
++extern "C" __global__ void glm_vision_merge_reorder(
++    const __nv_bfloat16* __restrict__ src,
++    __nv_bfloat16* __restrict__ dst,
++    unsigned int tokens, unsigned int hidden) {
++    unsigned int i = blockIdx.x * 256 + threadIdx.x;
++    unsigned int width = 4 * hidden;
++    if (i >= tokens * width) return;
++    unsigned int token = i / width, c = (i % width) / 4, q = i % 4;
++    dst[i] = src[((size_t)token * 4 + q) * hidden + c];
 +}
 diff --git a/kernels/gb10/common/inferspark_prefill_paged_indirect_sink_h128.cu b/kernels/gb10/common/inferspark_prefill_paged_indirect_sink_h128.cu
 new file mode 100644

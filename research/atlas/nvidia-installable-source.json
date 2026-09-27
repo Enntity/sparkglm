@@ -5,8 +5,8 @@
     "revision": "90b3584abc71b44b609637092b85d8423d8ff20f"
   },
   "incremental_base_revision": "a7e8163c87550ccb055b043c63513a2b71b244eb",
-  "engine_revision": "26e220128e41bc818c5881b2aa57f45f5fc2508c",
-  "reconstructed_tree": "ba35fcfe43354053adbd82bcaf71dc38ab5e6fb7",
+  "engine_revision": "d0d6b26908382e41fc0d8d759f7949fdb394fcb1",
+  "reconstructed_tree": "6528d7ca0aa5e002f519ad165903e0faf5d3aabc",
   "patch_chain": [
     {
       "path": "nvidia-modelopt-refresh.patch",
@@ -30,12 +30,12 @@
     },
     {
       "path": "nvidia-installable.patch",
-      "sha256": "ad2d30597f5dc8cf028826544b67065fa083a0166c48c8ab9df087f4f488cacc"
+      "sha256": "cf86e735a2cb7c5325a6f9db1cdda0c4efbbef1e17eac5bbd157c05ebe4b6ef4"
     }
   ],
-  "changed_file_count": 333,
+  "changed_file_count": 335,
   "diff_summary": {
-    "insertions": 30090,
+    "insertions": 30542,
     "deletions": 1997
   },
   "sanitization": {
@@ -182,14 +182,16 @@
     "crates/spark-model/src/layers/qwen3_attention/types.rs": "68819fdbf894e5a513385c4c593d05b049318038accc7d1f581125ea9676a882",
     "crates/spark-model/src/layers/qwen3_ssm/trait_decode_batched_hc.rs": "542cfbb01b271fde7f91d7673fb9347b7baf93f41058e0b8915cf4701b0fbaae",
     "crates/spark-model/src/layers/qwen3_ssm/trait_layer.rs": "6661d68d82d3048c8678eaad2a8f535422b6b623298a3eb612cb0857ac2ec609",
-    "crates/spark-model/src/layers/vision_encoder.rs": "7ada271252099a52e8622906d7419af356d874608f6fb52fc13881cbcc9bce21",
-    "crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs": "ae74b2b89ea3466e4c557781a9c0da6cf8977137b3976a315c614a6b2dd0fd27",
+    "crates/spark-model/src/layers/vision_encoder.rs": "f590eaf623bfe9ec6aa5d9327967fa19889de5a80e68b660f2ab3642ca26c671",
+    "crates/spark-model/src/layers/vision_encoder/enc_impl/forward.rs": "02c6a3cda20620824194c113e2503cc1d4460c3e8ff8e04bb45f994fe3f5e279",
     "crates/spark-model/src/layers/vision_encoder/enc_impl/init.rs": "f04a4dbf9978cdcf062707996ab9e2af7ca81026f739157292ed71d7af1a236e",
     "crates/spark-model/src/layers/vision_encoder/enc_impl/mod.rs": "e3c40bc258b878a0f1acd62c0b6eb4c18ba50a24f4a2c6fc4c3cd9ab1cfffdb0",
-    "crates/spark-model/src/layers/vision_encoder/glm.rs": "829b4cb2627a474f54c238809b10ecdeedfa8a1a89766880c054552ef2532bef",
-    "crates/spark-model/src/layers/vision_encoder/glm/forward.rs": "6eab3391ed3bf2dfde3188ebe35f24a079cef51c3d1446aca9855ef71e8ce08d",
-    "crates/spark-model/src/layers/vision_encoder/glm/ops.rs": "27192dd9b3b565574dd7ba08d419e985e3082560db1a830dfb27112ebc56c642",
-    "crates/spark-model/src/layers/vision_encoder/glm_oracle_tests.rs": "27a413fc5da30bfde4ec1a0d9b0b39c52803ed34cd83ca5565c373fff79c0f66",
+    "crates/spark-model/src/layers/vision_encoder/glm.rs": "6ec43aff92833c89b27e100ffa83751cfa121a462d1e6fe942cae5224d9401c8",
+    "crates/spark-model/src/layers/vision_encoder/glm/forward.rs": "e545f7a10587a09fa36dbe49ea29a3e2bdd433523f705302c467017b92a7e85b",
+    "crates/spark-model/src/layers/vision_encoder/glm/forward_tests.rs": "1591dad0b3992f2e82ec8eed8bca5561ff83e6a24d1adb6f01100cac8cc32440",
+    "crates/spark-model/src/layers/vision_encoder/glm/ops.rs": "588a06ac04d6e3c0a4168885f9f9a467980a7d43c1115e186a6964c3473a3660",
+    "crates/spark-model/src/layers/vision_encoder/glm_attention_gpu_tests.rs": "522613fb34faff99c8320e707a691c68b715b143dfae67fd7a17d3ec147cd560",
+    "crates/spark-model/src/layers/vision_encoder/glm_oracle_tests.rs": "b0bfefd213af133c3ad80b2f0f8ca1d7d0f3778e492c104796188c504b8b7495",
     "crates/spark-model/src/layers/w4a16_gemv_tiers.rs": "74f5499257712b637fb70258feb6a221982deafdf97d97ffc7c4e1878aee25e4",
     "crates/spark-model/src/lib.rs": "e4fb060696176d12f386be0c1efd06f6226141936985347dacd71e327349a441",
     "crates/spark-model/src/model/block_mgmt.rs": "15755c7cc9ce27a9b1ee7ddfed7fec9a2b35f5b83955395d09274b0ed70af9c3",
@@ -206,7 +208,7 @@
     "crates/spark-model/src/model/glm_mtp_repair.rs": "4a7e16694a733cf2ce6939345194078579f7a08121d87011b4f68c990b0439cc",
     "crates/spark-model/src/model/glm_vocab_split.rs": "2f493d502f5d7bc54004d238fa2ab36dd627e0a3e0c0cd618bb76784139fe290",
     "crates/spark-model/src/model/impl_a1.rs": "5c9e623464f1fce7098fda288b71c0c26ba584dc1d1970b731a7332eac6f824d",
-    "crates/spark-model/src/model/impl_a2.rs": "5cfca93a7491cd15dc628e4e0330bddb4c8cd989aca9d32b946affd51d817181",
+    "crates/spark-model/src/model/impl_a2.rs": "84535580a03553604ed51accea5c0f9f64fe1d29d90449d2e444f0745670fdce",
     "crates/spark-model/src/model/impl_a3.rs": "8616b55fbda45875cee43682e727900d3fe89769658f10dde363559e04a013d7",
     "crates/spark-model/src/model/impl_b3_dflash.rs": "57eac68a9e99c467d77d57ecff544696306b3a4e7ebd2c3ec179e6deb622f386",
     "crates/spark-model/src/model/mod.rs": "6b5f29fb586f2377aced62d24b5139ada5ea0d31ec05b81e09953dcc95423b77",
@@ -326,7 +328,7 @@
     "kernels/gb10/common/fp8_e4m3_to_bf16.cu": "1df25bab8a0253434bcf79946964e2dfe6e8723de73f78dfd8891938f4829331",
     "kernels/gb10/common/glm_fp8g128.cuh": "267869a0df778a5e4a41c1aea378cb59e3329874024c6312850ac8626dc6c597",
     "kernels/gb10/common/glm_indexer.cu": "cb908064f124343f4104b1d1ed06eee611ea3a2e962d18dbb9ac8fa5010ef6a6",
-    "kernels/gb10/common/glm_vision_encoder.cu": "ca0ff7bb638c610c9e7595d8cc4ca59fb1c394c6c3b71319f2178a39a185aaac",
+    "kernels/gb10/common/glm_vision_encoder.cu": "49ad57997109e222a2b6b89a02a3e0b566528075700573333580fd41128c033a",
     "kernels/gb10/common/inferspark_prefill_paged_indirect_sink_h128.cu": "7c12289759b78481bc4c12614814b76bd969672bfc9a2a0c685b0e7749597f32",
     "kernels/gb10/common/mxfp8_gemv.cu": "769c8a05f8c6b2f27098d9eda0f2e6e3a7891a0baaa956846dea2c1f42e7103b",
     "kernels/gb10/common/reshape_and_cache.cu": "f7e0079819046afd45db7df85b6b2357a6d1bea7e4176e92949d858cb55affc2",
