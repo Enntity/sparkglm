@@ -7443,7 +7443,7 @@ index 1da61762ff0f905843f6bc23b4ea50bfa9103ef7..0052e607a8e5d24ee0448c09479c05d7
      Ok(kernel)
  }
 diff --git a/crates/spark-model/src/layers/ops/glm_indexer.rs b/crates/spark-model/src/layers/ops/glm_indexer.rs
-index 4737c1d7ef5d42d78974351153bacb9522fd1f08..eaefabf721bb4dbcec518b68647a504453ed3bc5 100644
+index 4737c1d7ef5d42d78974351153bacb9522fd1f08..8c616f404f44da773b8f5bd10e30d8b9fd4fdaba 100644
 --- a/crates/spark-model/src/layers/ops/glm_indexer.rs
 +++ b/crates/spark-model/src/layers/ops/glm_indexer.rs
 @@ -38,6 +38,7 @@ pub fn glm_index_tail_write(
@@ -7478,6 +7478,32 @@ index 4737c1d7ef5d42d78974351153bacb9522fd1f08..eaefabf721bb4dbcec518b68647a5044
          .arg_ptr(ape)
          .arg_ptr(cache)
          .arg_ptr(slots)
+@@ -112,6 +116,25 @@ pub fn glm_index_fill_causal(
+         .launch(stream)
+ }
+ 
++/// [`glm_index_fill_causal`] for one decode row whose length is read on the
++/// device (`kv_len`: the i32 sequence length including the new token).
++pub fn glm_index_fill_causal_dev(
++    gpu: &dyn GpuBackend,
++    kernel: KernelHandle,
++    output: DevicePtr,
++    kv_len: DevicePtr,
++    width: u32,
++    stream: u64,
++) -> Result<()> {
++    KernelLaunch::new(gpu, kernel)
++        .grid([div_ceil(width, 256), 1, 1])
++        .block([256, 1, 1])
++        .arg_ptr(output)
++        .arg_ptr(kv_len)
++        .arg_u32(width)
++        .launch(stream)
++}
++
+ #[derive(Clone, Copy, Debug)]
+ struct IndexLogitsLaunch {
+     grid: [u32; 3],
 diff --git a/crates/spark-model/src/layers/ops/glm_indexer_dynamic.rs b/crates/spark-model/src/layers/ops/glm_indexer_dynamic.rs
 index 4092347b9328b104d794ffea1eac7eb1b51fa463..26ede03cd78d0be1262638a98b42333a2432622e 100644
 --- a/crates/spark-model/src/layers/ops/glm_indexer_dynamic.rs
@@ -7513,6 +7539,42 @@ index 4092347b9328b104d794ffea1eac7eb1b51fa463..26ede03cd78d0be1262638a98b42333a
      }
  
      #[test]
+diff --git a/crates/spark-model/src/layers/ops/glm_sparse_decode_split.rs b/crates/spark-model/src/layers/ops/glm_sparse_decode_split.rs
+index d1fd159339a364a5c2bdf8dcfdc147b31fc547f9..fb0392714dcd742ceb1b9cc0ec8b553d0c9782bb 100644
+--- a/crates/spark-model/src/layers/ops/glm_sparse_decode_split.rs
++++ b/crates/spark-model/src/layers/ops/glm_sparse_decode_split.rs
+@@ -85,7 +85,9 @@ fn dispatch(
+     on: bool,
+     tc: bool,
+ ) -> Result<bool> {
+-    if !on {
++    // The split kernel reads BF16 latents; an fp8_g128 cache declines to the
++    // TC kernel, which has its reader. Other dtypes still fail validation.
++    if !on || a.dtype == spark_runtime::kv_cache::KvCacheDtype::Fp8G128 {
+         return Ok(false);
+     }
+     ensure!(tc, "GLM split requires ATLAS_GLM_SPARSE_DECODE_TC=1");
+diff --git a/crates/spark-model/src/layers/ops/glm_sparse_decode_split_tests.rs b/crates/spark-model/src/layers/ops/glm_sparse_decode_split_tests.rs
+index 13bab5bdcef1369359e16ad7d6d823a53a1fe3b9..cf37ba215eb9bb910a6e94edfd10e640d4c74916 100644
+--- a/crates/spark-model/src/layers/ops/glm_sparse_decode_split_tests.rs
++++ b/crates/spark-model/src/layers/ops/glm_sparse_decode_split_tests.rs
+@@ -122,6 +122,16 @@ fn split_bad_geometry_storage_capacity_and_tc_dependency_fail_before_lookup() {
+     assert!(validate_scratch(p, SCRATCH_BYTES, &[(p.offset(SCRATCH_BYTES), 16)]).is_ok());
+ }
+ #[test]
++fn split_declines_fp8_g128_before_any_lookup() {
++    let gpu = Capture::default();
++    let c = config();
++    let mut a = args(&c);
++    a.dtype = KvCacheDtype::Fp8G128;
++    assert!(!dispatch(&gpu, &a, DevicePtr(0x800000), SCRATCH_BYTES, 19, true, true).unwrap());
++    assert_eq!(gpu.lookups.load(std::sync::atomic::Ordering::Relaxed), 0);
++    assert!(gpu.arguments.lock().unwrap().is_empty());
++}
++#[test]
+ fn split_startup_uses_two_zero_row_null_launches_then_one_sync() {
+     let gpu = Capture::default();
+     let c = config();
 diff --git a/crates/spark-model/src/layers/ops/glm_sparse_native.rs b/crates/spark-model/src/layers/ops/glm_sparse_native.rs
 index 75a27c296ea1370a190d21a4cf88afe23a5a27ba..0beefb770f4e932ca6cb5a95392ac8510e115635 100644
 --- a/crates/spark-model/src/layers/ops/glm_sparse_native.rs
@@ -8175,24 +8237,31 @@ index e957cdab8270df795c94eeb6222e30744c9c4211..a5c1ad8cd853c6342601787360656d0e
          .arg_ptr(weight.weight)
          .arg_ptr(weight.weight_scale)
 diff --git a/crates/spark-model/src/layers/qwen3_attention/decode/attention_forward_mla.rs b/crates/spark-model/src/layers/qwen3_attention/decode/attention_forward_mla.rs
-index c55c9054d4422cac9d8169d6210a091a0b564e64..7ac525ed3c8c20b4f1a4db4af6c6f5bfb1d26a3c 100644
+index c55c9054d4422cac9d8169d6210a091a0b564e64..b4b34e2ae86a3ea87f7d51c9f992aa75e794d9c1 100644
 --- a/crates/spark-model/src/layers/qwen3_attention/decode/attention_forward_mla.rs
 +++ b/crates/spark-model/src/layers/qwen3_attention/decode/attention_forward_mla.rs
-@@ -65,6 +65,12 @@ impl Qwen3AttentionLayer {
-         let meta = ctx
-             .attn_metadata
-             .expect("MLA decode requires pre-uploaded metadata");
-+        // Its dense/sparse readers here are BF16-only; an fp8_g128 GLM cache
-+        // is read by the chunk (prefill/verify) path, like DFlash decode.
-+        anyhow::ensure!(
-+            self.kv_dtype != spark_runtime::kv_cache::KvCacheDtype::Fp8G128,
-+            "fp8_g128 GLM caches are served by the chunk verify path; single-row MLA decode is unsupported"
-+        );
- 
-         let q_lora = mla.q_lora_rank as u32;
-         let kv_lora = mla.kv_lora_rank as u32;
-@@ -396,24 +402,40 @@ impl Qwen3AttentionLayer {
+@@ -394,26 +394,64 @@ impl Qwen3AttentionLayer {
+         } else {
+             None
          };
++        // An fp8_g128 latent has one reader, the TC kernel: dense rows select
++        // every cached token (device length, so decode graphs stay valid).
++        let fp8 = self.kv_dtype == spark_runtime::kv_cache::KvCacheDtype::Fp8G128;
++        let sparse_indices = match sparse_indices {
++            None if fp8 => {
++                let indices = ctx.buffers.expert_gate_out();
++                ops::glm_index_fill_causal_dev(
++                    ctx.gpu,
++                    self.glm_index_fill_causal_dev_k,
++                    indices,
++                    meta.seq_len,
++                    2051,
++                    stream,
++                )?;
++                Some((indices, 2051))
++            }
++            other => other,
++        };
          prof!("paged_attn", {
              if let Some((indices, index_width)) = sparse_indices {
 -                ops::glm_sparse_mla_prefill(
@@ -8220,6 +8289,10 @@ index c55c9054d4422cac9d8169d6210a091a0b564e64..7ac525ed3c8c20b4f1a4db4af6c6f5bf
 +                )? {
 +                    Ok(())
 +                } else {
++                    anyhow::ensure!(
++                        !fp8,
++                        "fp8_g128 GLM decode requires ATLAS_GLM_SPARSE_DECODE_TC=1"
++                    );
 +                    ops::glm_sparse_mla_prefill(
 +                        ctx.gpu,
 +                        self.glm_sparse_attn_decode_k,
@@ -8242,7 +8315,7 @@ index c55c9054d4422cac9d8169d6210a091a0b564e64..7ac525ed3c8c20b4f1a4db4af6c6f5bf
              } else {
                  ops::paged_decode_attn_bf16(
                      ctx.gpu,
-@@ -510,3 +532,96 @@ impl Qwen3AttentionLayer {
+@@ -510,3 +548,100 @@ impl Qwen3AttentionLayer {
          Ok(o_out)
      }
  }
@@ -8277,7 +8350,11 @@ index c55c9054d4422cac9d8169d6210a091a0b564e64..7ac525ed3c8c20b4f1a4db4af6c6f5bf
 +            || index_width != 2051
 +            || kv_cache.block_size() != 16
 +            || scale != 0.0625
-+            || self.kv_dtype != spark_runtime::kv_cache::KvCacheDtype::Bf16
++            || !matches!(
++                self.kv_dtype,
++                spark_runtime::kv_cache::KvCacheDtype::Bf16
++                    | spark_runtime::kv_cache::KvCacheDtype::Fp8G128
++            )
 +            || ctx.config.qk_rope_head_dim != 0
 +            || !query.0.is_multiple_of(16)
 +            || !output.0.is_multiple_of(4)
@@ -8340,10 +8417,24 @@ index c55c9054d4422cac9d8169d6210a091a0b564e64..7ac525ed3c8c20b4f1a4db4af6c6f5bf
 +    }
 +}
 diff --git a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
-index 0d6d62a92a47b3777cd4df4b64ee1453645c807e..5de91af793324b1128011ef66314e790c7f5147c 100644
+index 0d6d62a92a47b3777cd4df4b64ee1453645c807e..674e36e897eb769ad1052525571059d2f56ea6f4 100644
 --- a/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
 +++ b/crates/spark-model/src/layers/qwen3_attention/decode/glm_index.rs
-@@ -84,6 +84,7 @@ impl Qwen3AttentionLayer {
+@@ -30,8 +30,11 @@ impl Qwen3AttentionLayer {
+             .ok_or_else(|| anyhow::anyhow!("GLM semantic-index cache is not attached"))?;
+         ensure!(
+             spec.dtype == SparseIndexCacheDtype::Bf16
+-                && kv_cache.dtype_for_layer(self.attn_layer_idx) == KvCacheDtype::Bf16,
+-            "GLM sparse decode correctness path currently requires BF16 index and KV caches"
++                && matches!(
++                    kv_cache.dtype_for_layer(self.attn_layer_idx),
++                    KvCacheDtype::Bf16 | KvCacheDtype::Fp8G128
++                ),
++            "GLM sparse decode requires a BF16 index cache and a BF16 or fp8_g128 KV cache"
+         );
+         ensure!(
+             self.glm_index_layernorm_k.0 != 0
+@@ -84,6 +87,7 @@ impl Qwen3AttentionLayer {
              keys,
              gates,
              kv_cache.sparse_index_tail_pool_ptr(self.attn_layer_idx),
@@ -8351,7 +8442,7 @@ index 0d6d62a92a47b3777cd4df4b64ee1453645c807e..5de91af793324b1128011ef66314e790
              meta.slot,
              1,
              kv_cache.block_size() as u32,
-@@ -96,6 +97,7 @@ impl Qwen3AttentionLayer {
+@@ -96,6 +100,7 @@ impl Qwen3AttentionLayer {
              ctx.gpu,
              self.glm_index_kpool_finalize_k,
              kv_cache.sparse_index_tail_pool_ptr(self.attn_layer_idx),
@@ -8359,7 +8450,7 @@ index 0d6d62a92a47b3777cd4df4b64ee1453645c807e..5de91af793324b1128011ef66314e790
              indexer.kpool_ape.weight,
              kv_cache.sparse_index_pool_ptr(self.attn_layer_idx),
              meta.slot,
-@@ -199,6 +201,11 @@ impl Qwen3AttentionLayer {
+@@ -199,6 +204,11 @@ impl Qwen3AttentionLayer {
              h,
              stream,
          )?;
@@ -9240,7 +9331,7 @@ index 148eb996f2848740b6f5b6ffe23ca7850b7bdd1f..cdd7b33e4e48be2b71456122d9cb8327
              ctx.gpu,
              self.hc_pre_k,
 diff --git a/crates/spark-model/src/layers/qwen3_attention/init.rs b/crates/spark-model/src/layers/qwen3_attention/init.rs
-index ce2624218532610f3ec574a3fd1d05030870c21e..c9e736287bf37db315a20a1a5c6e75dbaa665f72 100644
+index ce2624218532610f3ec574a3fd1d05030870c21e..efa58c50fff08cfff26343a4a09207c16cd23c0a 100644
 --- a/crates/spark-model/src/layers/qwen3_attention/init.rs
 +++ b/crates/spark-model/src/layers/qwen3_attention/init.rs
 @@ -98,6 +98,7 @@ impl Qwen3AttentionLayer {
@@ -9297,12 +9388,17 @@ index ce2624218532610f3ec574a3fd1d05030870c21e..c9e736287bf37db315a20a1a5c6e75db
              ),
              qkv_nvfp4_t: None,
              q_nvfp4_t: None,
-@@ -341,6 +348,16 @@ impl Qwen3AttentionLayer {
+@@ -341,6 +348,21 @@ impl Qwen3AttentionLayer {
              ),
              rope_proportional_k: super::super::try_kernel(gpu, "rope", "rope_forward_proportional"),
              reshape_cache_k: gpu.kernel(reshape_mod, reshape_fn)?,
 +            glm_latent_dequant_k: if kv_dtype == KvCacheDtype::Fp8G128 {
 +                gpu.kernel("reshape_and_cache", "glm_latent_dequant_fp8g128")?
++            } else {
++                KernelHandle(0)
++            },
++            glm_index_fill_causal_dev_k: if kv_dtype == KvCacheDtype::Fp8G128 {
++                gpu.kernel("glm_indexer", "glm_index_fill_causal_dev")?
 +            } else {
 +                KernelHandle(0)
 +            },
@@ -9314,7 +9410,7 @@ index ce2624218532610f3ec574a3fd1d05030870c21e..c9e736287bf37db315a20a1a5c6e75db
              fused_k_norm_rope_cache_write_bf16_k: super::super::try_kernel(
                  gpu,
                  "fused_k_norm_rope_cache",
-@@ -399,6 +416,8 @@ impl Qwen3AttentionLayer {
+@@ -399,6 +421,8 @@ impl Qwen3AttentionLayer {
                      "paged_decode_turbo4_512",
                      "paged_decode_attn_turbo4",
                  ),
@@ -11451,7 +11547,7 @@ index cf5a26289b2caf5e886eb04aea2fa690484080d2..157499aed7a706ff6954afcb16311cd7
          } else {
              ops::hc_pre_site(
 diff --git a/crates/spark-model/src/layers/qwen3_attention/types.rs b/crates/spark-model/src/layers/qwen3_attention/types.rs
-index 65dd4676202a614173bfe0f11b93376e32afbeec..63d082e33abbe26c6101b17b150b2210a846fe46 100644
+index 65dd4676202a614173bfe0f11b93376e32afbeec..0f3eeffdfa36898493b005081fc713298b8ab716 100644
 --- a/crates/spark-model/src/layers/qwen3_attention/types.rs
 +++ b/crates/spark-model/src/layers/qwen3_attention/types.rs
 @@ -128,6 +128,8 @@ pub struct Qwen3AttentionLayer {
@@ -11463,7 +11559,7 @@ index 65dd4676202a614173bfe0f11b93376e32afbeec..63d082e33abbe26c6101b17b150b2210
      /// HC `hc_post` kernel handle (NULL when HC disabled).
      pub(super) hc_post_k: KernelHandle,
      /// GLM K=5 shared-expert blend fused into `hc_post`.
-@@ -226,6 +228,12 @@ pub struct Qwen3AttentionLayer {
+@@ -226,6 +228,14 @@ pub struct Qwen3AttentionLayer {
      /// Proportional RoPE kernel (Gemma-4 full-attention layers).
      pub(super) rope_proportional_k: KernelHandle,
      pub(super) reshape_cache_k: KernelHandle,
@@ -11473,6 +11569,8 @@ index 65dd4676202a614173bfe0f11b93376e32afbeec..63d082e33abbe26c6101b17b150b2210
 +    /// `fp8_g128` GLM latents -> BF16 view for the BF16 prefill kernels.
 +    /// Null unless the cache is `fp8_g128`.
 +    pub(super) glm_latent_dequant_k: KernelHandle,
++    /// Device-length causal index fill for dense fp8_g128 single-row decode.
++    pub(super) glm_index_fill_causal_dev_k: KernelHandle,
      /// Fused k_norm + RoPE + paged BF16 cache write — eliminates two
      /// intermediate BF16 rounding steps that cause the documented L35-L39
      /// cliff in chunked-prefill BF16 KV mode (memory:
@@ -25498,7 +25596,7 @@ index 0000000000000000000000000000000000000000..4932f544d636193bfe250a1d3872b356
 +    return __nv_cvt_float_to_fp8(v / *scale, __NV_SATFINITE, __NV_E4M3);
 +}
 diff --git a/kernels/gb10/common/glm_indexer.cu b/kernels/gb10/common/glm_indexer.cu
-index 7469d1b76b27de405302e49c2b104c24bcc93fdd..f8fa0bd36c6542e83a40f199994630bbf0db8981 100644
+index 7469d1b76b27de405302e49c2b104c24bcc93fdd..d74a71f448700fd13c7c40dc9177f44f951b2f4f 100644
 --- a/kernels/gb10/common/glm_indexer.cu
 +++ b/kernels/gb10/common/glm_indexer.cu
 @@ -48,6 +48,16 @@ extern "C" __global__ void glm_index_layernorm_bf16(
@@ -25558,6 +25656,23 @@ index 7469d1b76b27de405302e49c2b104c24bcc93fdd..f8fa0bd36c6542e83a40f199994630bb
      const unsigned int first = raw_offset - (pool_size - 1);
      const __nv_bfloat16* tail_keys = block_tail
          + (unsigned long long)first * head_dim;
+@@ -148,6 +164,16 @@ extern "C" __global__ void glm_index_fill_causal(
+     output[(unsigned long long)row * width + col] = col <= query_pos ? (int)col : -1;
+ }
+ 
++// One decode row selecting every cached token: `kv_len[0]` (the device
++// sequence length including the new token) stays graph-capture safe.
++extern "C" __global__ void glm_index_fill_causal_dev(
++    int* __restrict__ output,
++    const int* __restrict__ kv_len,
++    unsigned int width) {
++    const unsigned int col = blockIdx.x * blockDim.x + threadIdx.x;
++    if (col < width) output[col] = (int)col < kv_len[0] ? (int)col : -1;
++}
++
+ // Eight warps score eight pooled keys per CTA. Each warp holds one pool and
+ // accumulates its 32 index-head dot products without materializing headwise
+ // logits. The cache remains paged with the main KV block table.
 diff --git a/kernels/gb10/common/glm_vision_encoder.cu b/kernels/gb10/common/glm_vision_encoder.cu
 new file mode 100644
 index 0000000000000000000000000000000000000000..c8724510655bdb4c5284f6c54b8edef7eafe2178
