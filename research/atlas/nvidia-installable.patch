@@ -3130,7 +3130,7 @@ index c3ff3b503caf59740fc8969305a201d9404a4bd3..943a3b21d8cdb78f4eafb8a10979c952
      fn supports_glm_pair_verify(&self) -> bool {
          false
 diff --git a/crates/spark-model/src/layers/dflash_head.rs b/crates/spark-model/src/layers/dflash_head.rs
-index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a21cf5e36 100644
+index 8c64a27c705b7eba39b65abc486a1dbb294e2471..fd24acbfe371a3c2b6087df3a41801600633e03e 100644
 --- a/crates/spark-model/src/layers/dflash_head.rs
 +++ b/crates/spark-model/src/layers/dflash_head.rs
 @@ -38,6 +38,72 @@ pub use startup_diagnostics::DsparkDiagnostics;
@@ -3220,7 +3220,24 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
      pub dense_gemm: KernelHandle,
      /// NVFP4 GEMM for the final logits when the shared lm_head is NVFP4
      /// (e.g. Holo): a BF16 `dense_gemm` on NVFP4-packed bytes reads garbage
-@@ -202,6 +275,8 @@ pub struct DflashScratch {
+@@ -189,12 +262,14 @@ pub struct DflashScratch {
+     pub draft_tokens_event: u64,
+     pub logits: DevicePtr,
+     pub draft_tokens_dev: DevicePtr,
+-    /// 4-byte device slot holding the Markov prev token. Host writes it
++    /// `[prev token, banned draft depth]` u32 device slots: the Markov prev
++    /// token (the block anchor) and how many leading draft depths may not be
++    /// an end token (min_tokens). Host writes both
+     /// via pinned `markov_prev_host_pinned` BEFORE the captured tail
+     /// graph; the graph only reads this pointer. Do not H2D last_token
+     /// from a stack temporary inside the tail (replay would see garbage).
+     pub markov_prev_dev: DevicePtr,
+-    /// Pinned 4-byte host source for `markov_prev_dev`. Stable address
++    /// Pinned host source for `markov_prev_dev`. Stable address
+     /// so a captured H2D (if any) would still be valid; we keep the
+     /// H2D outside the graph anyway.
+     pub markov_prev_host_pinned: std::sync::atomic::AtomicPtr<u8>,
+@@ -202,6 +277,8 @@ pub struct DflashScratch {
      /// historical target positions (decoded indices); last γ are
      /// the to-be-predicted noise positions.
      pub position_ids: DevicePtr,
@@ -3229,7 +3246,7 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
  }
  
  /// Drafter-side weight precision. Defaults to BF16. **Phase G (2026-05-28)**
-@@ -266,6 +341,13 @@ pub struct DflashLayer {
+@@ -266,6 +343,13 @@ pub struct DflashLayer {
      pub gate_proj_nvfp4: Option<crate::weight_map::QuantizedWeight>,
      pub up_proj_nvfp4: Option<crate::weight_map::QuantizedWeight>,
      pub down_proj_nvfp4: Option<crate::weight_map::QuantizedWeight>,
@@ -3243,7 +3260,27 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
  }
  
  /// Per-sequence DFlash drafter state. One paged KV cache per drafter layer
-@@ -482,6 +564,10 @@ pub struct BlockDiffusionDraftHead {
+@@ -357,6 +441,9 @@ pub struct DflashProposerState {
+     /// + i` formula in `precompute_ctx_kv`. Prefill positions are seeded
+     /// `0..prompt_len` in `update_dflash_ctx_len_after_prefill`.
+     pub ctx_positions: Vec<i32>,
++    /// The request's min_tokens floor: drafts for positions below it skip
++    /// end tokens (the verify head bans them there). 0 = no floor.
++    pub end_floor: usize,
+ }
+ 
+ impl DflashProposerState {
+@@ -426,6 +513,9 @@ impl ProposerState for DflashProposerState {
+     fn as_any_mut(&mut self) -> &mut dyn Any {
+         self
+     }
++    fn set_end_floor(&mut self, floor: usize) {
++        self.end_floor = floor;
++    }
+ }
+ 
+ /// Block-diffusion draft head. Public API is the [`DraftProposer`] trait.
+@@ -482,6 +572,10 @@ pub struct BlockDiffusionDraftHead {
      /// it must not mutate the target model's lm_head. `None` on the
      /// BF16 path.
      pub lm_head_shared_fp8: Option<crate::weight_map::Fp8DenseWeight>,
@@ -3254,7 +3291,7 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
  
      // === Weights from the drafter checkpoint ===
      /// Hidden-norm applied to the projected target context before mixing
-@@ -500,6 +586,8 @@ pub struct BlockDiffusionDraftHead {
+@@ -500,6 +594,8 @@ pub struct BlockDiffusionDraftHead {
      /// DSpark Markov `w2` `[vocab, rank]` BF16.
      pub markov_w2: Option<DenseWeight>,
      pub markov_rank: usize,
@@ -3263,7 +3300,7 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
      /// Optional draft-vocab-id → target-vocab-id remap. `None` when the
      /// drafter shares vocab with the target (Qwen3.6-35B-A3B-DFlash case:
      /// vocab_size == draft_vocab_size == 248320).
-@@ -674,6 +762,8 @@ mod batch_forward;
+@@ -674,6 +770,8 @@ mod batch_forward;
  #[cfg(test)]
  mod batch_inputs_tests;
  mod batch_projection;
@@ -3272,7 +3309,32 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
  mod lifecycle;
  #[cfg(test)]
  mod row_contract_tests;
-@@ -787,7 +877,11 @@ impl DraftProposer for BlockDiffusionDraftHead {
+@@ -693,6 +791,11 @@ mod nvfp4;
+ mod precompute_ctx_kv;
+ mod propose;
+ 
++/// Per-sequence anchor words: `[prev token, banned draft depth]` u32.
++const MARKOV_PREV_BYTES: usize = 8;
++/// Byte offset of the banned draft depth within `markov_prev_dev`.
++const MARKOV_BAN_DEPTH_OFFSET: usize = 4;
++
+ impl BlockDiffusionDraftHead {
+     /// Total propose lanes (lane 0 = default-stream scratch; the rest live
+     /// in `extra_lanes`). `ATLAS_DFLASH_PROPOSE_LANES` overrides (default 1).
+@@ -700,6 +803,12 @@ impl BlockDiffusionDraftHead {
+         1 + self.extra_lanes.len()
+     }
+ 
++    /// `[batch_capacity]` banned draft depths, after the batch anchors in
++    /// `batch_markov_prev`.
++    fn batch_ban_depth(&self) -> DevicePtr {
++        self.batch_markov_prev.offset(self.batch_capacity * 4)
++    }
++
+     /// Resolve a lane's mutable propose resources: (stream, scratch,
+     /// markov_embed, markov_bias). Lane 0 is the head's own scratch on the
+     /// backend default stream; lanes 1.. are independent copies.
+@@ -787,7 +896,11 @@ impl DraftProposer for BlockDiffusionDraftHead {
          // higher batch we may want to reduce to a smaller working window.
          let bf16 = 2usize;
          let ctx_slot_bytes = self.target_layer_ids.len() * self.target_hidden_size * bf16;
@@ -3285,7 +3347,7 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
          let ctx_hidden_acc = gpu.alloc(total)?;
          // Initialize to zero so stale data doesn't leak between sequences.
          // Transactional: a failed memset frees the accumulator instead of
-@@ -813,10 +907,7 @@ impl DraftProposer for BlockDiffusionDraftHead {
+@@ -813,10 +926,7 @@ impl DraftProposer for BlockDiffusionDraftHead {
              ctx_len: 0,
              last_num_accepted: 0,
              skip_next_decode_append: false,
@@ -3297,7 +3359,15 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
              ctx_slot_bytes,
              // Phase 2 Option B: lazily allocated on first propose when
              // ATLAS_DFLASH_OPTION_B=1. None until then to keep alloc_state
-@@ -929,7 +1020,8 @@ impl DraftProposer for BlockDiffusionDraftHead {
+@@ -826,6 +936,7 @@ impl DraftProposer for BlockDiffusionDraftHead {
+             max_ctx_count_drafter: 0,
+             ctx_committed: 0,
+             ctx_positions: Vec::new(),
++            end_floor: 0,
+             // Propose lane: fixed for the seq lifetime (batch positions
+             // reorder; captured graphs bake lane scratch pointers). Round-
+             // robin keeps concurrent seqs spread across the lane streams.
+@@ -929,7 +1040,8 @@ impl DraftProposer for BlockDiffusionDraftHead {
          } else {
              (None, None)
          };
@@ -3307,7 +3377,27 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
              for i in 0..n {
                  self.prepare_drafts_state(
                      last_tokens[i],
-@@ -1010,7 +1102,8 @@ impl DraftProposer for BlockDiffusionDraftHead {
+@@ -956,7 +1068,8 @@ impl DraftProposer for BlockDiffusionDraftHead {
+         let mut batch_kv_lens = Vec::with_capacity(n);
+         let mut batch_block_tables = Vec::with_capacity(n);
+         let mut batch_ctx_counts = Vec::with_capacity(n);
+-        for state in states.iter_mut() {
++        let mut ban_depths = Vec::with_capacity(n);
++        for (sequence, state) in states.iter_mut().enumerate() {
+             let dstate = state
+                 .as_any_mut()
+                 .downcast_mut::<DflashProposerState>()
+@@ -968,6 +1081,9 @@ impl DraftProposer for BlockDiffusionDraftHead {
+                 .unwrap_or(expected_owners[owners.len()]);
+             owners.push(owner);
+             lifecycles.push(lifecycle);
++            ban_depths.push(positions.get(sequence).map_or(0, |&anchor| {
++                crate::traits::EosBan::banned_draft_depth(dstate.end_floor, anchor, self.gamma - 1)
++            }));
+             let block_table_dev = dstate.block_table_dev.unwrap_or(DevicePtr::NULL);
+             block_table_ptrs.push(block_table_dev.0);
+             batch_ctx_counts.push(dstate.ctx_count_drafter);
+@@ -1010,7 +1126,8 @@ impl DraftProposer for BlockDiffusionDraftHead {
              );
          }
          let batch_slot_mapping = batch_slot_mapping.unwrap_or_default();
@@ -3317,7 +3407,17 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
              self.gamma,
              self.batch_capacity,
              &owners,
-@@ -1104,6 +1197,40 @@ impl DraftProposer for BlockDiffusionDraftHead {
+@@ -1044,6 +1161,9 @@ impl DraftProposer for BlockDiffusionDraftHead {
+         ctx.gpu.copy_h2d(&position_bytes, self.batch_position_ids)?;
+         ctx.gpu
+             .copy_h2d(&last_token_bytes, self.batch_markov_prev)?;
++        let ban_depth_bytes: Vec<u8> =
++            ban_depths.iter().flat_map(|depth| depth.to_le_bytes()).collect();
++        ctx.gpu.copy_h2d(&ban_depth_bytes, self.batch_ban_depth())?;
+         let ptr_bytes: Vec<u8> = block_table_ptrs
+             .iter()
+             .flat_map(|pointer| pointer.to_le_bytes())
+@@ -1104,6 +1224,40 @@ impl DraftProposer for BlockDiffusionDraftHead {
              self.hidden_size as u32,
              stream,
          )?;
@@ -3358,6 +3458,14 @@ index 8c64a27c705b7eba39b65abc486a1dbb294e2471..e925641faebdbdcd34c2edf6bc46c91a
          let batch_rows = u32::try_from(batch_inputs.total_rows())
              .map_err(|_| anyhow::anyhow!("DFlash batch row count exceeds u32"))?;
          let batch_size =
+@@ -1471,6 +1625,7 @@ impl DraftProposer for BlockDiffusionDraftHead {
+         dstate.last_num_drafted = 0;
+         dstate.last_num_accepted = 0;
+         dstate.skip_next_decode_append = false;
++        dstate.end_floor = 0;
+         Ok(())
+     }
+ }
 diff --git a/crates/spark-model/src/layers/dflash_head/batch_execution_tests.rs b/crates/spark-model/src/layers/dflash_head/batch_execution_tests.rs
 index 88d9efdb8b66b9569b599fe19ef15e61dcf7bc95..f0edbf6fc74466631c7e2b7ef0eacee204c4f097 100644
 --- a/crates/spark-model/src/layers/dflash_head/batch_execution_tests.rs
@@ -3509,10 +3617,10 @@ index c1865dab669b4c133e35e8e29ef1d76583d6a6a9..9c0fcff2ccdf321373743c38c06f8aef
                  n_out,
 diff --git a/crates/spark-model/src/layers/dflash_head/dflash2.rs b/crates/spark-model/src/layers/dflash_head/dflash2.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..1192558a3b8eac00aaf363a3c97a73ea406f2c83
+index 0000000000000000000000000000000000000000..ccb59b80c121d300b65adbe5e6587e85564227fc
 --- /dev/null
 +++ b/crates/spark-model/src/layers/dflash_head/dflash2.rs
-@@ -0,0 +1,674 @@
+@@ -0,0 +1,678 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! DFlash2 extensions to [`BlockDiffusionDraftHead`].
@@ -3842,6 +3950,8 @@ index 0000000000000000000000000000000000000000..1192558a3b8eac00aaf363a3c97a73ea
 +            head.predecessor_codebook.weight,
 +            head.successor_codebook.weight,
 +            scratch.markov_prev_dev,
++            scratch.markov_prev_dev.offset(super::MARKOV_BAN_DEPTH_OFFSET),
++            crate::traits::EosBan::model_end_ids(),
 +            scratch.draft_tokens_dev,
 +            1,
 +            gamma,
@@ -4178,6 +4288,8 @@ index 0000000000000000000000000000000000000000..1192558a3b8eac00aaf363a3c97a73ea
 +            head.predecessor_codebook.weight,
 +            head.successor_codebook.weight,
 +            self.batch_markov_prev,
++            self.batch_ban_depth(),
++            crate::traits::EosBan::model_end_ids(),
 +            self.batch_tokens,
 +            u32::try_from(n)?,
 +            g as u32,
@@ -4188,10 +4300,18 @@ index 0000000000000000000000000000000000000000..1192558a3b8eac00aaf363a3c97a73ea
 +    }
 +}
 diff --git a/crates/spark-model/src/layers/dflash_head/forward_block.rs b/crates/spark-model/src/layers/dflash_head/forward_block.rs
-index 7ba9550b52cd8badc347cf01fedc89be4cded32a..ed7f27c3edb69d23d9071e5fe320fa456d19f641 100644
+index 7ba9550b52cd8badc347cf01fedc89be4cded32a..f017a6a1f3f3644a64ad5862840d13595ea3ee78 100644
 --- a/crates/spark-model/src/layers/dflash_head/forward_block.rs
 +++ b/crates/spark-model/src/layers/dflash_head/forward_block.rs
-@@ -544,9 +544,8 @@ impl BlockDiffusionDraftHead {
+@@ -33,6 +33,7 @@ impl BlockDiffusionDraftHead {
+         graph_owner: SequenceGeneration,
+         graph_lane: usize,
+         defer_readback: bool,
++        ban_depth: u32,
+     ) -> Result<Vec<u32>> {
+         use crate::layers::ops;
+ 
+@@ -544,9 +545,8 @@ impl BlockDiffusionDraftHead {
                          stream,
                      )?;
                  } else {
@@ -4202,7 +4322,7 @@ index 7ba9550b52cd8badc347cf01fedc89be4cded32a..ed7f27c3edb69d23d9071e5fe320fa45
                          norm_noise_local,
                          &crate::weight_map::DenseWeight {
                              weight: self.lm_head_shared,
-@@ -579,13 +578,13 @@ impl BlockDiffusionDraftHead {
+@@ -579,13 +579,13 @@ impl BlockDiffusionDraftHead {
                          )?;
                      }
                      None => {
@@ -4218,7 +4338,7 @@ index 7ba9550b52cd8badc347cf01fedc89be4cded32a..ed7f27c3edb69d23d9071e5fe320fa45
                              scratch.logits,
                              self.gamma as u32,
                              self.vocab_size as u32,
-@@ -595,13 +594,13 @@ impl BlockDiffusionDraftHead {
+@@ -595,13 +595,13 @@ impl BlockDiffusionDraftHead {
                      }
                  }
              } else {
@@ -4234,7 +4354,7 @@ index 7ba9550b52cd8badc347cf01fedc89be4cded32a..ed7f27c3edb69d23d9071e5fe320fa45
                      scratch.logits,
                      self.gamma as u32,
                      self.vocab_size as u32,
-@@ -616,7 +615,23 @@ impl BlockDiffusionDraftHead {
+@@ -616,7 +616,23 @@ impl BlockDiffusionDraftHead {
                      let _ = std::fs::write("/tmp/atlas_block_logits_pre.bin", &pre);
                  }
              }
@@ -4259,6 +4379,15 @@ index 7ba9550b52cd8badc347cf01fedc89be4cded32a..ed7f27c3edb69d23d9071e5fe320fa45
  
              // ── BLOCK-FORWARD PARITY DUMP (Friday 2026-06-11) ──────────────
              // Tests Ronald's theory: is the block-diffusion forward COMPUTING
+@@ -786,7 +802,7 @@ impl BlockDiffusionDraftHead {
+ 
+         // Seed Markov prev from a pinned host word BEFORE any tail
+         // capture/replay. The tail graph must not H2D a stack last_token.
+-        self.seed_markov_prev(last_token, gpu, stream, scratch)?;
++        self.seed_markov_prev(last_token, ban_depth, gpu, stream, scratch)?;
+ 
+         // Phase F.2: piecewise capture/replay path. Only enabled for
+         // option_b (paged) — legacy path stays single-shot eager since
 diff --git a/crates/spark-model/src/layers/dflash_head/forward_block_layer.rs b/crates/spark-model/src/layers/dflash_head/forward_block_layer.rs
 index 8291c87e3a63072dbb48d6f952d0a311b4e4e0b9..7ad0a2de881cd6b291e92908c19c03693e862ee1 100644
 --- a/crates/spark-model/src/layers/dflash_head/forward_block_layer.rs
@@ -4605,7 +4734,7 @@ index 61e316b8a67df573d1e5f58abf9b8fcb687ee179..f077014f6e82ef3f76057a02e54633f0
          // 3k. Second residual add: hidden = (residual + attn) + mlp_output.
          // dflash.py:142  hidden_states = residual + hidden_states
 diff --git a/crates/spark-model/src/layers/dflash_head/free_state_tests.rs b/crates/spark-model/src/layers/dflash_head/free_state_tests.rs
-index 322bd3a8e19f743eac3efa4446c6109dfa997614..7b2cd7d5914f8fd2f6d42a780dc0681106253c2b 100644
+index 322bd3a8e19f743eac3efa4446c6109dfa997614..d16d97786340f34862730ec301fd6efbe5db92bb 100644
 --- a/crates/spark-model/src/layers/dflash_head/free_state_tests.rs
 +++ b/crates/spark-model/src/layers/dflash_head/free_state_tests.rs
 @@ -52,6 +52,7 @@ fn zero_scratch() -> DflashScratch {
@@ -4643,8 +4772,16 @@ index 322bd3a8e19f743eac3efa4446c6109dfa997614..7b2cd7d5914f8fd2f6d42a780dc06811
          dense_gemm: zero,
          w4a16_gemm: zero,
          dense_gemm_pipelined: zero,
+@@ -215,6 +222,7 @@ fn live_state(gpu: &MockGpuBackend, own: SequenceGeneration) -> Box<DflashPropos
+         max_ctx_count_drafter: 1024,
+         ctx_committed: 12,
+         ctx_positions: vec![1, 2, 3],
++        end_floor: 0,
+         lane_id: 0,
+         lifecycle: Some(CaptureDescriptor::bind(own, 40, 4, 4, 16).unwrap()),
+     })
 diff --git a/crates/spark-model/src/layers/dflash_head/from_weights.rs b/crates/spark-model/src/layers/dflash_head/from_weights.rs
-index 106429139c57d117ea273a840e1e16c0fac5d0f9..31fb7a49b37723e262e27b032c69aca489c4281f 100644
+index 106429139c57d117ea273a840e1e16c0fac5d0f9..f2c9a8fd3e7b3b5890a2770e4c1b74f8824f84e3 100644
 --- a/crates/spark-model/src/layers/dflash_head/from_weights.rs
 +++ b/crates/spark-model/src/layers/dflash_head/from_weights.rs
 @@ -8,7 +8,7 @@
@@ -4773,8 +4910,15 @@ index 106429139c57d117ea273a840e1e16c0fac5d0f9..31fb7a49b37723e262e27b032c69aca4
              w4a16_gemv_batch4: gpu.kernel("w4a16_gemv", "w4a16_gemv_batch4")?,
              w4a16_gemv_batch8: gpu.kernel("w4a16_gemv", "w4a16_gemv_batch8")?,
              w4a16_gemv_batch16: gpu.kernel("w4a16_gemv", "w4a16_gemv_batch16")?,
-@@ -339,6 +346,10 @@ impl BlockDiffusionDraftHead {
-                     gpu.alloc_host_pinned(4)?,
+@@ -334,11 +341,15 @@ impl BlockDiffusionDraftHead {
+                 // cw=4096 for rows nothing ever touches (γ rows ≈ 8.4 MB).
+                 logits: gpu.alloc(g * vocab_size * bf16)?,
+                 draft_tokens_dev: gpu.alloc(n_attn * 4)?,
+-                markov_prev_dev: gpu.alloc(4)?,
++                markov_prev_dev: gpu.alloc(super::MARKOV_PREV_BYTES)?,
+                 markov_prev_host_pinned: std::sync::atomic::AtomicPtr::new(
+-                    gpu.alloc_host_pinned(4)?,
++                    gpu.alloc_host_pinned(super::MARKOV_PREV_BYTES)?,
                  ),
                  position_ids: gpu.alloc(n_attn * 4)?,
 +                dflash2: dflash2
@@ -4784,6 +4928,33 @@ index 106429139c57d117ea273a840e1e16c0fac5d0f9..31fb7a49b37723e262e27b032c69aca4
              };
              // C1 diagnostic: zero ALL device buffers so any uninitialized
              // read sees deterministic zeros instead of per-lane garbage.
+@@ -362,7 +373,7 @@ impl BlockDiffusionDraftHead {
+                 (s.option_b_indirect_args_dev, 12),
+                 (s.logits, g * vocab_size * bf16),
+                 (s.draft_tokens_dev, n_attn * 4),
+-                (s.markov_prev_dev, 4),
++                (s.markov_prev_dev, super::MARKOV_PREV_BYTES),
+                 (s.position_ids, n_attn * 4),
+             ] {
+                 gpu.memset(p, 0, bytes)?;
+@@ -419,7 +430,7 @@ impl BlockDiffusionDraftHead {
+         let batch_mlp_down = gpu.alloc(batch_norm_bytes)?;
+         let batch_logits = gpu.alloc(batch_logits_bytes)?;
+         let batch_tokens = gpu.alloc(batch_rows * 4)?;
+-        let batch_markov_prev = gpu.alloc(batch_capacity * 4)?;
++        let batch_markov_prev = gpu.alloc(batch_capacity * super::MARKOV_PREV_BYTES)?;
+         let batch_markov_embed_bytes = batch_capacity
+             .checked_mul(weights.markov_rank)
+             .and_then(|n| n.checked_mul(bf16))
+@@ -460,7 +471,7 @@ impl BlockDiffusionDraftHead {
+         gpu.memset(batch_mlp_down, 0, batch_norm_bytes)?;
+         gpu.memset(batch_logits, 0, batch_logits_bytes)?;
+         gpu.memset(batch_tokens, 0, batch_rows * 4)?;
+-        gpu.memset(batch_markov_prev, 0, batch_capacity * 4)?;
++        gpu.memset(batch_markov_prev, 0, batch_capacity * super::MARKOV_PREV_BYTES)?;
+         if weights.markov_rank > 0 {
+             gpu.memset(batch_markov_embed, 0, batch_markov_embed_bytes)?;
+             gpu.memset(batch_markov_bias, 0, batch_markov_bias_bytes)?;
 @@ -658,12 +669,14 @@ impl BlockDiffusionDraftHead {
              lm_head_shared,
              lm_head_nvfp4,
@@ -4915,6 +5086,53 @@ index 106429139c57d117ea273a840e1e16c0fac5d0f9..31fb7a49b37723e262e27b032c69aca4
 +    }
 +    gpu.kernel("prefill_paged_indirect_sink", SYMBOL)
 +}
+diff --git a/crates/spark-model/src/layers/dflash_head/lifecycle_tests.rs b/crates/spark-model/src/layers/dflash_head/lifecycle_tests.rs
+index 475d2782648ae1c7f53a7aa346e1f2ab33709109..73c9804217ed552f99d430bf36724bf702fd2326 100644
+--- a/crates/spark-model/src/layers/dflash_head/lifecycle_tests.rs
++++ b/crates/spark-model/src/layers/dflash_head/lifecycle_tests.rs
+@@ -177,6 +177,7 @@ fn owner_failure_reclaim_frees_state_resources_without_leaking() {
+         max_ctx_count_drafter: 1024,
+         ctx_committed: 12,
+         ctx_positions: vec![1, 2, 3],
++        end_floor: 0,
+         lane_id: 0,
+         lifecycle: Some(CaptureDescriptor::bind(owner_now, 40, 4, 4, 16).unwrap()),
+     };
+diff --git a/crates/spark-model/src/layers/dflash_head/markov.rs b/crates/spark-model/src/layers/dflash_head/markov.rs
+index 299c1672dd10504f5ebfefd37461436bc8667ca4..1139f42d2ed6a7f6d8f965d474669350bb68e977 100644
+--- a/crates/spark-model/src/layers/dflash_head/markov.rs
++++ b/crates/spark-model/src/layers/dflash_head/markov.rs
+@@ -137,11 +137,13 @@ impl BlockDiffusionDraftHead {
+         Ok(())
+     }
+ 
+-    /// Write `last_token` into the stable device slot the tail graph reads.
+-    /// Must run on `stream` BEFORE begin_capture(tail) / launch_graph(tail).
++    /// Write `[last_token, ban_depth]` into the stable device slots the tail
++    /// graph reads. Must run on `stream` BEFORE begin_capture(tail) /
++    /// launch_graph(tail).
+     pub(super) fn seed_markov_prev(
+         &self,
+         last_token: u32,
++        ban_depth: u32,
+         gpu: &dyn spark_runtime::gpu::GpuBackend,
+         stream: u64,
+         scratch: &DflashScratch,
+@@ -150,10 +152,12 @@ impl BlockDiffusionDraftHead {
+             .markov_prev_host_pinned
+             .load(std::sync::atomic::Ordering::Relaxed);
+         anyhow::ensure!(!ptr.is_null(), "markov_prev_host_pinned is null");
++        // SAFETY: `ptr` is the page-locked MARKOV_PREV_BYTES allocation made
++        // in `from_weights`, reached only through this scratch on its stream.
+         unsafe {
+-            std::ptr::write(ptr as *mut u32, last_token);
++            std::ptr::write_unaligned(ptr as *mut [u32; 2], [last_token, ban_depth]);
+         }
+-        let host = unsafe { std::slice::from_raw_parts(ptr, 4) };
++        let host = unsafe { std::slice::from_raw_parts(ptr, super::MARKOV_PREV_BYTES) };
+         gpu.copy_h2d_async(host, scratch.markov_prev_dev, stream)
+     }
+ }
 diff --git a/crates/spark-model/src/layers/dflash_head/nvfp4.rs b/crates/spark-model/src/layers/dflash_head/nvfp4.rs
 index 9055024d8945a0ecb6b49144ae72407f937dd93a..c711e629f26e93add8149864f50c64d33fd31b10 100644
 --- a/crates/spark-model/src/layers/dflash_head/nvfp4.rs
@@ -5161,7 +5379,7 @@ index 6251d53016839ebac0e9444cf28d2e30c4c938c7..dc82d0ebaae38f07fbd6415462563733
              debug_dump: one("ATLAS_DFLASH_DEBUG_DUMP"),
              graph_ineligible_diags,
 diff --git a/crates/spark-model/src/layers/dflash_head/propose.rs b/crates/spark-model/src/layers/dflash_head/propose.rs
-index 7f6205e6b7fdd48aea1f09636ebf998d3610131d..3cfa90eab109bf35c30277f75026e79ce072eb55 100644
+index 7f6205e6b7fdd48aea1f09636ebf998d3610131d..0154c33059d8e10011ee9ec7be2664f25c6746c2 100644
 --- a/crates/spark-model/src/layers/dflash_head/propose.rs
 +++ b/crates/spark-model/src/layers/dflash_head/propose.rs
 @@ -118,59 +118,6 @@ impl BlockDiffusionDraftHead {
@@ -5287,6 +5505,18 @@ index 7f6205e6b7fdd48aea1f09636ebf998d3610131d..3cfa90eab109bf35c30277f75026e79c
          // ── Phase 2 Option B: lazy block_table allocation ─────────────
          // When the startup policy enabled Option B and the proposer hasn't
          // yet allocated paged blocks, do it now. We allocate enough blocks
+@@ -555,6 +558,11 @@ impl BlockDiffusionDraftHead {
+                 owner,
+                 lane_id,
+                 defer_readback,
++                crate::traits::EosBan::banned_draft_depth(
++                    dstate.end_floor,
++                    position,
++                    self.gamma - 1,
++                ),
+             )
+             .map_err(|e| {
+                 tracing::warn!("DFlash forward_block failed, falling back to no-spec: {e:#}");
 diff --git a/crates/spark-model/src/layers/ffn_c4.rs b/crates/spark-model/src/layers/ffn_c4.rs
 index ffa00c0af18cfe5a820973391e2412b1052b41c8..cfca5f602bb9ab5ea683c8d2567e92de7e83a4d4 100644
 --- a/crates/spark-model/src/layers/ffn_c4.rs
@@ -7140,10 +7370,10 @@ index 0000000000000000000000000000000000000000..732b0c66b8a73594cf07e82236e06010
 +}
 diff --git a/crates/spark-model/src/layers/ops/dflash2.rs b/crates/spark-model/src/layers/ops/dflash2.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..3f0f7e29591f49d1f8a75fa11341a8e7ecec1b7a
+index 0000000000000000000000000000000000000000..11ed9a337bb3a5059305658d178643b1092d5f63
 --- /dev/null
 +++ b/crates/spark-model/src/layers/ops/dflash2.rs
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,161 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +//! Launch wrappers for the DFlash2 drafter kernels (`kernels/<hw>/common/dflash2.cu`).
@@ -7231,10 +7461,11 @@ index 0000000000000000000000000000000000000000..3f0f7e29591f49d1f8a75fa11341a8e7
 +
 +/// Greedy candidate-selector walk, one block per sequence of `gamma` rows.
 +/// Writes `tokens[b * gamma + 0]` = top-1 of the anchor row and
-+/// `tokens[b * gamma + 1..gamma]` = the walked drafts.
++/// `tokens[b * gamma + 1..gamma]` = the walked drafts. Depths
++/// `1..=ban_depth[b]` never draft one of `end_ids` (`ban_depth` may be null).
 +///
 +/// Kernel: `dflash2_selector_walk(cand_ids, cand_vals, hidden, pred, succ,
-+/// anchors, tokens, gamma, rank, vocab)`
++/// anchors, ban_depth, tokens, gamma, rank, vocab, end0..end3)`
 +/// Grid: (batch, 1, 1)  Block: (32 * DFLASH2_TOPK = 512, 1, 1)
 +#[allow(clippy::too_many_arguments)]
 +pub fn dflash2_selector_walk(
@@ -7246,6 +7477,8 @@ index 0000000000000000000000000000000000000000..3f0f7e29591f49d1f8a75fa11341a8e7
 +    predecessor_codebook: DevicePtr,
 +    successor_codebook: DevicePtr,
 +    anchors: DevicePtr,
++    ban_depth: DevicePtr,
++    end_ids: [u32; 4],
 +    tokens: DevicePtr,
 +    batch: u32,
 +    gamma: u32,
@@ -7257,7 +7490,7 @@ index 0000000000000000000000000000000000000000..3f0f7e29591f49d1f8a75fa11341a8e7
 +        (1..=DFLASH2_MAX_RANK as u32).contains(&rank),
 +        "dflash2_selector_walk: rank={rank} outside 1..={DFLASH2_MAX_RANK}"
 +    );
-+    KernelLaunch::new(gpu, kernel)
++    let mut launch = KernelLaunch::new(gpu, kernel)
 +        .grid([batch, 1, 1])
 +        .block([32 * DFLASH2_TOPK as u32, 1, 1])
 +        .arg_ptr(cand_ids)
@@ -7266,11 +7499,15 @@ index 0000000000000000000000000000000000000000..3f0f7e29591f49d1f8a75fa11341a8e7
 +        .arg_ptr(predecessor_codebook)
 +        .arg_ptr(successor_codebook)
 +        .arg_ptr(anchors)
++        .arg_ptr(ban_depth)
 +        .arg_ptr(tokens)
 +        .arg_u32(gamma)
 +        .arg_u32(rank)
-+        .arg_u32(vocab)
-+        .launch(stream)
++        .arg_u32(vocab);
++    for id in end_ids {
++        launch = launch.arg_u32(id);
++    }
++    launch.launch(stream)
 +}
 +
 +#[cfg(test)]
@@ -14729,10 +14966,10 @@ index 8642c2faea77c1156be31bca9114331703268875..32ddb690ffa840c9df42162b8c8724e2
                  bytes: capture_bytes,
 diff --git a/crates/spark-model/src/model/glm_vocab_split.rs b/crates/spark-model/src/model/glm_vocab_split.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..e75cfa807ebbc188e0f1bd7d6cabff683685dce1
+index 0000000000000000000000000000000000000000..00df5fea878b56ce699117364f1b7549cccf719f
 --- /dev/null
 +++ b/crates/spark-model/src/model/glm_vocab_split.rs
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,181 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +//! Exact TP2 vocabulary split for the greedy GLM verify head.
 +//!
@@ -14777,18 +15014,28 @@ index 0000000000000000000000000000000000000000..e75cfa807ebbc188e0f1bd7d6cabff68
 +        let Some(comm) = self.comm.as_ref() else {
 +            return Ok(false);
 +        };
-+        if !enabled()
-+            || self.config.model_type != "glm5_next"
-+            || comm.world_size() != 2
-+            || !comm.supports_peer_exchange_async()
-+            || self.lm_head_fp8.is_some()
-+            || self.lm_head_nvfp4.is_some()
-+            || self.overlays.is_some()
-+            || self.logit_softcap_kernel.0 != 0
-+            || self.dense_gemv_batchm_kernel.0 == 0
-+            || rows == 0
-+            || rows * 16 > PAIRS_BYTES
-+        {
++        let decline = [
++            (!enabled(), "disabled"),
++            (self.config.model_type != "glm5_next", "model"),
++            (comm.world_size() != 2, "world"),
++            (!comm.supports_peer_exchange_async(), "peer_exchange"),
++            (self.lm_head_fp8.is_some(), "lm_head_fp8"),
++            (self.lm_head_nvfp4.is_some(), "lm_head_nvfp4"),
++            (self.overlays.is_some(), "overlays"),
++            (self.logit_softcap_kernel.0 != 0, "softcap"),
++            (self.dense_gemv_batchm_kernel.0 == 0, "batchm_kernel"),
++            (rows == 0 || rows * 16 > PAIRS_BYTES, "rows"),
++        ]
++        .into_iter()
++        .find_map(|(hit, why)| hit.then_some(why));
++        if let Some(why) = decline {
++            static LOGGED: std::sync::Once = std::sync::Once::new();
++            LOGGED.call_once(|| {
++                tracing::warn!(
++                    "GLM vocab-split verify head declined ({why}, rows={rows}); \
++                     min_tokens end-token ban inactive"
++                )
++            });
 +            return Ok(false);
 +        }
 +        static KERNELS: OnceLock<(KernelHandle, KernelHandle)> = OnceLock::new();
@@ -14884,7 +15131,7 @@ index 0000000000000000000000000000000000000000..e75cfa807ebbc188e0f1bd7d6cabff68
 +            .arg_ptr(local)
 +            .arg_u32(shard as u32)
 +            .arg_u32(vocab as u32);
-+        for id in ban.ids {
++        for id in ban.head_ids() {
 +            launch = launch.arg_u32(local_id(id));
 +        }
 +        launch.launch(stream)?;
@@ -16863,7 +17110,7 @@ index 0000000000000000000000000000000000000000..7c153c869e4a1be8252bdc793ff98531
 +    }
 +}
 diff --git a/crates/spark-model/src/speculative.rs b/crates/spark-model/src/speculative.rs
-index d62a10e274e783fa5d4eabc62029183b6a3379e6..5c8677f13d9fba997521945fb531bd114522184d 100644
+index d62a10e274e783fa5d4eabc62029183b6a3379e6..6f5da61de4ca4088bda0532dcc747fb5d620d663 100644
 --- a/crates/spark-model/src/speculative.rs
 +++ b/crates/spark-model/src/speculative.rs
 @@ -9,6 +9,7 @@ pub mod glm_pair_plan;
@@ -16874,6 +17121,16 @@ index d62a10e274e783fa5d4eabc62029183b6a3379e6..5c8677f13d9fba997521945fb531bd11
  pub mod ladder;
  pub mod tree_shape;
  pub mod verify_key;
+@@ -31,6 +32,9 @@ use crate::layer::ForwardContext;
+ pub trait ProposerState: Send + Sync {
+     fn as_any(&self) -> &dyn Any;
+     fn as_any_mut(&mut self) -> &mut dyn Any;
++    /// The request's min_tokens floor (`EosBan::floor`, 0 = none): drafts
++    /// for positions below it should not end the turn. Default: ignored.
++    fn set_end_floor(&mut self, _floor: usize) {}
+ }
+ 
+ /// A draft token proposer for speculative decoding.
 diff --git a/crates/spark-model/src/speculative/glm_pair_plan.rs b/crates/spark-model/src/speculative/glm_pair_plan.rs
 index 424c00a68887b7939cfabdffe8f8382e0b229193..7b750222f9b4ee3cecdf34e5f109cc7f722836bb 100644
 --- a/crates/spark-model/src/speculative/glm_pair_plan.rs
@@ -17163,7 +17420,7 @@ index 0000000000000000000000000000000000000000..b276653cfc8884ea176c72ba7f1383e1
 +    }
 +}
 diff --git a/crates/spark-model/src/traits.rs b/crates/spark-model/src/traits.rs
-index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1261cc0f4 100644
+index da353289798b4b49c45f547a6e14c4ca7dda9a98..4ab2370ffffa5ba362745b34806f1c2ab2edd57b 100644
 --- a/crates/spark-model/src/traits.rs
 +++ b/crates/spark-model/src/traits.rs
 @@ -85,6 +85,10 @@ pub struct SequenceState {
@@ -17188,7 +17445,7 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
      /// Disk-block-ID list for `--high-speed-swap` (Phase 6.1.c).
      /// Each entry is a stable disk-side identifier that outlives HBM block
      /// recycling. `disk_block_ids` grows monotonically with the sequence
-@@ -267,6 +275,38 @@ pub struct SequenceState {
+@@ -267,6 +275,65 @@ pub struct SequenceState {
      pub early_stopping: bool,
  }
  
@@ -17199,6 +17456,8 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
 +    pub floor: usize,
 +    pub ids: [u32; 4],
 +}
++
++static MODEL_END_TOKENS: std::sync::OnceLock<[u32; 4]> = std::sync::OnceLock::new();
 +
 +impl Default for EosBan {
 +    fn default() -> Self {
@@ -17215,6 +17474,31 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
 +        Self { floor: if min_tokens == 0 { 0 } else { prompt_len + min_tokens }, ids }
 +    }
 +
++    /// Install the model's end tokens on every rank. A TP2 vocabulary-split
++    /// head bans them in each rank's half, and only the head rank carries the
++    /// per-request `EosBan`: without this the worker's half (which holds GLM's
++    /// `<|user|>`) returns its end token as the "unbanned" pick.
++    pub fn install_model_end_tokens(eos_tokens: &[u32]) {
++        let _ = MODEL_END_TOKENS.set(Self::new(0, 0, eos_tokens).ids);
++    }
++
++    /// End ids a split verify head excludes from its unbanned pick: the
++    /// installed model end tokens, else this sequence's own.
++    pub fn head_ids(&self) -> [u32; 4] {
++        MODEL_END_TOKENS.get().copied().unwrap_or(self.ids)
++    }
++
++    /// The installed model end tokens (unused slots `u32::MAX`).
++    pub fn model_end_ids() -> [u32; 4] {
++        Self::default().head_ids()
++    }
++
++    /// Leading draft depths (depth `d` drafts position `anchor_pos + d`) that
++    /// may not be an end token: those below `floor` (0 = no min_tokens).
++    pub fn banned_draft_depth(floor: usize, anchor_pos: usize, max_depth: usize) -> u32 {
++        floor.saturating_sub(anchor_pos + 1).min(max_depth) as u32
++    }
++
 +    /// Bit `j` is set when verify row `j` of a pass whose first input sits at
 +    /// `base_pos` predicts a position below the floor (row `j` predicts
 +    /// `base_pos + j + 1`). `rows` is at most 64.
@@ -17227,7 +17511,7 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
  impl SequenceState {
      /// A detached, host-only sequence state: no GPU resources, no SSM
      /// slot, no layer states, every counter zeroed. The single source
-@@ -284,6 +324,7 @@ impl SequenceState {
+@@ -284,6 +351,7 @@ impl SequenceState {
              seq_len: 0,
              layer_states: Vec::new(),
              proposer_state: None,
@@ -17235,7 +17519,7 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
              slot_idx,
              ssm_slot: None,
              marconi_skip_to: 0,
-@@ -301,6 +342,7 @@ impl SequenceState {
+@@ -301,6 +369,7 @@ impl SequenceState {
              kv_valid_tokens: 0,
              last_decode_ckpt_block: 0,
              prompt_len: 0,
@@ -17243,7 +17527,7 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
              disk_block_ids: Vec::new(),
              disk_last_offloaded_per_layer: Vec::new(),
              collect_prompt_logprobs: None,
-@@ -386,3 +428,22 @@ mod logprobs;
+@@ -386,3 +455,40 @@ mod logprobs;
  mod model;
  pub use logprobs::*;
  pub use model::{BeamReq, Model, padded_batch_n};
@@ -17264,6 +17548,24 @@ index da353289798b4b49c45f547a6e14c4ca7dda9a98..6a0b2972a8fbaa89759ab7a4934f4aa1
 +        assert_eq!(ban.row_mask(0, 64), u64::MAX); // all 64 rows below 110
 +        assert_eq!(EosBan::new(100, 0, &[7]).row_mask(0, 8), 0);
 +        assert_eq!(EosBan::default().row_mask(0, 8), 0);
++    }
++
++    #[test]
++    fn drafts_below_the_floor_skip_end_tokens() {
++        // Floor 110; depth d drafts anchor + d, so an anchor at 105 bans
++        // depths 1..=4 (positions 106..=109).
++        assert_eq!(EosBan::banned_draft_depth(110, 105, 7), 4);
++        assert_eq!(EosBan::banned_draft_depth(110, 109, 7), 0);
++        assert_eq!(EosBan::banned_draft_depth(110, 50, 7), 7);
++        assert_eq!(EosBan::banned_draft_depth(0, 50, 7), 0);
++    }
++
++    #[test]
++    fn split_head_bans_model_end_tokens_on_every_rank() {
++        // A worker rank's sequence carries the default ban (no ids), yet GLM's
++        // <|user|> lives in its vocabulary half.
++        EosBan::install_model_end_tokens(&[154820, 154827, 154829]);
++        assert_eq!(EosBan::default().head_ids(), [154820, 154827, 154829, u32::MAX]);
 +    }
 +}
 diff --git a/crates/spark-model/src/traits/model.rs b/crates/spark-model/src/traits/model.rs
@@ -22000,7 +22302,7 @@ index 1bcb97ac07150778aea3cf5d4b3e067f1d10f0bc..1f016a538b78c611ead64fec4280875f
  /// its historical 1280px long-side clamp).
  ///
 diff --git a/crates/spark-server/src/main_modules/serve_load.rs b/crates/spark-server/src/main_modules/serve_load.rs
-index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..3135334026cf72c4994f5c1e3dcb97260c6eb38b 100644
+index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..f821ed1a2110f27b10eb1058969ee5295c917e2e 100644
 --- a/crates/spark-server/src/main_modules/serve_load.rs
 +++ b/crates/spark-server/src/main_modules/serve_load.rs
 @@ -37,6 +37,25 @@ use crate::{
@@ -22092,6 +22394,29 @@ index e187bf1cc1bb8de77d61f345b2c19f61cae61be1..3135334026cf72c4994f5c1e3dcb9726
               Rebuild the target with vision to enable images.",
              ptx_set.target,
          );
+@@ -768,6 +788,12 @@ pub(crate) fn load_model_selected(
+     // Phase 6.3 — HSS config built early so the EP worker can install it.
+     let early_high_speed_swap_cfg = serve_phases::build_high_speed_swap_config(&args)?;
+ 
++    // Build EOS token list from generation_config.json (authoritative) or config.json fallback.
++    // Loaded before the worker split: every rank's verify head bans these below a
++    // request's min_tokens floor.
++    let mut eos_tokens = serve_phases::load_eos_tokens(&model_dir, &config);
++    spark_model::traits::EosBan::install_model_end_tokens(&eos_tokens);
++
+     // EP worker: rank > 0 enters command loop, returns when head exits.
+     let model = match model {
+         #[cfg(target_os = "linux")]
+@@ -787,9 +813,6 @@ pub(crate) fn load_model_selected(
+         }
+     };
+ 
+-    // Build EOS token list from generation_config.json (authoritative) or config.json fallback
+-    let mut eos_tokens = serve_phases::load_eos_tokens(&model_dir, &config);
+-
+     // Read default sampling parameters from generation_config.json.
+     let serve_phases::SamplingDefaults {
+         temperature: default_temperature,
 diff --git a/crates/spark-server/src/main_modules/serve_load_tests.rs b/crates/spark-server/src/main_modules/serve_load_tests.rs
 index eccfd820c55a83bfdfcad5ea9c74005d7de2a503..2a0aec719911a6b0a0bb7b01e9287ea82ef4ba5b 100644
 --- a/crates/spark-server/src/main_modules/serve_load_tests.rs
@@ -23577,7 +23902,7 @@ index dc1ed2c8d9172d1ac34fcb42f96bd6460faa732f..0e576560a4037b5bbaa90955d0916ef9
          model.ep_broadcast_cmd(chunk_len as u32)?;
          model.ep_broadcast_cmd(p.chunk_offset as u32)?;
 diff --git a/crates/spark-server/src/scheduler/phase_promote_prefills.rs b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
-index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..9d2935ece6778cfe5779cdf0690bd2225119c677 100644
+index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..96fd59d1b0feab90bbb8d0511560ca2d32287565 100644
 --- a/crates/spark-server/src/scheduler/phase_promote_prefills.rs
 +++ b/crates/spark-server/src/scheduler/phase_promote_prefills.rs
 @@ -33,7 +33,11 @@ pub(super) fn promote_completed_prefills(
@@ -23593,20 +23918,25 @@ index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..9d2935ece6778cfe5779cdf0690bd222
              let mut seq = p.seq;
              if let Err(e) = model.free_sequence(&mut seq) {
                  tracing::error!("phase_promote_prefills: free_sequence (error path): {e:#}");
-@@ -144,8 +148,11 @@ pub(super) fn build_active_seq_from_prefill(
+@@ -144,8 +148,16 @@ pub(super) fn build_active_seq_from_prefill(
          think_end_token,
          glm_tool_boundary.filter(|_| p.tools_present),
      );
 +    let mut seq = p.seq;
 +    // Greedy verify heads mask end tokens below the min_tokens floor.
 +    seq.eos_ban = spark_model::traits::EosBan::new(seq.prompt_len, p.min_tokens, &p.eos_tokens);
++    // ... and the drafter skips them there, so a banned end token never
++    // truncates an otherwise acceptable draft chain.
++    if let Some(proposer) = seq.proposer_state.as_mut() {
++        proposer.set_end_floor(seq.eos_ban.floor);
++    }
      ActiveSeq {
 -        seq: p.seq,
 +        seq,
          session_hash: p.session_hash,
          last_token: first,
          output_tokens: if (!immediate_finish && spontaneous_think) || p.max_tokens == 0 {
-@@ -161,6 +168,7 @@ pub(super) fn build_active_seq_from_prefill(
+@@ -161,6 +173,7 @@ pub(super) fn build_active_seq_from_prefill(
          min_tokens: p.min_tokens,
          eos_tokens: p.eos_tokens,
          finished: immediate_finish,
@@ -23614,7 +23944,7 @@ index 1d66dafd3a659ff8826c34be54f6c941af4fffd4..9d2935ece6778cfe5779cdf0690bd222
          guard_stop: None,
          param_close_pending: 0,
          sink: p.sink,
-@@ -238,3 +246,72 @@ pub(super) fn build_active_seq_from_prefill(
+@@ -238,3 +251,72 @@ pub(super) fn build_active_seq_from_prefill(
          adaptive: crate::adaptive_sampler::AdaptiveSamplingState::new(temperature),
      }
  }
@@ -25578,10 +25908,10 @@ index d03f44d4de5d6cd1b6d8a2b57583153b577e246d..d45083acd93b51c06e48d696f20b830d
 +}
 diff --git a/kernels/gb10/common/dflash2.cu b/kernels/gb10/common/dflash2.cu
 new file mode 100644
-index 0000000000000000000000000000000000000000..d6123a375903ed520c8fde857dae01fb19354393
+index 0000000000000000000000000000000000000000..8cdae549d08b4bbb52a66c286830b34999637b3f
 --- /dev/null
 +++ b/kernels/gb10/common/dflash2.cu
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,308 @@
 +// SPDX-License-Identifier: AGPL-3.0-only
 +
 +// DFlash2 drafter kernels: grouped dynamic in-block conv, per-row top-K over
@@ -25810,6 +26140,8 @@ index 0000000000000000000000000000000000000000..d6123a375903ed520c8fde857dae01fb
 +// hidden:    [batch * gamma, rank] BF16 hidden_projection of final-normed rows
 +// pred/succ: [vocab, rank] BF16 predecessor / successor codebooks
 +// anchors:   [batch] u32 block anchor (bonus) token
++// ban_depth: [batch] u32: depths 1..ban_depth[b] never draft end0..end3 (the
++//            target may not end the turn there under min_tokens); may be null
 +// tokens:    [batch * gamma] u32 out: row 0 = top-1 of the anchor row (plain
 +//            argmax, matching the non-selector path), rows 1.. = walk.
 +//
@@ -25822,10 +26154,15 @@ index 0000000000000000000000000000000000000000..d6123a375903ed520c8fde857dae01fb
 +    const __nv_bfloat16* __restrict__ pred,
 +    const __nv_bfloat16* __restrict__ succ,
 +    const unsigned int* __restrict__ anchors,
++    const unsigned int* __restrict__ ban_depth,
 +    unsigned int* __restrict__ tokens,
 +    unsigned int gamma,
 +    unsigned int rank,
-+    unsigned int vocab
++    unsigned int vocab,
++    unsigned int end0,
++    unsigned int end1,
++    unsigned int end2,
++    unsigned int end3
 +) {
 +    __shared__ float s_query[DFLASH2_MAX_RANK];
 +    __shared__ float s_score[DFLASH2_TOPK];
@@ -25835,6 +26172,7 @@ index 0000000000000000000000000000000000000000..d6123a375903ed520c8fde857dae01fb
 +    const unsigned int lane = tid & 31;
 +    const unsigned int warp = tid >> 5;
 +    const size_t first_row = (size_t)blockIdx.x * gamma;
++    const unsigned int banned_to = ban_depth ? ban_depth[blockIdx.x] : 0u;
 +
 +    if (tid == 0) {
 +        tokens[first_row] = cand_ids[first_row * DFLASH2_TOPK];
@@ -25863,7 +26201,10 @@ index 0000000000000000000000000000000000000000..d6123a375903ed520c8fde857dae01fb
 +                acc += __shfl_xor_sync(0xFFFFFFFFu, acc, offset);
 +            }
 +            if (lane == 0) {
-+                s_score[warp] = cand_vals[row * DFLASH2_TOPK + warp] + acc;
++                const bool end = cand == end0 || cand == end1 || cand == end2 || cand == end3;
++                s_score[warp] = depth <= banned_to && end
++                    ? -INFINITY
++                    : cand_vals[row * DFLASH2_TOPK + warp] + acc;
 +            }
 +        }
 +        __syncthreads();
