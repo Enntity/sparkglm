@@ -3,8 +3,11 @@
 GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
 [Atlas](https://github.com/Enntity/atlas) inference engine: tensor and expert
 parallelism across both boxes over one ConnectX-7 cable, NVIDIA's NVFP4
-checkpoint, DFlash2 speculative decoding, four concurrent requests with 512K
-context each, and an OpenAI-compatible API.
+checkpoint, DFlash2 speculative decoding, prefix caching, up to four
+concurrent requests with 512K context each, and an OpenAI-compatible API.
+Multi-turn agents get a cached conversation back: a turn of a 45K-token
+conversation starts in under a second instead of re-reading the whole
+transcript.
 
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
@@ -15,13 +18,18 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 ## What it does
 
-Measured on two DGX Sparks joined by one 200G cable, with an image built from
-a fresh clone ([receipts and caveats](results/2026-09-29-atlas-merged/RESULT.md)):
+Measured on two DGX Sparks joined by one 200G cable, with images built from
+a fresh clone. Receipts and caveats:
+[prefix caching](results/2026-09-29-prefix-caching/RESULT.md) (this release)
+and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
+(decode, prefill, RigMark and quality rows).
 
 | Workload | SparkGLM (Atlas) | Reference, same pair |
 |---|---|---|
-| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each (sum of walls) | **154.8 s** | vLLM SparkGLM 206.6 s |
-| Staggered C4: four ~16K requests arriving 1 s apart | **57.5 s** | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
+| Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.81 s** | 17.6 s with caching off |
+| Replaying a 35K-token prompt | **0.81 s** (15.6 s cold) | |
+| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **160.7 s** | vLLM SparkGLM 206.6 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold | **58.9 s** | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
 | Single-stream decode (structured / code / prose) | 84.1 / 60.5 / 32.2 tok/s | |
 | Cold prefill at 8K / 32K / 64K / 139K | 2,500 / 2,470 / 2,310 / 2,020 tok/s | |
 | Aggregate short-code decode, 1 / 6 / 8 streams (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | RiNGSiDE vLLM TP2 (published) 44.0 / 97.3 / – |
@@ -85,9 +93,14 @@ videos are supported.
 
 **Profiles** (`PROFILE` in `.env`):
 
-- `4x512k` (default): four requests with up to 512K context each, sharing one
-  FP8-latent KV pool of about 866K tokens.
-- `8x128k`: eight requests with up to 128K each, for more concurrent short work.
+- `4x512k` (default): up to four requests with up to 512K context each.
+- `8x128k`: up to eight requests with up to 128K each, for more concurrent
+  short work.
+
+All requests share one FP8-latent KV pool that also holds the prefix cache.
+Its size depends on the memory free when the engine starts: 340K–560K tokens
+in our runs. Requests that don't fit wait for room. Prefix caching keeps the
+16 most recent conversations' recurrent state warm.
 
 ## Reproduce our numbers
 
