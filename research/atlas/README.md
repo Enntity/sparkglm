@@ -4,7 +4,26 @@ Atlas is SparkGLM's separate Rust/CUDA engine project. It is actively developed
 here on `main`, under **AGPL-3.0-only**. The root installer and serving defaults
 remain the **vLLM** project; nothing in this directory is enabled by default.
 
-The current NVIDIA NVFP4 campaign has working native MTP2, 32K context and four
+## Current installable build (2026-09-29)
+
+The current Atlas candidate is built from the public
+[`Enntity/atlas`](https://github.com/Enntity/atlas) fork
+(`sparkglm/atlas-20260928`: Atlas-Inf `main` plus our GLM-5.3 Flash layer and
+one SparkGLM-only bridge commit) and installed with the recipe on branch
+[`atlas/installable-20260929`](https://github.com/Enntity/sparkglm/tree/atlas/installable-20260929). Follow its
+[install and reproduction guide](https://github.com/Enntity/sparkglm/blob/atlas/installable-20260929/research/atlas/install/README.md): it
+builds every component from pinned sources, starts the two-Spark pair with or
+without LLooM, and reproduces the measurements in the
+[result bundle](https://github.com/Enntity/sparkglm/tree/atlas/installable-20260929/results/candidates/2026-09-29-atlas-merged).
+
+Measured with that recipe on our pair (candidate evidence, not a
+qualification): the frozen matrix summed to 154.8 s (mean of 3; vLLM
+SparkGLM 206.6 s) and the staggered C4 field guide took 57.5 s (median of 3;
+vLLM SparkGLM adaptive 70.5 s). vLLM remains the recommended default.
+
+## Earlier campaign (2026-09-11, historical)
+
+The NVIDIA NVFP4 campaign below had working native MTP2, 32K context and four
 owners. The best retained staggered C4 took **137.129 seconds**, versus
 **205.468 seconds** for the first full run and **90.500 seconds** for the vLLM
 reference. These are bounded research measurements, not complete qualification
