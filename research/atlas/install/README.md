@@ -78,10 +78,13 @@ commit, refuses any other tree, builds the native bridges (FlashKDA and the
 NVIDIA sparse-MLA prefill from FlashInfer source), the engine (target
 `glm-5.3-flash`) and its build-time regression tests, and prints the image
 tag `lloom/atlas-sparkglm:<sparkglm-revision>` plus a receipt in
-`$HOME/atlas-install`. Expect roughly an hour on a GB10 the first time.
-Set `ATLAS_BUILD_JOBS` (default 4) to trade speed for memory.
+`$HOME/atlas-install`. A cold build downloads the CUDA base images and
+compiles FlashInfer's sparse-MLA prefill, FlashKDA, CUTLASS-based kernels and
+the engine; allow well over half an hour (the engine's kernels alone are
+~18 minutes). With a warm BuildKit cache a rebuild took about 5 minutes on our
+Sparks. Set `ATLAS_BUILD_JOBS` (default 4) to trade speed for memory.
 
-## 4. Convert the checkpoint overlay (once per node, ~15 min, needs the GPU)
+## 4. Convert the checkpoint overlay (once per node, about a minute, needs the GPU)
 
 Atlas serves the NVIDIA checkpoint through an overlay that quantizes the MTP
 matrices it needs; everything else is linked back to the original files.
@@ -116,8 +119,9 @@ bash research/atlas/install/start-node.sh --rank 0 --leader-address 192.0.2.1 \
 until curl -sf http://127.0.0.1:8893/health; do sleep 10; done   # on rank 0
 ```
 
-Loading takes about three minutes; the very first start also fills the CUDA
-kernel cache (`~/.cache/atlas-cuda`), which later starts reuse. The OpenAI
+Loading takes about two and a half minutes. The very first start and the first
+requests of each shape also fill the CUDA kernel cache (`~/.cache/atlas-cuda`),
+which later starts reuse; run one warmup pass before measuring. The OpenAI
 compatible API listens on rank 0's loopback, `127.0.0.1:8893`, model
 `glm-5.3-flash-atlas`; put your own authenticated proxy in front of it before
 exposing it. Stop with `docker rm -f atlas-sparkglm-rank0` (and `-rank1`).
