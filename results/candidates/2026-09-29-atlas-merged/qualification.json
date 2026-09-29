@@ -1,0 +1,323 @@
+{
+  "schema": "sparkglm.qualification/v1",
+  "id": "2026-09-29-atlas-merged",
+  "title": "Atlas SparkGLM from the merged Enntity/atlas build: install, matrix, field guide, RigMark",
+  "date": "2026-09-29",
+  "state": "candidate",
+  "qualification_level": "G0",
+  "target": "Reproducible source install of the merged Atlas engine and its full-model performance on the frozen matrix, staggered C4 field guide and RigMark",
+  "change": {
+    "baseline_ref": "29de4f50483368c25141f34be47ceb302057e665",
+    "candidate_ref": "37428a7bc70f0255c97bddc6f34a1d03aadd37f0",
+    "working_tree_clean": true,
+    "provenance": [
+      "Engine: Enntity/atlas sparkglm/atlas-20260928 @ c9723935592f3d12215a77b0dfdfcadf641a567f (tree 4cd94911f4911085969ea508d0668cd5446dd06c) = Atlas-Inf main 6a3d24ec + upstream/glm53-flash @ 5c75696b + one SparkGLM-only bridge commit. AGPL-3.0-only; original work plus Atlas-Inf upstream.",
+      "Measured image built by research/atlas/install/build.sh at SparkGLM a2ca292e25228ef3021a4b80a17298c299c10017 from a fresh clone on each node; the candidate_ref adds only README timing text and this bundle.",
+      "Reference field-guide arms (raw/baselines) are earlier captures on the same pair: vLLM SparkGLM NVFP4 adaptive (2026-09-20) and Mia EXL3 stock TP2 live 0f49cfd (2026-09-24)."
+    ]
+  },
+  "environment": {
+    "capture_platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.4",
+    "image_digests": [
+      "sha256:19a390e01fd0b0e2a5a8efe2705488065078f9ed58a2f28d5bbb69e219dfefab",
+      "sha256:2990a3014d07943492ab9a10d4853b0882da04279b806800868fb45855deba14"
+    ],
+    "model_revision": "nvidia/GLM-5.3-Flash-NVFP4@423acf37583782c51c142d145aef733d72943d93",
+    "quant_revision": "NVIDIA NVFP4 checkpoint; MTP overlay converted by the image converter (864 matrices)",
+    "drafter_revision": "incoai/GLM-5.3-Flash-DFlash2@7d74cdd881ed7e32c31175984a67823127b66cfe",
+    "configuration": {
+      "tp": 2,
+      "ep": 2,
+      "max_sequences": 4,
+      "max_context": 524288,
+      "kv_dtype": "fp8_g128",
+      "kv_tokens": 866208,
+      "ssm_rollback": "records",
+      "gpu_memory_utilization": 0.88,
+      "speculation": "DFlash2 gamma 8, adaptive width",
+      "profile": "research/atlas/install/profile.json; RigMark and 8-stream use profile-8x128k.json (8 x 131072)",
+      "endpoint": "engine loopback 127.0.0.1:8893, one workload at a time"
+    },
+    "hardware": "two DGX Spark GB10 (128 GB), one 200G ConnectX-7 cable",
+    "compute": "CUDA 13.0, sm_121a"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "status": "pass",
+      "summary": "Installer tests, publication audit, licensing/SPDX, local links and qualification checksums pass; engine CI-equivalent (fmt, clippy, tests except 3 known sandbox-only bench tests, docs, SPDX, shadows) passed at the pinned upstream candidate."
+    },
+    {
+      "id": "G1",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G2",
+      "status": "not-run",
+      "summary": ""
+    },
+    {
+      "id": "G3",
+      "status": "not-run",
+      "summary": "Complete-configuration measurements with three repetitions each (frozen matrix, staggered C4 field guide) and a full RigMark set on the recipe-built image. Not a G3 pass: the reference arms are historical recordings, not alternated pairs, and no warmup run was discarded before the first matrix pass."
+    },
+    {
+      "id": "G4",
+      "status": "not-run",
+      "summary": "Focused checks only: hard quality probe 40/40 arithmetic and 11/12 two-hop 24K needle; RigMark 6/6 basic output gates; build-time verify-policy, thinking-budget, admission, lifecycle, tool-stop and vision-guard tests. Tool, penalty and structured-output probes ran on the same engine commit in a dev launch."
+    },
+    {
+      "id": "G5",
+      "status": "not-run",
+      "summary": ""
+    }
+  ],
+  "metrics": [
+    {
+      "name": "matrix_total_wall_s_mean",
+      "value": 154.76,
+      "unit": "s",
+      "note": "C1-16K+C1-32K+C2-16K+C2-32K+C4-16K summary walls, passes 152.40/159.22/152.65"
+    },
+    {
+      "name": "field_guide_c4_wall_s_median",
+      "value": 57.54,
+      "unit": "s",
+      "note": "runs 57.54/56.70/58.93; vLLM adaptive 70.51, Mia 0f49cfd 113.22"
+    },
+    {
+      "name": "quality_arith",
+      "value": "40/40"
+    },
+    {
+      "name": "quality_two_hop_needle_24k",
+      "value": "11/12"
+    },
+    {
+      "name": "decode_single_stream_tok_s",
+      "value": {
+        "structured": 84.1,
+        "code": 60.5,
+        "prose": 32.2
+      },
+      "note": "mmastrac prompts, 512 tokens, median of 3"
+    },
+    {
+      "name": "effective_prefill_tok_s",
+      "value": {
+        "35237": 2349,
+        "139273": 2018
+      },
+      "note": "prompt tokens / TTFT"
+    },
+    {
+      "name": "rigmark_short_code_aggregate_tok_s",
+      "value": {
+        "C1": 36.94,
+        "C4": 62.06,
+        "C6": 76.67,
+        "C8": 87.97
+      }
+    },
+    {
+      "name": "rigmark_basic_output_gates",
+      "value": "6/6 and 6/6"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "RESULT.md",
+      "kind": "human-report",
+      "sha256": "f49234b0a5120875ec0b3602008371580713ff6702bf126324283ed8cf7da708"
+    },
+    {
+      "path": "raw/baselines/mia-0f49cfd-20260924/field-guide-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "7f4eafba011bc041782d56364a9c6b3b9754818aa17c239b4c4952e7463bafdc"
+    },
+    {
+      "path": "raw/baselines/mia-0f49cfd-20260924/field-guide-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "4c7c958dbba35202889759d36b77fd9f6b4c3c3f908ec0d781855456d6da7fd7"
+    },
+    {
+      "path": "raw/baselines/mia-0f49cfd-20260924/field-guide-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "031ab78053b58d616e8a2188183eb770b8c974bbfaacc3d98ae65cd92316e3f2"
+    },
+    {
+      "path": "raw/baselines/vllm-adaptive-20260920/field-guide-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "4c2a7c9a01d8f69be7533ef590e61c1d9891c18a09c902abbd544b76d4371775"
+    },
+    {
+      "path": "raw/baselines/vllm-adaptive-20260920/field-guide-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "bd354bec7972130b5038281fdf51983797c4db87dc3a413160b4586799813fd8"
+    },
+    {
+      "path": "raw/baselines/vllm-adaptive-20260920/field-guide-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "de73e7de8301a3dbb3f7989d769547c3d1ed9e85ce834e4d60be5129ce497ca7"
+    },
+    {
+      "path": "raw/cleanroom/console.txt",
+      "kind": "raw-evidence",
+      "sha256": "060e17400aa99df12ebd704b67862ef5912242351b7c0b8a904c529e09296da9"
+    },
+    {
+      "path": "raw/cleanroom/out-field/discarded-warmup.json",
+      "kind": "raw-receipt",
+      "sha256": "02272ce830a1dbadf408d99ad6dc58217f6e129dfbc0028ffb66c8ff3b142751"
+    },
+    {
+      "path": "raw/cleanroom/out-field/field-guide-r1.json",
+      "kind": "raw-receipt",
+      "sha256": "e87749c1a21514072ea83753f4062ee98d4ae54cfd81418251f45eef57796ff2"
+    },
+    {
+      "path": "raw/cleanroom/out-field/field-guide-r2.json",
+      "kind": "raw-receipt",
+      "sha256": "e131290623cdfb729e5c3f5dfb251c7822aab87b5db849c95e5ace0a2d38c342"
+    },
+    {
+      "path": "raw/cleanroom/out-field/field-guide-r3.json",
+      "kind": "raw-receipt",
+      "sha256": "7f606a5979746b1015de6e39724bc1d89595e70ff0ca5a4af4349e10457bc67c"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-1/c1-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "e66f37f1ded2fe25054385c668aa8eeb8b7310e40d4b689d153df584f1c6f674"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-1/c1-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "9ad72214aa1771ed781deccca0a946365548fab40c7a93e6c1968bbe0ea5a158"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-1/c2-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "827fe192f0db2c484df0db91a2b502b34226d680d40f207c1029ef4c47669917"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-1/c2-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "a9f1faa1bab37f986023d2c84ee5cb5c841de1d98dbf34ae3f1da9bc33eafe3d"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-1/c4-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "d5563fdd665c2ad1219ce5117ec965f77ef44920802d40945d09dd04bcf970fa"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-2/c1-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "696f088e83fe87a931b07f3001bdf44a1975ee406a55f2d99008a2cc00f8877e"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-2/c1-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "96eb2884209e0b76ce9a6eb00a2b8a92bad4043d680d667ec1ec5399f1816290"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-2/c2-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "35cdf2ae0a8df8f4af8713c26576d8fdfb947f1e58489eded9d60a9629d2df0e"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-2/c2-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "fcb92e91cf8b481c5f162c0519f338edfcf41ef10a7501d19f39b85f85b6c8cb"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-2/c4-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "0ca03ccafcd1f26d5efc132507198627f344d9f3c672486ec142089d91d9b494"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-3/c1-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "f329daf10cd72c76c49675ca458fe617f07c48efdaae054490361b9a3f00e452"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-3/c1-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "d091cf3a230f1754a578127c6f3d417683982cc8cb8f464589b601ddb6ccf879"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-3/c2-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "31ea46fc1806b44d0a67ad09067c9ef27c05d9e58db9dae3295ae0a727cdfc6d"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-3/c2-32k.json",
+      "kind": "raw-receipt",
+      "sha256": "a36aadbc57423f17c9077044e8a60fc1f0ff349760b2fd65c24cc73b178e14c5"
+    },
+    {
+      "path": "raw/cleanroom/out-matrix-3/c4-16k.json",
+      "kind": "raw-receipt",
+      "sha256": "b2ec74b018acb5aa196368f4b9b1582680246194859d0a796d74c2a8bfd3f3c5"
+    },
+    {
+      "path": "raw/cleanroom/qprobe-cleanroom.jsonl",
+      "kind": "raw-evidence",
+      "sha256": "d71ea8c1ac5d0b4798815550101d08b733baaedcd581ecde25bf6d56a75f206e"
+    },
+    {
+      "path": "raw/cleanroom/rank0/build-and-convert-summary.txt",
+      "kind": "raw-evidence",
+      "sha256": "636f7382eeee7ad316b87a1299782c7bb8493ed5e2063aaffa03b792e6fef675"
+    },
+    {
+      "path": "raw/cleanroom/rank0/image-a2ca292e25228ef3021a4b80a17298c299c10017.json",
+      "kind": "raw-receipt",
+      "sha256": "614eccd7628251c7182368488bcc61de1392c9b85cf8b56b375dbe958634073f"
+    },
+    {
+      "path": "raw/cleanroom/rank1/build-and-convert-summary.txt",
+      "kind": "raw-evidence",
+      "sha256": "7f5ad5db15d3030e3e9f3a0f213db317c761313b49c9daa7307834b653cf29af"
+    },
+    {
+      "path": "raw/cleanroom/rank1/image-a2ca292e25228ef3021a4b80a17298c299c10017.json",
+      "kind": "raw-receipt",
+      "sha256": "f9303735fa867a8ada4164864d69f12eb9e7e649f90b51bc8a9bb50d34fa168c"
+    },
+    {
+      "path": "raw/cleanroom/rig-code-full.json",
+      "kind": "raw-receipt",
+      "sha256": "a699e4211807521d5dfa35eb1b92abdef458a27b204858d283e1016295c379fd"
+    },
+    {
+      "path": "raw/cleanroom/rig-prose.json",
+      "kind": "raw-receipt",
+      "sha256": "1c9ef6538a930ac4e822a4529bb0ddf10177bb4fbcb08f04d928cc2b70816ffb"
+    },
+    {
+      "path": "raw/cleanroom/rigmark-summary.txt",
+      "kind": "raw-evidence",
+      "sha256": "2ad8ebcde89c10331c678c4f783cb0ab04f61d3b10b45d45c86beaab2afc684f"
+    },
+    {
+      "path": "raw/cleanroom/streams-8x128k.txt",
+      "kind": "raw-evidence",
+      "sha256": "9406a60d3d2745090b9ea113b0b1d3d5b0988b96b89d0b7fd6e912a10adce42d"
+    }
+  ],
+  "limitations": [
+    "G0 only; see G3/G4 summaries.",
+    "One pair of Sparks; other cables, firmware or drivers may differ.",
+    "Long-context capacity (4 x 190K and 1 x 500K) was measured on the same engine commit before the thinking-budget fix, not on this image.",
+    "Cold build time not measured; recorded builds reused BuildKit caches.",
+    "RiNGSiDE comparison uses that project's published TP2 row, not a run on this pair."
+  ],
+  "attestation": {
+    "status": "unattested",
+    "maintainer": null,
+    "date": null
+  }
+}

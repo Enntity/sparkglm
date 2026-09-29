@@ -1,0 +1,43 @@
+== smoke
+391
+== matrix x3 + field guide + quality + mmastrac (4 x 512K profile)
+{"case": "c1-16k", "rc": 0, "wall_s": 15.72, "summary": {"successful": 1, "wall_s": 15.055592722994334, "aggregate_decode_tok_s": 46.54275773358317}}
+{"case": "c1-32k", "rc": 0, "wall_s": 22.46, "summary": {"successful": 1, "wall_s": 21.40598356100236, "aggregate_decode_tok_s": 51.18215443915326}}
+{"case": "c2-16k", "rc": 0, "wall_s": 27.64, "summary": {"successful": 2, "wall_s": 26.610269763004908, "aggregate_decode_tok_s": 47.23375054569786}}
+{"case": "c2-32k", "rc": 0, "wall_s": 44.72, "summary": {"successful": 2, "wall_s": 42.93786324300163, "aggregate_decode_tok_s": 30.111084437334522}}
+{"case": "c4-16k", "rc": 0, "wall_s": 48.14, "summary": {"successful": 4, "wall_s": 46.39457742599916, "aggregate_decode_tok_s": 52.84687296357626}}
+{"case": "c1-16k", "rc": 0, "wall_s": 15.01, "summary": {"successful": 1, "wall_s": 14.358111430999998, "aggregate_decode_tok_s": 54.32676369925125}}
+{"case": "c1-32k", "rc": 0, "wall_s": 22.07, "summary": {"successful": 1, "wall_s": 21.013217474996054, "aggregate_decode_tok_s": 51.03735900911521}}
+{"case": "c2-16k", "rc": 0, "wall_s": 29.66, "summary": {"successful": 2, "wall_s": 28.691065282000636, "aggregate_decode_tok_s": 43.2566396736449}}
+{"case": "c2-32k", "rc": 0, "wall_s": 46.08, "summary": {"successful": 2, "wall_s": 44.06324947899702, "aggregate_decode_tok_s": 29.383391577950515}}
+{"case": "c4-16k", "rc": 0, "wall_s": 53.13, "summary": {"successful": 4, "wall_s": 51.09693615799915, "aggregate_decode_tok_s": 45.7391785034622}}
+{"case": "c1-16k", "rc": 0, "wall_s": 14.78, "summary": {"successful": 1, "wall_s": 14.146615495999868, "aggregate_decode_tok_s": 52.3042266011791}}
+{"case": "c1-32k", "rc": 0, "wall_s": 22.39, "summary": {"successful": 1, "wall_s": 21.332348814001307, "aggregate_decode_tok_s": 49.223493238146574}}
+{"case": "c2-16k", "rc": 0, "wall_s": 30.79, "summary": {"successful": 2, "wall_s": 29.624297451999155, "aggregate_decode_tok_s": 41.10125522543439}}
+{"case": "c2-32k", "rc": 0, "wall_s": 43.94, "summary": {"successful": 2, "wall_s": 42.151272250994225, "aggregate_decode_tok_s": 31.658253616423547}}
+{"case": "c4-16k", "rc": 0, "wall_s": 47.48, "summary": {"successful": 4, "wall_s": 45.39268442199682, "aggregate_decode_tok_s": 54.619283714981535}}
+{"case": "discarded-warmup", "rc": 0, "wall_s": 58.56, "total_completion_tokens": 1600, "reported_wall_s": 58.511467}
+{"case": "field-guide-r1", "rc": 0, "wall_s": 57.58, "total_completion_tokens": 1600, "reported_wall_s": 57.540822}
+{"case": "field-guide-r2", "rc": 0, "wall_s": 56.74, "total_completion_tokens": 1600, "reported_wall_s": 56.697654}
+{"case": "field-guide-r3", "rc": 0, "wall_s": 58.97, "total_completion_tokens": 1600, "reported_wall_s": 58.93303}
+cleanroom arith: 40/40
+cleanroom needle: 11/12
+prefill 35237 tokens: TTFT 15.00s = 2349 tok/s
+prefill 139273 tokens: TTFT 69.02s = 2018 tok/s
+decode structured: 84.1 tok/s (runs [84.0, 84.2, 84.1], tokens [512, 512, 512], accepted [450, 450, 450])
+decode code: 60.5 tok/s (runs [58.5, 60.5, 60.5], tokens [512, 512, 512], accepted [429, 429, 429])
+decode prose: 32.2 tok/s (runs [32.2, 31.7, 32.2], tokens [512, 512, 512], accepted [312, 312, 312])
+streams 1: 512 tokens in 6.2s = 82.1 tok/s aggregate
+streams 2: 1024 tokens in 12.1s = 84.8 tok/s aggregate
+streams 4: 1997 tokens in 23.9s = 83.5 tok/s aggregate
+streams 8: 3995 tokens in 49.1s = 81.4 tok/s aggregate
+== restart on the 8 x 128K profile
+streams 1: 512 tokens in 6.0s = 85.8 tok/s aggregate
+streams 2: 1024 tokens in 11.8s = 87.0 tok/s aggregate
+streams 4: 2048 tokens in 26.6s = 76.9 tok/s aggregate
+streams 8: 4096 tokens in 33.4s = 122.5 tok/s aggregate
+40fabcaf6e96
+│  ●  6/6 BASIC OUTPUT GATES PASSED                                                        │
+│  ●  6/6 BASIC OUTPUT GATES PASSED                                                        │
+== back to the default profile
+CLEANROOM-DONE

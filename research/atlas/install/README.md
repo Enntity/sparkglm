@@ -21,13 +21,14 @@ caveats: [`results/candidates/2026-09-29-atlas-merged/`](../../../results/candid
 
 | Workload | This recipe | Reference |
 |---|---|---|
-| Matrix (C1/C2 16K+32K, C4 16K; 400 tokens each), sum of walls, mean of 3 | **152.9 s** | vLLM SparkGLM 206.6 s |
-| Staggered C4 field guide (4 × ~16K, arrivals 0/1/2/3 s), median of 3 | **58.0 s** | vLLM SparkGLM adaptive 70.5 s · Mia EXL3 113.2 s |
-| Single-stream decode (mmastrac prompts: structured / code / prose) | 83.5 / 59.9 / 31.9 tok/s | — |
-| Cold prefill (8K / 32K / 64K / 128K) | ~2,480 / 2,450 / 2,290 / 2,070 tok/s | — |
-| Long context | 4 × 190K concurrent and 1 × 500K complete, ≥ 8.3 GB host memory free | — |
+| Matrix (C1/C2 16K+32K, C4 16K; 400 tokens each), sum of walls, mean of 3 | **154.8 s** | vLLM SparkGLM 206.6 s |
+| Staggered C4 field guide (4 × ~16K, arrivals 0/1/2/3 s), median of 3 | **57.5 s** | vLLM SparkGLM adaptive 70.5 s · Mia EXL3 113.2 s |
+| Single-stream decode (mmastrac prompts: structured / code / prose) | 84.1 / 60.5 / 32.2 tok/s | — |
+| Cold prefill (8K / 32K / 64K / 139K) | ~2,500 / 2,470 / 2,310 / 2,020 tok/s | — |
+| RigMark short-code aggregate C1 / C6 / C8 (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | RiNGSiDE TP2 published: 44.0 / 97.3 / – |
 | Hard quality probe (arithmetic / two-hop 24K needle) | 40/40 · 11/12 | — |
 
+Every number above came from an image built by this recipe from a fresh clone.
 These are measurements on our pair, not a qualification of your hardware.
 
 ## Requirements
