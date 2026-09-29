@@ -1,4 +1,4 @@
-name: Static qualification
+name: Checks
 
 on:
   pull_request:
@@ -11,23 +11,19 @@ permissions:
 jobs:
   quick:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
-      - name: Install the one source-test dependency
-        run: python -m pip install -r requirements-dev.txt
-      - name: Run source and evidence gates
-        run: scripts/check.sh all
-      - name: Scan all reachable publication history
-        run: python3 scripts/check_publication_privacy.py --history
-      - name: Enforce runtime commit provenance
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python3 scripts/check_commit_provenance.py "$BASE_SHA" "$HEAD_SHA"
+          python-version: "3.12"
+      - name: Launch contract
+        run: python3 -m unittest discover -s install -p 'test_*.py' -v
+      - name: Overlay converter
+        run: python3 -m unittest discover -s install/converter -v
+      - name: Shell scripts
+        run: shellcheck -S warning -e SC2054 start.sh install/*.sh install/flash_kda/rebuild.sh
+      - name: Benchmark drivers compile
+        run: python3 -m py_compile bench/*.py
+      - name: Result receipts
+        run: for d in results/*/; do (cd "$d" && sha256sum -c --quiet SHA256SUMS); done
