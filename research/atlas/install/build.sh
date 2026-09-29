@@ -11,8 +11,9 @@ source_revision=$(git -C "$product" rev-parse HEAD)
 [[ -z $(git -C "$product" status --porcelain --untracked-files=all) ]] || {
   echo 'Build from a clean, pinned SparkGLM checkout' >&2; exit 2;
 }
-manifest="$product/research/atlas/nvidia-installable-source.json"
-[[ -f "$manifest" ]] || { echo 'Installable engine source manifest is missing' >&2; exit 2; }
+manifest="$product/research/atlas/atlas-source.json"
+[[ -f "$manifest" ]] || { echo 'Atlas engine source manifest is missing' >&2; exit 2; }
+read -r engine_repo engine_commit < <(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(m["repository"], m["commit"])' "$manifest")
 image="lloom/atlas-sparkglm:$source_revision"
 context="$install_root/build-$source_revision"
 receipt="$install_root/image-$source_revision.json"
@@ -33,15 +34,13 @@ print(actual['Id'])
 PY
   exit 0
 fi
-upstream="$install_root/atlas-upstream"
-if [[ ! -d "$upstream/.git" ]]; then
-  GIT_LFS_SKIP_SMUDGE=1 git clone --no-checkout https://github.com/Mango-kid/atlas.git "$upstream"
-  GIT_LFS_SKIP_SMUDGE=1 git -C "$upstream" checkout --detach 90b3584abc71b44b609637092b85d8423d8ff20f
-fi
 if [[ ! -d "$context" ]]; then
   mkdir "$context"
-  python3 "$product/research/atlas/project/reconstruct.py" --checkpoint installable \
-    --source-repo "$upstream" --destination "$context/engine" > "$context/reconstruction.json"
+  # The engine is the public Enntity/atlas fork at the manifest's exact commit.
+  # A shallow fetch of that commit; Git LFS media (demo assets) is not needed.
+  git init -q "$context/engine"
+  GIT_LFS_SKIP_SMUDGE=1 git -C "$context/engine" fetch -q --depth 1 "$engine_repo" "$engine_commit"
+  GIT_LFS_SKIP_SMUDGE=1 git -C "$context/engine" -c advice.detachedHead=false checkout -q --detach FETCH_HEAD
   mkdir -p "$context/product/research/atlas"
   git -C "$product" archive HEAD research/atlas/install research/atlas/flash_kda \
     research/atlas/nvidia-mtp-converter | tar -x -C "$context/product"
@@ -54,18 +53,19 @@ python3 - "$manifest" "$context" "$product" <<'PY'
 import hashlib, json, pathlib, subprocess, sys
 manifest, context, product = map(pathlib.Path, sys.argv[1:])
 expected = hashlib.sha256(manifest.read_bytes()).hexdigest()
-receipt = json.loads((context/'reconstruction.json').read_text())
-if receipt['manifest_sha256'] != expected or (context/'source-manifest.json').read_bytes() != manifest.read_bytes():
+pin = json.loads(manifest.read_text())
+if (context/'source-manifest.json').read_bytes() != manifest.read_bytes():
     raise SystemExit('Build context source receipt mismatch')
 if (context/'.dockerignore').read_bytes() != (product/'research/atlas/install/dockerignore').read_bytes():
     raise SystemExit('Build context ignore rules changed')
 engine = context/'engine'
 def git(*args):
     return subprocess.check_output(['git', '-C', str(engine), *args], text=True).strip()
-if (git('write-tree') != json.loads(manifest.read_text())['reconstructed_tree']
+if (git('rev-parse', 'HEAD') != pin['commit']
+        or git('rev-parse', 'HEAD^{tree}') != pin['tree']
         or git('diff', '--name-only')
         or git('ls-files', '--others')):
-    raise SystemExit('Reconstructed engine was modified; refusing build context reuse')
+    raise SystemExit('Engine checkout is not the pinned Enntity/atlas tree; refusing the build context')
 def files(root):
     result = {}
     for path in root.rglob('*'):

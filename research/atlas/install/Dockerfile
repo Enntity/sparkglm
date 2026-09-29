@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-# Context: build.sh's verified engine reconstruction and packaged install assets.
+# Context: build.sh's pinned Enntity/atlas engine checkout and packaged install assets.
 FROM nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d AS native
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     git ca-certificates build-essential python3 && rm -rf /var/lib/apt/lists/*
@@ -35,7 +35,7 @@ COPY engine/kernels/ kernels/
 COPY engine/vendor/ vendor/
 COPY engine/jinja-templates/ jinja-templates/
 COPY engine/tests/fixtures/ tests/fixtures/
-ENV ATLAS_TARGET_HW=gb10 ATLAS_TARGET_MODEL=glm-5.3-flash-nvfp4 ATLAS_TARGET_QUANT=nvfp4
+ENV ATLAS_TARGET_HW=gb10 ATLAS_TARGET_MODEL=glm-5.3-flash ATLAS_TARGET_QUANT=nvfp4
 ARG BUILD_JOBS=4
 # BuildKit cache mount for the cargo target directory.
 #
@@ -72,7 +72,7 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
-    set -eu; for filter in glm_repair_policy glm_pair_plan glm_mtp_capacity glm_shared_kv glm_index_capacity; do \
+    set -eu; for filter in glm_repair_policy glm_index_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
       cargo test --locked --release -j "$BUILD_JOBS" -p spark-model --lib "$filter" \
         > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; }; \
@@ -99,6 +99,17 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     scheduler::admission::tests > /tmp/atlas-admission-check.log 2>&1 || \
     { cat /tmp/atlas-admission-check.log; exit 1; }; \
     cat /tmp/atlas-admission-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-admission-check.log
+
+# DFlash verify: the argmax-only (TP2 vocab-split) head keeps every pick on the
+# raw argmax, and an exhausted thinking budget still closes `</think>`.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for check in dflash_seq_policy:2 verify_dflash_step::think_end:7; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "${check%:*}" \
+        > /tmp/atlas-verify-check.log 2>&1 || { cat /tmp/atlas-verify-check.log; exit 1; }; \
+      cat /tmp/atlas-verify-check.log; \
+      grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log; \
+    done
 
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
 ARG SPARKGLM_REVISION

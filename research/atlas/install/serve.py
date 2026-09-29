@@ -95,8 +95,9 @@ def main():
     drafter = Path(env.get('DRAFTER_PATH', '/models/drafter'))
     if not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file():
         raise ValueError('Incomplete DFlash drafter')
+    source = json.loads((here/'source-manifest.json').read_text())
     print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'],
-                      'source': json.loads((here/'source-manifest.json').read_text())['engine_revision']}), flush=True)
+                      'source': f"{source['repository']}@{source['commit']}"}), flush=True)
     os.execve(argv[0], argv, env)
 
 

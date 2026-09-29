@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-only
+# Start one rank of the Atlas SparkGLM image without LLooM. Start rank 1 (the
+# worker) first, then rank 0 (the leader, which serves the OpenAI API on
+# 127.0.0.1:8893). Container flags, mounts and environment match the LLooM
+# recipe linux-nvidia-dgx-spark-2x-glm53-atlas; this script only starts the
+# prepared image and never builds, downloads or converts anything.
+set -euo pipefail
+usage() {
+  cat >&2 <<'EOF'
+usage: start-node.sh --rank 0|1 --leader-address IP --fabric-interface IFACE
+                     --model-root DIR --overlay DIR --image TAG
+                     [--fabric-hca rocep1s0f0] [--cuda-cache DIR] [--name NAME]
+                     [--profile research/atlas/install/profile-8x128k.json]
+
+  --leader-address   rank 0's address on the direct Spark-to-Spark fabric
+  --fabric-interface that fabric's network interface on THIS node (e.g. enp1s0f0np0)
+  --model-root       directory holding nvidia--GLM-5.3-Flash-NVFP4 and
+                     incoai--GLM-5.3-Flash-DFlash2 (the pinned downloads)
+  --overlay          the converted overlay directory (see README, "Convert")
+  --image            the image tag build.sh printed, lloom/atlas-sparkglm:<revision>
+  --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
+  --profile          launch profile to use instead of the image's 4 x 512K
+                     profile.json (same file on both ranks)
+EOF
+  exit 2
+}
+rank= leader= iface= model_root= overlay= image= hca=rocep1s0f0
+cache="$HOME/.cache/atlas-cuda" name= profile=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --rank) rank=$2; shift 2 ;;
+    --leader-address) leader=$2; shift 2 ;;
+    --fabric-interface) iface=$2; shift 2 ;;
+    --fabric-hca) hca=$2; shift 2 ;;
+    --model-root) model_root=$2; shift 2 ;;
+    --overlay) overlay=$2; shift 2 ;;
+    --image) image=$2; shift 2 ;;
+    --cuda-cache) cache=$2; shift 2 ;;
+    --name) name=$2; shift 2 ;;
+    --profile) profile=$(realpath "$2"); shift 2 ;;
+    *) usage ;;
+  esac
+done
+[[ $rank == 0 || $rank == 1 ]] && [[ -n $leader && -n $iface && -n $model_root && -n $overlay && -n $image ]] || usage
+model_root=$(realpath "$model_root")
+overlay=$(realpath "$overlay")
+checkpoint="$model_root/nvidia--GLM-5.3-Flash-NVFP4"
+drafter="$model_root/incoai--GLM-5.3-Flash-DFlash2"
+for path in "$checkpoint/config.json" "$drafter/config.json" "$overlay/conversion.complete.json"; do
+  [[ -f $path ]] || { echo "missing $path" >&2; exit 2; }
+done
+mkdir -p "$cache"
+profile_mount=()
+if [[ -n $profile ]]; then
+  [[ -f $profile ]] || { echo "missing $profile" >&2; exit 2; }
+  profile_mount=(--mount "type=bind,src=$profile,dst=/opt/atlas/profile.json,readonly")
+fi
+name=${name:-atlas-sparkglm-rank$rank}
+docker rm -f "$name" >/dev/null 2>&1 || true
+# The overlay links into the original checkpoint, so it is mounted at the same
+# absolute path inside the container.
+docker run -d --name "$name" --restart no --network host --ipc host \
+  --shm-size 32g --memory 114g --gpus all --device /dev/infiniband:/dev/infiniband \
+  --cap-add IPC_LOCK --cap-add SYS_NICE --ulimit memlock=-1:-1 \
+  --security-opt no-new-privileges=true --stop-timeout 60 \
+  --mount "type=bind,src=$checkpoint,dst=$checkpoint,readonly" \
+  --mount "type=bind,src=$overlay,dst=$overlay,readonly" \
+  --mount "type=bind,src=$drafter,dst=$drafter,readonly" \
+  --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" "${profile_mount[@]}" \
+  -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
+  -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" \
+  -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \
+  -e SERVED_MODEL_NAME=glm-5.3-flash-atlas \
+  -e ATLAS_WORLD_SIZE=2 -e ATLAS_TP_SIZE=2 -e ATLAS_EP_SIZE=2 -e ATLAS_CONTEXT_WINDOW=524288 \
+  -e NCCL_SOCKET_IFNAME="$iface" -e GLOO_SOCKET_IFNAME="$iface" -e NCCL_IB_HCA="$hca" \
+  -e NCCL_IB_ADDR_FAMILY=AF_INET -e NCCL_IB_ROCE_VERSION_NUM=2 -e NCCL_CROSS_NIC=0 \
+  -e NCCL_NET=IB -e NCCL_IB_DISABLE=0 -e NCCL_IB_RETRY_CNT=7 -e NCCL_IB_TIMEOUT=22 \
+  -e NCCL_ALGO=Ring -e NCCL_PROTO=Simple -e NCCL_BUFFSIZE=33554432 -e NCCL_CUMEM_ENABLE=0 \
+  -e NCCL_NVLS_ENABLE=0 -e NCCL_MAX_NCHANNELS=2 -e NCCL_MIN_NCHANNELS=1 \
+  -e NCCL_DMABUF_ENABLE=0 -e NCCL_DEBUG=WARN -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
+  -e CUDA_CACHE_PATH=/atlas-cuda-cache -e CUDA_CACHE_MAXSIZE=4294967296 \
+  "$image"
+echo "started $name (rank $rank); follow with: docker logs -f $name"

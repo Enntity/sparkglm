@@ -1,6 +1,6 @@
 {
  "schema": "sparkglm.atlas-install-profile/v1",
- "status": "candidate_benchmarked_2026-09-29",
+ "status": "candidate_benchmarked_2026-09-29_rigmark",
  "environment": {
   "ATLAS_GLM_K3_MLA_QUERY_BATCHM": "1",
   "ATLAS_GLM_K3_MLA_QUERY_COMPARE": "0",
@@ -9,7 +9,6 @@
   "ATLAS_GLM_K3_HEAD_BATCHM": "0",
   "ATLAS_GLM_C3_GROUPED_MOE": "1",
   "ATLAS_GLM_SPARSE_DECODE_TC": "1",
-  "ATLAS_GLM_SPARSE_NATIVE": "1",
   "ATLAS_GLM_SPARSE_NATIVE_LIBRARY": "/opt/atlas/native/libatlas_glm_sparse_native.so",
   "ATLAS_GLM_HC_TF32_PREWARM": "1",
   "ATLAS_KDA_FLASH_PREFILL": "1",
@@ -144,7 +143,7 @@
   "ATLAS_DFLASH_DROP_BF16": "1",
   "ATLAS_DFLASH_ADAPTIVE_WIDTH": "1",
   "ATLAS_DFLASH_SPEC_THINK": "1",
-  "ATLAS_GLM_SHARED_TP_SPLIT": "1",
+  "ATLAS_GLM_SPARSE_NATIVE": "1",
   "ATLAS_GLM_EXPERT_TP": "1",
   "ATLAS_DFLASH_CTX_NVFP4": "1",
   "ATLAS_PDL": "1"
@@ -155,12 +154,9 @@
   "--kernel-target=glm-5.3-flash",
   "--world-size=2",
   "--tp-size=2",
-  "--max-seq-len=524288",
   "--gpu-memory-utilization=0.88",
   "--ep-size=2",
   "--max-prefill-tokens=8192",
-  "--max-batch-size=4",
-  "--max-num-seqs=4",
   "--oom-guard-mb=4096",
   "--kv-cache-dtype=fp8_g128",
   "--ssm-h-dtype=f32",
@@ -182,6 +178,9 @@
   "--draft-model=${drafter}",
   "--dflash-gamma=8",
   "--dflash-window-size=2048",
-  "--mtp-gate=force"
+  "--mtp-gate=force",
+  "--max-num-seqs=8",
+  "--max-batch-size=8",
+  "--max-seq-len=131072"
  ]
 }
