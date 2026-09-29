@@ -54,6 +54,9 @@ for path in "$checkpoint/config.json" "$drafter/config.json" "$overlay/sparkglm-
 done
 mkdir -p "$cache"
 profile_mount=()
+if [[ $profile == */* || $profile == *.json ]] && [[ ! -f $profile ]]; then
+  echo "missing profile file $profile" >&2; exit 2
+fi
 if [[ -f $profile ]]; then
   profile_mount=(--mount "type=bind,src=$(realpath "$profile"),dst=/opt/atlas/profiles/custom.json,readonly")
   profile=custom
