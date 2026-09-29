@@ -50,6 +50,15 @@ hf_download() {  # repo revision dir; uses a throwaway container when hf is not 
   fi
 }
 
+# One ssh stream moves ~0.5 GB/s; eight parallel streams fill ~3.5 GB/s of the
+# cable. The final rsync picks up the small files and anything left over.
+copy_to_worker() {  # directory name under MODEL_ROOT
+  on_worker mkdir -p "$MODEL_ROOT"
+  (cd "$MODEL_ROOT" && find "$1" -type f -size +64M -print0) |
+    xargs -0 -P8 -I{} rsync -aR -e 'ssh -c aes128-gcm@openssh.com' "$MODEL_ROOT/./{}" "$WORKER:$MODEL_ROOT/"
+  rsync -a "$MODEL_ROOT/$1" "$WORKER:$MODEL_ROOT/"
+}
+
 # Download each pinned checkpoint once, then mirror it to the worker. The
 # marker is written only after both copies are complete.
 download() {
@@ -61,8 +70,7 @@ download() {
     say "download $repo @ $revision"
     hf_download "$repo" "$revision" "$dir"
     say "copy $repo to $WORKER:$MODEL_ROOT"
-    on_worker mkdir -p "$MODEL_ROOT"
-    rsync -a --info=progress2 "$dir" "$WORKER:$MODEL_ROOT/"
+    copy_to_worker "${dir##*/}"
     echo "$revision" > "$dir/.sparkglm-revision"
   done
 }
