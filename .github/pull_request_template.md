@@ -1,34 +1,11 @@
-## Change and target
+## What changes
 
-- State: experiment / candidate / accepted / promoted / rejected
-- Change class: docs / launcher / operator / scheduler-cache-TP / quant-speculation
-- Primary target workload and metric:
-- Protected metrics and behavior:
-- Rollback control:
+## Evidence
 
-## Provenance
+- [ ] Checks pass (`python3 -m unittest discover -s install -p 'test_*.py'`)
+- [ ] For a change to `install/` or the engine pin: `./start.sh` from a clean
+      clone on two Sparks, smoke test answered
+- [ ] For a performance claim: raw receipts and `SHA256SUMS` under `results/`,
+      with the baseline measured on the same pair
 
-- Original, copied, adapted, ported, or inspired:
-- Upstream URL and exact revision:
-- Applicable license/notice:
-
-## Qualification
-
-- [ ] G0: `scripts/check.sh all`
-- [ ] G1 exact-shape operator, or not applicable
-- [ ] G2 paired tinyGLM, or not applicable
-- [ ] G3 full 16K/32K C1/C2 matrix, or not applicable
-- [ ] G4 semantic/operational checks, or not applicable
-- [ ] G5 release/endurance, or not applicable
-- Qualification record:
-
-## Evidence and limitations
-
-- Baseline identity:
-- Candidate identity:
-- Raw evidence:
-- Results summary:
-- Known regressions, noise, or untested boundaries:
-
-Do not mark a gate complete without checked-in evidence. Passing tinyGLM does
-not establish a full-model performance claim.
+Known regressions, noise or untested boundaries:

@@ -1,110 +1,55 @@
-# Licensing and attribution rules
+# Licensing
 
-SparkGLM is a multi-license source distribution. The root `LICENSE` is the
-default for original SparkGLM work; it does not overwrite the license of an
-upstream file, an archive, the chat template, or a downloaded model.
+SparkGLM is AGPL-3.0-only ([LICENSE](../LICENSE)). Files that came from
+elsewhere keep their own license, which their SPDX header names.
 
-The machine-readable source and file-boundary ledger is
-`provenance/upstreams.json`. `python3 tests/test_licensing.py` verifies its
-source pins, retained license/notice bytes, path rules, and SPDX consistency.
+## In this repository
 
-## Practical boundaries
+| Material | License |
+|---|---|
+| `start.sh`, `install/`, `bench/`, docs and results | AGPL-3.0-only |
+| `install/converter/` NVFP4 quantization kernel | AGPL-3.0-only, copied unchanged from Mango-kid/atlas ([`provenance.json`](../install/converter/provenance.json)) |
+| `install/flash_kda/flash_kda_sm121_slots.patch` | MIT (FlashKDA context, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) plus AGPL-3.0-only changes |
+| `bench/four_stream_video.py` | Apache-2.0, vLLM contributors ([`LICENSES/Apache-2.0.txt`](../LICENSES/Apache-2.0.txt)) |
 
-| Material | Governing terms | What we do |
-| --- | --- | --- |
-| Original SparkGLM integration | Apache-2.0 | Default for new original files |
-| Mia recipe files | MIT | Preserve Mia's complete MIT notice; modifications to those recipe files remain MIT unless the ledger says both MIT and Apache apply |
-| vLLM source and direct backports | Apache-2.0 | Preserve vLLM notices and mark modified source/patches |
-| ExLlamaV3-derived arithmetic | MIT plus the license of SparkGLM's modifications | Retain the ExLlamaV3 MIT notice and state exactly what was adapted |
-| Reederey M64 pipeline | Apache-2.0 plus inherited Mia MIT material | Retain both the Apache license and Reederey/Mia notice |
-| Z.AI chat template | GLM-5.3 License | Keep its dedicated license and provenance sidecar |
-| Optional adaptive verification derivative | AGPL-3.0-only plus inherited MIT/Apache notices | Keep the patch, fixtures, source contract and launcher under `research/adaptive-verification/`; explicit opt-in profile, separate from the Apache default |
-| Active Atlas engine and historical archive | AGPL-3.0-only | Keep both under `research/atlas/`; do not copy them into the Apache vLLM serving path |
-| Standalone staggered benchmark and archived campaign harnesses | AGPL-3.0-only | `benchmarks/staggered_openai.py` and `research/vllm-iterations/benchmarks/` retain their labels and full license; they are not Apache serving components |
-| FlashKDA source | MIT | The external source is not vendored; its license is retained |
-| DeepGEMM FP16 integration | MIT and Apache-2.0 | Preserve DeepSeek's MIT notice for patched source and vLLM's Apache notice for the integration |
-| FlashKDA slot patch | MIT and AGPL-3.0-only | It contains MIT-derived patch context plus AGPL SparkGLM changes |
-| Patch mailboxes | Per target file | A mailbox is an archive, not a relicensing mechanism |
+`.github/FUNDING.yml` keeps the MiaAI-Lab sponsor link from the recipe
+SparkGLM grew out of.
 
-The `.github/FUNDING.yml` sponsor link is intentionally retained from the Mia
-recipe and directs sponsorship to MiaAI-Lab.
+## Fetched while building the image
 
-## Model boundary
+| Component | License |
+|---|---|
+| Atlas engine, [`Enntity/atlas`](https://github.com/Enntity/atlas) at the pinned commit | AGPL-3.0-only |
+| FlashKDA (MoonshotAI) | MIT |
+| FlashInfer, including NVIDIA's sparse-MLA prefill source | Apache-2.0 |
+| CUTLASS | BSD-3-Clause |
+| CUDA base images and Ubuntu packages | their own terms |
 
-No model, quantized weight, drafter weight, or abliteration tensor is licensed
-by the root Apache license, and none is committed here. The launcher downloads
-immutable revisions from their publishers:
+The image ships these notices under `/opt/atlas/notices/` and the engine's
+license at `/LICENSE`. Its complete corresponding source is:
 
-- the primary and fallback EXL3/TR3 checkpoints use the ShapleyMCG License 1.0;
-- the original EXL3 DFlash2 drafter is **CC BY-NC-ND 4.0**, including its
-  non-commercial and no-derivatives restrictions;
-- the underlying GLM model uses the GLM-5.3 License.
+- this repository at the commit whose `install/` tree matches the image tag;
+- the Atlas commit recorded in `/opt/atlas/source-manifest.json`;
+- the upstream revisions pinned in `install/`.
 
-ShapleyMCG is **source-available, not OSI open source**. The pinned license's
-Section 3.2 covers published benchmarks, posts, READMEs, and technical reports
-produced using its work, even when weights are not redistributed. Credit
-Brandon M. Music and ShapleyMCG, link its canonical repository, and reproduce
-the Schedule B notice and citation in [QUANT_ATTRIBUTION.md](QUANT_ATTRIBUTION.md).
-That attribution applies to the included historical checkpoint measurements;
-it does not claim our serving implementation invented the quantization.
+If you modify the engine and let others use it over a network, AGPL section 13
+requires you to offer them your modified source.
 
-Sections 1 and 4–6 define a named-party exclusion (the person known as
-`0xSero`, related parties as defined there, and specified distribution
-channels). Review the [exact pinned license](https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw/blob/25a44fdbf16862a46b7cc9921142c6c81350af2f/LICENSE)
-before use or redistribution. This is a disclosure of the publisher's terms,
-not an endorsement of allegations in its historical schedule or a legal
-determination of their scope. Do not assume ordinary permissive-license rights.
+## Models
 
-The historical EXL3 default matches its published-video configuration; it does not imply that
-the drafter's terms fit every operator. Select
-`SPEC_METHOD=mtp` or `SPEC_METHOD=none` instead of DFlash2 when its terms do
-not. SparkGLM does not copy DFlash2 weights or claim that Apache-2.0 changes
-their license.
-These drafter switches do **not** remove the target quant's ShapleyMCG terms.
+No weights are distributed here. `./start.sh` downloads them from their
+publishers:
 
-Container base images and packages installed during a build retain their own
-licenses. Publishing a SparkGLM image requires preserving the notices and
-source obligations of the image contents, not merely this repository.
+- [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4): MIT.
+- [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2):
+  **CC BY-NC-ND 4.0, non-commercial.** Both shipped profiles use this drafter.
 
-## Contributor checklist
+Read each model card before use. The converted overlay is a local derivative
+of the NVIDIA checkpoint and stays on your machines.
 
-1. Classify the change as original, copied, adapted, ported, or inspired.
-2. For external work, record the canonical URL, full immutable revision,
-   relationship, applicable license, and affected paths in the provenance
-   ledger and `docs/ATTRIBUTION.md`.
-3. Preserve upstream headers, copyright statements, license texts, NOTICE
-   files, and prominent modification notices. Never replace them with the
-   root license.
-4. Do not use `Co-authored-by` as a thank-you. Use it only when that person
-   actually authored code or text in the commit; otherwise use `Provenance:`.
-5. Do not copy source or modified artifacts from a no-derivatives checkpoint.
-6. Keep model-derived tensors, weights, binaries, credentials, and local paths
-   out of Git.
-7. Run `./scripts/check.sh all`; then inspect the attribution diff manually.
+## Earlier versions
 
-This is the repository's engineering policy, not legal advice. A public binary
-or hosted commercial service may need an additional legal review of all
-downloaded and containerized components.
-
-## NVFP4 default model pins
-
-The new default downloads RedHatAI/GLM-5.3-Flash-NVFP4 at
-`240131d6a447c8d89acd428c5ddfc85598651744` and
-local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8 at
-`610aa967a92bfeb97e3d848dcb8693553e8b6a55`. Their publisher terms and underlying
-model/draft terms apply separately from this repository. Quantizing a draft
-does not remove its upstream non-commercial/no-derivatives restrictions.
-Do not assume the code's Apache license grants commercial rights to the draft.
-The default launcher reproduces these pinned artifacts; alternative drafters
-require separate compatibility and performance qualification.
-
-The ShapleyMCG notice still applies to the historical EXL3 results and the
-EXL3 arm of comparisons; it is not attribution for the Red Hat NVFP4 quant.
-
-The active Atlas day-two export remains separate from the Apache vLLM serving
-path. Unchanged NVIDIA `model_type.h` and its full
-[BSD-3-Clause notice](../research/atlas/experiments/day2/sparse-native/NATIVE-BRIDGE-NOTICE.txt)
-retain that license, including copies inside the engine patches. The external
-native sparse object is not redistributed; its exact source/build identity is
-unresolved. Source reconstruction is verified, but this is not a reproducible
-native binary release. See [Atlas build requirements](../research/atlas/project/BUILD.md).
+The vLLM-era tree carried more components under more licenses: Mia's MIT
+recipe, vLLM Apache-2.0 backports, ExLlamaV3 MIT code, the ShapleyMCG-licensed
+EXL3 checkpoints, and the GLM-5.3 chat template. That tree, with all its
+notices, is preserved at the tag `vllm-final`.

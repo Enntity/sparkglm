@@ -1,34 +1,16 @@
 .env
-.env.tp4
-.glm53-exl3-*.inner.sh
-logs/
-tool-eval-bench/
-# Transplant dumps (~2.7 GiB) stay local; fetch with ablit/fetch_transplant.py
-ablit/*
-!ablit/LAYER_MAP.json
-!ablit/fetch_transplant.py
 __pycache__/
 *.py[cod]
-.pytest_cache/
 .venv/
-target/
 
-# Never publish model-derived tensors, checkpoints, compiled GPU artifacts,
-# credentials, or machine-local configuration from this source repository.
-*.pt
+# Benchmark outputs; published receipts belong under results/.
+bench/out-*/
+bench/qprobe-*.jsonl
+*.mp4
+
+# Never commit weights, compiled GPU artifacts or credentials.
 *.safetensors
-*.gguf
 *.bin
 *.so
 *.key
 *.pem
-*.p12
-*.mp4
-*.mov
-*.mkv
-
-
-# Ephemeral benchmark renders and local promotion outputs.
-# Checked-in evidence belongs under the canonical results/ qualification tree.
-artifacts/
-.tinyglm-gates/
