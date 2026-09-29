@@ -110,6 +110,8 @@ class LaunchContract(unittest.TestCase):
                 slots = [int(a.split('=')[1]) for a in argv if a.startswith('--ssm-cache-slots=')]
                 self.assertEqual(len(slots), 1)
                 self.assertGreater(slots[0], 0)
+                # Only exact, block-aligned prefill states may be restored.
+                self.assertEqual(profile['environment'].get('ATLAS_MARCONI_PREFILL_ONLY'), '1')
 
     def test_profiles_are_selected_by_name(self):
         self.assertEqual(serve.profile_path({}, HERE), HERE/'profiles'/'4x512k.json')

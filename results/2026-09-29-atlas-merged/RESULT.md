@@ -1,5 +1,10 @@
 # 2026-09-29: Atlas SparkGLM from a fresh clone
 
+> **This configuration had no prefix caching.** Every request, including each
+> turn of a multi-turn conversation, prefilled its whole prompt from scratch;
+> RigMark's immediate-replay cells below show it. It is superseded by
+> [2026-09-29-prefix-caching](../2026-09-29-prefix-caching/RESULT.md).
+
 ## Hypothesis
 
 The merged Atlas engine — `Enntity/atlas` `sparkglm/atlas-20260928`: Atlas-Inf
@@ -82,6 +87,7 @@ summary in `rigmark-summary.txt`).
 | Short-code aggregate C1 / C4 / C6 / C8 (tok/s) | 36.9 / 62.1 / 76.7 / 88.0 | 44.0 / – / 97.3 / – |
 | Short-prose aggregate C1 / C4 / C6 / C8 (tok/s) | 25.4 / 43.0 / 55.5 / 64.7 | – |
 | Cold prefill 8K / 32K / 64K (s) | 3.27 / 13.25 / 28.33 | 3.56 / 12.94 / 25.66 |
+| Immediate replay of the same prompt, 8K / 32K / 64K (s) | 3.27 / 13.24 / 28.31 (no prefix caching: same as cold) | ~2.3–2.7× faster than its cold prefill |
 | Prefill-first newcomer TTFT L2 / L4 / L6 / L8 (s) | 2.79 / 3.30 / 3.80 / 4.31 | 4.70 / 5.15 / 4.90 / – |
 | Decode-first newcomer TTFT L2 / L4 / L6 / L8 (s) | 13.59 / 13.86 / 14.05 / 13.84 | 14.38 / 14.81 / 15.42 / – |
 
