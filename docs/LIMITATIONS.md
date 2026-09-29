@@ -23,11 +23,13 @@ What to know before relying on SparkGLM.
 
 ## Capacity and prefix caching
 
-- All requests share one KV pool, which also holds the prefix cache. Its size
-  depends on the memory free when the engine starts: 340K–560K tokens in our
-  runs, against 866K before prefix caching. A request needs pool room for its
-  whole context, so at the low end of that range a full 512K request does not
-  fit at all. Requests that don't fit wait for room.
+- All requests share one KV pool, which also holds the prefix cache: about
+  600K tokens at the default 0.88 memory utilization, and 1.39M at 0.92 on
+  dedicated Sparks. A request needs pool room for its whole context, so four
+  full 512K requests do not fit at once; later requests wait for room.
+- At 0.92, a Spark sharing the host with other services went down to 3.1 GB of
+  free memory. GB10 hosts can hang when memory runs out, so raise the setting
+  only on Sparks that run nothing else.
 - Prefix caching keeps 16 recurrent-state snapshots, one per recent request.
   A conversation idle for longer than that is re-prefilled from its deepest
   remaining cached block, or from scratch.

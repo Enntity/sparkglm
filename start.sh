@@ -95,7 +95,8 @@ serve() {
   [[ -n $address ]] || address=$(ip -4 -o addr show dev "$iface" 2>/dev/null | awk '{sub("/.*", "", $4); print $4; exit}')
   [[ -n $address ]] || { echo "no IPv4 address on the fabric interface '$iface'; set LEADER_ADDRESS" >&2; exit 2; }
   common=(--leader-address "$address" --model-root "$MODEL_ROOT" --image "$IMAGE"
-          --profile "$PROFILE" --fabric-hca "$FABRIC_HCA" ${FABRIC_INTERFACE:+--fabric-interface "$FABRIC_INTERFACE"})
+          --profile "$PROFILE" --fabric-hca "$FABRIC_HCA" ${FABRIC_INTERFACE:+--fabric-interface "$FABRIC_INTERFACE"}
+          ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"})
   say "start rank 1 on $WORKER, then rank 0 here (leader $address, profile $PROFILE)"
   stop
   script_on_worker install/start-node.sh --rank 1 "${common[@]}"

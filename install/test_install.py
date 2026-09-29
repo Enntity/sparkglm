@@ -113,6 +113,14 @@ class LaunchContract(unittest.TestCase):
                 # Only exact, block-aligned prefill states may be restored.
                 self.assertEqual(profile['environment'].get('ATLAS_MARCONI_PREFILL_ONLY'), '1')
 
+    def test_gpu_memory_utilization_override(self):
+        argv, _ = serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION='0.93'), self.profile)
+        self.assertIn('--gpu-memory-utilization=0.93', argv)
+        self.assertEqual(sum(a.startswith('--gpu-memory-utilization=') for a in argv), 1)
+        for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x'):
+            with self.subTest(util=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), self.profile)
+
     def test_profiles_are_selected_by_name(self):
         self.assertEqual(serve.profile_path({}, HERE), HERE/'profiles'/'4x512k.json')
         small = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '8x128k'}, HERE).read_text())

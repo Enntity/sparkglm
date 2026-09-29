@@ -1,0 +1,75 @@
+== f5b9324 Slotted index tails with prefix caching; GPU memory utilization knob ghcr.io/enntity/atlas-sparkglm:42fd6b6147be
+== image ghcr.io/enntity/atlas-sparkglm:42fd6b6147be
+== overlay on this node
+== overlay on 192.0.2.2
+== start rank 1 on 192.0.2.2, then rank 0 here (leader 192.0.2.1, profile 4x512k)
+== loading (about 2.5 minutes)
+== ready: http://127.0.0.1:8893/v1 model glm-5.3-flash-atlas
+smoke: 17*23 = 391
+INFO spark::main_modules::serve_phases::build: Prefix caching: ENABLED (radix tree)
+INFO spark_model::model::ssm_snapshot: SSM snapshot pool: Marconi 16 slots (1190 MB), decode-rollback 0 slots × 4 seqs (0 MB), 34 layers
+INFO spark_model::factory::build: KV cache: 121.7 GB total × 92% util = 112.0 GB budget; 102.5 GB pre-KV + 0.8 GB reserve + 0.1 GB lazy BF16 → 8.6 GB for KV → 86673 blocks × 16 tok/block = 1386768 max KV tokens
+== pc_test
+replay 1 {'ttft': 15.71, 'prompt_tokens': 35111, 'cached': 0, 'correct': True} '407943'
+replay 2 {'ttft': 0.81, 'prompt_tokens': 35111, 'cached': 35104, 'correct': True} '407943'
+turn 1 {'ttft': 20.0, 'prompt_tokens': 45419, 'cached': 0, 'correct': True} '627379'
+turn 2 {'ttft': 0.85, 'prompt_tokens': 45447, 'cached': 45408, 'correct': True} '473778'
+turn 3 {'ttft': 1.12, 'prompt_tokens': 45475, 'cached': 45440, 'correct': True} '365683'
+turn 4 {'ttft': 0.81, 'prompt_tokens': 45501, 'cached': 45472, 'correct': True} '822535'
+turn 5 {'ttft': 0.84, 'prompt_tokens': 45528, 'cached': 45488, 'correct': True} '266033'
+turn 6 {'ttft': 0.82, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+v4: 8/8 correct
+== pc_hard
+concurrent s0 t1 42.47 29998 0 True
+concurrent s0 t2 2.58 30026 29984 True
+concurrent s0 t3 2.58 30053 30016 True
+concurrent s0 t4 2.57 30081 30048 True
+concurrent s1 t1 60.85 30045 0 True
+concurrent s1 t2 0.79 30073 30032 True
+concurrent s1 t3 0.76 30099 30064 True
+concurrent s1 t4 0.74 30126 30096 True
+concurrent s2 t1 22.79 30025 0 True
+concurrent s2 t2 13.61 30052 30016 True
+concurrent s2 t3 2.55 30078 30048 True
+concurrent s2 t4 2.62 30104 30064 True
+concurrent s3 t1 32.62 30020 0 True
+concurrent s3 t2 4.73 30048 30016 True
+concurrent s3 t3 2.59 30074 30048 True
+concurrent s3 t4 2.63 30101 30064 True
+tool [{'id': 'call_0000000000000000', 'name': 'lookup_team_lead', 'arguments': '{"team":"team-7"}'}] | 1.11 25199 25136 'Ada Okonkwo; 515531' True
+partial unit-31-00100 16.26 37328 18624 True
+partial unit-31-01400 0.73 37329 37312 True
+partial unit-32-00200 0.36 37328 37312 True
+long 16 22432 identical right 41 41 of 41
+think 10.98 25003 16 True '554851'
+think 0.76 25030 24992 True '491606'
+think 0.74 25057 25024 True '875500'
+v4: 23/23 exact checks; long-output 41/41 of 41
+== acc 1
+{"tag": "v4", "correct": 40, "off_by_one": 0, "n": 40, "median_ttft_turns_2_10": 0.81}
+== fill
+session 0 turn 1 120.29 204333 16 True
+session 2 turn 1 227.0 204301 16 True
+session 0 turn 2 101.47 204358 204320 True
+session 2 turn 2 13.3 204326 204288 True
+session 3 turn 1 336.47 204250 16 True
+session 2 turn 3 93.77 204351 204320 True
+session 3 turn 2 2.94 204274 204240 True
+session 0 turn 3 112.22 204383 204352 True
+session 3 turn 3 13.08 204299 204272 True
+session 1 turn 1 448.84 204295 16 True
+session 1 turn 2 1.45 204320 204288 True
+session 1 turn 3 1.56 204344 204320 True
+{"tag": "v4", "correct": 12, "n": 12, "prompt_tokens_max": 204383, "wall_s": 452.3}
+== matrix
+{"case": "c1-16k", "rc": 0, "wall_s": 14.76, "summary": {"successful": 1, "wall_s": 14.025235296001483, "aggregate_decode_tok_s": 56.422338913511766}}
+{"case": "c1-32k", "rc": 0, "wall_s": 27.64, "summary": {"successful": 1, "wall_s": 26.531792918001884, "aggregate_decode_tok_s": 30.867788073314742}}
+{"case": "c2-16k", "rc": 0, "wall_s": 27.74, "summary": {"successful": 2, "wall_s": 26.615056334994733, "aggregate_decode_tok_s": 48.34464195012497}}
+{"case": "c2-32k", "rc": 0, "wall_s": 44.81, "summary": {"successful": 2, "wall_s": 42.803419392999785, "aggregate_decode_tok_s": 31.574042588929046}}
+{"case": "c4-16k", "rc": 0, "wall_s": 53.53, "summary": {"successful": 4, "wall_s": 51.26099552300002, "aggregate_decode_tok_s": 46.973111239734884}}
+== field
+{"case": "discarded-warmup", "rc": 0, "wall_s": 58.14, "total_completion_tokens": 1600, "reported_wall_s": 58.096109}
+{"case": "field-guide-r1", "rc": 0, "wall_s": 32.97, "total_completion_tokens": 1600, "reported_wall_s": 32.914621}
+{"case": "field-guide-r2", "rc": 0, "wall_s": 32.96, "total_completion_tokens": 1600, "reported_wall_s": 32.896607}
+{"case": "field-guide-r3", "rc": 0, "wall_s": 32.97, "total_completion_tokens": 1600, "reported_wall_s": 32.924579}
+VALIDATE-DONE

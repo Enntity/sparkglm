@@ -74,6 +74,14 @@ def launch(environ, profile):
     env['ATLAS_RDMA_RAILS'] = env['NCCL_IB_HCA']
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
+    # A dedicated pair can give the KV pool (and so the prefix cache) more of
+    # the unified memory than the shipped default leaves free.
+    util = environ.get('SPARKGLM_GPU_MEMORY_UTILIZATION')
+    if util:
+        if not re.fullmatch(r'0\.(8[0-9]|9[0-5])', util):
+            raise ValueError('SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.80 to 0.95')
+        args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
+                for a in args]
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
         raise ValueError('Invalid SERVED_MODEL_NAME')
