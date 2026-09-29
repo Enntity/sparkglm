@@ -99,6 +99,20 @@ class LaunchContract(unittest.TestCase):
             with self.subTest(hca=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, FABRIC_HCA=bad), self.profile)
 
+    def test_both_profiles_cache_prompt_prefixes(self):
+        # Multi-turn agents resend the whole conversation every turn; without
+        # prefix caching each turn re-prefills it from scratch.
+        for name in ('4x512k', '8x128k'):
+            profile = json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())
+            argv, _ = serve.launch(self.environment, profile)
+            with self.subTest(profile=name):
+                self.assertIn('--enable-prefix-caching', argv)
+                slots = [int(a.split('=')[1]) for a in argv if a.startswith('--ssm-cache-slots=')]
+                self.assertEqual(len(slots), 1)
+                self.assertGreater(slots[0], 0)
+                # Only exact, block-aligned prefill states may be restored.
+                self.assertEqual(profile['environment'].get('ATLAS_MARCONI_PREFILL_ONLY'), '1')
+
     def test_profiles_are_selected_by_name(self):
         self.assertEqual(serve.profile_path({}, HERE), HERE/'profiles'/'4x512k.json')
         small = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '8x128k'}, HERE).read_text())

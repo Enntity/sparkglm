@@ -8,8 +8,9 @@ What to know before relying on SparkGLM.
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
-- The published numbers used the recipe as it stood before the repository was
-  reorganized. That recipe used the same engine commit and profiles.
+- The decode, prefill, RigMark and quality numbers come from the first Atlas
+  release (no prefix caching, same kernels). The prefix-caching release
+  re-measured the matrix, the staggered field guide and multi-turn behaviour.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
 
 ## Not yet measured with the recipe image
@@ -20,11 +21,23 @@ What to know before relying on SparkGLM.
 - **Endurance, cancellation under load, and multimodal work at full context:**
   not measured.
 
-## Capacity
+## Capacity and prefix caching
 
-The `4x512k` profile admits four requests of up to 512K each. They share one
-KV pool of about 866K tokens, so four full-length requests at once do not fit.
-Later requests wait for room.
+- All requests share one KV pool, which also holds the prefix cache. Its size
+  depends on the memory free when the engine starts: 340K–560K tokens in our
+  runs, against 866K before prefix caching. A request needs pool room for its
+  whole context, so at the low end of that range a full 512K request does not
+  fit at all. Requests that don't fit wait for room.
+- Prefix caching keeps 16 recurrent-state snapshots, one per recent request.
+  A conversation idle for longer than that is re-prefilled from its deepest
+  remaining cached block, or from scratch.
+- Only block-aligned snapshots written during prefill are restored
+  (`ATLAS_MARCONI_PREFILL_ONLY`). The engine's other snapshot kinds gave a
+  wrong retrieval answer on a cache hit; see the prefix-caching result.
+- With caching on, the engine disables its fused prefill/decode path. Cold
+  C4-16K is about 6% slower than in the release without caching.
+- The first start after installing or updating compiles CUDA kernels. On our
+  pair this briefly used about 2 GB more host memory than steady state.
 
 ## Performance gaps
 

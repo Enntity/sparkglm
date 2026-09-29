@@ -1,0 +1,63 @@
+== 9bc77b2 Restore only block-aligned prefill SSM checkpoints ghcr.io/enntity/atlas-sparkglm:2ba73a2d8aee
+== image ghcr.io/enntity/atlas-sparkglm:2ba73a2d8aee
+== overlay on this node
+== overlay on 192.0.2.2
+== start rank 1 on 192.0.2.2, then rank 0 here (leader 192.0.2.1, profile 4x512k)
+== loading (about 2.5 minutes)
+== ready: http://127.0.0.1:8893/v1 model glm-5.3-flash-atlas
+smoke: 17*23 = 391
+INFO spark::main_modules::serve_phases::build: Prefix caching: ENABLED (radix tree)
+INFO spark_model::model::ssm_snapshot: SSM snapshot pool: Marconi 16 slots (1190 MB), decode-rollback 0 slots × 4 seqs (0 MB), 34 layers
+INFO spark_model::factory::build: KV cache: 121.7 GB total × 88% util = 107.1 GB budget; 102.4 GB pre-KV + 0.8 GB reserve + 0.1 GB lazy BF16 → 3.9 GB for KV → 21368 blocks × 16 tok/block = 341888 max KV tokens
+== pc_test
+replay 1 {'ttft': 15.63, 'prompt_tokens': 35111, 'cached': 0, 'correct': True} '407943'
+replay 2 {'ttft': 0.81, 'prompt_tokens': 35111, 'cached': 35104, 'correct': True} '407943'
+turn 1 {'ttft': 19.9, 'prompt_tokens': 45419, 'cached': 0, 'correct': True} '627379'
+turn 2 {'ttft': 0.84, 'prompt_tokens': 45447, 'cached': 45408, 'correct': True} '473778'
+turn 3 {'ttft': 1.1, 'prompt_tokens': 45475, 'cached': 45440, 'correct': True} '365683'
+turn 4 {'ttft': 0.8, 'prompt_tokens': 45501, 'cached': 45472, 'correct': True} '822535'
+turn 5 {'ttft': 1.22, 'prompt_tokens': 45528, 'cached': 45488, 'correct': True} '266033'
+turn 6 {'ttft': 0.82, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+v2: 8/8 correct
+== pc_hard
+concurrent s0 t1 22.72 29998 0 True
+concurrent s0 t2 13.69 30026 29984 True
+concurrent s0 t3 2.48 30053 30016 True
+concurrent s0 t4 2.6 30081 30048 True
+concurrent s1 t1 32.6 30045 0 True
+concurrent s1 t2 4.81 30073 30032 True
+concurrent s1 t3 2.57 30099 30064 True
+concurrent s1 t4 2.57 30126 30096 True
+concurrent s2 t1 60.71 30025 0 True
+concurrent s2 t2 0.77 30052 30016 True
+concurrent s2 t3 0.74 30078 30048 True
+concurrent s2 t4 0.78 30104 30064 True
+concurrent s3 t1 42.41 30020 0 True
+concurrent s3 t2 2.52 30048 30016 True
+concurrent s3 t3 2.61 30074 30048 True
+concurrent s3 t4 2.54 30101 30064 True
+tool [{'id': 'call_0000000000000000', 'name': 'lookup_team_lead', 'arguments': '{"team":"team-7"}'}] | 1.12 25199 25136 'Ada Okonkwo; 515531' True
+partial unit-31-00100 16.28 37328 18624 True
+partial unit-31-01400 0.72 37329 37312 True
+partial unit-32-00200 0.49 37328 37312 True
+long 16 22432 identical right 41 41 of 41
+think 10.99 25003 16 True '554851'
+think 0.78 25030 24992 True '491606'
+think 0.75 25057 25024 True '875500'
+v2: 23/23 exact checks; long-output 41/41 of 41
+== acc 1
+{"tag": "v2a", "correct": 40, "off_by_one": 0, "n": 40, "median_ttft_turns_2_10": 0.82}
+== acc 2
+{"tag": "v2b", "correct": 40, "off_by_one": 0, "n": 40, "median_ttft_turns_2_10": 0.81}
+== matrix
+{"case": "c1-16k", "rc": 0, "wall_s": 14.79, "summary": {"successful": 1, "wall_s": 13.998514197999611, "aggregate_decode_tok_s": 56.54878129494956}}
+{"case": "c1-32k", "rc": 0, "wall_s": 22.47, "summary": {"successful": 1, "wall_s": 21.37378840999736, "aggregate_decode_tok_s": 51.1604146985304}}
+{"case": "c2-16k", "rc": 0, "wall_s": 28.26, "summary": {"successful": 2, "wall_s": 27.125311447998683, "aggregate_decode_tok_s": 46.882191792664806}}
+{"case": "c2-32k", "rc": 0, "wall_s": 46.37, "summary": {"successful": 2, "wall_s": 44.211501730002055, "aggregate_decode_tok_s": 29.246155578580144}}
+{"case": "c4-16k", "rc": 0, "wall_s": 55.81, "summary": {"successful": 4, "wall_s": 53.96082875299908, "aggregate_decode_tok_s": 42.85811460273829}}
+== field
+{"case": "discarded-warmup", "rc": 0, "wall_s": 58.9, "total_completion_tokens": 1600, "reported_wall_s": 58.85548}
+{"case": "field-guide-r1", "rc": 0, "wall_s": 32.64, "total_completion_tokens": 1600, "reported_wall_s": 32.599491}
+{"case": "field-guide-r2", "rc": 0, "wall_s": 32.72, "total_completion_tokens": 1600, "reported_wall_s": 32.678834}
+{"case": "field-guide-r3", "rc": 0, "wall_s": 32.64, "total_completion_tokens": 1600, "reported_wall_s": 32.596731}
+VALIDATE-DONE
