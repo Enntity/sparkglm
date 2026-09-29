@@ -10,7 +10,8 @@ usage() {
   cat >&2 <<'EOF'
 usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca rocep1s0f0]
-                     [--profile 4x512k|8x128k|FILE] [--cuda-cache DIR] [--name NAME]
+                     [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
+                     [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
   --model-root       directory holding nvidia--GLM-5.3-Flash-NVFP4,
@@ -20,12 +21,15 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      interface of --fabric-hca, e.g. enp1s0f0np0)
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
+  --gpu-memory-utilization  share of unified memory for the engine (default:
+                     the profile's 0.88); raise it on dedicated hosts for a
+                     larger KV pool and prefix cache
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
 }
 rank="" leader="" iface="" model_root="" image="" hca=rocep1s0f0
-cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k
+cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -37,6 +41,7 @@ while [[ $# -gt 0 ]]; do
     --cuda-cache) cache=$2; shift 2 ;;
     --name) name=$2; shift 2 ;;
     --profile) profile=$2; shift 2 ;;
+    --gpu-memory-utilization) util=$2; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -77,6 +82,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" \
   -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
+  ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE=2 -e ATLAS_TP_SIZE=2 -e ATLAS_EP_SIZE=2 -e ATLAS_CONTEXT_WINDOW=524288 \
   -e NCCL_SOCKET_IFNAME="$iface" -e GLOO_SOCKET_IFNAME="$iface" -e NCCL_IB_HCA="$hca" \
   -e NCCL_IB_ADDR_FAMILY=AF_INET -e NCCL_IB_ROCE_VERSION_NUM=2 -e NCCL_CROSS_NIC=0 \
