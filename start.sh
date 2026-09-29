@@ -54,9 +54,9 @@ hf_download() {  # repo revision dir; uses a throwaway container when hf is not 
 # cable. The final rsync picks up the small files and anything left over.
 copy_to_worker() {  # directory name under MODEL_ROOT
   on_worker mkdir -p "$MODEL_ROOT"
-  (cd "$MODEL_ROOT" && find "$1" -type f -size +64M -print0) |
+  (cd "$MODEL_ROOT" && find "$1" -type f -size +64M ! -name '*.incomplete' -print0) |
     xargs -0 -P8 -I{} rsync -aR -e 'ssh -c aes128-gcm@openssh.com' "$MODEL_ROOT/./{}" "$WORKER:$MODEL_ROOT/"
-  rsync -a "$MODEL_ROOT/$1" "$WORKER:$MODEL_ROOT/"
+  rsync -a --exclude "*.incomplete" "$MODEL_ROOT/$1" "$WORKER:$MODEL_ROOT/"
 }
 
 # Download each pinned checkpoint once, then mirror it to the worker. The

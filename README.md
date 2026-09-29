@@ -37,9 +37,9 @@ open questions are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
   finds the GID itself and uses both PCIe halves of the port).
 - Docker with the NVIDIA runtime on both, and passwordless `ssh` from the
   Spark you run `./start.sh` on to the other one, whose user can run `docker`.
-- About 250 GB free on each Spark: the checkpoint takes 218 GB, the drafter
-  2 GB and the converted overlay 16 GB. The 220 GB download is made once and
-  copied to the other Spark over the cable.
+- About 230 GB free on each Spark: the checkpoint takes 204 GB, the drafter
+  2 GB and the converted overlay 16 GB. The 207 GB download is made once and
+  copied to the other Spark over the cable (about a minute).
 - Nothing else using the GPUs' memory. GB10 memory is shared with the host,
   and the engine uses most of it.
 
