@@ -1,0 +1,31 @@
+omp on 03 -> glm53-flashx-openrouter
+omp on 01 -> glm53-flashx-openrouter (route 03 from the Mac)
+  "status": "suspended",
+== dc_base up: 99632 blocks × 16 tok/block = 1594112 max KV tokens 
+[+1 min] base up
+REPRODUCIBLE dc-base
+{"arm": "dcbase", "c1": [33.83, 33.8, 33.84, 33.73, 33.77], "c1_tok_step": [2.52, 2.52, 2.52, 2.52, 2.52], "short_wall_s": 36.33, "c2": {"per_stream": [25.23, 23.69], "aggregate": 45.14}, "c4": {"per_stream": [16.13, 14.74, 15.5, 15.61], "aggregate": 57.73}, "short_captures": 0, "greedy_captures": 0
+[+6 min] base decode probe
+rank0 errors: 1 rank1 errors: 5
+== dc_exact up: 100411 blocks × 16 tok/block = 1606576 max KV tokens agree on 99309 
+[+8 min] exact up
+{"arm": "dcexact", "c1": [36.32, 36.35, 36.28, 36.27, 36.26], "c1_tok_step": [2.52, 2.52, 2.52, 2.52, 2.52], "short_wall_s": 34.04, "c2": {"per_stream": [26.72, 26.5], "aggregate": 50.21}, "c4": {"per_stream": [17.06, 16.32, 16.56, 16.62], "aggregate": 62.01}, "short_captures": 0, "greedy_captures":
+[+10 min] exact decode probe
+rank0 errors: 1 rank1 errors: 3
+== dc_conf up: 98395 blocks × 16 tok/block = 1574320 max KV tokens 
+[+12 min] conf up
+{"arm": "dcconf", "c1": [40.62, 40.73, 37.38, 39.81, 39.2], "c1_tok_step": [2.43, 2.37, 2.189, 2.307, 2.253], "short_wall_s": 28.53, "c2": {"per_stream": [28.16, 28.1], "aggregate": 53.19}, "c4": {"per_stream": [18.28, 17.89, 18.3, 18.61], "aggregate": 67.45}, "short_captures": 0, "greedy_captures":
+[+14 min] conf decode probe
+rank0 errors: 1 rank1 errors: 4
+flag-off logprob hash ['8c75d2886794'] == production
+base       c1 median 33.80 [33.83, 33.8, 33.84, 33.73, 33.77] tok_step None c2 45.14 c4 57.73 short None
+exact      c1 median 36.28 [36.32, 36.35, 36.28, 36.27, 36.26] tok_step None c2 50.21 c4 62.01 short None
+conf       c1 median 39.81 [40.62, 40.73, 37.38, 39.81, 39.2] tok_step None c2 53.19 c4 67.45 short None
+exact: greedy text equal to base per prompt {'code': True, 'facts': True, 'prose': True}; c1 ratio 1.073 c2 1.112 c4 1.074
+conf: greedy text equal to base per prompt {'code': False, 'facts': False, 'prose': False}; c1 ratio 1.178 c2 1.178 c4 1.168
+DECODE-DONE
+  "status": "ready",
+omp on 01 -> atlas-nvfp4-262k (route 03 from the Mac)
+omp on 03 -> atlas-nvfp4-262k
+{"status":"ready","model":"glm-5.3-flash-atlas"}lloom-atlas-sparkglm-spark1 ghcr.io/enntity/atlas-sparkglm:227698449651
+WINDOW6-END

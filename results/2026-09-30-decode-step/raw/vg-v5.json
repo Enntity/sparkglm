@@ -1,0 +1,180 @@
+{
+ "short_log": {
+  "captures": 0,
+  "capture_ms": 0,
+  "capture_ms_per_request": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "capture_slots": [],
+  "peak_cached": 0,
+  "refused": 0,
+  "tok_step": [
+   3.0,
+   2.25,
+   2.423,
+   2.25,
+   2.37,
+   2.739,
+   2.538,
+   2.52,
+   2.423,
+   2.357,
+   2.56,
+   2.864,
+   2.37,
+   2.462,
+   2.423,
+   2.423
+  ]
+ },
+ "short": {
+  "wall_s": 28.56,
+  "walls": [
+   1.552,
+   1.908,
+   1.755,
+   1.898,
+   1.838,
+   1.655,
+   1.849,
+   1.728,
+   1.798,
+   1.922,
+   1.745,
+   1.599,
+   1.87,
+   1.794,
+   1.856,
+   1.791
+  ]
+ },
+ "greedy_log": {
+  "captures": 0,
+  "capture_ms": 0,
+  "capture_ms_per_request": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "capture_slots": [],
+  "peak_cached": 0,
+  "refused": 0,
+  "tok_step": [
+   5.574,
+   5.543,
+   3.4,
+   3.413
+  ]
+ },
+ "greedy": {
+  "code": [
+   "```python\nimport sys\n\nRED = True\nBLACK = False\n\n\nclass Node:\n    def __init__(self, key, color=RED):\n        self.key = key\n        self.color = color\n        self.left = None\n        self.right = None\n        self.parent = None\n\n\nclass RedBlackTree:\n    def __init__(self):\n        self.NIL = Node(None, BLACK)\n        self.root = self.NIL\n\n    # ---------- Search helpers ----------\n    def search(self, key):\n        node = self.root\n        while node != self.NIL:\n            if key == node.key:\n                return node\n            node = node.left if key < node.key else node.right\n        return None\n\n    def minimum(self, node):\n        while node.left != self.NIL:\n            node = node.left\n        return node\n\n    # ---------- Rotations ----------\n    def left_rotate(self, x):\n        y = x.right\n        x.right = y.left\n        if y.left != self.NIL:\n            y.left.parent = x\n        y.parent = x.parent\n        if x.parent is None:\n            self.root = y\n        elif x is x.parent.left:\n            x.parent.left = y\n        else:\n            x",
+   "```python\nimport sys\n\nRED = True\nBLACK = False\n\n\nclass Node:\n    def __init__(self, key, color=RED):\n        self.key = key\n        self.color = color\n        self.left = None\n        self.right = None\n        self.parent = None\n\n\nclass RedBlackTree:\n    def __init__(self):\n        self.NIL = Node(None, BLACK)\n        self.root = self.NIL\n\n    # ---------- Search helpers ----------\n    def search(self, key):\n        node = self.root\n        while node != self.NIL:\n            if key == node.key:\n                return node\n            node = node.left if key < node.key else node.right\n        return None\n\n    def minimum(self, node):\n        while node.left != self.NIL:\n            node = node.left\n        return node\n\n    # ---------- Rotations ----------\n    def left_rotate(self, x):\n        y = x.right\n        x.right = y.left\n        if y.left != self.NIL:\n            y.left.parent = x\n        y.parent = x.parent\n        if x.parent is None:\n            self.root = y\n        elif x == x.parent.left:\n            x.parent.left = y\n        else:\n            x"
+  ],
+  "facts": [
+   "# The Planets in Order from the Sun\n\n1. **Mercury** \u2014 The smallest planet and closest to the Sun, Mercury has extreme temperature swings between its scorching days and freezing nights.\n\n2. **Venus** \u2014 Wrapped in thick clouds of carbon dioxide, Venus is the hottest planet in the solar system and rotates in the opposite direction of most planets.\n\n3. **Earth** \u2014 The only known planet to support life, Earth is the only world with liquid water on its surface covering about 71% of it.\n\n4. **Mars** \u2014 The \"Red Planet\" gets its color from iron oxide dust and is home to Olympus Mons, the tallest volcano in the solar system.\n\n5. **Jupiter** \u2014 The largest planet of all, Jupiter is a gas giant famous for its Great Red Spot, a storm larger than Earth that has raged for centuries.\n\n6. **Saturn** \u2014 Best known for its stunning rings made of ice and rock, Saturn is a gas giant so light it could theoretically float in water.\n\n7. **Uranus** \u2014 An ice giant that rotates on its side, Uranus has a pale blue-green color caused by methane in its atmosphere.\n\n8. **Neptune** \u2014 The farthest planet",
+   "# The Planets in Order from the Sun\n\n1. **Mercury** \u2014 The smallest planet and closest to the Sun, Mercury has extreme temperature swings between its scorching days and freezing nights.\n\n2. **Venus** \u2014 Wrapped in thick clouds of carbon dioxide, Venus is the hottest planet in the solar system due to a runaway greenhouse effect.\n\n3. **Earth** \u2014 The only known planet to harbor life, Earth is covered mostly by liquid water and has a protective atmosphere and magnetic field.\n\n4. **Mars** \u2014 The \"Red Planet\" gets its color from iron oxide dust and features the tallest volcano in the solar system, Olympus Mons.\n\n5. **Jupiter** \u2014 The largest planet, Jupiter is a gas giant famous for its Great Red Spot, a storm larger than Earth that has raged for centuries.\n\n6. **Saturn** \u2014 Best known for its stunning ring system made of ice and rock, Saturn is a gas giant so light it could float in water.\n\n7. **Uranus** \u2014 An ice giant that rotates on its side, Uranus has a bluish-green color caused by methane in its atmosphere.\n\n8. **Neptune** \u2014 The farthest planet from the Sun, Neptune is an ice giant with"
+  ],
+  "prose": [
+   "A hash map is a data structure that stores key-value pairs and allows you to look up a value quickly given its key, typically in constant time regardless of how many items it holds. The central idea is to avoid searching through data by instead computing, in advance, exactly where each item should live.\n\nWhen you insert a pair, the map first passes the key through a hash function, which converts it into a number. A good hash function spreads keys uniformly across the possible range, so that even similar keys produce very different outputs. That number is then reduced to fit within the bounds of the map's underlying array, usually by taking it modulo the array's size, and the result serves as the index where the value will be stored. Because the same key always produces the same index, retrieving a value later is simply a matter of repeating the calculation and going straight to that spot.\n\nThe complication is that two different keys can occasionally hash to the same index, a situation called a collision. Maps handle this in a couple of common ways. One approach, chaining, keeps a small list at each array slot, so colliding entries simply coexist in that list and a lookup scans it briefly. The other, open addressing, keeps everything in the array itself and, when a slot is taken, probes onward to find the next available one, using a pattern like checking successive positions or jumping by increasing steps. Either way, collisions are kept rare by the quality of the hash function, so these extra steps stay short.\n\nAs entries accumulate, the array fills up and collisions become more frequent, which would degrade performance. To prevent this, the map monitors its load factor, the ratio of entries to available slots, and when it crosses a threshold the map rehashes: it allocates a larger array and redistributes every existing entry according to the new size. This rehashing is expensive, but it happens infrequently enough",
+   "A hash map is a data structure that stores key-value pairs and allows you to look up a value quickly given its key, typically in constant time regardless of how many items it holds. The central idea is to avoid searching through data by computing, in advance, exactly where a given key's value should live in memory.\n\nWhen you insert a pair, the map first passes the key through a hash function, which converts the key\u2014whether it's a string, a number, or some other object\u2014into an integer. This integer is then mapped onto the range of the map's underlying array, usually by taking the remainder when divided by the array's length. The result is an index, and the value is stored at that position. Because the same key always produces the same index, retrieving a value later is just a matter of running the key through the same hash function and jumping straight to the right slot.\n\nThe complication is that two different keys can occasionally hash to the same index, a situation called a collision. Hash maps handle this in a couple of common ways. One approach, called chaining, lets each slot in the array hold a small list of entries, so colliding items simply coexist in the same bucket and a lookup must scan that short list for the exact key. Another approach, open addressing, keeps everything in the array itself: if a slot is occupied, the map probes onward\u2014perhaps to the next slot, or following some other pattern\u2014until it finds an empty place, and lookups retrace the same probing sequence.\n\nFor a hash map to work well, the hash function must spread keys evenly across the array; if many keys cluster into the same slots, lookups degrade into slow linear searches. The map also needs to manage its load factor, the ratio of stored entries to available slots. As the map fills up, collisions become more frequent, so when the load factor crosses some",
+   "A hash map is a data structure that stores key-value pairs and allows you to look up a value quickly given its key, typically in constant time regardless of how many items it holds. The core idea is to avoid searching through data by using the key itself to compute exactly where its value should live in memory.\n\nAt the heart of a hash map is an array, a contiguous block of storage with numbered slots. When you insert a key-value pair, the map first passes the key through a hash function, which converts the key\u2014whether it's a string, a number, or some other object\u2014into a numeric value. This number is then reduced to fit within the bounds of the array, usually by taking the remainder when divided by the array's length. The result is an index, and the value is stored at that position, often alongside its key so it can be recognized later.\n\nThe elegance of this approach is that retrieval works the same way in reverse: hash the key, compute the index, and jump directly to that slot. No scanning or comparison against other entries is needed, which is why lookups are so fast.\n\nHowever, a complication arises when two different keys hash to the same index, a situation called a collision. Since two values can't occupy the same slot, hash maps employ strategies to resolve this. One common approach, called chaining, makes each slot hold a small collection, such as a linked list, so multiple entries can coexist at the same index; lookups then hash to the right slot and search only within that short list. Another approach, called open addressing, keeps everything in the array itself by probing for the next available slot when a collision occurs, trying successive positions until an empty one is found.\n\nBecause collisions become more frequent as the array fills up, a good hash map monitors how full it is, a ratio known as the load factor. When the map becomes too",
+   "A hash map is a data structure that stores key-value pairs and allows you to look up a value quickly given its key, typically in constant time regardless of how many items it holds. The central idea is to avoid searching through data by computing, in advance, exactly where a given key's value should live in memory.\n\nWhen you insert a pair, the map first passes the key through a hash function, which converts the key\u2014whether it's a string, a number, or some other object\u2014into a number. That number is then mapped onto the range of the map's underlying array, usually by taking the remainder when divided by the array's length. The result is an index, and the value is stored at that position in the array. Because the same key always produces the same index, retrieving a value later is just a matter of running the key through the same process and jumping straight to the right slot, rather than comparing against every stored item.\n\nA complication arises because two different keys can occasionally hash to the same index, a situation called a collision. Hash maps handle this in a couple of common ways. One approach, called chaining, keeps a small list at each array slot so that multiple entries can share the same index; when looking up a key, the map finds the slot and then scans that short list for the exact key. The other approach, called open addressing, keeps everything in the array itself: if a slot is occupied, the map probes onward to some other slot according to a defined pattern until it finds the key or an empty space.\n\nAs more entries are added, the map becomes crowded, collisions grow more frequent, and lookups slow down. To prevent this, the map monitors how full it is\u2014often expressed as a load factor\u2014and when that crosses a threshold, it performs a resize. This means allocating a larger array and rehashing every existing entry into it, since",
+   "A hash map is a data structure that stores key-value pairs and allows you to look up a value quickly given its key, typically in constant time regardless of how many items it holds. The core idea is to avoid searching altogether by computing, in advance, exactly where a given key's value should live in memory.\n\nWhen you insert a pair, the map first passes the key through a hash function, which converts the key\u2014whether it's a string, a number, or some other object\u2014into a large, seemingly arbitrary integer. This integer is then reduced to fit within the bounds of the map's underlying storage, usually an array, most commonly by taking the remainder when divided by the array's length. The result is an index, and the value is stored at that position. Because the same key always produces the same index, retrieving a value later is just a matter of running the key through the same process and jumping straight to the right slot.\n\nThe complication is that two different keys can occasionally hash to the same index, a situation called a collision. Maps handle this in a couple of ways. One approach, called chaining, lets each array slot hold a small collection of entries, so colliding keys simply coexist in a list at that position, and lookup involves hashing to the slot and then scanning that short list for the exact key. Another approach, open addressing, keeps everything in the array itself: if a slot is occupied, the map probes forward to find the next available position, and lookups follow the same probing sequence until they find the matching key or an empty slot.\n\nAs more entries are added, collisions become more frequent and performance degrades, so maps monitor how full they are relative to their capacity\u2014a ratio called the load factor. When this crosses a threshold, the map rehashes: it allocates a larger array and reinserts every entry according to the new, larger size"
+  ]
+ },
+ "c1_log": {
+  "captures": 0,
+  "capture_ms": 0,
+  "capture_ms_per_request": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "capture_slots": [],
+  "peak_cached": 0,
+  "refused": 0,
+  "tok_step": [
+   2.335,
+   2.439,
+   2.612,
+   2.51,
+   2.477
+  ]
+ },
+ "c1": [
+  40.24,
+  42.46,
+  44.15,
+  43.6,
+  42.45
+ ],
+ "c2": {
+  "per_stream": [
+   28.76,
+   27.89
+  ],
+  "aggregate": 53.31
+ },
+ "c2_log": {
+  "captures": 0,
+  "capture_ms": 0,
+  "capture_ms_per_request": [
+   0.0,
+   0.0
+  ],
+  "capture_slots": [],
+  "peak_cached": 0,
+  "refused": 0,
+  "tok_step": [
+   2.471,
+   2.409
+  ]
+ },
+ "c4": {
+  "per_stream": [
+   18.79,
+   17.16,
+   18.14,
+   18.54
+  ],
+  "aggregate": 67.49
+ },
+ "c4_log": {
+  "captures": 0,
+  "capture_ms": 0,
+  "capture_ms_per_request": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "capture_slots": [],
+  "peak_cached": 0,
+  "refused": 0,
+  "tok_step": [
+   2.63,
+   2.637,
+   2.471,
+   2.471
+  ]
+ }
+}
