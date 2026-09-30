@@ -45,6 +45,14 @@ What to know before relying on SparkGLM.
   prompt or the second of `n > 1` choices, whenever the prompt length was not
   a multiple of 16. GLM restores from block-aligned snapshots anyway, so
   turning this off costs nothing.
+- The prefix cache on disk (`PREFIX_CACHE_DIR`, off by default) has been
+  measured in one pass, on 25K-token conversations. Long contexts, many
+  restores at once, the cost to the request whose prefill pushes blocks out,
+  and endurance are not measured.
+- The engine refuses to start when the directory is on tmpfs, ramfs or
+  overlayfs, cannot be written, or cannot hold the KV half of the size, and
+  when the two Sparks' settings differ. Its host memory comes out of the KV
+  pool (see the README).
 - With caching on, the engine disables its fused prefill/decode path. Cold
   C4-16K is about 6% slower than in the release without caching.
 - The first start after installing or updating compiles CUDA kernels. On our

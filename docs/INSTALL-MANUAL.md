@@ -89,6 +89,10 @@ each shape; later starts reuse it. Run one warmup pass before measuring.
 **Profiles.** `--profile 8x128k` selects the other shipped profile. A path to a
 JSON file runs your own profile. Use the same profile on both ranks.
 
+**Prefix cache on disk.** `--prefix-cache-dir DIR` (and optionally
+`--prefix-cache-gb 48`) on both ranks keeps evicted prefix-cache entries on
+each node's disk; see the README for what it costs.
+
 **Stopping.** `docker rm -f atlas-sparkglm-rank0` (and `-rank1`).
 
 ## Troubleshooting

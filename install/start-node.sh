@@ -11,6 +11,7 @@ usage() {
 usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca rocep1s0f0]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
+                     [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
@@ -24,12 +25,16 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
   --gpu-memory-utilization  share of unified memory for the engine (default:
                      the profile's 0.88); raise it on dedicated hosts for a
                      larger KV pool and prefix cache
+  --prefix-cache-dir keep evicted prefix-cache entries in this directory on
+                     the node's own disk (ext4/xfs) instead of dropping them
+                     (default: off)
+  --prefix-cache-gb  their disk budget in GiB (default 48); the same on both ranks
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
 }
 rank="" leader="" iface="" model_root="" image="" hca=rocep1s0f0
-cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util=""
+cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -42,6 +47,8 @@ while [[ $# -gt 0 ]]; do
     --name) name=$2; shift 2 ;;
     --profile) profile=$2; shift 2 ;;
     --gpu-memory-utilization) util=$2; shift 2 ;;
+    --prefix-cache-dir) pc_dir=$2; shift 2 ;;
+    --prefix-cache-gb) pc_gb=$2; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -66,8 +73,28 @@ if [[ -f $profile ]]; then
   profile_mount=(--mount "type=bind,src=$(realpath "$profile"),dst=/opt/atlas/profiles/custom.json,readonly")
   profile=custom
 fi
+if [[ -n $pc_dir || -n $pc_gb ]]; then
+  pc_gb=${pc_gb:-48}
+  [[ $pc_dir == /* && $pc_dir != *,* ]] || { echo "--prefix-cache-dir must be set to an absolute path without commas" >&2; exit 2; }
+  [[ $pc_gb =~ ^[1-9][0-9]{1,2}$ ]] && (( pc_gb >= 16 && pc_gb <= 100 )) ||
+    { echo "--prefix-cache-gb must be a whole number from 16 to 100" >&2; exit 2; }
+fi
 name=${name:-atlas-sparkglm-rank$rank}
 docker rm -f "$name" >/dev/null 2>&1 || true
+# The engine unlinks its cache files while they are open and sweeps any a crash
+# left behind, so nothing carries over a restart.
+pc_args=()
+if [[ -n $pc_dir ]]; then
+  mkdir -p "$pc_dir/kv" "$pc_dir/ssm"
+  pc_dir=$(realpath "$pc_dir")
+  case $(stat -f -c %T "$pc_dir" 2>/dev/null) in
+    tmpfs | ramfs | overlayfs) echo "--prefix-cache-dir $pc_dir is not on a disk" >&2; exit 2 ;;
+  esac
+  free_kb=$(df -Pk "$pc_dir" | awk 'NR == 2 {print $4}')
+  (( free_kb >= pc_gb * 1048576 )) ||
+    { echo "--prefix-cache-dir $pc_dir has $((free_kb / 1048576)) GiB free; --prefix-cache-gb needs $pc_gb" >&2; exit 2; }
+  pc_args=(--mount "type=bind,src=$pc_dir,dst=/prefix-cache" -e SPARKGLM_PREFIX_CACHE_GB="$pc_gb")
+fi
 # The overlay links into the original checkpoint, so it is mounted at the same
 # absolute path inside the container.
 docker run -d --name "$name" --restart no --network host --ipc host \
@@ -77,7 +104,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   --mount "type=bind,src=$checkpoint,dst=$checkpoint,readonly" \
   --mount "type=bind,src=$overlay,dst=$overlay,readonly" \
   --mount "type=bind,src=$drafter,dst=$drafter,readonly" \
-  --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" "${profile_mount[@]}" \
+  --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" ${profile_mount[@]+"${profile_mount[@]}"} ${pc_args[@]+"${pc_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" \
   -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \

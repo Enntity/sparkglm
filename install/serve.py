@@ -47,6 +47,22 @@ def fabric_hcas(value, sysfs=Path('/sys/class/infiniband')):
     return hcas
 
 
+def disk_prefix_cache(gb):
+    """Engine settings that keep evicted prefix-cache blocks and recurrent-state
+    snapshots on the node's disk, in the directory start-node.sh mounts at
+    /prefix-cache. The size (GiB per node) is split evenly between the two;
+    empty or 0 leaves the tier off."""
+    if gb in ('', '0'):
+        return {}
+    if not re.fullmatch(r'[1-9][0-9]{1,2}', gb) or not 16 <= int(gb) <= 100:
+        raise ValueError('SPARKGLM_PREFIX_CACHE_GB must be a whole number from 16 to 100')
+    kv = int(gb) // 2
+    return {'ATLAS_KV_NVME_DIR': '/prefix-cache/kv', 'ATLAS_KV_NVME_GB': str(kv),
+            'ATLAS_GLM_NVME_FAST': '1', 'ATLAS_SSM_TIER': '1', 'ATLAS_SSM_TIER_UNIFIED': '1',
+            'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/ssm', 'ATLAS_SSM_TIER_DISK_GB': str(int(gb) - kv),
+            'ATLAS_SSM_TIER_SLOTS': '2'}
+
+
 def launch(environ, profile):
     rank = environ.get('NODE_RANK', '')
     if rank not in ('0', '1'):
@@ -82,6 +98,7 @@ def launch(environ, profile):
             raise ValueError('SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.80 to 0.95')
         args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
                 for a in args]
+    env.update(disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', '')))
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
         raise ValueError('Invalid SERVED_MODEL_NAME')
