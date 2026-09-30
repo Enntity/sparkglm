@@ -45,9 +45,14 @@ preparation were drafted by supervised DeepSeek model workers and then reviewed
 by us.
 
 The image ships the FlashInfer, NVIDIA, FlashKDA and CUTLASS notices under
-`/opt/atlas/notices/` and the engine's license at `/LICENSE`. It does not yet
-ship a collected notice file for the Rust dependencies. Its complete
-corresponding source is:
+`/opt/atlas/notices/` and the engine's license at `/LICENSE`. The license,
+copying and notice files of the third-party Rust crates compiled into the
+engine are under `/opt/atlas/notices/rust/` (`INDEX.tsv` lists each crate, its
+declared license and its source; `install/rust-notices.py` collects them at
+build time). All of them are under permissive licenses (MIT, Apache-2.0, BSD,
+ISC, Zlib, Unicode-3.0, CDLA-Permissive-2.0 or dual/multi-licensed with one of
+these). Images built before this change do not carry that directory. Its
+complete corresponding source is:
 
 - this repository at the commit whose `install/` tree matches the image tag;
 - the Atlas commit recorded in `/opt/atlas/source-manifest.json`;

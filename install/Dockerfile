@@ -51,6 +51,9 @@ ARG BUILD_JOBS=4
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     cargo build --locked --release -j "$BUILD_JOBS" -p spark-server && \
     install -D target/release/spark /build/dist/spark
+# License notices of every third-party crate compiled into the binary.
+COPY install/rust-notices.py /product/install/rust-notices.py
+RUN python3 /product/install/rust-notices.py /build /build/dist/notices-rust
 # Check the actual compiled GLM module set and the startup vision selector.
 # CUDA stubs permit these CPU-only tests without GPU build entitlements.
 RUN mkdir -p /opt/cuda-stubs && \
@@ -121,6 +124,7 @@ COPY --from=native /opt/atlas/native/*.so /opt/atlas/native/
 COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
 COPY --from=native /opt/atlas/native/notices/ /opt/atlas/notices/
 COPY --from=builder /opt/cutlass/LICENSE.txt /opt/atlas/notices/CUTLASS-LICENSE.txt
+COPY --from=builder /build/dist/notices-rust/ /opt/atlas/notices/rust/
 COPY --from=native /tmp/FlashKDA-atlas/cutlass/LICENSE.txt /opt/atlas/notices/FlashKDA-CUTLASS-LICENSE.txt
 COPY --from=native /product/install/converter/ /opt/atlas/converter/
 COPY install/serve.py /opt/atlas/
