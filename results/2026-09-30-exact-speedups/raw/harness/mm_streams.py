@@ -3,9 +3,9 @@
 import json, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 B = "http://127.0.0.1:8893/v1/chat/completions"
-P = ["Count from 1 to 200, comma separated. No commentary.",
-     "Write a red-black tree in Python with insert, delete and rebalancing. Code only.",
-     "Explain how a hash map works, in flowing prose. No code, no lists."]
+P = ["<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>",
+     "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>",
+     "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>"]
 def one(p):
     b = {"model": "glm-5.3-flash-atlas", "messages": [{"role": "user", "content": p}], "max_tokens": 512,
          "temperature": 0, "chat_template_kwargs": {"thinking": False, "enable_thinking": False}}

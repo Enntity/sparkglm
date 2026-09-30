@@ -203,7 +203,7 @@ Measurement: [RigMark](https://github.com/alexellis/rigmark) by Alex Ellis
 (run from othexmr's fork with the staggered-arrival suite), the published
 [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE)
 figures, [mmastrac](https://github.com/mmastrac/glm-5.3-flash-4x-gx10)'s
-prefill and decode prompts, and MiaAI-Lab's decode prompts.
+prefill and decode benchmark method, and MiaAI-Lab's decode prompts.
 
 ## License
 

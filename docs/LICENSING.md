@@ -15,10 +15,12 @@ from other projects, without their code, are credited in the README's
 | `install/flash_kda/atlas_flash_kda_bridge.cu` | AGPL-3.0-only, with its workspace-size and launch arithmetic adapted from FlashKDA `csrc/flash_kda.cpp` (MIT, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) |
 | `install/start-node.sh`, `install/convert.sh` | AGPL-3.0-only; the container flags and the converter's verify pass follow [LLooM](https://github.com/Enntity/lloom)'s Atlas recipe (MIT, [`LICENSES/MIT-LLooM.txt`](../LICENSES/MIT-LLooM.txt)) |
 | The `mia-*` prompts in `bench/staggered_openai.py`, and `.github/FUNDING.yml` | MIT, Copyright (c) 2026 Mia's AI Lab ([`LICENSES/MIT-Mia.txt`](../LICENSES/MIT-Mia.txt)), quoted from MiaAI-Lab's recipe while it was MIT |
-| The filler sentence and three decode prompts in `bench/mmastrac_*.py` | quoted verbatim from [mmastrac/glm-5.3-flash-4x-gx10](https://github.com/mmastrac/glm-5.3-flash-4x-gx10), which has no license. They are short fixed strings kept for comparability; the code around them is ours |
+| `bench/mmastrac_*.py` | AGPL-3.0-only, our own code and prompts. The benchmark method follows [mmastrac/glm-5.3-flash-4x-gx10](https://github.com/mmastrac/glm-5.3-flash-4x-gx10) `dev/repro`; that repository has no license, so none of its text is used |
 
-The harness copies under `results/*/raw/harness/` are unedited receipts: they
-carry the same prompts as the `bench/` files above, under the same terms. The
+The harness copies under `results/*/raw/harness/` are the scripts that produced
+each receipt. Where they quoted prompt or filler text from mmastrac's
+unlicensed repository, that text has been replaced by a marker naming its
+source (2026-09-30); the measurements were taken with the original text. The
 RigMark receipts in `results/` are output of RigMark (MIT, Alex Ellis /
 OpenFaaS Ltd).
 

@@ -39,11 +39,11 @@ SYS_SHORT = "You are a helpful assistant. Answer directly and completely."
 SYS_AGENT = ("You are a careful coding agent working in a user's repository. Inspect files and run commands before "
              "answering. Work one step at a time, say what you are about to do, and keep explanations short.")
 BASE = [  # name, class, user text
-    ("prose_hash", "prose", "Explain how a hash map works, in flowing prose. No code, no lists."),
+    ("prose_hash", "prose", "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>"),
     ("prose_tcp", "prose", "Explain what happens when a TCP connection is opened and closed, as a few plain paragraphs."),
     ("prose_rain", "prose", "Describe the water cycle for a ten-year-old, as one long story about a single raindrop."),
     ("prose_vaccine", "prose", "Explain how a vaccine trains the immune system, in plain paragraphs for a general reader."),
-    ("code_rbtree", "code", "Write a red-black tree in Python with insert, delete and rebalancing. Code only."),
+    ("code_rbtree", "code", "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>"),
     ("code_lru", "code", "Write an LRU cache in Rust with get and put in O(1). Code only, with brief comments."),
     ("code_sql", "code", "Write a SQL query that returns the top 3 customers by total order value per region, with the schema you assume."),
     ("code_go", "code", "Write a Go HTTP server with two JSON endpoints, request logging and graceful shutdown. Code only."),

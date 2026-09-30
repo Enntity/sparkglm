@@ -19,9 +19,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 URL = "http://127.0.0.1:8893/v1/chat/completions"
 MODEL = "glm-5.3-flash-atlas"
-PROSE = "Explain how a hash map works, in flowing prose. No code, no lists."
+PROSE = "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>"
 GREEDY = {
-    "code": "Write a red-black tree in Python with insert, delete and rebalancing. Code only.",
+    "code": "<prompt omitted: quoted from mmastrac/glm-5.3-flash-4x-gx10 @ 4e63b64, which has no license>",
     "facts": "List the planets of the solar system in order from the sun, one sentence each.",
 }
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
