@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20260930",
-  "commit": "3cf5a9457a2b540c5d1aeba549570e8647ecf809",
-  "tree": "0b29720fd36575fc00785331b8f5eb3f50fc627c",
+  "branch": "sparkglm/atlas-20260930b",
+  "commit": "dfa4be1111bd87ddc6945ad6692f8445213aa470",
+  "tree": "6e647adcacd5ed1e3be013803909e3ab2bb39d05",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -16,12 +16,11 @@
       "commit": "0965f8d52d692afafb4cff252d55de3dfca0cbd8",
       "note": "FlashKDA prefill and native sparse-MLA prefill bridges plus their build sources (scripts/dev/glm_sparse_native, research/flash-kda-prefill)."
     },
-    "fixes": [
-      {
-        "commit": "3cf5a9457a2b540c5d1aeba549570e8647ecf809",
-        "note": "Sparse-index key layernorm: a missing barrier let a late warp normalize its lanes with a wrong mean (rare, timing-dependent). Belongs in the upstream candidate; carried on top until that branch is rebuilt."
-      }
-    ]
+    "integration": {
+      "branch": "integ/next",
+      "commit": "dfa4be1111bd87ddc6945ad6692f8445213aa470",
+      "note": "The SparkGLM-only layer (0965f8d5) plus 116 commits merged from reviewed topic branches on the Enntity/atlas fork: the sparse-index key normalization race fix and other kernel race hardening, whole-block prefix sharing, KV sizing that survives a co-tenant releasing memory, the prefix-cache policy, exact prefill and decode kernels, and a rank-mirrored KV admission vote. Most of it is intended for the upstream candidate; that branch has not been rebuilt from it yet."
+    }
   },
   "kernel_target": "glm-5.3-flash",
   "license": "AGPL-3.0-only"

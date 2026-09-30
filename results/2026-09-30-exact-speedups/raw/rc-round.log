@@ -1,0 +1,94 @@
+== rc_a up: 101196 blocks × 16 tok/block = 1619136 max KV tokens 
+[+1 min] rc_a up
+Atlas-own 102.3 GB; co-tenants 4.4 GB
+{"tag": "pc_off", "failed": false, "correct": 41, "n": 41, "off_by_one": 0, "p1_first_session_ttft": 13.65, "p1_second_session_ttft": 16.1, "p1_later_sessions_ttft": 36.2, "p2_warm_ttft_median": 3.08, "p2_warm_ttft_max": 5.33, "p3_fast_ttft_median": 0.79, "p3_resume_ttft_median": 49.61, "p3_resume_ttft_max": 70.22, "prompt_tokens_max": 49488, "wall_s": 190.2}
+[+5 min] A pc_off
+{"arm": "off", "c1": [32.35, 32.17, 32.61, 33.04, 33.05], "c1_tok_step": [2.52, 2.516, 2.43, 2.533, 2.533], "short_wall_s": 37.27, "c2": {"per_stream": [22.02, 22.98], "aggregate": 41.86}, "c4": {"per_stream": [14.7, 14.65, 15.47, 15.08], "aggregate": 55.51}, 
+[+7 min] A decode
+A ttft {'secs': 28.81, 'prompt_tokens': 65548}
+A needle 16384 {'prompt_tokens': 16258, 'secs': 8.1, 'hits': 2} '6DA7486A, 5E5AD377, '
+A needle 65536 {'prompt_tokens': 65583, 'secs': 30.6, 'hits': 2} '7735C61A, 9A93F128, 34B'
+A needle 131072 {'prompt_tokens': 131700, 'secs': 65.5, 'hits': 1} '71C97211, 8ED'
+A ttft_64k_median(reps 2-2) 28.81
+[+10 min] A prefill
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 92.4}
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 92.0}
+REPRODUCIBLE rc1-A
+[+13 min] A logprob
+rank0 errors: 1 rank1 errors: 6
+== rc_b up: 100295 blocks × 16 tok/block = 1604720 max KV tokens 
+[+15 min] rc_b up
+Atlas-own 102.4 GB; co-tenants 4.3 GB
+{"arm": "on", "c1": [33.72, 33.52, 33.98, 34.48, 34.53], "c1_tok_step": [2.52, 2.516, 2.43, 2.533, 2.533], "short_wall_s": 35.82, "c2": {"per_stream": [26.76, 23.94], "aggregate": 46.87}, "c4": {"per_stream": [16.34, 15.52, 15.57, 16.03], "aggregate": 58.59}, 
+[+18 min] B decode
+B ttft {'secs': 24.77, 'prompt_tokens': 65548}
+B needle 16384 {'prompt_tokens': 16258, 'secs': 7.8, 'hits': 2} '6DA7486A, 5E5AD377, '
+B needle 65536 {'prompt_tokens': 65583, 'secs': 26.5, 'hits': 2} '7735C61A, 9A93F128, 34B'
+B needle 131072 {'prompt_tokens': 131700, 'secs': 51.8, 'hits': 1} '71C97211, 8ED'
+B ttft_64k_median(reps 2-2) 24.77
+[+20 min] B prefill
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 92.7}
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 94.8}
+REPRODUCIBLE rc1-B
+[+23 min] B logprob
+short 32 0.4 66.4 None '```python\ndef merge_sorted_lists(list1, list2):\n    """\n    '
+16k 14582 7.52 140.8 True 'The access code of unit-00274 is **225762**.\n\nOwner teams of'
+64k 61021 24.99 150.0 True 'The access code of unit-01114 is **649530**.\n\nOwner teams of'
+128k 124813 48.93 151.3 True 'The access code of unit-02228 is **586586**.\n\nOwner teams of'
+[+25 min] B needles
+rank0 errors: 1 rank1 errors: 3
+== pc_on up: 100465 blocks × 16 tok/block = 1607440 max KV tokens 
+[+27 min] pc_on up
+Atlas-own 102.3 GB; co-tenants 4.4 GB
+{"tag": "pc_on", "failed": false, "correct": 41, "n": 41, "off_by_one": 0, "p1_first_session_ttft": 13.07, "p1_second_session_ttft": 15.16, "p1_later_sessions_ttft": 17.62, "p2_warm_ttft_median": 3.21, "p2_warm_ttft_max": 4.74, "p3_fast_ttft_median": 0.78, "p3_resume_ttft_median": 2.48, "p3_resume_ttft_max": 4.13, "prompt_tokens_max": 49488, "wall_s": 88.6}
+[+28 min] C pc_on
+turn 6 {'ttft': 0.77, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+rc1-C: 8/8 correct
+[+29 min] C pc_test
+rank0 errors: 1 rank1 errors: 6
+INFO  rank0: 0 rank-agree fallbacks (disagreeing restore depth; info) 
+INFO  rank1: 0 rank-agree fallbacks (disagreeing restore depth; info) 
+INFO  p3_resume_ttft_median on/off = 2.48/49.61 (EVICT win expected: off recomputes 31-46K per session, on restores its frontier)
+INFO  wall_s on/off = 88.6/190.2
+INFO  P1 s1 greedy text identical (split request)
+INFO  1 of 41 greedy texts differ on vs off ; first: (('P2', 2, 2), '513392, team', '513392, team-15')
+GO
+== rc_d up: 100510 blocks × 16 tok/block = 1608160 max KV tokens 
+[+31 min] rc_d up
+Atlas-own 102.3 GB; co-tenants 4.4 GB
+INFO spark_comm::nccl_backend::rdma_pair: RDMA pair all-reduce ready: rank 0, rails ["rocep1s0f0", "roceP2p1s0f0"], capacity 64 MB, one-shot Some(Config { max: 1048576, stripe_min: 1048576, timeout_ns:
+INFO spark_comm::nccl_backend::pair_ops: RDMA one-shot kernel set (graph-capturable collectives enabled)
+          aff390c70c01   used                 N
+{"arm": "d", "c1": [33.48, 33.8, 34.25, 34.69, 34.71], "c1_tok_step": [2.52, 2.516, 2.43, 2.533, 2.533], "short_wall_s": 35.67, "c2": {"per_stream": [22.81, 23.77], "aggregate": 43.29}, "c4": {"per_stream": [15.81, 14.82, 15.68, 16.06], "aggregate": 57.84}, "s
+[+33 min] D decode
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 88.7}
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 88.8}
+REPRODUCIBLE rc1-D
+[+36 min] D logprob
+rank0 errors: 1 rank1 errors: 3
+D one-shot fault lines: 0 / 0
+ttft_64k A [27.69, 28.81] B [23.99, 24.77]
+ttft_64k median 28.81 -> 24.77 s, saved 4.04 s
+needle 16384: hits 2/3 -> 2/3, text_equal=True
+needle 65536: hits 2/3 -> 2/3, text_equal=True
+needle 131072: hits 1/3 -> 1/3, text_equal=True
+greedy code: EQUAL on runs equal to off: 2/2 (off distinct texts: 1)
+greedy facts: INCONCLUSIVE(off not self-equal) on runs equal to off: 1/2 (off distinct texts: 2)
+greedy prose: INCONCLUSIVE(off not self-equal) on runs equal to off: 2/5 (off distinct texts: 3)
+C1 tok/s off min 32.17 / median 32.61 / max 33.05 | on min 33.52 / median 33.98 / max 34.53 | median +4.2% -> GO
+C1 tok_step off [2.533] on [2.533] (byte-equal runs); means 2.506 -> 2.506 -> ACCEPT-EQUAL
+short 16x64 wall 37.27 -> 35.82 s (-3.9%); on capture ms per request [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+C2 aggregate 41.86 -> 46.87 tok/s (+12.0%)
+C4 aggregate 55.51 -> 58.59 tok/s (+5.5%)
+on short: captures 0 (0 ms), slots [], peak cached 0, refused 0
+on greedy: captures 0 (0 ms), slots [], peak cached 0, refused 0
+on c1: captures 0 (0 ms), slots [], peak cached 0, refused 0
+on c2: captures 0 (0 ms), slots [], peak cached 0, refused 0
+on c4: captures 0 (0 ms), slots [], peak cached 0, refused 0
+logprob A ['8c75d2886794', '8c75d2886794'] == hotfix
+logprob B ['8c75d2886794', '8c75d2886794'] == hotfix
+logprob D ['8c75d2886794', '8c75d2886794'] == hotfix
+decode off c1 [32.35, 32.17, 32.61, 33.04, 33.05] c2 41.86 c4 55.51
+decode on c1 [33.72, 33.52, 33.98, 34.48, 34.53] c2 46.87 c4 58.59
+decode d c1 [33.48, 33.8, 34.25, 34.69, 34.71] c2 43.29 c4 57.84
+RC1-DONE

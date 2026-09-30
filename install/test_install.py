@@ -116,6 +116,25 @@ class LaunchContract(unittest.TestCase):
                 # would both write the rest of it.
                 self.assertEqual(profile['environment'].get('ATLAS_PREFIX_SUBBLOCK'), '0')
 
+    def test_profiles_enable_only_exact_engine_options(self):
+        # Everything switched on is bit-exact against the engine with the
+        # option off; the lossy and the not-yet-qualified options stay out of
+        # a shipped profile.
+        envs = [json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())['environment']
+                for name in ('4x512k', '8x128k')]
+        exact = ('ATLAS_GLM_SPARSE_PREFILL_PIPE', 'ATLAS_GLM_MOE_PREFILL_PERSIST',
+                 'ATLAS_GLM_MOE_UNPERMUTE_VEC', 'ATLAS_GLM_INDEX_LOGITS_V2', 'ATLAS_GLM_INDEX_SPLIT',
+                 'ATLAS_GLM_ROUTER_PREFILL_CUTLASS', 'ATLAS_GLM_MOE_DECODE_M16',
+                 'ATLAS_GLM_MOE_DOWN_ZSKIP', 'ATLAS_GLM_PC_EVICT', 'ATLAS_GLM_PC_BRANCH')
+        held_back = ('ATLAS_GLM_MLA_KVB_MXFP8', 'ATLAS_GLM_INDEX_MXFP8', 'ATLAS_GLM_KV_SHARD',
+                     'ATLAS_GLM_PC_FINISH_LEAF', 'ATLAS_GLM_VERIFY_GRAPH', 'ATLAS_RDMA_ONESHOT',
+                     'ATLAS_KV_NVME_DIR', 'ATLAS_GLM_KDA_PREFILL_LT_FP8_SPLITK1')
+        for env in envs:
+            for key in exact:
+                self.assertEqual(env.get(key), '1', key)
+            for key in held_back:
+                self.assertNotIn(key, env)
+
     def test_gpu_memory_utilization_override(self):
         argv, _ = serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION='0.93'), self.profile)
         self.assertIn('--gpu-memory-utilization=0.93', argv)
