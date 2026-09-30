@@ -20,18 +20,22 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 Measured on two DGX Sparks joined by one 200G cable, with images built from
 a fresh clone. Receipts and caveats:
-[index tails and 0.92 memory](results/2026-09-29-index-tails-092/RESULT.md) (this release),
+[exact kernels and the prefix-cache policy](results/2026-09-30-exact-speedups/RESULT.md) (this release),
+[index tails and 0.92 memory](results/2026-09-29-index-tails-092/RESULT.md),
 [prefix caching](results/2026-09-29-prefix-caching/RESULT.md)
 and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 (decode, prefill, RigMark and quality rows).
 
 | Workload | SparkGLM (Atlas) | Reference, same pair |
 |---|---|---|
-| Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.81 s** | 17.6 s with caching off |
+| Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.79 s** | 17.6 s with caching off |
 | Four concurrent ~204K-token sessions, cached follow-up turns | 12/12 exact answers | |
-| Replaying a 35K-token prompt | **0.81 s** (15.6 s cold) | |
-| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **160.7 s** | vLLM SparkGLM 206.6 s |
-| Staggered C4: four ~16K requests arriving 1 s apart, cold | **58.9 s** | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
+| Replaying a 35K-token prompt | **0.80 s** (14.4 s cold) | |
+| New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
+| Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
+| Cold 61K / 125K prompt: time to first token | **26.7 / 51.8 s** | 29.2 / 62.5 s on the previous engine |
+| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **157.3 s** | vLLM SparkGLM 206.6 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold | **56.6 s** | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
 | Single-stream decode (structured / code / prose) | 84.1 / 60.5 / 32.2 tok/s | |
 | Cold prefill at 8K / 32K / 64K / 139K | 2,500 / 2,470 / 2,310 / 2,020 tok/s | |
 | Aggregate short-code decode, 1 / 6 / 8 streams (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | RiNGSiDE vLLM TP2 (published) 44.0 / 97.3 / – |

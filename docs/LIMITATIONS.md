@@ -27,6 +27,8 @@ What to know before relying on SparkGLM.
   600K tokens at the default 0.88 memory utilization, and 1.39M at 0.92 on
   dedicated Sparks. A request needs pool room for its whole context, so four
   full 512K requests do not fit at once; later requests wait for room.
+- At 0.93 on dedicated Sparks the pool is about 1.63M tokens, and rank 0 went
+  down to 1.35 GB of available memory at the end of a four-session 204K fill.
 - At 0.92, a Spark sharing the host with other services went down to 3.1 GB of
   free memory. GB10 hosts can hang when memory runs out, so raise the setting
   only on Sparks that run nothing else.
@@ -56,7 +58,10 @@ pair. Atlas is behind on:
 - single-stream decode: about 7% on code and 20% on prose;
 - low-concurrency short code: 36.9 against 44.0 tok/s with one stream, 76.7
   against 97.3 with six;
-- long cold prefill: 28.3 against 25.7 s at 64K.
+- long cold prefill: 28.3 against 25.7 s at 64K in the RigMark run of the
+  first Atlas release. This release prefills a 65.5K-token prompt in 24.8 s
+  on our own harness (28.8 s with its new options off); RigMark has not been
+  re-run.
 
 Atlas is ahead on newcomer time-to-first-token under load and on 8K prefill.
 
@@ -67,6 +72,11 @@ Atlas is ahead on newcomer time-to-first-token under load and on 8K prefill.
   structured answers are not trapped inside reasoning.
 - The quality probe scored 11/12 on two-hop needles in the recorded run; the
   same engine scored 10–12/12 across earlier runs. Arithmetic scored 40/40.
+- Greedy decoding is not yet reproducible across request histories. The
+  drafter's first proposal of a request reads a context row left by the
+  previous request, so the same short prompt can take a different wording
+  path, at a different speed, depending on what ran before it. Every token
+  is still verified by the full model. A fix is in test.
 - Long prompts were not reproducible before 2026-09-30. A missing barrier in
   the kernel that normalizes sparse-index keys let one in roughly 60,000
   prompt tokens store a key normalized with a wrong mean. The key stayed in
