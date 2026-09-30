@@ -20,6 +20,11 @@
 | `ATLAS_GLM_PC_EVICT` | Snapshot eviction keeps each conversation's newest restore point |
 | `ATLAS_GLM_PC_BRANCH` | A restore point where conversations share a prompt prefix |
 
+Credits: `ATLAS_GLM_PC_EVICT` takes its chain-aware eviction from Reederey87's
+prefix-cache policy ([glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark),
+Apache-2.0, ideas only). `ATLAS_GLM_PC_BRANCH` follows Marconi's branch-point
+admission (Pan et al., MLSys 2025, [arXiv:2411.19379](https://arxiv.org/abs/2411.19379)).
+
 Engine fixes that need no option:
 
 - **Sparse-index key race.** A missing barrier let about one index key in

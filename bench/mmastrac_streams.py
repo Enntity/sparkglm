@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Aggregate decode throughput at 1/2/4/8 concurrent streams (mmastrac's three decode prompts, cycled; 512 tokens each)."""
+"""Aggregate decode throughput at 1/2/4/8 concurrent streams (mmastrac's three decode prompts, cycled; 512 tokens each).
+
+Provenance: the prompts are quoted verbatim from
+https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/decode.py @ 4e63b64
+(Matt Mastracci), which has no license; the code is our own (see docs/LICENSING.md).
+"""
 import json, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 B = "http://127.0.0.1:8893/v1/chat/completions"

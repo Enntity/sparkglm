@@ -29,8 +29,8 @@ The tag is the git tree hash of `install/`. `install/build.sh` needs a clean
 `install/` directory. It fetches `Enntity/atlas` at the pinned commit, refuses
 any other tree, and builds:
 
-- the native bridges (FlashKDA, and NVIDIA's sparse-MLA prefill from FlashInfer
-  source);
+- the native bridges (FlashKDA, and NVIDIA's sparse-MLA prefill, BSD-3-Clause,
+  from FlashInfer source);
 - the engine for `glm-5.3-flash`;
 - the engine's build-time regression tests.
 

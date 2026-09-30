@@ -70,7 +70,7 @@ The two reference arms (`raw/baselines/`) were recorded earlier on the same
 pair through the LLooM gateway; they were not alternated with this run.
 Their prompts rendered 1–7 tokens differently because of chat templates.
 
-**mmastrac benchmark** (single stream, 512 tokens, median of 3):
+**[mmastrac](https://github.com/mmastrac/glm-5.3-flash-4x-gx10) benchmark** (single stream, 512 tokens, median of 3):
 decode structured / code / prose **84.1 / 60.5 / 32.2 tok/s**; prefill
 35,237 tokens in 15.0 s (**2,349 tok/s**) and 139,273 tokens in 69.0 s
 (**2,018 tok/s**). Aggregate streams on the 4 × 512K profile: 82.1 / 84.8 /
@@ -91,8 +91,9 @@ summary in `rigmark-summary.txt`).
 | Prefill-first newcomer TTFT L2 / L4 / L6 / L8 (s) | 2.79 / 3.30 / 3.80 / 4.31 | 4.70 / 5.15 / 4.90 / – |
 | Decode-first newcomer TTFT L2 / L4 / L6 / L8 (s) | 13.59 / 13.86 / 14.05 / 13.84 | 14.38 / 14.81 / 15.42 / – |
 
-The RiNGSiDE column is that project's published TP2 row (vLLM 0.29), not a
-run on our pair.
+The RiNGSiDE column is that project's published TP2 row (vLLM 0.29,
+[othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE)
+`bench/results`), not a run on our pair.
 
 ## Correctness
 

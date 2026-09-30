@@ -21,6 +21,16 @@
 | `ATLAS_PREFILL_SRPT` | A new prefill with fewer tokens left goes ahead of longer ones (never ahead of one waiting 30 s) | scheduling |
 | `ATLAS_DFLASH_FIRST_APPEND=none` | The first draft of a request no longer reads a row the previous request left | makes decode independent of request history |
 
+Credits: `ATLAS_DFLASH_CONF_WIDTH` follows knapcio's draft-shape truncation
+(`GLM_DRAFT_TRUNC`,
+[knapcio/GLM-5.3-Flash-4x-DGX-Spark-TP4](https://github.com/knapcio/GLM-5.3-Flash-4x-DGX-Spark-TP4)
+`overlay/glm_draft_trunc.py`) and reuses the survival prefix product of Atlas-Inf's
+D-Cut (`crates/spark-server/src/scheduler/mtp_dcut.rs`, arXiv 2607.14647). Its
+starting calibration table is knapcio's `overlay/glm_bav_table_seg.json` (MIT).
+`ATLAS_GLM_DRAFT_TP` follows MiaAI-Lab's `DFLASH_DRAFT_TP`
+([GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks))
+and TensorFold's two-rank drafter ([ashhart/TensorFold](https://github.com/ashhart/TensorFold)).
+
 Engine fixes that need no option:
 
 - **Prefill order.** A finished prefill no longer moves the newest one to the
