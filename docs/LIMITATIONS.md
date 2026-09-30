@@ -36,6 +36,13 @@ What to know before relying on SparkGLM.
 - Only block-aligned snapshots written during prefill are restored
   (`ATLAS_MARCONI_PREFILL_ONLY`). The engine's other snapshot kinds gave a
   wrong retrieval answer on a cache hit; see the prefix-caching result.
+- Cache matches stop at the last whole 16-token block
+  (`ATLAS_PREFIX_SUBBLOCK=0`). Before 2026-09-30 the profiles also let a
+  request share a cached block that was only partly filled. Two requests could
+  then write the rest of the same block, for example a retry of an identical
+  prompt or the second of `n > 1` choices, whenever the prompt length was not
+  a multiple of 16. GLM restores from block-aligned snapshots anyway, so
+  turning this off costs nothing.
 - With caching on, the engine disables its fused prefill/decode path. Cold
   C4-16K is about 6% slower than in the release without caching.
 - The first start after installing or updating compiles CUDA kernels. On our

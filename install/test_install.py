@@ -112,6 +112,9 @@ class LaunchContract(unittest.TestCase):
                 self.assertGreater(slots[0], 0)
                 # Only exact, block-aligned prefill states may be restored.
                 self.assertEqual(profile['environment'].get('ATLAS_MARCONI_PREFILL_ONLY'), '1')
+                # A partial cached block may not be shared: two live sequences
+                # would both write the rest of it.
+                self.assertEqual(profile['environment'].get('ATLAS_PREFIX_SUBBLOCK'), '0')
 
     def test_gpu_memory_utilization_override(self):
         argv, _ = serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION='0.93'), self.profile)
