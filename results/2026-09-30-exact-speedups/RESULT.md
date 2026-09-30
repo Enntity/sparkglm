@@ -105,6 +105,10 @@ one server start per arm, same harness (`raw/rc-round.log`, `raw/rc-round/`).
   the harness were replaced with documentation addresses (192.0.2.x),
   `spark1`/`spark2` and `/home/user`.
 
+- **Edited receipts.** Prompt and filler text that the harness quoted from
+  mmastrac's unlicensed repository was replaced by a marker in `raw/harness/`
+  (2026-09-30); the numbers were measured with the original text.
+
 ## Verify the receipts
 
 ```sh

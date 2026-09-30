@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Aggregate decode throughput at 1/2/4/8 concurrent streams (mmastrac's three decode prompts, cycled; 512 tokens each).
+"""Aggregate decode throughput at 1/2/4/8 concurrent streams (three decode workloads, cycled; 512 tokens each).
 
-Provenance: the prompts are quoted verbatim from
-https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/decode.py @ 4e63b64
-(Matt Mastracci), which has no license; the code is our own (see docs/LICENSING.md).
+Method credit: https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/decode.py
+@ 4e63b64 (Matt Mastracci). That repository has no license, so its prompts are not
+used; these are our own. The code is our own.
 """
 import json, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 B = "http://127.0.0.1:8893/v1/chat/completions"
-P = ["Count from 1 to 200, comma separated. No commentary.",
-     "Write a red-black tree in Python with insert, delete and rebalancing. Code only.",
-     "Explain how a hash map works, in flowing prose. No code, no lists."]
+P = ["Write the whole numbers from one to two hundred as digits, separated by commas, with no other text.",
+     "Implement an AVL tree in Python with insertion, deletion and the four rotations. Output only the code.",
+     "Describe how a bicycle's gears make climbing a hill easier, in continuous paragraphs without lists or code."]
 def one(p):
     b = {"model": "glm-5.3-flash-atlas", "messages": [{"role": "user", "content": p}], "max_tokens": 512,
          "temperature": 0, "chat_template_kwargs": {"thinking": False, "enable_thinking": False}}

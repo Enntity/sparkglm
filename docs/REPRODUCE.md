@@ -17,8 +17,8 @@ for p in 1 2 3; do MATRIX_SALT=mb-vx2-7c31 python3 run_matrix.py out-matrix-$p m
 MATRIX_SALT=fg-$(date +%s) python3 run_matrix.py out-field field
 # Quality probe: four-digit arithmetic and two-hop needles over ~24K tokens.
 python3 quality_probe.py mine 4
-# mmastrac's prefill/decode benchmark (github.com/mmastrac/glm-5.3-flash-4x-gx10),
-# then 1/2/4/8 aggregate streams.
+# Prefill/decode benchmark after mmastrac's method (github.com/mmastrac/glm-5.3-flash-4x-gx10),
+# with our own prompts, then 1/2/4/8 aggregate streams.
 python3 mmastrac_bench.py && python3 mmastrac_streams.py
 ```
 

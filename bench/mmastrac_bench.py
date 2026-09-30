@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Replicates mmastrac/glm-5.3-flash-4x-gx10 dev/repro prefill.py + decode.py against Atlas.
+"""Prefill and decode benchmark after the method of mmastrac/glm-5.3-flash-4x-gx10 dev/repro.
 
-Provenance: the filler sentence and the three decode prompts are quoted verbatim
-from https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/{prefill,decode}.py
-@ 4e63b64 (Matt Mastracci) so the numbers are comparable. That repository has no
-license; the code here is our own (see docs/LICENSING.md).
+Method credit: https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/{prefill,decode}.py
+@ 4e63b64 (Matt Mastracci): prefill a repeated salted note to fixed depths, then
+time three decode workloads. That repository has no license, so its prompts and
+filler text are not used here; ours are different, and the numbers are not
+directly comparable with its published tables. The code is our own.
 """
 import json, statistics, sys, time, urllib.request, uuid
 BASE = "http://127.0.0.1:8893/v1"
@@ -31,7 +32,7 @@ PER_UNIT = None
 
 def prefill(target, units=None):
     nonce = uuid.uuid4().hex
-    unit = "Reading {} note {}: the pump was serviced and the filter replaced.\n"
+    unit = "Log {} entry {}: the valve was inspected and its seal tightened.\n"
     units = units if units is not None else round(target / PER_UNIT)
     text = "".join(unit.format(nonce, n) for n in range(units)) + "\nReply with OK."
     ttft, _, u = stream({"model": MODEL, "messages": [{"role": "user", "content": text}], "max_tokens": 4,
@@ -39,9 +40,9 @@ def prefill(target, units=None):
                          "chat_template_kwargs": {"thinking": False, "enable_thinking": False}})
     return u["prompt_tokens"], ttft
 
-PROMPTS = {"structured": "Count from 1 to 200, comma separated. No commentary.",
-           "code": "Write a red-black tree in Python with insert, delete and rebalancing. Code only.",
-           "prose": "Explain how a hash map works, in flowing prose. No code, no lists."}
+PROMPTS = {"structured": "Write the whole numbers from one to two hundred as digits, separated by commas, with no other text.",
+           "code": "Implement an AVL tree in Python with insertion, deletion and the four rotations. Output only the code.",
+           "prose": "Describe how a bicycle's gears make climbing a hill easier, in continuous paragraphs without lists or code."}
 
 def decode(prompt):
     body = {"model": MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": 512, "temperature": 0,
