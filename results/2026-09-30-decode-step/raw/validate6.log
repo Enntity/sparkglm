@@ -1,0 +1,127 @@
+== 8e34d01 Engine 9b8160e3: faster verify step, warm turns, queue order; profiles switch them on ghcr.io/enntity/atlas-sparkglm:43eed6283b96
+== image ghcr.io/enntity/atlas-sparkglm:43eed6283b96
+== building ghcr.io/enntity/atlas-sparkglm:43eed6283b96 from source (a cold build takes 30-60 minutes)
+== copying the image to 192.0.2.2
+== overlay on this node
+== overlay on 192.0.2.2
+== start rank 1 on 192.0.2.2, then rank 0 here (leader 192.0.2.1, profile 4x512k)
+== loading (about 2.5 minutes)
+== ready: http://127.0.0.1:8893/v1 model glm-5.3-flash-atlas
+smoke: 17*23 = 391
+== start.sh took 459 s
+-- rank 0 sizing
+napshot: SSM snapshot pool: Marconi 16 slots (1190 MB), decode-rollback 0 slots × 4 seqs (0 MB), 34 layers
+ld::kv_budget: KV budget self-relative (auto): baseline-free 113.3 GB − free-now 14.7 GB = Atlas-own 98.7 GB; co-tenants 8.3 GB excluded (set ATLAS_KV_EXTERNAL_RESERVE_GB to override)
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 98.67 GB, tracked 100.61 GB (device 99.28 GB by driver accounting + host 1.33 GB) → 100.61 GB pre-KV
+ld::kv_budget: KV own-footprint: Atlas allocated 100.61 GB but free memory fell by only 98.67 GB — 1.94 GB was released by something else during the load and would have been sized into the KV pool; sizing from the tracked figure
+ld::kv_budget: KV pool limited by free memory: 14.68 GB free now; keeping 3.50 GB for growth after sizing plus the 0.87 GB reserve unallocated → 10.31 GB for KV, not the 11.69 GB the utilization budget allows. Other processes hold 6.40 GB.
+ld: KV cache: 121.7 GB total × 93% util = 113.2 GB budget; 100.6 GB pre-KV + 0.8 GB reserve + 0.1 GB lazy BF16 → 10.3 GB for KV → 104004 blocks × 16 tok/block = 1664064 max KV tokens
+-- rank 1 sizing
+napshot: SSM snapshot pool: Marconi 16 slots (1190 MB), decode-rollback 0 slots × 4 seqs (0 MB), 34 layers
+ld::kv_budget: KV budget self-relative (auto): baseline-free 115.0 GB − free-now 14.8 GB = Atlas-own 100.2 GB; co-tenants 6.7 GB excluded (set ATLAS_KV_EXTERNAL_RESERVE_GB to override)
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 100.22 GB, tracked 100.61 GB (device 99.28 GB by driver accounting + host 1.33 GB) → 100.61 GB pre-KV
+ld::kv_budget: KV pool limited by free memory: 14.79 GB free now; keeping 3.50 GB for growth after sizing plus the 0.87 GB reserve unallocated → 10.42 GB for KV, not the 11.69 GB the utilization budget allows. Other processes hold 6.29 GB.
+ld: KV cache: 121.7 GB total × 93% util = 113.2 GB budget; 100.6 GB pre-KV + 0.8 GB reserve + 0.1 GB lazy BF16 → 10.4 GB for KV → 105168 blocks × 16 tok/block = 1682688 max KV tokens
+ld::glm: KV cache: rank 1 fits 105168 blocks; all ranks agree on 104004
+ghcr.io/enntity/atlas-sparkglm:43eed6283b96
+engine sparkglm/atlas-20260930c 9b8160e3
+== logprob hash
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 89.6}
+{'n': 48875, 'hash': '8c75d2886794', 'sum': -38741.2798, 'secs': 89.2}
+REPRODUCIBLE v5
+== needles
+short 32 0.39 76.5 None '```python\ndef merge_sorted_lists(list1, list2):\n    """\n    '
+16k 14582 7.06 108.9 True 'The access code of unit-00274 is **225762**.\n\nOwner teams of'
+64k 61021 25.02 169.3 True 'The access code of unit-01114 is **649530**.\n\nOwner teams of'
+128k 124813 49.13 149.0 True 'The access code of unit-02228 is **586586**.\n\nOwner teams of'
+== pc_test
+replay 1 {'ttft': 14.42, 'prompt_tokens': 35111, 'cached': 16, 'correct': True} '407943'
+replay 2 {'ttft': 0.6, 'prompt_tokens': 35111, 'cached': 35104, 'correct': True} '407943'
+turn 1 {'ttft': 17.76, 'prompt_tokens': 45419, 'cached': 0, 'correct': True} '627379'
+turn 2 {'ttft': 0.71, 'prompt_tokens': 45447, 'cached': 45408, 'correct': True} '473778'
+turn 3 {'ttft': 0.93, 'prompt_tokens': 45475, 'cached': 45440, 'correct': True} '365683'
+turn 4 {'ttft': 0.67, 'prompt_tokens': 45501, 'cached': 45472, 'correct': True} '822535'
+turn 5 {'ttft': 0.7, 'prompt_tokens': 45528, 'cached': 45488, 'correct': True} '266033'
+turn 6 {'ttft': 0.7, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+v5: 8/8 correct
+== pc_hard
+concurrent s0 t1 22.02 29998 0 True
+concurrent s0 t2 12.35 30026 29984 True
+concurrent s0 t3 4.57 30053 30016 True
+concurrent s0 t4 1.27 30081 30048 True
+concurrent s1 t1 50.31 30045 0 True
+concurrent s1 t2 1.33 30073 30032 True
+concurrent s1 t3 1.91 30099 30064 True
+concurrent s1 t4 0.68 30126 30096 True
+concurrent s2 t1 40.15 30025 0 True
+concurrent s2 t2 7.17 30052 30016 True
+concurrent s2 t3 1.28 30078 30048 True
+concurrent s2 t4 1.35 30104 30064 True
+concurrent s3 t1 31.06 30020 0 True
+concurrent s3 t2 13.38 30048 30016 True
+concurrent s3 t3 1.37 30074 30048 True
+concurrent s3 t4 1.28 30101 30064 True
+tool [{'id': 'call_0000000000000000', 'name': 'lookup_team_lead', 'arguments': '{"team":"team-7"}'}] | 0.94 25199 25136 'Ada Okonkwo; 515531' True
+partial unit-31-00100 15.27 37328 18624 True
+partial unit-31-01400 0.6 37329 37312 True
+partial unit-32-00200 0.37 37328 37312 True
+long 16 22432 identical right 41 41 of 41
+think 10.32 25003 16 True '554851'
+think 0.66 25030 24992 True '491606'
+think 0.64 25057 25024 True '875500'
+v5: 23/23 exact checks; long-output 41/41 of 41
+== acc
+{"tag": "v5", "correct": 40, "off_by_one": 0, "n": 40, "median_ttft_turns_2_10": 0.67}
+== pc_policy
+{"tag": "v5", "failed": false, "correct": 41, "n": 41, "off_by_one": 0, "p1_first_session_ttft": 13.31, "p1_second_session_ttft": 15.19, "p1_later_sessions_ttft": 17.33, "p2_warm_ttft_median": 2.21, "p2_warm_ttft_max": 3.63, "p3_fast_ttft_median": 0.71, "p3_resume_ttft_median": 1.85, "p3_resume_ttft_max": 2.95, "prompt_tokens_max": 49488, "wall_s": 80.3}
+== decode
+{"arm": "v5", "c1": [40.24, 42.46, 44.15, 43.6, 42.45], "c1_tok_step": [2.335, 2.439, 2.612, 2.51, 2.477], "short_wall_s": 28.56, "c2": {"per_stream": [28.76, 27.89], "aggregate": 53.31}, "c4": {"per_stream": [18.79, 17.16, 18.14, 18.54], "aggregate": 67.49}, "short_captures": 0, "greedy_captures": 
+== fill
+session 3 turn 1 88.62 204250 16 True
+session 1 turn 1 164.96 204295 16 True
+session 2 turn 1 241.46 204301 16 True
+session 0 turn 1 318.15 204333 16 True
+session 1 turn 2 149.66 204320 204288 True
+session 3 turn 2 225.98 204274 204240 True
+session 2 turn 2 73.43 204326 204288 True
+session 0 turn 2 1.97 204358 204320 True
+session 1 turn 3 3.12 204344 204320 True
+session 3 turn 3 3.12 204299 204272 True
+session 2 turn 3 3.07 204351 204320 True
+session 0 turn 3 2.5 204383 204352 True
+{"tag": "v5", "correct": 12, "n": 12, "prompt_tokens_max": 204383, "wall_s": 324.8}
+== matrix
+{"case": "c1-16k", "rc": 0, "wall_s": 14.96, "summary": {"successful": 1, "wall_s": 14.289063650008757, "aggregate_decode_tok_s": 52.08333397928701}}
+{"case": "c1-32k", "rc": 0, "wall_s": 20.51, "summary": {"successful": 1, "wall_s": 19.67995402298402, "aggregate_decode_tok_s": 61.48286505019759}}
+{"case": "c2-16k", "rc": 0, "wall_s": 27.32, "summary": {"successful": 2, "wall_s": 26.569389704993227, "aggregate_decode_tok_s": 48.151139815588564}}
+{"case": "c2-32k", "rc": 0, "wall_s": 38.46, "summary": {"successful": 2, "wall_s": 37.14613471800112, "aggregate_decode_tok_s": 38.5047871728551}}
+{"case": "c4-16k", "rc": 0, "wall_s": 44.73, "summary": {"successful": 4, "wall_s": 43.53459125000518, "aggregate_decode_tok_s": 59.08405416806315}}
+== field
+{"case": "discarded-warmup", "rc": 0, "wall_s": 52.73, "total_completion_tokens": 1600, "reported_wall_s": 52.655227}
+{"case": "field-guide-r1", "rc": 0, "wall_s": 27.31, "total_completion_tokens": 1600, "reported_wall_s": 27.26551}
+{"case": "field-guide-r2", "rc": 0, "wall_s": 27.64, "total_completion_tokens": 1600, "reported_wall_s": 27.601655}
+{"case": "field-guide-r3", "rc": 0, "wall_s": 27.75, "total_completion_tokens": 1600, "reported_wall_s": 27.702764}
+rank0 error lines: 0
+rank1 error lines: 0
+min MemAvailable kB rank0 12:53:18 1765964 rank1 12:39:53 2553348
+== 8x128k profile
+== image ghcr.io/enntity/atlas-sparkglm:43eed6283b96
+== overlay on this node
+== overlay on 192.0.2.2
+== start rank 1 on 192.0.2.2, then rank 0 here (leader 192.0.2.1, profile 8x128k)
+== loading (about 2.5 minutes)
+== ready: http://127.0.0.1:8893/v1 model glm-5.3-flash-atlas
+smoke: 17*23 = 391
+ld: KV cache: 121.7 GB total × 93% util = 113.2 GB budget; 103.1 GB pre-KV + 0.8 GB reserve + 0.1 GB lazy BF16 → 9.2 GB for KV → 90360 blocks × 16 tok/block = 1445760 max KV tokens
+ld::glm: KV cache: rank 0 fits 90360 blocks; all ranks agree on 89772
+short 32 0.39 81.5 None '```python\ndef merge_sorted_lists(list1, list2):\n    """\n    '
+16k 14582 6.82 109.5 True 'The access code of unit-00274 is **225762**.\n\nOwner teams of'
+64k 61021 24.67 162.6 True 'The access code of unit-01114 is **649530**.\n\nOwner teams of'
+{"case": "c4-16k", "rc": 0, "wall_s": 49.64, "summary": {"successful": 4, "wall_s": 47.854821288987296, "aggregate_decode_tok_s": 49.85637867997076}}
+streams 1: 512 tokens in 5.3s = 95.8 tok/s aggregate
+streams 2: 1024 tokens in 11.2s = 91.1 tok/s aggregate
+streams 4: 2048 tokens in 23.9s = 85.8 tok/s aggregate
+streams 8: 4096 tokens in 31.4s = 130.5 tok/s aggregate
+8x rank0 error lines: 0
+VALIDATE-DONE
+VALIDATE-END

@@ -1,0 +1,113 @@
+== wt_base up: 101772 blocks × 16 tok/block = 1628352 max KV tokens 
+[+1 min] wt-base up
+REPRODUCIBLE rc4-base
+[+3 min] base logprob hash
+H1 {'n': 12813, 'hash': '326c3a8909b17205', 'sum': -23584.7959, 's': 23.92}
+{"arm": "wt-base", "elapsed_s": 244.7, "stopped": null, "skipped": ["45K/r1"], "errors": [], "answers_exact": 38, "answers_total": 38, "copy": {"right": 60, "wrong": 0, "missing": 0}, "hashes": ["326c3a8909b17205", "326c3a8909b17205"], "caps": 0, "engine_ttft": {"2K": 550.35, "16K": 592.85, "45K": 6
+now save rank 1's log:  docker logs atlas-sparkglm-rank1 > /home/user/sparkglm-dev/warm-ttft-wt-base.rank1.log 2>&1  (on its host)
+[+7 min] wt-base warm probe
+  prefill logprob hash: {'n': 2843, 'tokens': 2844, 'cached': 0, 'hash': '1901078f5f70', 'chunks': [[2844, 2844]]} (comparable under the pin)
+  min_tokens: ENGAGED - control 11 tokens (stop), hidden 1; forced 64 tokens (length), hidden 0; single chunk True; ban floor [93] (prompt 29 + 64)
+  pin: not active, changed row counts none
+VERDICT base (single arm): GO (min_tokens ENGAGED, needle exact)
+[+10 min] base min_tokens probe
+rank0 errors: 1 rank1 errors: 3
+== wt_run up: 100973 blocks × 16 tok/block = 1615568 max KV tokens 
+[+12 min] wt-run up
+H1 {'n': 12813, 'hash': '326c3a8909b17205', 'sum': -23584.7959, 's': 24.02}
+{"arm": "wt-run", "elapsed_s": 242.0, "stopped": null, "skipped": ["45K/r1"], "errors": [], "answers_exact": 38, "answers_total": 38, "copy": {"right": 60, "wrong": 0, "missing": 0}, "hashes": ["326c3a8909b17205", "326c3a8909b17205"], "caps": 0, "engine_ttft": {"2K": 546.05, "16K": 555.8, "45K": 574
+now save rank 1's log:  docker logs atlas-sparkglm-rank1 > /home/user/sparkglm-dev/warm-ttft-wt-run.rank1.log 2>&1  (on its host)
+[+16 min] wt-run warm probe
+rank0 errors: 1 rank1 errors: 6
+== wt_deep up: 100318 blocks × 16 tok/block = 1605088 max KV tokens 
+[+18 min] wt-deep up
+H1 {'n': 12813, 'hash': '94a8528c93d0eab9', 'sum': -23638.7706, 's': 23.81}
+{"arm": "wt-deep", "elapsed_s": 240.1, "stopped": null, "skipped": ["45K/r1"], "errors": [], "answers_exact": 38, "answers_total": 38, "copy": {"right": 57, "wrong": 0, "missing": 3}, "hashes": ["94a8528c93d0eab9", "94a8528c93d0eab9"], "caps": 0, "engine_ttft": {"2K": 490.0, "16K": 485.9, "45K": 512
+now save rank 1's log:  docker logs atlas-sparkglm-rank1 > /home/user/sparkglm-dev/warm-ttft-wt-deep.rank1.log 2>&1  (on its host)
+[+22 min] wt-deep warm probe
+rank0 errors: 1 rank1 errors: 7
+flag-off logprob hash ['8c75d2886794'] == production
+== compare wt-base wt-run
+wt-base 16K (~21461.5 prompt tokens, replay 54.5 rows): warm TTFT ms engine median 592.85, client median 726.4 max 738.5 n 12; template+tokenize None; cold client TTFT 8644.5
+wt-base 45K (~58617.5 prompt tokens, replay 57.5 rows): warm TTFT ms engine median 694.0, client median 861.4 max 878.0 n 6; template+tokenize None; cold client TTFT 22418.8
+wt-base 45K-busy (~59051 prompt tokens, replay 59 rows): warm TTFT ms engine median 1205.8, client median 1546.3 max 1843.2 n 3; template+tokenize None; cold client TTFT None
+wt-base prose turns (n 10): tok/s 32.19 tok_step 2.4755 p1 0.7315 mean_na 1.4755
+wt-base copy turns (n 5): tok/s 51.81 tok_step 4.754 p1 0.965 mean_na 3.754
+wt-base timeline 2K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.1 embed=0.0 lookup=17.9 blocks=21.65 meta=0.1 forward=493.65 finish=9.3 between_chunks=-0.0 wall=542.8 | chunks=2.0 cached_chunks=0.0 rows=54.5
+wt-base timeline 16K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.2 embed=0.1 lookup=18.6 blocks=55.35 meta=0.1 forward=501.5 finish=9.3 between_chunks=0.2 wall=585.25 | chunks=4.0 cached_chunks=2.0 rows=54.5
+wt-base timeline 45K (rank 0, median ms of 6 lines; host-time spans): transfer=0.5 zero=0.4 embed=0.1 lookup=18.35 blocks=141.8 meta=0.1 forward=515.3 finish=9.65 between_chunks=0.8 wall=686.4 | chunks=9.0 cached_chunks=7.0 rows=57.5
+wt-base timeline 45K-busy (rank 0, median ms of 3 lines; host-time spans): transfer=1.1 zero=0.3 embed=0.1 lookup=18.6 blocks=143.3 meta=0.1 forward=521.6 finish=10.3 between_chunks=497.3 wall=1196.5 | chunks=9 cached_chunks=7 rows=59
+wt-base busy case: second stream [{'rate': 28.62, 'completion_tokens': 600, 'ttft': 0.3644, 'wall': 21.298, 'error': None}], lookups that overlapped it 3
+wt-base duplicate turn: [{'armed': False, 'copy_error': None, 'error': None, 'cached': 3056, 'prompt': 3060, 'caps': 0}]
+wt-run: env=['ATLAS_GLM_PC_BRANCH=1', 'ATLAS_GLM_PC_EVICT=1', 'ATLAS_GLM_WARM_CHUNK_RUN=1', 'ATLAS_GLM_WARM_SKIP_CACHED=1', 'ATLAS_GLM_WARM_TRACE=hash', 'ATLAS_MARCONI_PREFILL_ONLY=1', 'ATLAS_PREFIX_SUBBLOCK=0']
+wt-run: stopped=None errors=[] skipped=['45K/r1'] bad_count=0 [] | no-snapshot hits 0 | F83 caps 0 | prompt-logprob hash [start, end] ['326c3a8909b17205', '326c3a8909b17205'] ([23.75, 24.02] s) | answers exact 38/38 | copied pairs {'right': 60, 'wrong': 0, 'missing': 0} | warm turns with a logits hash 48 | match at the previous 
+wt-run 2K (~2661.5 prompt tokens, replay 54.5 rows): warm TTFT ms engine median 546.05, client median 664.1 max 694.3 n 12; template+tokenize None; cold client TTFT 1746.6
+wt-run 16K (~21461.5 prompt tokens, replay 54.5 rows): warm TTFT ms engine median 555.8, client median 690.0 max 710.4 n 12; template+tokenize None; cold client TTFT 8724.0
+wt-run 45K (~58617.5 prompt tokens, replay 57.5 rows): warm TTFT ms engine median 574.65, client median 735.9 max 752.9 n 6; template+tokenize None; cold client TTFT 22621.5
+wt-run 45K-busy (~59051 prompt tokens, replay 59 rows): warm TTFT ms engine median 585.7, client median 887.5 max 1132.0 n 3; template+tokenize None; cold client TTFT None
+wt-run prose turns (n 10): tok/s 32.35 tok_step 2.4755 p1 0.7315 mean_na 1.4755
+wt-run copy turns (n 5): tok/s 52.21 tok_step 4.754 p1 0.965 mean_na 3.754
+wt-run timeline 2K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.2 embed=0.0 lookup=1.6 blocks=37.7 meta=0.1 forward=491.9 finish=9.35 between_chunks=0.0 wall=540.65 | chunks=2.0 cached_chunks=0.0 rows=54.5
+wt-run timeline 16K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.1 embed=0.0 lookup=2.2 blocks=38.85 meta=0.1 forward=499.85 finish=9.4 between_chunks=0.3 wall=550.35 | chunks=4.0 cached_chunks=2.0 rows=54.5
+wt-run timeline 45K (rank 0, median ms of 6 lines; host-time spans): transfer=0.5 zero=0.1 embed=0.0 lookup=2.8 blocks=39.2 meta=0.1 forward=515.75 finish=10.0 between_chunks=0.7 wall=569.25 | chunks=9.0 cached_chunks=7.0 rows=57.5
+wt-run timeline 45K-busy (rank 0, median ms of 3 lines; host-time spans): transfer=0.8 zero=0.1 embed=0.0 lookup=3.0 blocks=39.6 meta=0.1 forward=524.3 finish=10.2 between_chunks=0.7 wall=579.9 | chunks=9 cached_chunks=7 rows=59
+wt-run busy case: second stream [{'rate': 29.61, 'completion_tokens': 600, 'ttft': 0.3603, 'wall': 20.594, 'error': None}], lookups that overlapped it 3
+wt-run duplicate turn: [{'armed': False, 'copy_error': None, 'error': None, 'cached': 3056, 'prompt': 3060, 'caps': 0}]
+== wt-base (baseline) vs wt-run
+rank 1 (wt-run): {"path": "/home/user/sparkglm-dev/warm-ttft-wt-run.rank1.log", "bad_count": 0, "bad": [], "zcheck_stale": [], "zcheck_clean": 0}
+answers exact in wt-base only: none; copied pairs lost: 0
+same-prompt warm turns: 48; with a logits hash in both arms: 48; hashes differ on 0 []
+cached_tokens differ on 0 []; restore depth differs on 0 []
+wt-run duplicate turn: the copy was not reproduced token for token, nothing was tested
+wt-base duplicate turn: the copy was not reproduced token for token, nothing was tested
+2K: engine TTFT paired saving median +4.8 ms over 18 turns (0.89 better, 0.11 worse; baseline median 568.0); noise band 11.4 ms
+16K: engine TTFT paired saving median +36.0 ms over 18 turns (1.0 better, 0.0 worse; baseline median 599.75); noise band 12.0 ms; derived saving 18
+45K: engine TTFT paired saving median +118.3 ms over 9 turns (1.0 better, 0.0 worse; baseline median 694.9); noise band 13.9 ms; derived saving 90
+45K-busy: engine TTFT paired saving median +620.1 ms over 3 turns (1.0 better, 0.0 worse; baseline median 1205.8); noise band 24.1 ms; derived saving 290
+prose turns (10/10): tok_step 2.4755 -> 2.4755, mean_na 1.4755 -> 1.4755, p1 0.7315 -> 0.7315, tok/s 32.19 -> 32.35
+copy turns (5/5): tok_step 4.754 -> 4.754, mean_na 3.754 -> 3.754, p1 0.965 -> 0.965, tok/s 51.81 -> 52.21
+skipped for time: wt-base ['45K/r1'] wt-run ['45K/r1']
+VERDICT: INCONCLUSIVE (rank 1's warm-turn lines do not line up with rank 0's in both arms: its logits are unchecked)
+== compare wt-run wt-deep
+wt-run 45K (~58617.5 prompt tokens, replay 57.5 rows): warm TTFT ms engine median 574.65, client median 735.9 max 752.9 n 6; template+tokenize None; cold client TTFT 22621.5
+wt-run 45K-busy (~59051 prompt tokens, replay 59 rows): warm TTFT ms engine median 585.7, client median 887.5 max 1132.0 n 3; template+tokenize None; cold client TTFT None
+wt-run prose turns (n 10): tok/s 32.35 tok_step 2.4755 p1 0.7315 mean_na 1.4755
+wt-run copy turns (n 5): tok/s 52.21 tok_step 4.754 p1 0.965 mean_na 3.754
+wt-run timeline 2K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.2 embed=0.0 lookup=1.6 blocks=37.7 meta=0.1 forward=491.9 finish=9.35 between_chunks=0.0 wall=540.65 | chunks=2.0 cached_chunks=0.0 rows=54.5
+wt-run timeline 16K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.1 embed=0.0 lookup=2.2 blocks=38.85 meta=0.1 forward=499.85 finish=9.4 between_chunks=0.3 wall=550.35 | chunks=4.0 cached_chunks=2.0 rows=54.5
+wt-run timeline 45K (rank 0, median ms of 6 lines; host-time spans): transfer=0.5 zero=0.1 embed=0.0 lookup=2.8 blocks=39.2 meta=0.1 forward=515.75 finish=10.0 between_chunks=0.7 wall=569.25 | chunks=9.0 cached_chunks=7.0 rows=57.5
+wt-run timeline 45K-busy (rank 0, median ms of 3 lines; host-time spans): transfer=0.8 zero=0.1 embed=0.0 lookup=3.0 blocks=39.6 meta=0.1 forward=524.3 finish=10.2 between_chunks=0.7 wall=579.9 | chunks=9 cached_chunks=7 rows=59
+wt-run busy case: second stream [{'rate': 29.61, 'completion_tokens': 600, 'ttft': 0.3603, 'wall': 20.594, 'error': None}], lookups that overlapped it 3
+wt-run duplicate turn: [{'armed': False, 'copy_error': None, 'error': None, 'cached': 3056, 'prompt': 3060, 'caps': 0}]
+wt-deep: env=['ATLAS_GLM_PC_BRANCH=1', 'ATLAS_GLM_PC_EVICT=1', 'ATLAS_GLM_TAIL_CUT_DEEP=1', 'ATLAS_GLM_WARM_CHUNK_RUN=1', 'ATLAS_GLM_WARM_SKIP_CACHED=1', 'ATLAS_GLM_WARM_TRACE=hash', 'ATLAS_MARCONI_PREFILL_ONLY=1', 'ATLAS_PREFIX_SUBBLOCK=0']
+wt-deep: stopped=None errors=[] skipped=['45K/r1'] bad_count=0 [] | no-snapshot hits 0 | F83 caps 0 | prompt-logprob hash [start, end] ['94a8528c93d0eab9', '94a8528c93d0eab9'] ([23.79, 23.81] s) | answers exact 38/38 | copied pairs {'right': 57, 'wrong': 0, 'missing': 3} | warm turns with a logits hash 48 | match at the previous
+wt-deep 2K (~2661.5 prompt tokens, replay 40.5 rows): warm TTFT ms engine median 490.0, client median 607.2 max 641.3 n 12; template+tokenize None; cold client TTFT 1685.5
+wt-deep 16K (~21461.5 prompt tokens, replay 38.5 rows): warm TTFT ms engine median 485.9, client median 619.4 max 638.3 n 12; template+tokenize None; cold client TTFT 8650.2
+wt-deep 45K (~58617.5 prompt tokens, replay 41.5 rows): warm TTFT ms engine median 512.15, client median 677.3 max 687.4 n 6; template+tokenize None; cold client TTFT 22616.6
+wt-deep 45K-busy (~59051 prompt tokens, replay 43 rows): warm TTFT ms engine median 510.4, client median 808.2 max 1046.7 n 3; template+tokenize None; cold client TTFT None
+wt-deep prose turns (n 10): tok/s 31.9 tok_step 2.4495 p1 0.7165 mean_na 1.4495
+wt-deep copy turns (n 5): tok/s 54.57 tok_step 4.871 p1 0.967 mean_na 3.871
+wt-deep timeline 2K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.2 embed=0.0 lookup=1.4 blocks=37.6 meta=0.1 forward=427.9 finish=8.5 between_chunks=-0.1 wall=484.45 | chunks=2.0 cached_chunks=0.0 rows=40.5
+wt-deep timeline 16K (rank 0, median ms of 12 lines; host-time spans): transfer=0.2 zero=0.1 embed=0.0 lookup=2.5 blocks=38.85 meta=0.1 forward=339.5 finish=89.55 between_chunks=0.3 wall=480.3 | chunks=4.0 cached_chunks=2.0 rows=38.5
+wt-deep timeline 45K (rank 0, median ms of 6 lines; host-time spans): transfer=0.5 zero=0.1 embed=0.0 lookup=2.65 blocks=39.7 meta=0.1 forward=402.7 finish=51.35 between_chunks=0.7 wall=506.55 | chunks=9.0 cached_chunks=7.0 rows=41.5
+wt-deep timeline 45K-busy (rank 0, median ms of 3 lines; host-time spans): transfer=0.9 zero=0.1 embed=0.0 lookup=2.5 blocks=39.2 meta=0.1 forward=452.9 finish=8.6 between_chunks=0.7 wall=505.3 | chunks=9 cached_chunks=7 rows=43
+wt-deep busy case: second stream [{'rate': 29.68, 'completion_tokens': 600, 'ttft': 0.3637, 'wall': 20.547, 'error': None}], lookups that overlapped it 3
+wt-deep duplicate turn: [{'armed': False, 'copy_error': None, 'error': None, 'cached': 3056, 'prompt': 3060, 'caps': 0}]
+== wt-run (baseline) vs wt-deep
+rank 1 (wt-deep): {"path": "/home/user/sparkglm-dev/warm-ttft-wt-deep.rank1.log", "bad_count": 0, "bad": [], "zcheck_stale": [], "zcheck_clean": 0}
+answers exact in wt-run only: none; copied pairs lost: 3
+same-prompt warm turns: 43; with a logits hash in both arms: 43; hashes differ on 43 ['16K/r0:1', '16K/r0:2', '16K/r0:3', '16K/r0:4']
+wt-deep changes pass shapes (ATLAS_GLM_TAIL_CUT_DEEP=1): its logits are not compared with wt-run's
+cached_tokens differ on 0 []; restore depth differs on 41 ['16K/r0:1', '16K/r0:2', '16K/r0:3', '16K/r0:4']
+wt-deep duplicate turn: the copy was not reproduced token for token, nothing was tested
+wt-run duplicate turn: the copy was not reproduced token for token, nothing was tested
+2K: engine TTFT paired saving median +62.5 ms over 16 turns (1.0 better, 0.0 worse; baseline median 557.4); noise band 11.1 ms; derived saving 60
+16K: engine TTFT paired saving median +68.5 ms over 16 turns (0.94 better, 0.06 worse; baseline median 561.3); noise band 11.2 ms; derived saving 60
+45K: engine TTFT paired saving median +70.2 ms over 8 turns (1.0 better, 0.0 worse; baseline median 574.65); noise band 11.5 ms; derived saving 60
+45K-busy: engine TTFT paired saving median +79.7 ms over 3 turns (1.0 better, 0.0 worse; baseline median 585.7); noise band 11.7 ms
+prose turns (10/10): tok_step 2.4755 -> 2.4495, mean_na 1.4755 -> 1.4495, p1 0.7315 -> 0.7165, tok/s 32.35 -> 31.9
+copy turns (5/5): tok_step 4.754 -> 4.871, mean_na 3.754 -> 3.871, p1 0.965 -> 0.967, tok/s 52.21 -> 54.57
+skipped for time: wt-run ['45K/r1'] wt-deep ['45K/r1']
+VERDICT: NO-GO (3 answers or copied pairs regressed)
+RC4-DONE
+WINDOW2-END

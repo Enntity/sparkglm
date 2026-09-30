@@ -60,10 +60,15 @@ What to know before relying on SparkGLM.
 
 ## Performance gaps
 
-We compared against the published RiNGSiDE vLLM TP2 results, not a run on our
-pair. Atlas is behind on:
+We compared against the published RiNGSiDE and mmastrac vLLM TP2 results, not
+runs on our pair. Before this release, on the same RigMark prompts, Atlas was
+behind on:
 
-- single-stream decode: about 7% on code and 20% on prose;
+- single-stream decode: about 7-20% on code and 25-38% on prose. The
+  difference was the cost of a verify step (about 15-20 ms more at every
+  width), not draft acceptance. This release cuts single-stream prose decode
+  from 33.8 to 40.5 tok/s on our own harness; RigMark has not been re-run, so
+  the gap after it is not measured;
 - low-concurrency short code: 36.9 against 44.0 tok/s with one stream, 76.7
   against 97.3 with six;
 - long cold prefill: 28.3 against 25.7 s at 64K in the RigMark run of the
