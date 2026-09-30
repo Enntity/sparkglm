@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Collect the license notices of the third-party Rust crates compiled into the engine binary.
 
-rust-notices.py WORKSPACE OUT: runs `cargo metadata` (offline, locked) on WORKSPACE, walks the
+rust-notices.py WORKSPACE OUT: runs `cargo metadata` (locked; it fetches the sources of crates the build skipped) on WORKSPACE, walks the
 dependency graph of spark-server for the build platform, and for every crate that is not one of the
 engine's own workspace crates copies its license, copying and notice files to OUT/<name>-<version>/.
 OUT/INDEX.tsv lists each crate with its declared license expression and source, and says so when a
@@ -14,7 +14,7 @@ NOTICE_PREFIXES = ("license", "licence", "copying", "notice", "unlicense", "copy
 
 def main(ws, out):
     meta = json.loads(subprocess.check_output(
-        ["cargo", "metadata", "--locked", "--offline", "--format-version", "1",
+        ["cargo", "metadata", "--locked", "--format-version", "1",
          "--filter-platform", subprocess.check_output(["rustc", "-vV"], text=True).split("host: ")[1].split()[0]],
         cwd=ws, text=True))
     pkgs = {p["id"]: p for p in meta["packages"]}
