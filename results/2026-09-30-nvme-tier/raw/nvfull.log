@@ -1,0 +1,64 @@
+== 09405d6 Merge remote-tracking branch 'origin/main' into release/nvme-tier ghcr.io/enntity/atlas-sparkglm:d4a121b8371a
+== image ghcr.io/enntity/atlas-sparkglm:d4a121b8371a
+== building ghcr.io/enntity/atlas-sparkglm:d4a121b8371a from source (a cold build takes 30-60 minutes)
+Error response from daemon: manifest unknown
+== copying the image to 192.0.2.2
+== overlay on this node
+== overlay on 192.0.2.2
+== start rank 1 on 192.0.2.2, then rank 0 here (leader 192.0.2.1, profile 4x512k)
+== loading (about 2.5 minutes)
+== ready: http://127.0.0.1:8893/v1 model glm-5.3-flash-atlas
+smoke: 17*23 = 391
+== start.sh took 140 s
+-- rank 0
+::main_modules::serve_phases::preflight: Preflight reserve: inference=834 MB, buffer_arena=3801 MB (pre-load free: 114.3 GB)
+::main_modules::serve_load: OOM guard reserve: 4096 MB
+_runtime::fast_weights: Fast-load pre-flight: 17.07 GB on-disk, 1.1x overhead = 17.92 GB peak, 114.23 GB free, 4.0 GB reserve (FP8: false)
+::main_modules::serve_phases::preflight::gpu_init: GDN chunked prefill reserve: 322 MB (chunk_size=8196, max_seq_len=524288)
+::main_modules::serve_phases::preflight::gpu_init: Weights: 17.07 GB, estimated free: 97.2 GB, actual free: 96.3 GB (reserve: 834 MB)
+_runtime::weights::loader: Pre-flight estimate: 2.18 GB on-disk weights, 1.3x overhead = 2.84 GB peak, 95.11 GB free, 0.0 GB reserve (FP8: false)
+_model::layers::moe::shared_fp8_cache: GLM shared FP8 factory reserve passed before_layers=true required=4860583120 free=101809459200 arena=3985905872 inference_reserve=874677248 cache=0
+_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=23272300544 remaining=1056964608 protected=4860583120 required=5917547728
+-- rank 1
+::main_modules::serve_phases::preflight: Preflight reserve: inference=834 MB, buffer_arena=3801 MB (pre-load free: 114.8 GB)
+::main_modules::serve_load: OOM guard reserve: 4096 MB
+_runtime::fast_weights: Fast-load pre-flight: 17.07 GB on-disk, 1.1x overhead = 17.92 GB peak, 114.80 GB free, 4.0 GB reserve (FP8: false)
+::main_modules::serve_phases::preflight::gpu_init: GDN chunked prefill reserve: 322 MB (chunk_size=8196, max_seq_len=524288)
+::main_modules::serve_phases::preflight::gpu_init: Weights: 17.07 GB, estimated free: 97.8 GB, actual free: 97.5 GB (reserve: 834 MB)
+_runtime::weights::loader: Pre-flight estimate: 2.18 GB on-disk weights, 1.3x overhead = 2.84 GB peak, 96.99 GB free, 0.0 GB reserve (FP8: false)
+_model::layers::moe::shared_fp8_cache: GLM shared FP8 factory reserve passed before_layers=true required=4860583120 free=103418896384 arena=3985905872 inference_reserve=874677248 cache=0
+_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=23718948864 remaining=1056964608 protected=4860583120 required=5917547728
+/home/user/sparkglm-cleanroom/models/nvidia--GLM-5.3-Flash-NVFP4->/home/user/sparkglm-cleanroom/models/nvidia--GLM-5.3-Flash-NVFP4 /home/user/sparkglm-cleanroom/models/atlas-overlay->/home/user/sparkglm-cleanroom/models/atlas-overlay /home/user/sparkglm-cleanroom/models/incoai--GLM-5.3-Flash-DFlash2->/home/user/sparkglm-cleanroom/models/incoai--GLM-5.3-Flash-DFlash2 /home/user/.cache/atlas-cuda->/atlas-cuda-cache /home/user/prefix-cache->/prefix-cache 
+== logprob hash
+REPRODUCIBLE nvfull
+== vision
+halves: PASS 0.6s prompt=93 answer='Red, blue.'
+grid: PASS 0.84s prompt=127 answer='4, green, white'
+vision 2/2
+== full-pool eviction
+{'conv': 0, 'turn': 1, 'ttft': 81.49, 'prompt': 209688, 'cached': 0, 'correct': True}
+{'conv': 1, 'turn': 1, 'ttft': 81.8, 'prompt': 209637, 'cached': 0, 'correct': True}
+{'conv': 2, 'turn': 1, 'ttft': 82.27, 'prompt': 209707, 'cached': 0, 'correct': True}
+{'conv': 3, 'turn': 1, 'ttft': 82.88, 'prompt': 209702, 'cached': 0, 'correct': True}
+{'conv': 4, 'turn': 1, 'ttft': 82.58, 'prompt': 209583, 'cached': 0, 'correct': True}
+{'conv': 5, 'turn': 1, 'ttft': 83.21, 'prompt': 209636, 'cached': 0, 'correct': True}
+{'conv': 6, 'turn': 1, 'ttft': 81.51, 'prompt': 209729, 'cached': 0, 'correct': True}
+{'conv': 7, 'turn': 1, 'ttft': 82.09, 'prompt': 209671, 'cached': 0, 'correct': True}
+{'conv': 8, 'turn': 1, 'ttft': 82.09, 'prompt': 209642, 'cached': 0, 'correct': True}
+{'conv': 9, 'turn': 1, 'ttft': 82.44, 'prompt': 209683, 'cached': 0, 'correct': True}
+{'conv': 0, 'turn': 2, 'ttft': 1.21, 'prompt': 209710, 'cached': 209680, 'correct': True}
+{'conv': 1, 'turn': 2, 'ttft': 1.44, 'prompt': 209660, 'cached': 209632, 'correct': True}
+{'conv': 2, 'turn': 2, 'ttft': 1.47, 'prompt': 209730, 'cached': 209696, 'correct': True}
+{'conv': 9, 'turn': 2, 'ttft': 1.04, 'prompt': 209707, 'cached': 209680, 'correct': True}
+nvfull: 14/14 correct; turn-2 TTFT [1.21, 1.44, 1.47, 1.04]
+rank0: errors 0; restores 4; spills 5
+rank1: errors 0; restores 4; spills 5
+_model::factory::build::kv_nvme: prefix cache NVMe spill tier ON (rank 0): /prefix-cache/kv (ATLAS_KV_NVME_DIR, O_DIRECT, unlinked), 106496 B/block record (6656 B/token: latent + pooled index, no raw tails), budget 24.0 GiB = 241979 blocks = 3871664 tokens; fas
+_model::model::kv_nvme: NVMe prefix restore: 13105/13105 blocks (209680 tokens after 0 resident) in 405.1 ms; tier 38575/241979 slots, 51680 spills, 13105 restores, 0 failures; evict 233.7 ms + read 165.8 ms (8419 MB/s); spill path (fast): 51680 blocks in 2848.
+_model::model::kv_nvme: NVMe prefix restore: 13102/13102 blocks (209632 tokens after 0 resident) in 407.7 ms; tier 38593/241979 slots, 64800 spills, 26207 restores, 0 failures; evict 236.3 ms + read 167.4 ms (8337 MB/s); spill path (fast): 64800 blocks in 3083.
+_model::model::kv_nvme: NVMe prefix restore: 13106/13106 blocks (209696 tokens after 0 resident) in 399.1 ms; tier 38575/241979 slots, 77888 spills, 39313 restores, 0 failures; evict 228.6 ms + read 165.4 ms (8439 MB/s); spill path (fast): 77888 blocks in 3310.
+min MemAvailable kB rank0 14:02:16 3061100
+4.0K	/home/user/prefix-cache/kv
+4.0K	/home/user/prefix-cache/ssm
+NVFULL-DONE
+WINDOW-NV-END

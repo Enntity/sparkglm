@@ -110,6 +110,46 @@ at 0.92 on Sparks that run nothing else. Requests that don't fit wait for
 room. Prefix caching keeps the 16 most recent conversations' recurrent state
 warm.
 
+## Prefix cache on disk (optional)
+
+When the KV pool fills up, the prefix cache drops the conversations used
+least recently, and one that comes back is prefilled again from the start.
+With `PREFIX_CACHE_DIR` set, each Spark writes what it drops to its own disk
+instead and reads it back when the conversation returns. In one pass on
+2026-09-30, with 25K-token conversations pushed out of the cache, the time to
+first token of turn 2 went from 10.7 s to 0.91 s and the answers were
+byte-identical. Each restore read its blocks in about 75 ms (7.8 GB/s).
+
+To turn it on, add to `.env` and rerun `./start.sh`:
+
+```sh
+PREFIX_CACHE_DIR=/srv/sparkglm/prefix-cache   # same path on both Sparks, on their own disk
+PREFIX_CACHE_GB=48                             # GiB per Spark, 16-100 (default 48)
+```
+
+`start.sh` creates `kv/` and `ssm/` in the directory on both Sparks, refuses a
+directory on tmpfs or without that much space free, and mounts it into each
+rank. Half of the size holds KV blocks (6.66 KB per token; 24 GiB holds 3.9M
+tokens, over twice the pool at 0.93). The other half holds the 78 MB
+recurrent-state snapshots a restore starts from (24 GiB holds 330). A restore
+needs both, so at 25K tokens the even split keeps about 150 conversations with
+two snapshots each.
+
+What it costs, per Spark:
+
+- **KV pool.** The engine sets host memory aside for the tier and takes it
+  out of the pool: 236 MiB whatever the size (staging, and two snapshot
+  slots), plus 640 B for each 16-token block the KV half can hold, which is
+  6.2 MiB per GiB. At the default that is 383.8 MiB. On our pair at 0.93 the
+  pool lost about 4,000 of its 104,000 blocks, about 60K tokens (4%); at the
+  default 0.88 the same 60K tokens are about 10% of the pool. Each GiB added
+  to `PREFIX_CACHE_GB` costs about 500 more tokens. The fixed part is most of
+  the cost, and 48 is the size we measured.
+- **Disk.** The KV half is reserved when the engine starts; the snapshot half
+  fills as needed. Every token pushed out of the pool writes 6.66 KB. Nothing
+  is kept across a restart: the engine deletes its files as soon as it has
+  them open, and clears leftovers from a crash when it starts.
+
 ## Reproduce our numbers
 
 The benchmark drivers are in [`bench/`](bench/). See

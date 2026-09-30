@@ -2,7 +2,9 @@
 """CPU checks for the portable managed launch contract."""
 import importlib.util
 import json
+import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
@@ -10,6 +12,7 @@ HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('atlas_serve', HERE/'serve.py')
 serve = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(serve)
+DISK_TIER = ('ATLAS_KV_NVME', 'ATLAS_SSM_TIER', 'ATLAS_GLM_NVME')
 
 
 class LaunchContract(unittest.TestCase):
@@ -154,6 +157,85 @@ class LaunchContract(unittest.TestCase):
         for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x'):
             with self.subTest(util=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), self.profile)
+
+    def test_disk_prefix_cache_is_off_unless_sized(self):
+        # Ambient tier variables are dropped like any other ATLAS_* flag.
+        for extra in ({}, {'SPARKGLM_PREFIX_CACHE_GB': ''}, {'SPARKGLM_PREFIX_CACHE_GB': '0'},
+                      {'ATLAS_KV_NVME_DIR': '/tmp/kv', 'ATLAS_KV_NVME_GB': '24', 'ATLAS_SSM_TIER': '1'}):
+            _, env = serve.launch(dict(self.environment, **extra), self.profile)
+            with self.subTest(extra=extra):
+                self.assertEqual([k for k in env if k.startswith(DISK_TIER)], [])
+
+    def test_disk_prefix_cache_splits_the_size_on_both_ranks(self):
+        for rank in ('0', '1'):
+            _, env = serve.launch(dict(self.environment, NODE_RANK=rank, SPARKGLM_PREFIX_CACHE_GB='48'),
+                                  self.profile)
+            self.assertEqual({k: v for k, v in env.items() if k.startswith(DISK_TIER)}, {
+                'ATLAS_KV_NVME_DIR': '/prefix-cache/kv', 'ATLAS_KV_NVME_GB': '24',
+                'ATLAS_GLM_NVME_FAST': '1', 'ATLAS_SSM_TIER': '1', 'ATLAS_SSM_TIER_UNIFIED': '1',
+                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
+                'ATLAS_SSM_TIER_SLOTS': '2'})
+        _, env = serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB='17'), self.profile)
+        self.assertEqual((env['ATLAS_KV_NVME_GB'], env['ATLAS_SSM_TIER_DISK_GB']), ('8', '9'))
+        for bad in ('15', '101', '048', '48.5', '-48', ' 48', '48\n', 'x'):
+            with self.subTest(gb=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB=bad), self.profile)
+
+    def test_start_node_mounts_the_disk_prefix_cache(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            models, bin_dir = root/'models', root/'bin'
+            for path in ('nvidia--GLM-5.3-Flash-NVFP4/config.json', 'incoai--GLM-5.3-Flash-DFlash2/config.json',
+                         'atlas-overlay/sparkglm-verified.json'):
+                (models/path).parent.mkdir(parents=True)
+                (models/path).touch()
+            bin_dir.mkdir()
+            # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
+            for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
+                               ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
+                               ('df', 'echo "Filesystem 1024-blocks Used Available Capacity Mounted"\n'
+                                      'echo "disk 0 0 ${FREE_KB:-104857600} 0 /"')):
+                (bin_dir/name).write_text(f'#!/bin/sh\n{body}\n')
+                (bin_dir/name).chmod(0o755)
+
+            def start(rank, *extra, **fake):
+                (root/'docker.log').unlink(missing_ok=True)
+                run = subprocess.run(
+                    ['bash', str(HERE/'start-node.sh'), '--rank', rank, '--leader-address', '192.0.2.1',
+                     '--model-root', str(models), '--image', 'img', '--fabric-interface', 'enp1s0f0np0',
+                     '--cuda-cache', str(root/'cuda'), *extra],
+                    capture_output=True, text=True,
+                    env=dict(os.environ, PATH=f'{bin_dir}:{os.environ["PATH"]}', **fake))
+                log = (root/'docker.log').read_text() if (root/'docker.log').exists() else ''
+                return run, [line for line in log.splitlines() if line.startswith('run ')]
+
+            run, docker_run = start('0')
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertNotIn('prefix-cache', docker_run[0].lower())
+            cache = root/'nvme'
+            for rank in ('0', '1'):
+                run, docker_run = start(rank, '--prefix-cache-dir', str(cache))
+                with self.subTest(rank=rank):
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertIn(f'--mount type=bind,src={cache.resolve()},dst=/prefix-cache ', docker_run[0])
+                    self.assertIn('-e SPARKGLM_PREFIX_CACHE_GB=48 ', docker_run[0])
+                    self.assertTrue((cache/'kv').is_dir() and (cache/'ssm').is_dir())
+            run, docker_run = start('1', '--prefix-cache-dir', str(cache), '--prefix-cache-gb', '100')
+            self.assertIn('-e SPARKGLM_PREFIX_CACHE_GB=100 ', docker_run[0])
+            for extra in (['--prefix-cache-dir', 'relative/nvme'], ['--prefix-cache-dir', f'{cache},readonly'],
+                          ['--prefix-cache-gb', '48'], ['--prefix-cache-dir', str(cache), '--prefix-cache-gb', '8'],
+                          ['--prefix-cache-dir', str(cache), '--prefix-cache-gb', '101']):
+                run, docker_run = start('0', *extra)
+                with self.subTest(extra=extra):
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(docker_run, [])
+                    self.assertIn('prefix-cache', run.stderr)
+            for fake in ({'FSTYPE': 'tmpfs'}, {'FSTYPE': 'overlayfs'}, {'FREE_KB': str(47 * 1048576)}):
+                run, docker_run = start('0', '--prefix-cache-dir', str(cache), **fake)
+                with self.subTest(fake=fake):
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(docker_run, [])
+                    self.assertIn('prefix-cache', run.stderr)
 
     def test_profiles_are_selected_by_name(self):
         self.assertEqual(serve.profile_path({}, HERE), HERE/'profiles'/'4x512k.json')
