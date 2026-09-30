@@ -19,7 +19,7 @@ MATRIX_SALT=fg-$(date +%s) python3 run_matrix.py out-field field
 python3 quality_probe.py mine 4
 # Prefill/decode benchmark after mmastrac's method (github.com/mmastrac/glm-5.3-flash-4x-gx10),
 # with our own prompts, then 1/2/4/8 aggregate streams.
-python3 mmastrac_bench.py && python3 mmastrac_streams.py
+python3 prefill_decode_bench.py && python3 decode_streams.py
 ```
 
 `run_matrix.py` prints one JSON line per case. The number we sum is
