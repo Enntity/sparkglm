@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Replicates mmastrac/glm-5.3-flash-4x-gx10 dev/repro prefill.py + decode.py against Atlas."""
+"""Replicates mmastrac/glm-5.3-flash-4x-gx10 dev/repro prefill.py + decode.py against Atlas.
+
+Provenance: the filler sentence and the three decode prompts are quoted verbatim
+from https://github.com/mmastrac/glm-5.3-flash-4x-gx10 dev/repro/{prefill,decode}.py
+@ 4e63b64 (Matt Mastracci) so the numbers are comparable. That repository has no
+license; the code here is our own (see docs/LICENSING.md).
+"""
 import json, statistics, sys, time, urllib.request, uuid
 BASE = "http://127.0.0.1:8893/v1"
 MODEL = "glm-5.3-flash-atlas"

@@ -4,25 +4,35 @@ Licensed under AGPL-3.0-only (LICENSE).
 
 The Atlas engine is fetched at build time from Enntity/atlas at the commit in
 install/atlas-source.json (AGPL-3.0-only): Atlas-Inf plus SparkGLM's GLM-5.3
-Flash work.
+Flash work, which started as Reiner Schmidt's port in Mango-kid/atlas
+(AGPL-3.0-only).
 
 The overlay converter's NVFP4 quantization kernel is copied unchanged from
-Mango-kid/atlas (AGPL-3.0-only); see install/converter/provenance.json.
+Atlas-Inf/atlas, by way of Mango-kid/atlas (AGPL-3.0-only); see
+install/converter/provenance.json.
 
 FlashKDA by MoonshotAI (MIT, LICENSES/MIT-FlashKDA.txt) is fetched and patched
 at build time; install/flash_kda/flash_kda_sm121_slots.patch carries both MIT
-and AGPL terms.
+and AGPL terms, and install/flash_kda/atlas_flash_kda_bridge.cu adapts
+FlashKDA's workspace-size and launch arithmetic.
 
-bench/four_stream_video.py is Apache-2.0, copyright contributors to the vLLM
-project (LICENSES/Apache-2.0.txt).
+FlashInfer (Apache-2.0, LICENSES/Apache-2.0.txt) and CUTLASS (BSD-3-Clause)
+are fetched at build time. NVIDIA's sparse-MLA SM120 prefill source inside
+FlashInfer is BSD-3-Clause, Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES
+(LICENSES/BSD-3-Clause-NVIDIA.txt). The image ships these notices under
+/opt/atlas/notices/.
 
-FlashInfer (Apache-2.0), including NVIDIA's sparse-MLA prefill source, and
-CUTLASS (BSD-3-Clause) are fetched at build time; the image ships their notices
-under /opt/atlas/notices/.
+install/start-node.sh and install/convert.sh follow LLooM's Atlas recipe
+(MIT, Copyright (c) 2026 LLooM contributors, LICENSES/MIT-LLooM.txt).
 
-SparkGLM grew out of MiaAI-Lab's GLM-5.3-Flash-EXL3-2x-DGX-Sparks recipe (MIT).
-The vLLM-era tree, with its complete notices and attributions, is preserved at
-the tag vllm-final.
+SparkGLM grew out of MiaAI-Lab's GLM-5.3-Flash-EXL3-2x-DGX-Sparks recipe (MIT,
+Copyright (c) 2026 Mia's AI Lab, LICENSES/MIT-Mia.txt). .github/FUNDING.yml
+and the mia-* prompts in bench/staggered_openai.py come from it. The vLLM-era
+tree, with its complete notices and attributions, is preserved at the tag
+vllm-final.
+
+The bench/mmastrac_*.py prompts are quoted from mmastrac/glm-5.3-flash-4x-gx10
+for comparability.
 
 Model weights are not distributed in this repository. They remain under their
 publishers' licenses; the DFlash2 drafter is CC BY-NC-ND 4.0 (non-commercial).

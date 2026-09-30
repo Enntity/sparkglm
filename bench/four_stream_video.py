@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-License-Identifier: AGPL-3.0-only
 
 """Capture four real OpenAI streams and render their timing as an MP4 grid."""
 

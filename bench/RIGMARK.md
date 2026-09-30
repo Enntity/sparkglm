@@ -4,6 +4,12 @@ The RigMark numbers in the result bundle use the 8 × 128K profile
 (`PROFILE=8x128k` in `.env`, or `install/profiles/8x128k.json`) and the RiNGSiDE TP2 cell set, thinking on with
 `reasoning_effort: low`, two runs per cell.
 
+RigMark is by Alex Ellis / OpenFaaS Ltd ([alexellis/rigmark](https://github.com/alexellis/rigmark),
+MIT). We run othexmr's fork, which adds the staggered-arrival suite, and
+compare with the TP2 figures that
+[RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE)
+publishes.
+
 ```sh
 git clone https://github.com/othexmr/rigmark.git && cd rigmark
 git checkout 40fabcaf6e96                       # the published TP2 comparison commit

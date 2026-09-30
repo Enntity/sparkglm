@@ -103,6 +103,9 @@ def benchmark_prompt(
     approximate_tokens: int,
     prompt_salt: str,
 ) -> str:
+    # Provenance: the mia-* prompts are quoted verbatim from
+    # https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks tests/bench_decode.py
+    # @ 3cb12d8, MIT, Copyright (c) 2026 Mia's AI Lab (LICENSES/MIT-Mia.txt).
     if prompt_style == "mia-structured":
         return "Count from 1 to 200. Output only the numbers, separated by spaces. No other text."
     if prompt_style == "mia-prose":

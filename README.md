@@ -39,7 +39,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Staggered C4: four ~16K requests arriving 1 s apart, cold | **52.7 s** (27.3–27.8 s warm) | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
 | Single-stream prose decode, 5 × 384 tokens | **40.2–44.2 tok/s** | 32.8–34.5 tok/s on the previous release |
 | Cold prefill at 8K / 32K / 64K / 139K | 2,500 / 2,470 / 2,310 / 2,020 tok/s | |
-| Aggregate short-code decode, 1 / 6 / 8 streams (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | RiNGSiDE vLLM TP2 (published) 44.0 / 97.3 / – |
+| Aggregate short-code decode, 1 / 6 / 8 streams (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 44.0 / 97.3 / – |
 | Quality probe: arithmetic / two-hop 24K needle | 40/40 · 11/12 | |
 
 These are measurements on our pair, not a guarantee for yours. Known gaps and
@@ -170,17 +170,40 @@ Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
 `sparkglm/atlas-20260928`, built from three layers:
 
 1. Atlas-Inf `main`.
-2. Our GLM-5.3-Flash support and optimizations (branch `upstream/glm53-flash`),
-   which we intend to propose to Atlas-Inf after review.
+2. GLM-5.3-Flash support and optimizations (branch `upstream/glm53-flash`),
+   which we intend to propose to Atlas-Inf after review. It started as
+   Reiner Schmidt's port
+   ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
+   the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
 3. One SparkGLM-only commit adding FlashKDA and native sparse-MLA prefill
    bridges, which rely on libraries built outside the Atlas tree.
 
 ## History
 
-SparkGLM began as a vLLM recipe building on MiaAI-Lab's two-Spark EXL3 work.
+SparkGLM began as a vLLM recipe building on
+[MiaAI-Lab](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)'s
+two-Spark EXL3 work.
 That version is preserved at the tag
 [`vllm-final`](https://github.com/Enntity/sparkglm/tree/vllm-final) and the
 branch `archive/vllm`, including its results and qualification records.
+
+## Credits
+
+The engine options SparkGLM turns on take their ideas from other projects. The
+code is ours unless [docs/LICENSING.md](docs/LICENSING.md) says otherwise.
+
+| Option | Idea from |
+|---|---|
+| `ATLAS_DFLASH_CONF_WIDTH` | knapcio's draft-shape truncation, `GLM_DRAFT_TRUNC` ([knapcio/GLM-5.3-Flash-4x-DGX-Spark-TP4](https://github.com/knapcio/GLM-5.3-Flash-4x-DGX-Spark-TP4)), whose calibration table (MIT) seeds ours; and the survival prefix product of D-Cut ([arXiv 2607.14647](https://arxiv.org/abs/2607.14647)) as Atlas-Inf implements it for MTP. We added online calibration, a fixed row price and a periodic full-width probe. |
+| `ATLAS_GLM_DRAFT_TP` | MiaAI-Lab's `DFLASH_DRAFT_TP` ([GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)) and TensorFold's two-rank drafter ([ashhart/TensorFold](https://github.com/ashhart/TensorFold)) |
+| `ATLAS_GLM_PC_EVICT` | Reederey87's prefix-cache eviction policy ([glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark)) |
+| `ATLAS_GLM_PC_BRANCH` | Marconi's branch-point admission (Pan et al., MLSys 2025, [arXiv:2411.19379](https://arxiv.org/abs/2411.19379)) |
+
+Measurement: [RigMark](https://github.com/alexellis/rigmark) by Alex Ellis
+(run from othexmr's fork with the staggered-arrival suite), the published
+[RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE)
+figures, [mmastrac](https://github.com/mmastrac/glm-5.3-flash-4x-gx10)'s
+prefill and decode prompts, and MiaAI-Lab's decode prompts.
 
 ## License
 
