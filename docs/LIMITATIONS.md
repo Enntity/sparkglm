@@ -67,6 +67,13 @@ Atlas is ahead on newcomer time-to-first-token under load and on 8K prefill.
   structured answers are not trapped inside reasoning.
 - The quality probe scored 11/12 on two-hop needles in the recorded run; the
   same engine scored 10–12/12 across earlier runs. Arithmetic scored 40/40.
+- Long prompts were not reproducible before 2026-09-30. A missing barrier in
+  the kernel that normalizes sparse-index keys let one in roughly 60,000
+  prompt tokens store a key normalized with a wrong mean. The key stayed in
+  the index cache, so the same long prompt could select slightly different
+  tokens from run to run and on the two Sparks. Answers in our retrieval
+  tests stayed correct. With the fix, four runs of a 50K-token prompt hash
+  identically at every traced stage on both ranks.
 - Sparse attention uses GLM-5.3's full 2051-candidate selection. The vLLM
   version's 2048-candidate approximation does not apply here.
 
