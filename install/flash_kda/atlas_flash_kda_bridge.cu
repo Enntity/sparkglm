@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only AND MIT
+// The workspace size and the total_tiles, gate_scale and launch_fwd argument
+// order below are adapted from MoonshotAI/FlashKDA csrc/flash_kda.cpp @ 1ce47ea3
+// (get_workspace_size, fwd), Copyright (c) 2026 MoonshotAI, MIT; see LICENSE here.
 
 #include <cuda_runtime.h>
 

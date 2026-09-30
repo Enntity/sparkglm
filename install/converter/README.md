@@ -1,8 +1,9 @@
 # NVIDIA native MTP overlay converter
 
-AGPL-3.0-only research source. The quantizer is copied unchanged from the pinned
-Mango Atlas revision in `provenance.json`; wrapper, validation and tests are
-original campaign work. No library, tensors, weights or machine orchestration
+AGPL-3.0-only research source. The quantizer is Atlas-Inf/atlas
+`kernels/gb10/common/quantize_bf16_to_nvfp4.cu`, copied unchanged from the pinned
+Mango-kid/atlas revision in `provenance.json`. `wrapper.cu` mirrors how Atlas-Inf's
+`loaders_fp8.rs` calls it; validation and tests are original campaign work. No library, tensors, weights or machine orchestration
 are distributed. Model publisher terms remain separate.
 
 Use NVIDIA checkpoint revision `423acf37583782c51c142d145aef733d72943d93`.
