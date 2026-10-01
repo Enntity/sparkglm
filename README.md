@@ -21,11 +21,13 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 Measured on two DGX Sparks joined by one 200G cable, with images built from
 a fresh clone. Receipts and caveats:
 [a faster verify step and cheaper warm turns](results/2026-09-30-decode-step/RESULT.md) (this release),
+[RigMark on this release](results/2026-09-30-rigmark/RESULT.md),
+[prefix cache on disk](results/2026-09-30-nvme-tier/RESULT.md),
 [exact kernels and the prefix-cache policy](results/2026-09-30-exact-speedups/RESULT.md),
 [index tails and 0.92 memory](results/2026-09-29-index-tails-092/RESULT.md),
 [prefix caching](results/2026-09-29-prefix-caching/RESULT.md)
 and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
-(decode, prefill, RigMark and quality rows).
+(quality row).
 
 | Workload | SparkGLM (Atlas) | Reference, same pair |
 |---|---|---|
@@ -38,8 +40,11 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **146.0 s** | vLLM SparkGLM 206.6 s |
 | Staggered C4: four ~16K requests arriving 1 s apart, cold | **52.7 s** (27.3–27.8 s warm) | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
 | Single-stream prose decode, 5 × 384 tokens | **40.2–44.2 tok/s** | 32.8–34.5 tok/s on the previous release |
-| Cold prefill at 8K / 32K / 64K / 139K | 2,500 / 2,470 / 2,310 / 2,020 tok/s | |
-| Aggregate short-code decode, 1 / 6 / 8 streams (8 × 128K profile) | 36.9 / 76.7 / 88.0 tok/s | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 44.0 / 97.3 / – |
+| RigMark decode, code / prose / structured (thinking on, low effort) | **62.9 / 34.0 / 87.5 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
+| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.38 / 12.71 / 24.38 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
+| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 / 6 | **2.88 / 3.95 / 4.36 s** | RiNGSiDE 4.70 / 5.15 / 4.90 s |
+| RigMark short code, 1 / 4 streams, aggregate | 45.8 / 67.0 tok/s | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 512K profile serves 4 at a time) |
+| Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Quality probe: arithmetic / two-hop 24K needle | 40/40 · 11/12 | |
 
 These are measurements on our pair, not a guarantee for yours. Known gaps and
