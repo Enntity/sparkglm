@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20260930c",
-  "commit": "9b8160e3fb8deff898ab7c4db68483c12c37f105",
-  "tree": "975a2bccbe6359922161a710348849a1e2cb9ff4",
+  "branch": "sparkglm/atlas-20260930d",
+  "commit": "eee8b88340f83d63fdfbaf0703317477b7f38b40",
+  "tree": "165c7abbeee2733c6678694e46ddcfb35f0dfdc6",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
       "branch": "upstream/glm53-flash",
-      "commit": "2f9d940b6bfea333f2abee95ff51f7e5bc71ac6f",
-      "note": "GLM-5.3 Flash support and optimizations intended for Atlas-Inf review; not yet proposed upstream."
+      "commit": "030e84da2c462141f4e99c03a1ab647c10b301c9",
+      "note": "GLM-5.3 Flash support and optimizations intended for Atlas-Inf review (40 commits on 2f9d940b, rebuilt 2026-09-30); not yet proposed upstream."
     },
     "sparkglm_only": {
-      "commit": "0965f8d52d692afafb4cff252d55de3dfca0cbd8",
-      "note": "FlashKDA prefill and native sparse-MLA prefill bridges plus their build sources (scripts/dev/glm_sparse_native, research/flash-kda-prefill)."
+      "commit": "eee8b88340f83d63fdfbaf0703317477b7f38b40",
+      "note": "One commit on top of upstream/glm53-flash: the FlashKDA prefill and native sparse-MLA prefill bridges plus their build sources (scripts/dev/glm_sparse_native, research/flash-kda-prefill)."
     },
     "integration": {
       "branch": "integ/next",
-      "commit": "9b8160e3fb8deff898ab7c4db68483c12c37f105",
-      "note": "The SparkGLM-only layer (0965f8d5) plus reviewed topic branches merged on the Enntity/atlas fork: the sparse-index key normalization race fix and other kernel race hardening, whole-block prefix sharing, KV sizing that survives a co-tenant releasing memory, the prefix-cache policy, exact prefill and decode kernels, a rank-mirrored KV admission vote, a startup settings agreement between the two nodes, prefill queue order, warm-turn overheads, an opt-in NVMe prefix tier, and a faster verify step (MoE decode kernels, fused small kernels, GEMV launches, a drafter split across both nodes, per-step commands over RDMA, verify width from drafter confidence). Most of it is intended for the upstream candidate; that branch has not been rebuilt from it yet."
+      "commit": "7f1e1fad",
+      "note": "The same tree as this commit (the integration branch the series was rebuilt from)."
     }
   },
   "kernel_target": "glm-5.3-flash",
