@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20260930e",
-  "commit": "08c90d8e88f5c7db4e4542e26cddb9b3001fac5c",
-  "tree": "0ac724953efb3ae508eadbd6ccff1d342d98e467",
+  "branch": "sparkglm/atlas-20261002-cancel",
+  "commit": "f183eeb29942c72af929679e53e8c94a98a0d5be",
+  "tree": "540f51f6dda8fae2d071c4361047752ec00c469b",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash",
-      "commit": "aba10c91ed1abe86ec507b62b10be4b610af9405",
-      "note": "GLM-5.3 Flash support and optimizations intended for Atlas-Inf review (41 commits on 2f9d940b, rebuilt 2026-09-30); not yet proposed upstream."
+      "branch": "upstream/glm53-flash-20261002-cancel",
+      "commit": "67ce1efd499e8ffef9c8858169d7231ba38582c9",
+      "note": "GLM-5.3 Flash support and optimizations plus buffered disconnect cancellation; scheduler work belongs to the upstream candidate."
     },
     "sparkglm_only": {
-      "commit": "08c90d8e88f5c7db4e4542e26cddb9b3001fac5c",
-      "note": "One commit on top of upstream/glm53-flash: the FlashKDA prefill and native sparse-MLA prefill bridges plus their build sources (scripts/dev/glm_sparse_native, research/flash-kda-prefill)."
+      "commit": "f183eeb29942c72af929679e53e8c94a98a0d5be",
+      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from08c90d8e88f5c7db4e4542e26cddb9b3001fac5c onto the cancellation-fixed upstream candidate."
     },
     "integration": {
       "branch": "integ/next",
       "commit": "6ddc2734",
-      "note": "The same tree as this commit (the integration branch the series was rebuilt from)."
+      "note": "Historical pre-cancellation integration baseline; the original08c90d8 bridge tree matched this revision. The current pin adds buffered disconnect cancellation."
     }
   },
   "kernel_target": "glm-5.3-flash",

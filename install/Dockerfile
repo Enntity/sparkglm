@@ -103,6 +103,18 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     { cat /tmp/atlas-admission-check.log; exit 1; }; \
     cat /tmp/atlas-admission-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-admission-check.log
 
+# Buffered disconnect cancellation must retire real response receivers and
+# release parked/prefilling ownership without a lifecycle reply or extra work.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for filter in cancellation_tests disconnect_prefill_tests buffered_disconnect_; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      timeout --signal=TERM --kill-after=10s 180 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "$filter" \
+        > /tmp/atlas-cancel-check.log 2>&1 || { cat /tmp/atlas-cancel-check.log; exit 1; }; \
+      cat /tmp/atlas-cancel-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-cancel-check.log; \
+    done
+
 # DFlash verify: the argmax-only (TP2 vocab-split) head keeps every pick on the
 # raw argmax, and an exhausted thinking budget still closes `</think>`.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
