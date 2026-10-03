@@ -115,6 +115,15 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-cancel-check.log; \
     done
 
+# Native Poolside streaming headers and arguments must survive nested JSON
+# fields and arbitrary chunks. Exercise all tool-parser formats in the binary.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    tool_parser:: > /tmp/atlas-parser-check.log 2>&1 || \
+    { cat /tmp/atlas-parser-check.log; exit 1; }; \
+    cat /tmp/atlas-parser-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-parser-check.log
+
 # DFlash verify: the argmax-only (TP2 vocab-split) head keeps every pick on the
 # raw argmax, and an exhausted thinking budget still closes `</think>`.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
