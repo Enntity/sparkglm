@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261003-poolside",
-  "commit": "4c6fa790d5c817dff0f34f1218fce3cc050350e2",
-  "tree": "454ccdd4ab8a75bb9f9adb27225738edd2eef1a6",
+  "branch": "sparkglm/atlas-20261003-stepcut",
+  "commit": "daa9406743b03a86d66231a4ead33d6770531d3c",
+  "tree": "0d2a22ef83c61c6d73136b0690050d2e1091de0d",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261003-tools",
-      "commit": "ccbbfa68290fb925980c9e6c9deb7eebf4b22405",
-      "note": "GLM-5.3 Flash support and optimizations, buffered disconnect cancellation, and native Poolside streaming tool-header correction."
+      "branch": "upstream/glm53-flash-20261003-stepcut",
+      "commit": "dec4e88e765b0e012e8ccfe3a5f0901063f152f5",
+      "note": "GLM-5.3 Flash support and optimizations, buffered disconnect cancellation, native Poolside streaming tool-header correction, and the decode step cut: routed expert L2 row prefetch, no expert-offset read for stream-twin batches, and the batched drafter propose split across the pair."
     },
     "sparkglm_only": {
-      "commit": "4c6fa790d5c817dff0f34f1218fce3cc050350e2",
-      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from f183eeb29942c72af929679e53e8c94a98a0d5be onto the Poolside streaming correction."
+      "commit": "daa9406743b03a86d66231a4ead33d6770531d3c",
+      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from 4c6fa790d5c817dff0f34f1218fce3cc050350e2 onto the decode step cut."
     },
     "integration": {
-      "branch": "integ/next",
-      "commit": "6ddc2734",
-      "note": "Historical pre-cancellation integration baseline; the original08c90d8 bridge tree matched this revision. The current pin adds buffered disconnect cancellation."
+      "branch": "integ/step-cut",
+      "commit": "c519b6c9",
+      "note": "The tested integration build. This pin's tree equals it with opt/step-fuse reverted and the buffered disconnect cancellation and Poolside streaming correction added (tree 0d2a22ef)."
     }
   },
   "kernel_target": "glm-5.3-flash",

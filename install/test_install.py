@@ -131,7 +131,8 @@ class LaunchContract(unittest.TestCase):
                  'ATLAS_GLM_MOE_DOWN_ZSKIP', 'ATLAS_GLM_PC_EVICT', 'ATLAS_GLM_PC_BRANCH',
                  'ATLAS_GLM_WARM_SKIP_CACHED', 'ATLAS_GLM_WARM_CHUNK_RUN', 'ATLAS_GLM_CMD_RDMA',
                  'ATLAS_GLM_MOE_DECODE_STREAM', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_DECODE_FUSE',
-                 'ATLAS_GLM_DECODE_GEMV_BATCH')
+                 'ATLAS_GLM_DECODE_GEMV_BATCH', 'ATLAS_GLM_MOE_DECODE_L2PF', 'ATLAS_GLM_MOE_STREAM_NOSYNC',
+                 'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_RDMA_ONESHOT', 'ATLAS_RDMA_PAIR_CHAIN')
         # Lossless but not bit-for-bit against the option off: the prefill queue
         # order, and a verify width taken from the drafter's confidence (verify
         # numerics already depend on the width). The first draft of a request no
@@ -139,7 +140,7 @@ class LaunchContract(unittest.TestCase):
         policy = {'ATLAS_PREFILL_SRPT': '1', 'ATLAS_DFLASH_CONF_WIDTH': '1',
                   'ATLAS_DFLASH_FIRST_APPEND': 'none'}
         held_back = ('ATLAS_GLM_MLA_KVB_MXFP8', 'ATLAS_GLM_INDEX_MXFP8', 'ATLAS_GLM_KV_SHARD',
-                     'ATLAS_GLM_PC_FINISH_LEAF', 'ATLAS_GLM_VERIFY_GRAPH', 'ATLAS_RDMA_ONESHOT',
+                     'ATLAS_GLM_PC_FINISH_LEAF', 'ATLAS_GLM_VERIFY_GRAPH', 'ATLAS_GLM_STEP_FUSE',
                      'ATLAS_KV_NVME_DIR', 'ATLAS_GLM_KDA_PREFILL_LT_FP8_SPLITK1',
                      'ATLAS_GLM_TAIL_CUT_DEEP', 'ATLAS_GLM_ZERO_ROWS')
         for env in envs:
