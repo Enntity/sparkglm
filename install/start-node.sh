@@ -12,7 +12,7 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca rocep1s0f0]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
-                     [--cuda-cache DIR] [--name NAME]
+                     [--display-carveout] [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
   --model-root       directory holding nvidia--GLM-5.3-Flash-NVFP4,
@@ -29,12 +29,16 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      the node's own disk (ext4/xfs) instead of dropping them
                      (default: off)
   --prefix-cache-gb  their disk budget in GiB (default 48); the same on both ranks
+  --display-carveout lend the GB10's 2 GiB display carveout to the KV cache
+                     (2 GiB more KV cache). The container starts with
+                     CAP_SYS_ADMIN to export it, which the server drops before
+                     it loads anything; use it on both ranks (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
 }
 rank="" leader="" iface="" model_root="" image="" hca=rocep1s0f0
-cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb=""
+cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -49,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --gpu-memory-utilization) util=$2; shift 2 ;;
     --prefix-cache-dir) pc_dir=$2; shift 2 ;;
     --prefix-cache-gb) pc_gb=$2; shift 2 ;;
+    --display-carveout) carveout=1; shift ;;
     *) usage ;;
   esac
 done
@@ -95,6 +100,15 @@ if [[ -n $pc_dir ]]; then
     { echo "--prefix-cache-dir $pc_dir has $((free_kb / 1048576)) GiB free; --prefix-cache-gb needs $pc_gb" >&2; exit 2; }
   pc_args=(--mount "type=bind,src=$pc_dir,dst=/prefix-cache" -e SPARKGLM_PREFIX_CACHE_GB="$pc_gb")
 fi
+# One process per host may hold the carveout; every container shares this
+# host directory's lock file, which the server holds while it runs.
+carveout_args=()
+if [[ -n $carveout ]]; then
+  lock_dir=/run/lock/sparkglm
+  mkdir -p "$lock_dir" && chmod 1777 "$lock_dir" 2>/dev/null || true
+  carveout_args=(--cap-add SYS_ADMIN --mount "type=bind,src=$lock_dir,dst=$lock_dir"
+    -e SPARKGLM_DISPLAY_CARVEOUT=1)
+fi
 # The overlay links into the original checkpoint, so it is mounted at the same
 # absolute path inside the container.
 docker run -d --name "$name" --restart no --network host --ipc host \
@@ -105,6 +119,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   --mount "type=bind,src=$overlay,dst=$overlay,readonly" \
   --mount "type=bind,src=$drafter,dst=$drafter,readonly" \
   --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" ${profile_mount[@]+"${profile_mount[@]}"} ${pc_args[@]+"${pc_args[@]}"} \
+  ${carveout_args[@]+"${carveout_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" \
   -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \

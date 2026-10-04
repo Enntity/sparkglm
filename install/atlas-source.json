@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261004-strict",
-  "commit": "e86ccb1071e28811d10ea1d0e62e0fab900c0a2c",
-  "tree": "384d75b727ec0d55bfaeffcdd8d02a9df5d59889",
+  "branch": "sparkglm/atlas-20261004-gram",
+  "commit": "fdd2f965c10135c2f00d9286854f6b9bc1230eab",
+  "tree": "98d6de9624895ca3afd237b8bac2b1592ea3fdc6",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261004-strict",
-      "commit": "e7750785c33c96dda59fe8d90351d4f528d5321d",
-      "note": "The gap-close series plus strict structured output: response_format renders a closed think when thinking is off, strict grammars mask every emitted token (serial decode), and a strict grammar fails loudly instead of disengaging."
+      "branch": "upstream/glm53-flash-20261004-gram",
+      "commit": "619da6ff575bc914873028b62551d83aa5c09981",
+      "note": "The strict structured-output series plus linear-cost grammar compile (bounded memory for large schemas, rejection of grammars an FSM edge cannot encode) and masked DFlash verify for strict grammars (ATLAS_GLM_STRICT_SPEC)."
     },
     "sparkglm_only": {
-      "commit": "e86ccb1071e28811d10ea1d0e62e0fab900c0a2c",
-      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from 35bce704125a19558ded4f9c3dbe5c3b7d9a5845 onto the strict structured-output series."
+      "commit": "fdd2f965c10135c2f00d9286854f6b9bc1230eab",
+      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges (replayed from e86ccb10), then the GB10 display-carveout KV placement (fork-only; used only with DISPLAY_CARVEOUT=1)."
     },
     "integration": {
-      "branch": "fix/strict-structured-output",
-      "commit": "eb37bf08",
-      "note": "This pin's tree equals the fix branch (35bce704 + 23d986f6 + eb37bf08), validated on the pair (tree 384d75b7)."
+      "branch": "opt/strict-spec + feat/gb10-display-carveout",
+      "commit": "30b425e2 + b710c34a",
+      "note": "Without the carveout commits this pin's tree equals the hardware-tested opt/strict-spec (a7e24fef); the carveout code diff equals the tested feat/gb10-display-carveout."
     }
   },
   "kernel_target": "glm-5.3-flash",

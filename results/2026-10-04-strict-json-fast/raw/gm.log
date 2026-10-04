@@ -1,0 +1,57 @@
+######## B: grammar-mem, switch off
+== ss_off up: 39919 blocks × 16 tok/block = 638704 max KV tokens agree on 37948 
+== hash
+REPRODUCIBLE gm-off
+== idle avail 9192 MiB
+== schema memory
+keys=  8 start   9185 MiB  min   9095 MiB  drop     90 MiB  17s  finish=stop tokens=213
+keys= 16 start   9191 MiB  min   9050 MiB  drop    141 MiB  22s  finish=stop tokens=272
+keys= 24 start   9147 MiB  min   9050 MiB  drop     97 MiB  31s  finish=stop tokens=398
+keys= 32 start   9146 MiB  min   9024 MiB  drop    122 MiB  42s  finish=stop tokens=529
+keys= 48 start   9107 MiB  min   9027 MiB  drop     80 MiB  67s  finish=stop tokens=856
+keys= 64 start   9131 MiB  min   9016 MiB  drop    115 MiB  90s  finish=stop tokens=1154
+keys= 96 start   9119 MiB  min   8975 MiB  drop    144 MiB  138s  finish=stop tokens=1751
+== idle avail after 9086 MiB
+== structured
+schema, thinking off #0            finish=stop   reasoning=   0 schema-valid chars=  426 tok= 110 8.6s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #1            finish=stop   reasoning=   0 schema-valid chars=  594 tok= 138 10.2s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #2            finish=stop   reasoning=   0 schema-valid chars=  463 tok= 115 8.6s '{"items": [{"name": "Golden Gate Bridge"'
+schema, effort none                finish=stop   reasoning=   0 schema-valid chars=  424 tok= 107 8.0s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking ON                finish=stop   reasoning= 919 schema-valid chars=  622 tok= 357 25.8s '{\n  "items": [\n    {\n      "name": "Gold'
+json_object, thinking off          finish=stop   reasoning=   0 schema-valid chars=  615 tok= 139 10.5s '{"bridges": [{"name": "Golden Gate Bridg'
+rem-capped.json #0                 finish=stop   reasoning=   0 schema-valid chars= 6155 tok=1727 135.1s '{\n  "consolidations": [\n    {\n      "sou'
+rem-capped.json #1                 finish=stop   reasoning=   0 schema-valid chars= 6868 tok=2042 152.9s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #0               finish=stop   reasoning=   0 schema-valid chars= 7298 tok=1950 145.6s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #1               finish=stop   reasoning=   0 schema-valid chars= 7340 tok=2074 154.6s '{\n  "consolidations": [\n    {\n      "sou'
+tool call smoke: 200 [{"id": "call_0000000000000000", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}}]
+== decode probe
+{"arm": "gmoff", "c1": [43.94, 41.69, 44.83, 43.47, 45.89], "c1_tok_step": [2.526, 2.333, 2.529, 2.424, 2.623], "short_wall_s": 27.58, "c2": {"per_stream": [29.64, 29.04], "aggregate": 55.34}, "c4": {
+ranks: running / running; errors r0 0 r1 0
+18
+######## A+B: strict-spec, switch on
+== ss_on up: 37735 blocks × 16 tok/block = 603760 max KV tokens agree on 37415 
+== hash
+REPRODUCIBLE ss2-on
+== structured
+schema, thinking off #0            finish=stop   reasoning=   0 schema-valid chars=  457 tok= 111 3.1s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #1            finish=stop   reasoning=   0 schema-valid chars=  535 tok= 128 2.9s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #2            finish=stop   reasoning=   0 schema-valid chars=  478 tok= 118 2.9s '{"items": [{"name": "Golden Gate Bridge"'
+schema, effort none                finish=stop   reasoning=   0 schema-valid chars=  467 tok= 112 2.8s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking ON                finish=stop   reasoning=1084 schema-valid chars=  688 tok= 419 7.8s '{\n  "items": [\n    {\n      "name": "Gold'
+json_object, thinking off          finish=stop   reasoning=   0 schema-valid chars=  802 tok= 194 4.6s '{"bridges": [{"name": "Golden Gate Bridg'
+rem-capped.json #0                 finish=stop   reasoning=   0 schema-valid chars= 7377 tok=1933 35.1s '{\n  "consolidations": [\n    {\n      "sou'
+rem-capped.json #1                 finish=stop   reasoning=   0 schema-valid chars= 7775 tok=2100 30.9s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #0               finish=stop   reasoning=   0 schema-valid chars= 6975 tok=1905 29.1s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #1               finish=stop   reasoning=   0 schema-valid chars= 6501 tok=1804 26.9s '{\n  "consolidations": [\n    {\n      "sou'
+tool call smoke: 200 [{"id": "call_0000000000000000", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}}]
+== extra (96 keys + concurrency)
+96-key strict t=0: finish=stop tokens=2322 39.0s 59.6 tok/s valid, 96 keys, all present: True
+concurrent plain  tokens=600 29.4s 20.4 tok/s finish=length
+concurrent strict tokens=748 30.3s 24.7 tok/s finish=stop
+plain alone          tokens=600 15.3s 39.2 tok/s
+== decode probe
+{"arm": "ss2on", "c1": [42.81, 42.12, 42.66, 41.4, 42.75], "c1_tok_step": [2.462, 2.383, 2.391, 2.319, 2.37], "short_wall_s": 27.69, "c2": {"per_stream": [28.86, 28.92], "aggregate": 54.44}, "c4": {"p
+ranks: running / running; errors r0 0 r1 0
+gm-off ['8c75d2886794']
+ss2-on ['8c75d2886794']
+GM-DONE
