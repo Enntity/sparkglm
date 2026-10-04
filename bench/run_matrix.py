@@ -7,6 +7,7 @@ Usage: run_matrix.py OUT_DIR [matrix,field] [CASE,...]
 Same drivers, salt, 400-token output budget, one-second stagger and exact
 prompt counts as the published runs. Use MATRIX_SALT=mb-vx2-7c31 for the
 matrix; give the field guide a fresh salt per run (e.g. fg-$(date +%s)).
+MATRIX_IGNORE_EOS=1 also sends ignore_eos, for engines that ignore min_tokens.
 """
 import os
 import json, pathlib, subprocess, sys, time
@@ -14,6 +15,7 @@ B = pathlib.Path(__file__).resolve().parent
 URL = os.environ.get("MATRIX_BASE_URL", "http://127.0.0.1:8893")
 MODEL = os.environ.get("MATRIX_MODEL", "glm-5.3-flash-atlas")
 SALT = os.environ.get("MATRIX_SALT", "mb-afd137970d6a")
+IGNORE_EOS = ["--ignore-eos"] if os.environ.get("MATRIX_IGNORE_EOS") == "1" else []
 out = pathlib.Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
 suites = sys.argv[2].split(",") if len(sys.argv) > 2 else ["matrix", "field"]
 cases = []
@@ -33,7 +35,7 @@ for kind, name, c, t in cases:
         argv = ["python3", str(B / "staggered_openai.py"), "--base-url", URL, "--model", MODEL,
                 "--concurrency", str(c), "--prompt-tokens", str(t), "--exact-prompt-tokens",
                 "--prompt-salt", f"{SALT}-{name}", "--output-tokens", "400",
-                "--min-output-tokens", "400", "--stagger-ms", "1000", "--timeout-s", "900"]
+                "--min-output-tokens", "400", "--stagger-ms", "1000", "--timeout-s", "900", *IGNORE_EOS]
         t0 = time.time()
         with f.open("w") as fh:
             rc = subprocess.run(argv, stdout=fh, stderr=subprocess.PIPE, text=True).returncode
