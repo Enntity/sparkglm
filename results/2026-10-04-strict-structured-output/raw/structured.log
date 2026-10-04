@@ -1,0 +1,21 @@
+== st_fix up: 37241 blocks × 16 tok/block = 595856 max KV tokens 
+== logprob hash (unconstrained path must equal production)
+REPRODUCIBLE st-fix
+== structured checks
+schema, thinking off #0            finish=stop   reasoning=   0 schema-valid chars=  376 tok= 100 7.9s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #1            finish=stop   reasoning=   0 schema-valid chars=  487 tok= 118 8.7s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking off #2            finish=stop   reasoning=   0 schema-valid chars=  475 tok= 120 8.8s '{"items": [{"name": "Golden Gate Bridge"'
+schema, effort none                finish=stop   reasoning=   0 schema-valid chars=  529 tok= 124 9.3s '{"items": [{"name": "Golden Gate Bridge"'
+schema, thinking ON                finish=stop   reasoning=1415 schema-valid chars=  682 tok= 478 35.0s '{\n  "items": [\n    {\n      "name": "Gold'
+json_object, thinking off          finish=stop   reasoning=   0 schema-valid chars=  720 tok= 164 12.3s '{"bridges": [{"name": "Golden Gate Bridg'
+rem-capped.json #0                 finish=stop   reasoning=   0 schema-valid chars= 7555 tok=2222 193.6s '{\n  "consolidations": [\n    {\n      "sou'
+rem-capped.json #1                 finish=stop   reasoning=   0 schema-valid chars= 7086 tok=2043 153.0s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #0               finish=stop   reasoning=   0 schema-valid chars= 7363 tok=2039 153.6s '{\n  "consolidations": [\n    {\n      "sou'
+rem-uncapped.json #1               finish=stop   reasoning=   0 schema-valid chars= 7501 tok=1996 149.9s '{\n  "consolidations": [\n    {\n      "sou'
+tool call smoke: 200 [{"id": "call_0000000000000000", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}}]
+== decode probe (unconstrained speed)
+{"arm": "stfix", "c1": [43.77, 41.5, 44.59, 43.21, 45.64], "c1_tok_step": [2.526, 2.333, 2.529, 2.424, 2.623], "short_wall_s": 27.62, "c2": {"per_stream": [31.44, 30.04], "aggregate": 57.27}, "c4": {"
+== log lines
+     31 Template-forced thinking detected
+hash ['8c75d2886794']
+STRUCT-DONE
