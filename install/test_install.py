@@ -133,7 +133,7 @@ class LaunchContract(unittest.TestCase):
                  'ATLAS_GLM_MOE_DECODE_STREAM', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_DECODE_FUSE',
                  'ATLAS_GLM_DECODE_GEMV_BATCH', 'ATLAS_GLM_MOE_DECODE_L2PF', 'ATLAS_GLM_MOE_STREAM_NOSYNC',
                  'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_RDMA_ONESHOT', 'ATLAS_RDMA_PAIR_CHAIN',
-                 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_DFLASH_CTX_ASYNC_POS')
+                 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_DFLASH_CTX_ASYNC_POS', 'ATLAS_GLM_STRICT_SPEC')
         # Lossless but not bit-for-bit against the option off: the prefill queue
         # order, and a verify width taken from the drafter's confidence (verify
         # numerics already depend on the width). The first draft of a request no
