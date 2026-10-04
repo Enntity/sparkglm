@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261004-gapclose",
-  "commit": "35bce704125a19558ded4f9c3dbe5c3b7d9a5845",
-  "tree": "deda5ff04bc68f07516063da901124264be08cbe",
+  "branch": "sparkglm/atlas-20261004-strict",
+  "commit": "e86ccb1071e28811d10ea1d0e62e0fab900c0a2c",
+  "tree": "384d75b727ec0d55bfaeffcdd8d02a9df5d59889",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261004-gapclose",
-      "commit": "d33de4c1175fae551aa7b821ee1ed62eb94ce918",
-      "note": "GLM-5.3 Flash support and optimizations, buffered disconnect cancellation, the Poolside streaming correction, the decode step cut, and the load-batched mHC decode seam twins plus the drafter context append split across the pair."
+      "branch": "upstream/glm53-flash-20261004-strict",
+      "commit": "e7750785c33c96dda59fe8d90351d4f528d5321d",
+      "note": "The gap-close series plus strict structured output: response_format renders a closed think when thinking is off, strict grammars mask every emitted token (serial decode), and a strict grammar fails loudly instead of disengaging."
     },
     "sparkglm_only": {
-      "commit": "35bce704125a19558ded4f9c3dbe5c3b7d9a5845",
-      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from daa9406743b03a86d66231a4ead33d6770531d3c onto the gap-close series."
+      "commit": "e86ccb1071e28811d10ea1d0e62e0fab900c0a2c",
+      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from 35bce704125a19558ded4f9c3dbe5c3b7d9a5845 onto the strict structured-output series."
     },
     "integration": {
-      "branch": "integ/gap-close",
-      "commit": "4cb293be",
-      "note": "The tested integration build (all four gap-close branches). This pin's tree equals daa94067 with opt/mhc-tune and opt/draft-balance merged and the mHC bench build fix (tree deda5ff0); opt/layer-fork and opt/l2-ahead were slower and are left out."
+      "branch": "fix/strict-structured-output",
+      "commit": "eb37bf08",
+      "note": "This pin's tree equals the fix branch (35bce704 + 23d986f6 + eb37bf08), validated on the pair (tree 384d75b7)."
     }
   },
   "kernel_target": "glm-5.3-flash",
