@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261003-stepcut",
-  "commit": "daa9406743b03a86d66231a4ead33d6770531d3c",
-  "tree": "0d2a22ef83c61c6d73136b0690050d2e1091de0d",
+  "branch": "sparkglm/atlas-20261004-gapclose",
+  "commit": "35bce704125a19558ded4f9c3dbe5c3b7d9a5845",
+  "tree": "deda5ff04bc68f07516063da901124264be08cbe",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261003-stepcut",
-      "commit": "dec4e88e765b0e012e8ccfe3a5f0901063f152f5",
-      "note": "GLM-5.3 Flash support and optimizations, buffered disconnect cancellation, native Poolside streaming tool-header correction, and the decode step cut: routed expert L2 row prefetch, no expert-offset read for stream-twin batches, and the batched drafter propose split across the pair."
+      "branch": "upstream/glm53-flash-20261004-gapclose",
+      "commit": "d33de4c1175fae551aa7b821ee1ed62eb94ce918",
+      "note": "GLM-5.3 Flash support and optimizations, buffered disconnect cancellation, the Poolside streaming correction, the decode step cut, and the load-batched mHC decode seam twins plus the drafter context append split across the pair."
     },
     "sparkglm_only": {
-      "commit": "daa9406743b03a86d66231a4ead33d6770531d3c",
-      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from 4c6fa790d5c817dff0f34f1218fce3cc050350e2 onto the decode step cut."
+      "commit": "35bce704125a19558ded4f9c3dbe5c3b7d9a5845",
+      "note": "Unchanged FlashKDA/native sparse-MLA prefill bridges, replayed from daa9406743b03a86d66231a4ead33d6770531d3c onto the gap-close series."
     },
     "integration": {
-      "branch": "integ/step-cut",
-      "commit": "c519b6c9",
-      "note": "The tested integration build. This pin's tree equals it with opt/step-fuse reverted and the buffered disconnect cancellation and Poolside streaming correction added (tree 0d2a22ef)."
+      "branch": "integ/gap-close",
+      "commit": "4cb293be",
+      "note": "The tested integration build (all four gap-close branches). This pin's tree equals daa94067 with opt/mhc-tune and opt/draft-balance merged and the mHC bench build fix (tree deda5ff0); opt/layer-fork and opt/l2-ahead were slower and are left out."
     }
   },
   "kernel_target": "glm-5.3-flash",
