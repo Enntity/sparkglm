@@ -104,7 +104,26 @@ def launch(environ, profile):
         raise ValueError('Invalid SERVED_MODEL_NAME')
     args += [f'--rank={rank}', f'--master-addr={master}', f'--master-port={port}',
              '--bind=127.0.0.1', f'--port={8893 + int(rank)}', f'--model-name={name}']
-    return ['/usr/local/bin/spark', *args], env
+    return display_carveout(environ, ['/usr/local/bin/spark', *args]), env
+
+
+# Bind-mounted from the host by start-node.sh and the LLooM recipe, so every
+# container on a Spark shares the one lock.
+DISPLAY_CARVEOUT_LOCK = '/run/lock/sparkglm/display-carveout.lock'
+
+
+def display_carveout(environ, argv):
+    """`argv` under `spark display-carveout`, which lends the GB10's 2 GiB
+    display carveout to the KV cache, when SPARKGLM_DISPLAY_CARVEOUT=1 (default
+    off). The container then needs CAP_SYS_ADMIN for the export, which the
+    launcher drops before the server starts, and the host's /run/lock/sparkglm;
+    it serves without the carveout if it cannot lend it."""
+    switch = environ.get('SPARKGLM_DISPLAY_CARVEOUT', '0')
+    if switch not in ('0', '1'):
+        raise ValueError('SPARKGLM_DISPLAY_CARVEOUT must be 0 or 1')
+    if switch == '0':
+        return argv
+    return [argv[0], 'display-carveout', f'--lock={DISPLAY_CARVEOUT_LOCK}', '--', *argv]
 
 
 def profile_path(environ, here):

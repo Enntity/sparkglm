@@ -163,6 +163,24 @@ class LaunchContract(unittest.TestCase):
             with self.subTest(util=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), self.profile)
 
+    def test_display_carveout_is_off_unless_switched_on(self):
+        plain, _ = serve.launch(self.environment, self.profile)
+        self.assertEqual(plain[0], '/usr/local/bin/spark')
+        self.assertNotIn('display-carveout', plain)
+        off, _ = serve.launch(dict(self.environment, SPARKGLM_DISPLAY_CARVEOUT='0'), self.profile)
+        self.assertEqual(off, plain)
+        on, _ = serve.launch(dict(self.environment, SPARKGLM_DISPLAY_CARVEOUT='1'), self.profile)
+        self.assertEqual(on, ['/usr/local/bin/spark', 'display-carveout',
+                              '--lock=/run/lock/sparkglm/display-carveout.lock', '--', *plain])
+        for bad in ('yes', 'true', '2', ' 1'):
+            with self.subTest(switch=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, SPARKGLM_DISPLAY_CARVEOUT=bad), self.profile)
+
+    def test_env_example_leaves_the_display_carveout_off(self):
+        lines = (HERE.parent/'.env.example').read_text().splitlines()
+        self.assertIn('#DISPLAY_CARVEOUT=1', lines)
+        self.assertFalse([l for l in lines if l.startswith('DISPLAY_CARVEOUT')])
+
     def test_disk_prefix_cache_is_off_unless_sized(self):
         # Ambient tier variables are dropped like any other ATLAS_* flag.
         for extra in ({}, {'SPARKGLM_PREFIX_CACHE_GB': ''}, {'SPARKGLM_PREFIX_CACHE_GB': '0'},
