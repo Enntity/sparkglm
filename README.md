@@ -37,14 +37,16 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
 | Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
 | Cold 61K / 125K prompt: time to first token | **25.0 / 49.1 s** | 29.2 / 62.5 s two engines ago |
-| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **146.0 s** | vLLM SparkGLM 206.6 s |
-| Staggered C4: four ~16K requests arriving 1 s apart, cold | **52.7 s** (27.3–27.8 s warm) | vLLM SparkGLM 70.5 s · Mia EXL3 113.2 s |
+| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **136.7 s** | vLLM SparkGLM 206.6 s · Mia TensorFold 165.6 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold | **49.1 s** | vLLM SparkGLM 70.5 s · Mia TensorFold 58.3 s · Mia EXL3 113.2 s |
 | Single-stream prose decode, 5 × 384 tokens | **40.2–44.2 tok/s** | 32.8–34.5 tok/s on the previous release |
 | RigMark decode, code / prose / structured (thinking on, low effort) | **62.9 / 34.0 / 87.5 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
 | RigMark cold prefill 8K / 32K / 64K: time to first token | **3.38 / 12.71 / 24.38 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
 | RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 / 6 | **2.88 / 3.95 / 4.36 s** | RiNGSiDE 4.70 / 5.15 / 4.90 s |
 | RigMark short code, 1 / 4 streams, aggregate | 45.8 / 67.0 tok/s | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 512K profile serves 4 at a time) |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
+| Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |
+| Strict JSON object with 96 required keys, temperature 0 | **39 s**, 59 tok/s, valid | engine killed (out of memory) two releases ago |
 | Quality probe: arithmetic / two-hop 24K needle | 40/40 · 11/12 | |
 
 These are measurements on our pair, not a guarantee for yours. Known gaps and
@@ -155,6 +157,47 @@ What it costs, per Spark:
   is kept across a restart: the engine deletes its files as soon as it has
   them open, and clears leftovers from a crash when it starts.
 
+## Display memory as KV cache (optional, DGX Spark only)
+
+Each DGX Spark's firmware sets aside 2 GiB of memory for the display (the
+`DISPLAY_FRM` carveout). Linux never sees it, and on the GB10 the NVIDIA
+driver never allocates from it, so on a headless Spark it sits unused. With
+`DISPLAY_CARVEOUT=1`, the engine borrows it for the KV cache: it places whole
+per-layer KV pools there, so the pool grows while system memory stays exactly
+as it was.
+
+On our pair at 0.91 GPU memory utilization, the pool grew from 70,936 to
+91,350 blocks per Spark (+28.8%, about 1.13M to 1.46M tokens). Idle free
+memory, decode speed, greedy outputs and prefix-cache results were unchanged.
+GPU kernels read and write it as fast as ordinary memory.
+
+To turn it on, add to `.env` and rerun `./start.sh`:
+
+```sh
+DISPLAY_CARVEOUT=1   # default off; set 0 or delete the line to roll back
+```
+
+What it takes:
+
+- **Container privilege.** Exporting the carveout needs `CAP_SYS_ADMIN`, so
+  each rank's container starts with `--cap-add SYS_ADMIN`. The engine starts
+  through `spark display-carveout`, which exports the memory, takes a host
+  lock, drops `CAP_SYS_ADMIN` from every capability set (including the
+  bounding set) and only then starts the server. The server itself runs
+  without it.
+- **One user per Spark.** The lock in `/run/lock/sparkglm` lets one process
+  per host hold the carveout. `start.sh` creates the directory.
+- **Validated drivers only.** The engine uses the carveout only with NVIDIA
+  driver versions checked against the open GPU kernel module source (580.173.02
+  and 580.178.04). With another driver, or if the export fails, it serves
+  without the carveout and logs why.
+- **A headless Spark.** A display attached to the Spark could need that
+  memory; we run ours headless.
+
+This is SparkGLM-only: it ships in the SparkGLM layer of the engine fork, not
+in the upstream Atlas series. The idea comes from kindling-spark-os's
+`dispram` (see [Credits](#credits)).
+
 ## Reproduce our numbers
 
 The benchmark drivers are in [`bench/`](bench/). See
@@ -203,6 +246,8 @@ code is ours unless [docs/LICENSING.md](docs/LICENSING.md) says otherwise.
 | `ATLAS_GLM_DRAFT_TP` | MiaAI-Lab's `DFLASH_DRAFT_TP` ([GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)) and TensorFold's two-rank drafter ([ashhart/TensorFold](https://github.com/ashhart/TensorFold)) |
 | `ATLAS_GLM_PC_EVICT` | Reederey87's prefix-cache eviction policy ([glm53-flash-exl3-2x-dgx-spark](https://github.com/Reederey87/glm53-flash-exl3-2x-dgx-spark)) |
 | `ATLAS_GLM_PC_BRANCH` | Marconi's branch-point admission (Pan et al., MLSys 2025, [arXiv:2411.19379](https://arxiv.org/abs/2411.19379)) |
+| `ATLAS_GLM_STRICT_SPEC` | vLLM's speculative decoding with structured outputs ([#14702](https://github.com/vllm-project/vllm/pull/14702)) and its reasoning-boundary fix ([#44297](https://github.com/vllm-project/vllm/pull/44297)): per-position grammar masks over the draft window, the bonus row included, with the matcher rolled back after rejected drafts. We added per-rank masking for the vocab-split verify head. |
+| `DISPLAY_CARVEOUT` | kindling-spark-os's `dispram` ([kindlingai/kindling-spark-os](https://github.com/kindlingai/kindling-spark-os), by mmastrac, coffee-the-dev and adapt-ai-systems; they credit an earlier NVIDIA developer forum post by emihuang). Our implementation was re-derived from the open GPU kernel modules and needs no daemon. |
 
 Measurement: [RigMark](https://github.com/alexellis/rigmark) by Alex Ellis
 (run from othexmr's fork with the staggered-arrival suite), the published

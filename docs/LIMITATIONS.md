@@ -32,6 +32,13 @@ What to know before relying on SparkGLM.
 - At 0.92, a Spark sharing the host with other services went down to 3.1 GB of
   free memory. GB10 hosts can hang when memory runs out, so raise the setting
   only on Sparks that run nothing else.
+- Under real mixed traffic at 0.93, rank 0 dropped below our 1 GiB memory guard
+  about hourly (2026-10-02 to 10-04), so our production setting is now 0.91.
+  At 0.91 the pool is about 1.14M tokens, or about 1.46M with
+  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory.
+- `DISPLAY_CARVEOUT=1` needs `CAP_SYS_ADMIN` on the containers (dropped before
+  the server starts), a validated NVIDIA driver (580.173.02 or 580.178.04) and
+  a headless Spark. It has been measured on our pair only.
 - Prefix caching keeps 16 recurrent-state snapshots, one per recent request.
   A conversation idle for longer than that is re-prefilled from its deepest
   remaining cached block, or from scratch.
@@ -104,3 +111,20 @@ behind or unmeasured:
 - Both shipped profiles need the DFlash2 drafter, which is licensed for
   non-commercial use only. No profile without it is shipped yet.
 - The image is built for arm64 and SM121 (GB10) only.
+
+## Structured output
+
+- `response_format` (`json_schema` or `json_object`) is enforced token by token
+  with a grammar, including during speculative decoding. A strict schema the
+  engine cannot enforce is refused with HTTP 400 (an error event when
+  streaming). It never silently falls back to free text.
+- With speculative decoding (`ATLAS_GLM_STRICT_SPEC=1`, on in both profiles),
+  the tokens chosen at verify positions are greedy, as for every other
+  speculative request on this engine: temperature, top_p and repetition
+  penalties apply only to the tokens decoded serially.
+- A very long strict list at temperature 0 can fall into repetition. Asked for
+  60 items, the model produced 121 and degraded into nonsense until
+  `max_tokens`. The JSON stays valid, but the content is not usable. Requests
+  at our clients' settings (temperature 0.1-0.25, bounded or keyed objects)
+  were not affected.
+- Every `json_schema` is enforced as strict, including `"strict": false`.
