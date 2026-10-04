@@ -224,6 +224,9 @@ def stream_one(
     }
     if min_output_tokens_target:
         payload["min_tokens"] = min_output_tokens_target
+    if args.ignore_eos:
+        # For engines that ignore min_tokens (TensorFold): hold every reply to max_tokens.
+        payload["ignore_eos"] = True
     if args.disable_loop_watchdog:
         # Mia's vLLM benchmark has no Atlas content-loop watchdog.  Structured
         # counting is intentionally repetitive, so outrank the production
@@ -389,6 +392,11 @@ def main() -> int:
         "--enable-thinking",
         action="store_true",
         help="enable GLM reasoning; direct-answer mode is the benchmark default",
+    )
+    parser.add_argument(
+        "--ignore-eos",
+        action="store_true",
+        help="also send ignore_eos, for engines that ignore min_tokens",
     )
     parser.add_argument(
         "--disable-loop-watchdog",
