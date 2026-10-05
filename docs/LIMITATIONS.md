@@ -8,9 +8,10 @@ What to know before relying on SparkGLM.
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
-- The decode, prefill, RigMark and quality numbers come from the first Atlas
-  release (no prefix caching, same kernels). The prefix-caching release
-  re-measured the matrix, the staggered field guide and multi-turn behaviour.
+- Each README row comes from the release its receipt names. RigMark decode
+  and cold prefill were re-measured on the current release (2026-10-05); the
+  RigMark concurrency and staggered-arrival cells are from 2026-09-30, and the
+  quality probe is from the first Atlas release.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
 
 ## Not yet measured with the recipe image
@@ -24,8 +25,8 @@ What to know before relying on SparkGLM.
 ## Capacity and prefix caching
 
 - All requests share one KV pool, which also holds the prefix cache: about
-  600K tokens at the default 0.88 memory utilization, and 1.39M at 0.92 on
-  dedicated Sparks. A request needs pool room for its whole context, so four
+  600K tokens at the default 0.88 memory utilization, and about 1.13M at 0.91
+  on dedicated Sparks. A request needs pool room for its whole context, so four
   full 512K requests do not fit at once; later requests wait for room.
 - At 0.93 on dedicated Sparks the pool is about 1.63M tokens, and rank 0 went
   down to 1.35 GB of available memory at the end of a four-session 204K fill.

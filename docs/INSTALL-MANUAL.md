@@ -5,7 +5,7 @@ time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20260930b` @ `dfa4be11` ([`install/atlas-source.json`](../install/atlas-source.json)) |
+| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261005-cvplace` @ `72588541` ([`install/atlas-source.json`](../install/atlas-source.json)) |
 | Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
@@ -89,9 +89,21 @@ each shape; later starts reuse it. Run one warmup pass before measuring.
 **Profiles.** `--profile 8x128k` selects the other shipped profile. A path to a
 JSON file runs your own profile. Use the same profile on both ranks.
 
+**Memory share.** `--gpu-memory-utilization 0.91` on both ranks gives a KV
+pool of about 1.13M tokens on Sparks that run nothing else; without it the
+profile's 0.88 gives about 600K. We run 0.91: above it, real traffic took our
+rank 0 below 1 GiB free.
+
 **Prefix cache on disk.** `--prefix-cache-dir DIR` (and optionally
 `--prefix-cache-gb 48`) on both ranks keeps evicted prefix-cache entries on
 each node's disk; see the README for what it costs.
+
+**Display memory as KV cache.** `--display-carveout` on both ranks lends each
+Spark's 2 GiB display carveout to the KV cache (about 1.37M tokens at 0.91).
+The container starts with `CAP_SYS_ADMIN` to export it, which the server
+drops before it loads anything, and shares the lock directory
+`/run/lock/sparkglm`. It needs a validated driver (580.173.02 or 580.178.04)
+and a headless Spark; see the README.
 
 **Stopping.** `docker rm -f atlas-sparkglm-rank0` (and `-rank1`).
 
