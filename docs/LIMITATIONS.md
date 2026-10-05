@@ -69,14 +69,18 @@ What to know before relying on SparkGLM.
 
 We compare against the published RiNGSiDE and mmastrac vLLM TP2 results, not
 runs on our pair. On RigMark with RiNGSiDE's cell set
-([results/2026-09-30-rigmark](../results/2026-09-30-rigmark/RESULT.md)), this
-release is ahead of RiNGSiDE's TP2 row on single-stream decode, cold prefill
-at 8K-64K and newcomer time to first token under staggered arrivals. Still
-behind or unmeasured:
+([decode and prefill](../results/2026-10-04-rigmark/RESULT.md) on this release,
+[concurrency and staggered arrivals](../results/2026-09-30-rigmark/RESULT.md)
+on 2026-09-30), Atlas is ahead of RiNGSiDE's TP2 row on single-stream decode,
+cold prefill at 8K-64K and newcomer time to first token under staggered
+arrivals. Still behind or unmeasured:
 
 - mmastrac's TP2 row (63.1 / 36.6 / 89.1 tok/s code / prose / structured,
-  published 2026-09-30) against our 62.9 / 34.0 / 87.5: level on code, about
-  7% behind on prose;
+  published 2026-09-30) against our 64.5 / 35.3 / 88.4: about 2% ahead on
+  code, about 4% behind on prose and 1% behind on structured;
+- cold prefill at 64K took 25.13 s on this release against 24.38 s on
+  2026-09-30 (3.1% slower, both runs); 8K and 32K are unchanged. The cause is
+  not yet known;
 - short code at six streams: 97.3 tok/s for RiNGSiDE against our 62.0, because
   the 4 x 512K profile serves four sequences at a time; the 8 x 128K profile,
   which serves eight, has not been measured with RigMark.
