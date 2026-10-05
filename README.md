@@ -216,7 +216,9 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20260928`, built from three layers:
+`sparkglm/atlas-20261004-gram` (pinned in
+[`install/atlas-source.json`](install/atlas-source.json)), built from three
+layers:
 
 1. Atlas-Inf `main`.
 2. GLM-5.3-Flash support and optimizations (branch `upstream/glm53-flash`),
@@ -224,15 +226,21 @@ Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
-3. One SparkGLM-only commit adding FlashKDA and native sparse-MLA prefill
-   bridges, which rely on libraries built outside the Atlas tree.
+3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
+   which rely on libraries built outside the Atlas tree, and the GB10
+   display carveout.
 
 ## History
 
-SparkGLM began as a vLLM recipe building on
+SparkGLM started as an Atlas research project: GLM-5.3-Flash on two DGX
+Sparks with the Atlas engine. vLLM was far ahead at the time, so we moved to
+it. On vLLM we started from an early version of
 [MiaAI-Lab](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)'s
-two-Spark EXL3 work.
-That version is preserved at the tag
+two-Spark EXL3 recipe and reworked it, mostly for concurrency. We then
+decided there was a lot we needed to fix at the engine level, and went back
+to Atlas. Atlas is now the only engine.
+
+The vLLM version is retired. It is preserved at the tag
 [`vllm-final`](https://github.com/Enntity/sparkglm/tree/vllm-final) and the
 branch `archive/vllm`, including its results and qualification records.
 
