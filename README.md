@@ -164,13 +164,19 @@ Each DGX Spark's firmware sets aside 2 GiB of memory for the display (the
 `DISPLAY_FRM` carveout). Linux never sees it, and on the GB10 the NVIDIA
 driver never allocates from it, so on a headless Spark it sits unused. With
 `DISPLAY_CARVEOUT=1`, the engine borrows it for the KV cache: it places whole
-per-layer KV pools there, so the pool grows while system memory stays exactly
-as it was.
+per-layer latent KV pools there, so the pool grows while system memory stays
+exactly as it was.
 
-On our pair at 0.91 GPU memory utilization, the pool grew from 70,936 to
-91,350 blocks per Spark (+28.8%, about 1.13M to 1.46M tokens). Idle free
-memory, decode speed, greedy outputs and prefix-cache results were unchanged.
-GPU kernels read and write it as fast as ordinary memory.
+The GPU does not cache this memory in its L2 (the driver maps it uncached), so
+data read more than once costs more there. The engine keeps the sparse-index
+buffers, which every prefill query re-reads, in ordinary memory; placing them
+in the carveout made a 64K cold prefill 7% slower
+([results/2026-10-05-carveout-placement](results/2026-10-05-carveout-placement/RESULT.md)).
+
+On our pair at 0.91 GPU memory utilization, the pool grows from 70,501 to
+86,005 blocks per Spark (+19.4%, about 1.13M to 1.38M tokens). Cold prefill
+at 32K and 64K stays within 0.7% of the carveout off, and greedy outputs are
+unchanged.
 
 To turn it on, add to `.env` and rerun `./start.sh`:
 
