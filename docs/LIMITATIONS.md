@@ -34,8 +34,11 @@ What to know before relying on SparkGLM.
   only on Sparks that run nothing else.
 - Under real mixed traffic at 0.93, rank 0 dropped below our 1 GiB memory guard
   about hourly (2026-10-02 to 10-04), so our production setting is now 0.91.
-  At 0.91 the pool is about 1.14M tokens, or about 1.46M with
-  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory.
+  At 0.91 the pool is about 1.13M tokens, or about 1.38M with
+  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. The GPU
+  does not cache the carveout in L2, so only the latent KV pools go there;
+  a cacheable mapping that could also take the index buffers is tracked in
+  [#32](https://github.com/Enntity/sparkglm/issues/32).
 - `DISPLAY_CARVEOUT=1` needs `CAP_SYS_ADMIN` on the containers (dropped before
   the server starts), a validated NVIDIA driver (580.173.02 or 580.178.04) and
   a headless Spark. It has been measured on our pair only.
@@ -78,9 +81,6 @@ arrivals. Still behind or unmeasured:
 - mmastrac's TP2 row (63.1 / 36.6 / 89.1 tok/s code / prose / structured,
   published 2026-09-30) against our 64.5 / 35.3 / 88.4: about 2% ahead on
   code, about 4% behind on prose and 1% behind on structured;
-- cold prefill at 64K took 25.13 s on this release against 24.38 s on
-  2026-09-30 (3.1% slower, both runs); 8K and 32K are unchanged. The cause is
-  not yet known;
 - short code at six streams: 97.3 tok/s for RiNGSiDE against our 62.0, because
   the 4 x 512K profile serves four sequences at a time; the 8 x 128K profile,
   which serves eight, has not been measured with RigMark.

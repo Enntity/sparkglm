@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261004-gram",
-  "commit": "fdd2f965c10135c2f00d9286854f6b9bc1230eab",
-  "tree": "98d6de9624895ca3afd237b8bac2b1592ea3fdc6",
+  "branch": "sparkglm/atlas-20261005-cvplace",
+  "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
+  "tree": "987abbcfa6a9090406c4c759b18a82ad18bd1277",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -13,13 +13,13 @@
       "note": "The strict structured-output series plus linear-cost grammar compile (bounded memory for large schemas, rejection of grammars an FSM edge cannot encode) and masked DFlash verify for strict grammars (ATLAS_GLM_STRICT_SPEC)."
     },
     "sparkglm_only": {
-      "commit": "fdd2f965c10135c2f00d9286854f6b9bc1230eab",
-      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges (replayed from e86ccb10), then the GB10 display-carveout KV placement (fork-only; used only with DISPLAY_CARVEOUT=1)."
+      "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
+      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
-      "branch": "opt/strict-spec + feat/gb10-display-carveout",
-      "commit": "30b425e2 + b710c34a",
-      "note": "Without the carveout commits this pin's tree equals the hardware-tested opt/strict-spec (a7e24fef); the carveout code diff equals the tested feat/gb10-display-carveout."
+      "branch": "fix/carveout-placement",
+      "commit": "57d1fe4d + 72588541",
+      "note": "This pin's tree equals fix/carveout-placement (fdd2f965 + 57d1fe4d + 72588541); 57d1fe4d's binary was measured on the pair (results/2026-10-05-carveout-placement), 72588541 changes comments only."
     }
   },
   "kernel_target": "glm-5.3-flash",

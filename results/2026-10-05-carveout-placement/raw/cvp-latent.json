@@ -1,0 +1,581 @@
+{
+  "decode": {
+    "code": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 67.983,
+        "median": 67.983,
+        "minimum": 67.983,
+        "p90": 67.983
+      },
+      "runs": [
+        {
+          "completion_tokens": 1983,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 29.154198,
+          "decode_tokens_per_second": 67.983,
+          "finish_reason": "stop",
+          "measured_sse_events": 1981,
+          "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system time.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// The bucket starts full and refills at rate tokens per interval.\ntype Limiter struct {\n\tmu        sync.Mutex\n\ttokens    float64\n\tlast      time.Time\n\trate      float64 // tokens per interval\n\tburst     float64 // max tokens\n\tinterval  time.Duration\n\tclock     Clock\n}\n\nvar (\n\tErrNonPositiveRate     = errors.New(\"ratelimit: rate must be > 0\")\n\tErrNonPositiveBurst    = errors.New(\"ratelimit: burst must be > 0\")\n\tErrNonPositiveInterval = errors.New(\"ratelimit: interval must be > 0\")\n\tErrNilClock            = errors.New(\"ratelimit: clock must not be nil\")\n)\n\n// New creates a Limiter that refills rate tokens every interval,\n// with a maximum capacity of burst tokens. The bucket starts full.\nfunc New(rate int, burst int, interval time.Duration, clock Clock) (*Limiter, error) {\n\tif rate <= 0 {\n\t\treturn nil, ErrNonPositiveRate\n\t}\n\tif burst <= 0 {\n\t\treturn nil, ErrNonPositiveBurst\n\t}\n\tif interval <= 0 {\n\t\treturn nil, ErrNonPositiveInterval\n\t}\n\tif clock == nil {\n\t\treturn nil, ErrNilClock\n\t}\n\treturn &Limiter{\n\t\ttokens:   float64(burst),\n\t\tlast:     clock.Now(),\n\t\trate:     float64(rate),\n\t\tburst:    float64(burst),\n\t\tinterval: interval,\n\t\tclock:    clock,\n\t}, nil\n}\n\n// AllowN reports whether n tokens may be consumed at time now.\n// If allowed, the tokens are deducted.\nfunc (l *Limiter) AllowN(now time.Time, n int) bool {\n\tif n < 0 {\n\t\treturn false\n\t}\n\tl.mu.Lock()\n\tdefer l.mu.Unlock()\n\n\t// Refill based on elapsed intervals.\n\telapsed := now.Sub(l.last)\n\tif elapsed > 0 {\n\t\tl.tokens += elapsed.Seconds() / l.interval.Seconds() * l.rate\n\t\tif l.tokens > l.burst {\n\t\t\tl.tokens = l.burst\n\t\t}\n\t\tl.last = now\n\t}\n\n\tneed := float64(n)\n\tif l.tokens < need {\n\t\treturn false\n\t}\n\tl.tokens -= need\n\treturn true\n}\n\n// Allow reports whether one token may be consumed now.\nfunc (l *Limiter) Allow() bool {\n\treturn l.AllowN(l.clock.Now(), 1)\n}\n```\n\n```go\n// ratelimit_test.go\npackage ratelimit\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\ntype fakeClock struct {\n\tt time.Time\n}\n\nfunc (c *fakeClock) Now() time.Time { return c.t }\nfunc (c *fakeClock) Advance(d time.Duration) {\n\tc.t = c.t.Add(d)\n}\n\nfunc TestNewValidation(t *testing.T) {\n\tclock := &fakeClock{t: time.Unix(0, 0)}\n\tcases := []struct {\n\t\tname     string\n\t\trate     int\n\t\tburst    int\n\t\tinterval time.Duration\n\t\tclock    Clock\n\t\twantErr  error\n\t}{\n\t\t{\"zero rate\", 0, 1, time.Second, clock, ErrNonPositiveRate},\n\t\t{\"negative rate\", -1, 1, time.Second, clock, ErrNonPositiveRate},\n\t\t{\"zero burst\", 1, 0, time.Second, clock, ErrNonPositiveBurst},\n\t\t{\"zero interval\", 1, 1, 0, clock, ErrNonPositiveInterval},\n\t\t{\"nil clock\", 1, 1, time.Second, nil, ErrNilClock},\n\t\t{\"valid\", 1, 1, time.Second, clock, nil},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tl, err := New(tc.rate, tc.burst, tc.interval, tc.clock)\n\t\t\tif tc.wantErr == nil {\n\t\t\t\tif err != nil {\n\t\t\t\t\tt.Fatalf(\"unexpected error: %v\", err)\n\t\t\t\t}\n\t\t\t\tif l == nil {\n\t\t\t\t\tt.Fatal(\"expected limiter\")\n\t\t\t\t}\n\t\t\t\treturn\n\t\t\t}\n\t\t\tif err != tc.wantErr {\n\t\t\t\tt.Fatalf(\"got %v, want %v\", err, tc.wantErr)\n\t\t\t}\n\t\t})\n\t}\n}\n\nfunc TestAllowN(t *testing.T) {\n\tbase := time.Unix(0, 0)\n\tnewLimiter := func(t *testing.T, clock Clock) *Limiter {\n\t\tl, err := New(10, 5, time.Second, clock)\n\t\tif err != nil {\n\t\t\tt.Fatalf(\"New: %v\", err)\n\t\t}\n\t\treturn l\n\t}\n\n\tcases := []struct {\n\t\tname  string\n\t\tsteps []struct {\n\t\t\tadvance time.Duration\n\t\t\tn       int\n\t\t\twant    bool\n\t\t}\n\t}{\n\t\t{\n\t\t\tname: \"burst then deny\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, 5, true},\n\t\t\t\t{0, 1, false},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"partial refill\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, 5, true},\n\t\t\t\t{500 * time.Millisecond, 5, false}, // only 5 tokens refilled\n\t\t\t\t{0, 5, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"refill capped at burst\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, 5, true},\n\t\t\t\t{10 * time.Second, 5, true},\n\t\t\t\t{0, 1, false},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"zero tokens always allowed\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, 0, true},\n\t\t\t\t{0, 0, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"negative n denied\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, -1, false},\n\t\t\t\t{0, 5, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"time going backwards does not refill\",\n\t\t\tsteps: []struct {\n\t\t\t\tadvance time.Duration\n\t\t\t\tn       int\n\t\t\t\twant    bool\n\t\t\t}{\n\t\t\t\t{0, 5, true},\n\t\t\t\t{-time.Second, 1, false},\n\t\t\t},\n\t\t},\n\t}\n\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tclock := &fakeClock{t: base}\n\t\t\tl := newLimiter(t, clock)\n\t\t\tfor i, s := range tc.steps {\n\t\t\t\tclock.Advance(s.advance)\n\t\t\t\tif got := l.AllowN(clock.Now(), s.n); got != s.want {\n\t\t\t\t\tt.Fatalf(\"step %d: AllowN(%d) = %v, want %v\", i, s.n, got, s.want)\n\t\t\t\t}\n\t\t\t}\n\t\t})\n\t}\n}\n\nfunc TestAllowUsesClock(t *testing.T) {\n\tclock := &fakeClock{t: time.Unix(0, 0)}\n\tl, err := New(1, 1, time.Second, clock)\n\tif err != nil {\n\t\tt.Fatalf(\"New: %v\", err)\n\t}\n\tif !l.Allow() {\n\t\tt.Fatal(\"first Allow should succeed\")\n\t}\n\tif l.Allow() {\n\t\tt.Fatal(\"second Allow should fail\")\n\t}\n\tclock.Advance(time.Second)\n\tif !l.Allow() {\n\t\tt.Fatal(\"Allow after refill should succeed\")\n\t}\n}\n\nfunc TestConcurrentAccess(t *testing.T) {\n\tclock := &fakeClock{t: time.Unix(0, 0)}\n\tl, err := New(1000, 100, time.Second, clock)\n\tif err != nil {\n\t\tt.Fatalf(\"New: %v\", err)\n\t}\n\tvar wg sync.WaitGroup\n\tvar allowed int64\n\tvar mu sync.Mutex\n\tfor i := 0; i < 200; i++ {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tif l.AllowN(clock.Now(), 1) {\n\t\t\t\tmu.Lock()\n\t\t\t\tallowed++\n\t\t\t\tmu.Unlock()\n\t\t\t}\n\t\t}()\n\t}\n\twg.Wait()\n\tif allowed != 100 {\n\t\tt.Fatalf(\"allowed = %d, want 100\", allowed)\n\t}\n}\n```",
+          "output_characters": 6150,
+          "output_sha256": "ae338e496ab2137f816f81d6b41ed1f8ef84bba55f07369c8e378ce3a226f9f3",
+          "prompt_tokens": 132,
+          "reasoning_characters": 27,
+          "reasoning_sha256": "0b3acc8403ec469b09b04be516f98e059799ba61dabe4c94250bbf24a6f23331",
+          "response_tail_seconds": 0.06135,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "1909f514b0456483441e4d361ccad4a384c22f14f4770a0f215747a2af93983f",
+          "time_to_first_visible_seconds": 0.984531,
+          "time_to_last_output_seconds": 29.886376,
+          "ttft_seconds": 0.732178,
+          "wall_seconds": 29.947725
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 29.886,
+        "median": 29.886,
+        "minimum": 29.886,
+        "p90": 29.886
+      },
+      "ttft_seconds": {
+        "maximum": 0.732,
+        "median": 0.732,
+        "minimum": 0.732,
+        "p90": 0.732
+      },
+      "wall_seconds": {
+        "maximum": 29.948,
+        "median": 29.948,
+        "minimum": 29.948,
+        "p90": 29.948
+      }
+    },
+    "prose": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 36.919,
+        "median": 36.919,
+        "minimum": 36.919,
+        "p90": 36.919
+      },
+      "runs": [
+        {
+          "completion_tokens": 1005,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 27.19464,
+          "decode_tokens_per_second": 36.919,
+          "finish_reason": "stop",
+          "measured_sse_events": 1002,
+          "output": "**MEMO**\n\n**To:** Platform Engineering Team\n**From:** Engineering Lead\n**Date:** Internal \u2014 for discussion at Thursday's planning session\n**Re:** Capacity for the inference workload: buy hardware or use what we have better\n\n**Summary and recommendation**\n\nWe are approaching the point where our local inference capacity feels tight, and the instinct in the room is to order more GPUs. After working through the numbers and, more importantly, the shape of our demand, I recommend we spend the next quarter improving utilisation of the hardware we already own before committing to a purchase. This is not a permanent answer \u2014 it is the cheapest, most reversible way to buy ourselves the information we need to make the big decision well.\n\n**Where we actually stand**\n\nOur fleet runs at roughly 35\u201340% average utilisation, but that average hides the real problem: peaks. During business hours, and especially around batch jobs at the top of each hour, we saturate. Overnight and on weekends, most of the fleet idles. So the question is not really \"do we have enough hardware?\" but \"is our hardware in the right place at the right time?\" Those have very different solutions, and only one of them involves a purchase order.\n\n**Cost**\n\nA new node is not just the sticker price. There is the capital itself, the power and cooling, the rack space, the maintenance contract, and the engineering time to integrate and operate it. More subtly, there is the opportunity cost: that same budget could fund the queueing and scheduling work, a second on-call rotation, or simply sit as buffer against a rough quarter. Buying hardware is also a depreciating bet \u2014 accelerator prices and capabilities move fast, and equipment bought today to solve a peak-hour problem may be poorly matched to the workload we actually have in eighteen months. By contrast, utilisation work costs engineering time we largely already plan to spend, and it compounds: better scheduling helps every node we own, including any we buy later.\n\n**Latency**\n\nThe counterargument, and it is a fair one, is that squeezing more through the existing fleet risks latency. If we pack queues tighter, tail latencies grow, and our interactive users feel that before our dashboards do. I take this seriously. But the current peaks are largely self-inflicted: batch jobs scheduled without regard to interactive traffic, models loaded eagerly rather than on demand, no admission control, and no meaningful distinction between workloads that are latency-sensitive and those that are not. Fixing these is not about running everything hotter; it is about running the right things at the right time. If, after honest effort, we find that interactive latency degrades before utilisation improves enough, that itself is decisive evidence that we genuinely need capacity \u2014 evidence we do not currently have.\n\n**Reliability**\n\nThere is a reliability argument for buying more: headroom is a buffer against node failures, and a fleet running near its limits has less slack to absorb them. I do not want to engineer that away. Any utilisation initiative must preserve explicit failure headroom \u2014 target utilisation should be set with N+1-style tolerance in mind, not theoretical maximum throughput. Done carelessly, \"efficiency\" becomes a euphemism for fragility, and a single node failure becomes a-visible incident. Done well, better scheduling actually improves reliability, because right now a traffic spike can starve interactive requests with no graceful degradation path.\n\n**Reversibility**\n\nThis is the crux. A hardware purchase is largely irreversible at our scale: the money is spent, the depreciation clock starts, and if demand shifts we own stranded assets. Utilisation improvements are the opposite \u2014 scheduling changes, load shedding, and batching policies can be tuned, rolled back, or discarded as we learn. Choosing the reversible option first is not timidity; it is keeping our options open while the highest-value action becomes clear.\n\n**Uncertainty**\n\nI want to be honest about what we do not know. Our utilisation figures come from coarse instrumentation, and our demand forecast is a straight-line extrapolation of recent growth \u2014 which may be wrong in either direction. If a new product launch doubles interactive traffic, utilisation work will buy weeks, not quarters, and we should buy hardware then, quickly. If growth flattens, we may find we never needed the purchase at all. The plan should therefore include explicit tripwires: if sustained peak utilisation exceeds a threshold we set together, or if latency SLOs are threatened, we trigger the procurement path immediately rather than relitigating.\n\n**Ask**\n\nI'd like agreement on the direction at Thursday's session, and volunteers to draft the tripwire thresholds and a rough sequencing of the scheduling work. If we move fast, this costs us little and tells us exactly what to buy \u2014 or that we don't need to.",
+          "output_characters": 4928,
+          "output_sha256": "3fa497aab847e36637e144d9e874ceadfbcef2718fa72371d3ea34d2f34abdbf",
+          "prompt_tokens": 123,
+          "reasoning_characters": 116,
+          "reasoning_sha256": "bf9247de923152c46f4171249770a14dabb1f2be73280701914438f867e40787",
+          "response_tail_seconds": 0.002581,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "07c0c110f0014e09518f4b7b77bf6324bb7fecfb6413e3f2f9f0865a1d195527",
+          "time_to_first_visible_seconds": 1.278761,
+          "time_to_last_output_seconds": 27.903404,
+          "ttft_seconds": 0.708764,
+          "wall_seconds": 27.905985
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 27.903,
+        "median": 27.903,
+        "minimum": 27.903,
+        "p90": 27.903
+      },
+      "ttft_seconds": {
+        "maximum": 0.709,
+        "median": 0.709,
+        "minimum": 0.709,
+        "p90": 0.709
+      },
+      "wall_seconds": {
+        "maximum": 27.906,
+        "median": 27.906,
+        "minimum": 27.906,
+        "p90": 27.906
+      }
+    },
+    "structured": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 87.701,
+        "median": 87.701,
+        "minimum": 87.701,
+        "p90": 87.701
+      },
+      "runs": [
+        {
+          "completion_tokens": 441,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 5.017062,
+          "decode_tokens_per_second": 87.701,
+          "finish_reason": "stop",
+          "measured_sse_events": 439,
+          "output": "[{\"index\":1,\"square\":1},{\"index\":2,\"square\":4},{\"index\":3,\"square\":9},{\"index\":4,\"square\":16},{\"index\":5,\"square\":25},{\"index\":6,\"square\":36},{\"index\":7,\"square\":49},{\"index\":8,\"square\":64},{\"index\":9,\"square\":81},{\"index\":10,\"square\":100},{\"index\":11,\"square\":121},{\"index\":12,\"square\":144},{\"index\":13,\"square\":169},{\"index\":14,\"square\":196},{\"index\":15,\"square\":225},{\"index\":16,\"square\":256},{\"index\":17,\"square\":289},{\"index\":18,\"square\":324},{\"index\":19,\"square\":361},{\"index\":20,\"square\":400},{\"index\":21,\"square\":441},{\"index\":22,\"square\":484},{\"index\":23,\"square\":529},{\"index\":24,\"square\":576},{\"index\":25,\"square\":625},{\"index\":26,\"square\":676},{\"index\":27,\"square\":729},{\"index\":28,\"square\":784},{\"index\":29,\"square\":841},{\"index\":30,\"square\":900},{\"index\":31,\"square\":961},{\"index\":32,\"square\":1024},{\"index\":33,\"square\":1089},{\"index\":34,\"square\":1156},{\"index\":35,\"square\":1225},{\"index\":36,\"square\":1296},{\"index\":37,\"square\":1369},{\"index\":38,\"square\":1444},{\"index\":39,\"square\":1521},{\"index\":40,\"square\":1600},{\"index\":41,\"square\":1681},{\"index\":42,\"square\":1764},{\"index\":43,\"square\":1849},{\"index\":44,\"square\":1936},{\"index\":45,\"square\":2025},{\"index\":46,\"square\":2116},{\"index\":47,\"square\":2209},{\"index\":48,\"square\":2304},{\"index\":49,\"square\":2401},{\"index\":50,\"square\":2500}]",
+          "output_characters": 1299,
+          "output_sha256": "654a5359e59bad57071f454922f88d55d393a17d6eec293ae79ea185c3cd7453",
+          "prompt_tokens": 105,
+          "reasoning_characters": 18,
+          "reasoning_sha256": "abca0f51ad8341cf7ac2e952f743c89fd86589479036d30a16b825f2aeb68568",
+          "response_tail_seconds": 0.002538,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "5bec47904d53e2c46aff88dc426b8d60b63c0306dd4bafd93ca81a4e67681d6c",
+          "time_to_first_visible_seconds": 0.887563,
+          "time_to_last_output_seconds": 5.711503,
+          "ttft_seconds": 0.694441,
+          "wall_seconds": 5.714041
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 5.712,
+        "median": 5.712,
+        "minimum": 5.712,
+        "p90": 5.712
+      },
+      "ttft_seconds": {
+        "maximum": 0.694,
+        "median": 0.694,
+        "minimum": 0.694,
+        "p90": 0.694
+      },
+      "wall_seconds": {
+        "maximum": 5.714,
+        "median": 5.714,
+        "minimum": 5.714,
+        "p90": 5.714
+      }
+    }
+  },
+  "prefill": {
+    "32768": {
+      "cold": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 2675.436,
+          "median": 2675.268,
+          "minimum": 2674.53,
+          "p90": 2675.436
+        },
+        "runs": [
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.095655,
+            "decode_tokens_per_second": 73.179,
+            "effective_prefill_tokens_per_second": 2675.268,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002725,
+            "run": 1,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 12.248492,
+            "time_to_last_output_seconds": 12.344147,
+            "ttft_seconds": 12.248492,
+            "wall_seconds": 12.346872
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.101267,
+            "decode_tokens_per_second": 69.124,
+            "effective_prefill_tokens_per_second": 2675.436,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002825,
+            "run": 2,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 12.247725,
+            "time_to_last_output_seconds": 12.348992,
+            "ttft_seconds": 12.247725,
+            "wall_seconds": 12.351816
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.190893,
+            "decode_tokens_per_second": 36.67,
+            "effective_prefill_tokens_per_second": 2674.53,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002693,
+            "run": 3,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 12.251872,
+            "time_to_last_output_seconds": 12.442765,
+            "ttft_seconds": 12.251872,
+            "wall_seconds": 12.445458
+          }
+        ],
+        "ttft_seconds": {
+          "maximum": 12.252,
+          "median": 12.248,
+          "minimum": 12.248,
+          "p90": 12.252
+        }
+      },
+      "warm_replay": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 125341.392,
+          "median": 124568.053,
+          "minimum": 113775.803,
+          "p90": 125341.392
+        },
+        "runs": [
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.288273,
+            "decode_tokens_per_second": 24.283,
+            "effective_prefill_tokens_per_second": 113775.803,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002189,
+            "run": 1,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 0.288005,
+            "time_to_last_output_seconds": 0.576278,
+            "ttft_seconds": 0.288005,
+            "wall_seconds": 0.578467
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.278214,
+            "decode_tokens_per_second": 25.16,
+            "effective_prefill_tokens_per_second": 125341.392,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002308,
+            "run": 2,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 0.26143,
+            "time_to_last_output_seconds": 0.539644,
+            "ttft_seconds": 0.26143,
+            "wall_seconds": 0.541952
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.348237,
+            "decode_tokens_per_second": 20.101,
+            "effective_prefill_tokens_per_second": 124568.053,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 32768,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 32768,
+            "response_tail_seconds": 0.002223,
+            "run": 3,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 0.263053,
+            "time_to_last_output_seconds": 0.61129,
+            "ttft_seconds": 0.263053,
+            "wall_seconds": 0.613513
+          }
+        ],
+        "ttft_seconds": {
+          "maximum": 0.288,
+          "median": 0.263,
+          "minimum": 0.261,
+          "p90": 0.288
+        }
+      }
+    },
+    "65536": {
+      "cold": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 2796.737,
+          "median": 2794.074,
+          "minimum": 2792.283,
+          "p90": 2796.737
+        },
+        "runs": [
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.193118,
+            "decode_tokens_per_second": 36.247,
+            "effective_prefill_tokens_per_second": 2794.074,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": " action. The repository contains a service",
+            "output_characters": 42,
+            "output_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002683,
+            "run": 1,
+            "stream_done_marker": true,
+            "stream_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "time_to_first_visible_seconds": 23.455358,
+            "time_to_last_output_seconds": 23.648476,
+            "ttft_seconds": 23.455358,
+            "wall_seconds": 23.651159
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.189666,
+            "decode_tokens_per_second": 36.907,
+            "effective_prefill_tokens_per_second": 2796.737,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002686,
+            "run": 2,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 23.433019,
+            "time_to_last_output_seconds": 23.622685,
+            "ttft_seconds": 23.433019,
+            "wall_seconds": 23.62537
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.185875,
+            "decode_tokens_per_second": 37.66,
+            "effective_prefill_tokens_per_second": 2792.283,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": " action. The repository contains a service",
+            "output_characters": 42,
+            "output_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002795,
+            "run": 3,
+            "stream_done_marker": true,
+            "stream_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "time_to_first_visible_seconds": 23.470398,
+            "time_to_last_output_seconds": 23.656272,
+            "ttft_seconds": 23.470398,
+            "wall_seconds": 23.659067
+          }
+        ],
+        "ttft_seconds": {
+          "maximum": 23.47,
+          "median": 23.455,
+          "minimum": 23.433,
+          "p90": 23.47
+        }
+      },
+      "warm_replay": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 249282.044,
+          "median": 237770.61,
+          "minimum": 233244.951,
+          "p90": 249282.044
+        },
+        "runs": [
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.301225,
+            "decode_tokens_per_second": 23.238,
+            "effective_prefill_tokens_per_second": 249282.044,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": " action. The repository contains a service",
+            "output_characters": 42,
+            "output_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002486,
+            "run": 1,
+            "stream_done_marker": true,
+            "stream_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "time_to_first_visible_seconds": 0.262899,
+            "time_to_last_output_seconds": 0.564125,
+            "ttft_seconds": 0.262899,
+            "wall_seconds": 0.566611
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.375129,
+            "decode_tokens_per_second": 18.66,
+            "effective_prefill_tokens_per_second": 237770.61,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": ". The repository contains a service,",
+            "output_characters": 36,
+            "output_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002217,
+            "run": 2,
+            "stream_done_marker": true,
+            "stream_sha256": "6b7a31399cbcdf5c725277ca09708289bb776a5e506696b6d065d920946f0841",
+            "time_to_first_visible_seconds": 0.275627,
+            "time_to_last_output_seconds": 0.650756,
+            "ttft_seconds": 0.275627,
+            "wall_seconds": 0.652973
+          },
+          {
+            "completion_tokens": 8,
+            "decode_seconds": 0.280075,
+            "decode_tokens_per_second": 24.993,
+            "effective_prefill_tokens_per_second": 233244.951,
+            "finish_reason": "length",
+            "measured_sse_events": 8,
+            "output": " action. The repository contains a service",
+            "output_characters": 42,
+            "output_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "prompt_tokens": 65536,
+            "reasoning_characters": 0,
+            "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "requested_prompt_tokens": 65536,
+            "response_tail_seconds": 0.002446,
+            "run": 3,
+            "stream_done_marker": true,
+            "stream_sha256": "b5a7611b4f1762cd19a22471acbe46b2c959f51e351ddcc2332e20186a3f3dd8",
+            "time_to_first_visible_seconds": 0.280975,
+            "time_to_last_output_seconds": 0.561051,
+            "ttft_seconds": 0.280975,
+            "wall_seconds": 0.563496
+          }
+        ],
+        "ttft_seconds": {
+          "maximum": 0.281,
+          "median": 0.276,
+          "minimum": 0.263,
+          "p90": 0.281
+        }
+      }
+    }
+  },
+  "protocol": {
+    "prompts_sha256": "0c3ac4015813af6a1b967659bd2289990fde895a5e43ae065b894d1e1f909ecb",
+    "prompts_version": "1.0.0",
+    "repository_dirty": true,
+    "repository_revision": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+    "repository_source": "git-worktree",
+    "repository_source_sha256": "71cf88ee30ff5e0c976ad5b1d8221af9115447a690039ac9aa020a85015fe300",
+    "repository_worktree_sha256": "88d53fba91d52fef4b5688e0620dfaf89bbe5b27c92fcab42551a6eae585ad3b",
+    "version": "1.1.0"
+  },
+  "run": {
+    "appliance": {
+      "competing_traffic": "none",
+      "context_limit": 524288,
+      "drafter": "DFlash2 incoai/GLM-5.3-Flash-DFlash2, gamma 8, greedy",
+      "hardware": "2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance",
+      "kv_cache_dtype": "fp8_g128",
+      "model": "nvidia/GLM-5.3-Flash-NVFP4",
+      "model_revision": "local lloom cache nvidia--GLM-5.3-Flash-NVFP4",
+      "negotiated_link_speed": "200 Gb/s",
+      "quantisation": "NVIDIA NVFP4",
+      "scheduler": "max-num-seqs 4, 8K prefill chunks, SP prefill",
+      "serving_engine": "Atlas (Enntity/atlas sparkglm/atlas-20261004-gram @ fdd2f965), image ghcr.io/enntity/atlas-sparkglm:35824765d542, SparkGLM 4x512k profile, GPU_MEMORY_UTILIZATION=0.91, display carveout on",
+      "serving_image": "ghcr.io/enntity/atlas-sparkglm:35824765d542 via LLooM",
+      "topology": "TP2/EP2, direct ConnectX-7 RoCE link (RDMA pair)"
+    },
+    "comparison_id": "cvp-latent-1791174188",
+    "finished_at": "2026-10-05T04:26:03.999225+00:00",
+    "label": "cvp-latent",
+    "model": "glm-5.3-flash-atlas",
+    "platform": "Linux-6.17.0-1029-nvidia-aarch64-with-glibc2.39",
+    "python": "3.12.3",
+    "started_at": "2026-10-05T04:23:08.805509+00:00"
+  },
+  "schema": 1,
+  "settings": {
+    "concurrency": [],
+    "concurrency_runs": 3,
+    "concurrency_tokens": 256,
+    "concurrency_workload": "code",
+    "decode_tokens": 4096,
+    "extra_body": {
+      "chat_template_kwargs": {
+        "reasoning_effort": "low"
+      }
+    },
+    "prefill_depths": [
+      32768,
+      65536
+    ],
+    "prefill_runs": 3,
+    "runs": 1,
+    "seed": 20260905,
+    "staggered": [],
+    "staggered_arrival_tokens": 256,
+    "staggered_delay_seconds": 1.0,
+    "staggered_depth": 32768,
+    "staggered_incumbent_tokens": 1024,
+    "staggered_runs": 3,
+    "staggered_workload": "code",
+    "temperature": 0.0,
+    "top_p": 1.0
+  }
+}

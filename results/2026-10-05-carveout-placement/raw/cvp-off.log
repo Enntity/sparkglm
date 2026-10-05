@@ -1,0 +1,39 @@
+decode/code: 1 runs
+  1: 64.8 tok/s, TTFT 0.811s, 2692 tokens
+decode/prose: 1 runs
+  1: 36.8 tok/s, TTFT 0.704s, 1021 tokens
+decode/structured: 1 runs
+  1: 89.8 tok/s, TTFT 0.708s, 441 tokens
+prefill/32768: 3 cold/immediate-replay pairs
+  1: cold 2668.1 tok/s (12.282s), warm 111728.3 tok/s (0.293s)
+  2: cold 2672.0 tok/s (12.264s), warm 119638.0 tok/s (0.274s)
+  3: cold 2672.4 tok/s (12.262s), warm 124203.1 tok/s (0.264s)
+prefill/65536: 3 cold/immediate-replay pairs
+  1: cold 2812.7 tok/s (23.300s), warm 236014.4 tok/s (0.278s)
+  2: cold 2809.0 tok/s (23.331s), warm 234247.0 tok/s (0.280s)
+  3: cold 2814.5 tok/s (23.285s), warm 240140.4 tok/s (0.273s)
+result: /home/user/pf64/cvp-off.json
+card: /home/user/pf64/cvp-off.card.txt
+
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  3/3 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      glm-5.3-flash-atlas                                                          │
+│  APPLIANCE  2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:40fabcaf6e96  •  dirty  •  worktree:88d53fba91d5                         │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              64.8 tok/s      42.4s last     64.8–64.8     ✓ 1/1                    │
+│  PROSE             36.8 tok/s      28.4s last     36.8–36.8     ✓ 1/1                    │
+│  STRUCTURED*       89.8 tok/s       5.6s last     89.8–89.8     ✓ 1/1                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ CONTEXT ────────────────────────────────────────────────────────────────────────────────┤
+│  64K PREFILL   cold 2,813 tok/s  •  immediate replay 236,014 tok/s                       │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:2a0c0abb9ea818f2…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
