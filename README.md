@@ -241,10 +241,15 @@ layers:
 
 ## History
 
-SparkGLM began as a vLLM recipe building on
+SparkGLM started as an Atlas research project: GLM-5.3-Flash on two DGX
+Sparks with the Atlas engine. vLLM was far ahead at the time, so we moved to
+it. On vLLM we started from an early version of
 [MiaAI-Lab](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks)'s
-two-Spark EXL3 work.
-That version is preserved at the tag
+two-Spark EXL3 recipe and reworked it, mostly for concurrency. We then
+decided there was a lot we needed to fix at the engine level, and went back
+to Atlas. Atlas is now the only engine.
+
+The vLLM version is retired. It is preserved at the tag
 [`vllm-final`](https://github.com/Enntity/sparkglm/tree/vllm-final) and the
 branch `archive/vllm`, including its results and qualification records.
 

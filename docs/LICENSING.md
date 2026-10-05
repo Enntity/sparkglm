@@ -14,7 +14,7 @@ from other projects, without their code, are credited in the README's
 | `install/flash_kda/flash_kda_sm121_slots.patch` | MIT (FlashKDA context, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) plus AGPL-3.0-only changes |
 | `install/flash_kda/atlas_flash_kda_bridge.cu` | AGPL-3.0-only, with its workspace-size and launch arithmetic adapted from FlashKDA `csrc/flash_kda.cpp` (MIT, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) |
 | `install/start-node.sh`, `install/convert.sh` | AGPL-3.0-only; the container flags and the converter's verify pass follow [LLooM](https://github.com/Enntity/lloom)'s Atlas recipe (MIT, [`LICENSES/MIT-LLooM.txt`](../LICENSES/MIT-LLooM.txt)) |
-| The `mia-*` prompts in `bench/staggered_openai.py`, and `.github/FUNDING.yml` | MIT, Copyright (c) 2026 Mia's AI Lab ([`LICENSES/MIT-Mia.txt`](../LICENSES/MIT-Mia.txt)), quoted from MiaAI-Lab's recipe while it was MIT |
+| The `mia-*` prompts in `bench/staggered_openai.py` | MIT, Copyright (c) 2026 Mia's AI Lab ([`LICENSES/MIT-Mia.txt`](../LICENSES/MIT-Mia.txt)), quoted from MiaAI-Lab's recipe while it was MIT |
 
 The harness copies under `results/*/raw/harness/` are the scripts that produced
 each receipt. Where they quoted prompt or filler text from mmastrac's
