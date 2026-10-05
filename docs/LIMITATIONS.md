@@ -8,10 +8,11 @@ What to know before relying on SparkGLM.
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
-- Each README row comes from the release its receipt names. RigMark decode
-  and cold prefill were re-measured on the current release (2026-10-05); the
-  RigMark concurrency and staggered-arrival cells are from 2026-09-30, and the
-  quality probe is from the first Atlas release.
+- Each README row comes from the release its receipt names. RigMark decode,
+  cold prefill and staggered arrivals and the staggered C4 field guide were
+  re-measured on the current release (2026-10-05); RigMark short-code
+  concurrency is from 2026-09-30, and the quality probe is from the first Atlas
+  release.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
 
 ## Not yet measured with the recipe image
@@ -73,8 +74,8 @@ What to know before relying on SparkGLM.
 
 We compare against the published RiNGSiDE and mmastrac vLLM TP2 results, not
 runs on our pair. On RigMark with RiNGSiDE's cell set
-([decode and prefill](../results/2026-10-05-rigmark/RESULT.md) on this release,
-[concurrency and staggered arrivals](../results/2026-09-30-rigmark/RESULT.md)
+([decode, prefill and staggered arrivals](../results/2026-10-05-rigmark/RESULT.md)
+on this release, [short-code concurrency](../results/2026-09-30-rigmark/RESULT.md)
 on 2026-09-30), Atlas is ahead of RiNGSiDE's TP2 row on single-stream decode,
 cold prefill at 8K-64K and newcomer time to first token under staggered
 arrivals. Still behind or unmeasured:

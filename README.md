@@ -22,8 +22,8 @@ Measured on two DGX Sparks joined by one 200G cable, with images built from
 a fresh clone. Receipts and caveats:
 [the display carveout's KV placement](results/2026-10-05-carveout-placement/RESULT.md) (this release),
 [a faster verify step and cheaper warm turns](results/2026-09-30-decode-step/RESULT.md),
-[RigMark decode and prefill on this release](results/2026-10-05-rigmark/RESULT.md),
-[RigMark concurrency and staggered arrivals](results/2026-09-30-rigmark/RESULT.md),
+[RigMark decode, prefill and staggered arrivals on this release](results/2026-10-05-rigmark/RESULT.md),
+[RigMark short-code concurrency](results/2026-09-30-rigmark/RESULT.md),
 [prefix cache on disk](results/2026-09-30-nvme-tier/RESULT.md),
 [exact kernels and the prefix-cache policy](results/2026-09-30-exact-speedups/RESULT.md),
 [index tails and 0.92 memory](results/2026-09-29-index-tails-092/RESULT.md),
@@ -40,11 +40,11 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
 | Cold 61K / 125K prompt: time to first token | **25.0 / 49.1 s** | 29.2 / 62.5 s two engines ago |
 | Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **136.7 s** | vLLM SparkGLM 206.6 s · Mia TensorFold 165.6 s |
-| Staggered C4: four ~16K requests arriving 1 s apart, cold | **49.1 s** | vLLM SparkGLM 70.5 s · Mia TensorFold 58.3 s · Mia EXL3 113.2 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.3 s** | vLLM SparkGLM 70.5 s · Mia TensorFold 58.3 s · Mia EXL3 113.2 s |
 | Single-stream prose decode, 5 × 384 tokens | **40.2–44.2 tok/s** | 32.8–34.5 tok/s on 2026-09-30, before the decode-step work |
 | RigMark decode, code / prose / structured (thinking on, low effort) | **65.7 / 36.3 / 91.6 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
 | RigMark cold prefill 8K / 32K / 64K: time to first token | **3.28 / 12.35 / 23.71 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
-| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 / 6 (2026-09-30 release) | **2.88 / 3.95 / 4.36 s** | RiNGSiDE 4.70 / 5.15 / 4.90 s |
+| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.86 / 3.51 s** | RiNGSiDE 4.70 / 5.15 s |
 | RigMark short code, 1 / 4 streams, aggregate (2026-09-30 release) | 45.8 / 67.0 tok/s | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 512K profile serves 4 at a time) |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |

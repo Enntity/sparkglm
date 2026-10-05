@@ -26,9 +26,26 @@ Cold prefill is back: 64K is 5.6% faster than the 2026-10-04 release and 2.7% fa
 decode code path did not change in this release (greedy outputs and tokens per step are identical); the decode rows
 moved within run-to-run spread.
 
+## Staggered arrivals and the staggered C4 field guide
+
+Same production instance, run right after (`raw/go_cap1005.sh`).
+
+RigMark staggered arrivals (32K long request, 256-token short chats, 1 s delay, 2 rounds each, `raw/rig-atlas-1005-stag.*`):
+
+| Level | Prefill first: newcomer first token (median) | Long request vs solo | Decode first: long request first token | vs solo |
+|---|---:|---:|---:|---:|
+| 2 | **2.86 s** | 1.08× | 12.65 s | 1.02× |
+| 4 | **3.51 s** (max 4.21) | 1.18× | 12.76 s | 1.03× |
+
+The 2026-09-30 release measured 2.88 / 3.95 s prefill-first and 1.02 / 1.03× decode-first. Level 6 was not run (the
+4 × 512K profile serves four at a time).
+
+Staggered C4 field guide (four ~16K requests at 0 / 1 / 2 / 3 s, 400 tokens each; discarded warmup 49.56 s;
+`raw/field/`): 49.48 / 49.79 / 49.35 / 49.10 / 49.03 s, median **49.35 s**, 1,600 / 1,600 tokens every run.
+
 ## Verify the receipts
 
-The JSON and card are RigMark's own output, unedited. In the log, the home directory was replaced with `/home/user`.
+The JSON and card are RigMark's own output, unedited. In the logs and the capture script, the home directory was replaced with `/home/user` and the fabric address with `192.0.2.1`.
 
 ```sh
 cd results/2026-10-05-rigmark && sha256sum -c SHA256SUMS

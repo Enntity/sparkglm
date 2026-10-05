@@ -1,0 +1,43 @@
+decode/code: 1 runs
+  1: 67.5 tok/s, TTFT 0.736s, 2023 tokens
+decode/prose: 1 runs
+  1: 35.8 tok/s, TTFT 0.736s, 946 tokens
+decode/structured: 1 runs
+  1: 89.7 tok/s, TTFT 0.728s, 441 tokens
+staggered/2: 2 rounds, 1 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.642s (1.02x solo), incumbent stall 3.112s (whole-stream p95 gap 0.076s)
+  1: prefill-first short TTFT median 2.899s (3.97x solo), long TTFT 13.402s (1.08x solo)
+  2: decode-first newcomer TTFT 12.666s (1.02x solo), incumbent stall 3.131s (whole-stream p95 gap 0.074s)
+  2: prefill-first short TTFT median 2.822s (3.83x solo), long TTFT 13.306s (1.07x solo)
+staggered/4: 2 rounds, 3 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.743s (1.03x solo), incumbent stall 3.156s (whole-stream p95 gap 0.134s)
+  1: prefill-first short TTFT median 3.528s (5.04x solo), long TTFT 14.688s (1.18x solo)
+  2: decode-first newcomer TTFT 12.784s (1.03x solo), incumbent stall 3.176s (whole-stream p95 gap 0.134s)
+  2: prefill-first short TTFT median 3.498s (4.76x solo), long TTFT 14.667s (1.18x solo)
+result: /home/user/rig-atlas-1005-stag.json
+card: /home/user/rig-atlas-1005-stag.card.txt
+
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  3/3 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      glm-5.3-flash-atlas                                                          │
+│  APPLIANCE  2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:40fabcaf6e96  •  dirty  •  worktree:88d53fba91d5                         │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              67.5 tok/s      30.7s last     67.5–67.5     ✓ 1/1                    │
+│  PROSE             35.8 tok/s      27.1s last     35.8–35.8     ✓ 1/1                    │
+│  STRUCTURED*       89.7 tok/s       5.6s last     89.7–89.7     ✓ 1/1                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  S4 • 3 RUNNING + 1 ARRIVING • 32,768-TOKEN LONG REQUEST • 1024/256-TOKEN CAPS           │
+│  DECODE-FIRST   long TTFT 12.76s (1.03x solo)  •  incumbent stall 3.17s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 3.51s (4.90x solo)  •  long TTFT 1.18x solo  •  2/2 valid     │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:dd590731b0506a4b…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
