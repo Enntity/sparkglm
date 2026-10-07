@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261005-cvplace",
-  "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
-  "tree": "987abbcfa6a9090406c4c759b18a82ad18bd1277",
+  "branch": "sparkglm/atlas-20261007-strings",
+  "commit": "7838b34c18785ea876a758eb4806d005d3fcda38",
+  "tree": "d20749a55db35bae54a75ab2d67c5ce3def2021f",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261004-gram",
-      "commit": "619da6ff575bc914873028b62551d83aa5c09981",
-      "note": "The strict structured-output series plus linear-cost grammar compile (bounded memory for large schemas, rejection of grammars an FSM edge cannot encode) and masked DFlash verify for strict grammars (ATLAS_GLM_STRICT_SPEC)."
+      "branch": "upstream/glm53-flash-20261007-strings",
+      "commit": "89f2927b4b729db8da3925449d3e252d321d13db",
+      "note": "upstream/glm53-flash-20261004-gram (619da6ff: strict structured output, linear-cost grammar compile, masked DFlash verify for strict grammars) plus two tool-use fixes: the GLM (poolside_v1) tool parser keeps argument text and types it from the tool schema, so string parameters are no longer turned into booleans, numbers or lists; and the GLM template omits the reasoning-effort header on the empty think block (thinking off with tools)."
     },
     "sparkglm_only": {
       "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
       "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
-      "branch": "fix/carveout-placement",
-      "commit": "57d1fe4d + 72588541",
-      "note": "This pin's tree equals fix/carveout-placement (fdd2f965 + 57d1fe4d + 72588541); 57d1fe4d's binary was measured on the pair (results/2026-10-05-carveout-placement), 72588541 changes comments only."
+      "branch": "fix/poolside-string-args",
+      "commit": "72588541 + 1a39c032 + 7838b34c",
+      "note": "This pin is sparkglm/atlas-20261005-cvplace (72588541) plus the two upstream-candidate fixes, cherry-picked unchanged; on the MLPerf edge-agentic BFCL leg the parser fix moves 83.72 to 88.74 overall (Enntity/sparkglm-research experiments/2026-10-06-mlperf-edge-agentic)."
     }
   },
   "kernel_target": "glm-5.3-flash",
