@@ -28,3 +28,22 @@ cp metadata.example.json metadata.json          # describe your hardware
 ```
 
 The whole set takes about an hour.
+
+## Metadata: KV pool and context ceiling
+
+RigMark records whatever `metadata.json` declares in the receipt (`run.appliance`), but its card shows neither the KV
+pool nor the per-request ceiling. Declare them, using the field names from RigMark's own
+[serving records](https://github.com/alexellis/rigmark/tree/master/examples/serving-records), and read the values from
+rank 0's startup log (`docker logs atlas-sparkglm-rank0`, or the `lloom-atlas-sparkglm-*` container under LLooM):
+
+| Field | Where it comes from | Production 2026-10-07 (4 × 512K, 0.91, carveout on) |
+|---|---|---|
+| `context_limit` | the profile's `--max-seq-len` | `524288` |
+| `max_sequences` | `--max-num-seqs` | `4` |
+| `gpu_memory_utilisation` | `GPU_MEMORY_UTILIZATION` | `0.91` |
+| `logical_kv_tokens` | `KV cache: display carveout ... → N blocks` (or, carveout off, `→ N blocks × 16 tok/block`), times 16 | `1354400` (84,650 blocks) |
+| `kv_cache_memory_per_rank` | `KV cache: N blocks × 11 layers` (8,448 B per block per layer) plus `Sparse index cache: ... = X MiB` | `9052818944` |
+| `kv_cache_dtype` | `--kv-cache-dtype` | `fp8_g128` |
+
+The four sequences share one pool: a single request can grow to the full 512K while the others leave room. The block
+count moves by about 1% between starts (it is sized from free memory), so take it from the run you publish.
