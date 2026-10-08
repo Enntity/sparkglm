@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="SparkGLM: GLM-5.3-Flash on two DGX Sparks" width="100%">
+</p>
+
 # SparkGLM
 
 GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
