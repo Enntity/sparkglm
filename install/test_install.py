@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('atlas_serve', HERE/'serve.py')
@@ -76,24 +77,43 @@ class LaunchContract(unittest.TestCase):
         self.assertNotIn('ATLAS_GLM_UNREVIEWED_EXPERIMENT', env)
         self.assertIn('--dflash-gamma=8', argv)
 
+    @staticmethod
+    def rdma_sysfs(root, devices):
+        """A /sys/class/infiniband tree: (name, PCI address, port state, IPv4 GID or None)."""
+        pci = root/'pci'
+        for dev, addr, state, ipv4 in devices:
+            port = root/dev/'ports'/'1'
+            (pci/addr).mkdir(parents=True)
+            for sub in ('gids', 'gid_attrs/types'):
+                (port/sub).mkdir(parents=True)
+            (port/'state').write_text(state + '\n')
+            (root/dev/'device').symlink_to(pci/addr)
+            # Link-local GIDs at 0-1 (RoCE v1, v2), the IPv4-mapped ones at 2-3,
+            # as a GB10 shows them; slot 4 exists but is unpopulated.
+            gids = [('fe80:0000:0000:0000:4ebb:47ff:fee8:8334', 'IB/RoCE v1'),
+                    ('fe80:0000:0000:0000:4ebb:47ff:fee8:8334', 'RoCE v2')]
+            if ipv4:
+                gids += [('0000:0000:0000:0000:0000:ffff:' + ipv4, 'IB/RoCE v1'),
+                         ('0000:0000:0000:0000:0000:ffff:' + ipv4, 'RoCE v2')]
+            for i, (gid, kind) in enumerate(gids):
+                (port/'gids'/str(i)).write_text(gid + '\n')
+                (port/'gid_attrs'/'types'/str(i)).write_text(kind + '\n')
+            (port/'gid_attrs'/'types'/str(len(gids))).mkdir()  # reading it fails, like an empty slot
+
     def test_fabric_hca_lists_and_same_port_siblings(self):
         # GB10 attaches its ConnectX-7 through two PCIe domains, so one cable
         # appears as two RDMA devices (domain 0000 and 0002, same bus:dev.fn).
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
-            pci = root/'pci'
-            for dev, addr, state in [('rocep1s0f0', '0000:01:00.0', '4: ACTIVE'),
-                                     ('roceP2p1s0f0', '0002:01:00.0', '4: ACTIVE'),
-                                     ('rocep1s0f1', '0000:01:00.1', '4: ACTIVE'),
-                                     ('roceP2p1s0f1', '0002:01:00.1', '1: DOWN')]:
-                (pci/addr).mkdir(parents=True)
-                (root/dev/'ports'/'1').mkdir(parents=True)
-                (root/dev/'ports'/'1'/'state').write_text(state + '\n')
-                (root/dev/'device').symlink_to(pci/addr)
+            self.rdma_sysfs(root, [('rocep1s0f0', '0000:01:00.0', '4: ACTIVE', '0a64:c002'),
+                                   ('roceP2p1s0f0', '0002:01:00.0', '4: ACTIVE', '0a64:c102'),
+                                   ('rocep1s0f1', '0000:01:00.1', '4: ACTIVE', '0a64:c401'),
+                                   ('roceP2p1s0f1', '0002:01:00.1', '1: DOWN', '0a64:c501')])
             self.assertEqual(serve.fabric_hcas('rocep1s0f0', root), ['rocep1s0f0', 'roceP2p1s0f0'])
             self.assertEqual(serve.fabric_hcas('rocep1s0f1', root), ['rocep1s0f1'])
             self.assertEqual(serve.fabric_hcas('rocep1s0f0,roceP2p1s0f0', root),
                              ['rocep1s0f0', 'roceP2p1s0f0'])
+            self.assertEqual(serve.fabric_hcas('rocep1s0f0', root, siblings=False), ['rocep1s0f0'])
             self.assertEqual(serve.fabric_hcas('mlx5_0', root/'missing'), ['mlx5_0'])
         argv, env = serve.launch(dict(self.environment, FABRIC_HCA='a0,b1'), self.profile)
         self.assertEqual(env['NCCL_IB_HCA'], 'a0,b1')
@@ -101,6 +121,26 @@ class LaunchContract(unittest.TestCase):
         for bad in ('', 'a0,', 'a0,b1\nX=1', 'a0;b1'):
             with self.subTest(hca=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, FABRIC_HCA=bad), self.profile)
+
+    def test_a_second_physical_port_is_not_a_sibling(self):
+        # ASUS GX10 (Enntity/sparkglm#35): the other PCIe domain is a separate
+        # physical port. Up but unaddressed, it is left out; addressed but not
+        # cabled to the other Spark, FABRIC_SIBLINGS=0 leaves it out.
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            self.rdma_sysfs(root, [('rocep1s0f0', '0000:01:00.0', '4: ACTIVE', 'c0a8:6401'),
+                                   ('roceP2p1s0f0', '0002:01:00.0', '4: ACTIVE', None)])
+            self.assertEqual(serve.fabric_hcas('rocep1s0f0', root), ['rocep1s0f0'])
+        for value, rails in (('0', ['rocep1s0f0']), ('1', ['rocep1s0f0', 'sib'])):
+            with self.subTest(siblings=value), mock.patch.object(
+                    serve, 'fabric_hcas', lambda v, siblings: v.split(',') + (['sib'] if siblings else [])):
+                _, env = serve.launch(dict(self.environment, FABRIC_HCA='rocep1s0f0',
+                                           FABRIC_SIBLINGS=value), self.profile)
+                self.assertEqual(env['ATLAS_RDMA_RAILS'], ','.join(rails))
+                self.assertEqual(env['NCCL_IB_HCA'], ','.join(rails))
+        for bad in ('', 'no', 'false', ' 0', '2'):
+            with self.subTest(siblings=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, FABRIC_SIBLINGS=bad), self.profile)
 
     def test_both_profiles_cache_prompt_prefixes(self):
         # Multi-turn agents resend the whole conversation every turn; without
@@ -235,6 +275,10 @@ class LaunchContract(unittest.TestCase):
             run, docker_run = start('0')
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertNotIn('prefix-cache', docker_run[0].lower())
+            self.assertIn('-e FABRIC_SIBLINGS=1 ', docker_run[0])
+            run, docker_run = start('1', '--no-fabric-siblings')
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e FABRIC_SIBLINGS=0 ', docker_run[0])
             cache = root/'nvme'
             for rank in ('0', '1'):
                 run, docker_run = start(rank, '--prefix-cache-dir', str(cache))

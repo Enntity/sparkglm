@@ -113,6 +113,13 @@ and a headless Spark; see the README.
   address, is missing on one Spark. The engine picks each rail's RoCE v2 IPv4
   GID automatically. To force one, add `"ATLAS_RDMA_GID": "<index>"` to the
   profile's `environment`; the launcher ignores ambient `ATLAS_*` variables.
+- **`no RoCE v2 GID with an IPv4 address` or `ibv_modify_qp failed with 22`
+  on `roceP2p1s0f0`:** the board wires the ConnectX-7's second PCIe domain to a
+  separate physical port rather than to the same cable (ASUS GX10). An
+  unaddressed second port is now left out automatically; if it has an address
+  but no cable to the other Spark, set `FABRIC_SIBLINGS=0` in `.env` (or pass
+  `--no-fabric-siblings` to `install/start-node.sh` on both ranks). The fabric
+  then runs on the one cabled device: one RDMA rail instead of two.
 - **The host stops responding under load:** GB10 memory is shared with the
   host. Keep builds, other models and large processes off the pair while
   serving. The default profile leaves about 8–9 GB free at full KV.

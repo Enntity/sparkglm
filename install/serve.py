@@ -8,13 +8,20 @@ from pathlib import Path
 import re
 
 
-def fabric_hcas(value, sysfs=Path('/sys/class/infiniband')):
+def fabric_hcas(value, sysfs=Path('/sys/class/infiniband'), siblings=True):
     """RDMA devices for the fabric: the requested ones plus, for each, the
     active device on the same physical port behind the other PCIe domain.
 
     GB10 attaches its ConnectX-7 through two PCIe x4 links, so one 200G cable
     shows up as two RDMA devices (e.g. rocep1s0f0 and roceP2p1s0f0), each
     capped near 112 Gb/s. Filling the cable needs both.
+
+    Some OEM GB10 boards (ASUS GX10) wire the other domain to a separate
+    physical port instead (Enntity/sparkglm#35). A sibling therefore also needs
+    a RoCE v2 IPv4 GID, which the engine requires on every rail; an unaddressed
+    port is left out. siblings=False (FABRIC_SIBLINGS=0) uses exactly the
+    listed devices, for a second port that is addressed but not cabled to the
+    other Spark.
     """
     names = value.split(',')
     if not all(re.fullmatch(r'[A-Za-z0-9_.:-]+', name) for name in names):
@@ -32,7 +39,24 @@ def fabric_hcas(value, sysfs=Path('/sys/class/infiniband')):
         except OSError:
             return False
 
+    def roce_v2_ipv4(dev):
+        port = sysfs/dev/'ports'/'1'
+        try:
+            types = list((port/'gid_attrs'/'types').iterdir())
+        except OSError:
+            return False
+        for kind in types:
+            try:  # unpopulated GID slots fail to read
+                if (kind.read_text().strip() == 'RoCE v2'
+                        and (port/'gids'/kind.name).read_text().startswith('0000:0000:0000:0000:0000:ffff:')):
+                    return True
+            except OSError:
+                continue
+        return False
+
     hcas = list(names)
+    if not siblings:
+        return hcas
     others = sorted(p.name for p in sysfs.iterdir()) if sysfs.is_dir() else []
     for name in names:
         addr = pci(name)
@@ -42,7 +66,7 @@ def fabric_hcas(value, sysfs=Path('/sys/class/infiniband')):
         for dev in others:
             sibling = pci(dev)
             if (dev not in hcas and sibling and ':' in sibling and sibling != addr
-                    and sibling.split(':', 1)[1] == slot and active(dev)):
+                    and sibling.split(':', 1)[1] == slot and active(dev) and roce_v2_ipv4(dev)):
                 hcas.append(dev)
     return hcas
 
@@ -74,7 +98,10 @@ def launch(environ, profile):
     interface = environ['FABRIC_INTERFACE']
     if not re.fullmatch(r'[A-Za-z0-9_.:-]+', interface):
         raise ValueError('Invalid fabric interface or HCA')
-    hcas = fabric_hcas(environ.get('FABRIC_HCA', 'rocep1s0f0'))
+    siblings = environ.get('FABRIC_SIBLINGS', '1')
+    if siblings not in ('0', '1'):
+        raise ValueError('FABRIC_SIBLINGS must be 0 or 1')
+    hcas = fabric_hcas(environ.get('FABRIC_HCA', 'rocep1s0f0'), siblings=siblings == '1')
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
     drafter = environ.get('DRAFTER_PATH', '/models/drafter')
     for label, path in (('MODEL_PATH', model), ('DRAFTER_PATH', drafter)):
