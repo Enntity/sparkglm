@@ -7,6 +7,10 @@ single-stream decode and cold prefill cells, the same command as
 - **Engine and image:** Atlas `sparkglm/atlas-20261005-cvplace` @ `72588541`,
   `ghcr.io/enntity/atlas-sparkglm:f047a0c5e796`, 4 × 512K profile at 0.91 with `SPARKGLM_DISPLAY_CARVEOUT=1`
   (the carveout holds latent KV pools only; 85,415 blocks per Spark), launched by LLooM.
+- **KV pool and context ceiling** (not on the card): 524,288 tokens per request, up to 4 requests sharing one pool of
+  85,415 blocks × 16 = 1,366,640 tokens per Spark, fp8_g128 MLA latent. That is about 9.13 GB of KV per rank
+  (7.94 GB latent at 8,448 B per block per layer over 11 layers, about 1.2 GB sparse index), 2 GiB of it in the
+  display carveout. See [bench/RIGMARK.md](../../bench/RIGMARK.md) for declaring these in `metadata.json`.
 - **Receipt metadata is stale.** `run.appliance.serving_engine` still names the 2026-10-04 engine (`fdd2f965`,
   image 35824765d542); the metadata file was corrected after this run. The receipt is published unedited.
 - **Hardware:** two DGX Sparks joined by one 200G cable. The endpoint was the production server; no other benchmark
