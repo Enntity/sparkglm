@@ -103,6 +103,11 @@ serve() {
     1) common+=(--display-carveout) ;;
     *) echo "DISPLAY_CARVEOUT must be 0 or 1" >&2; exit 2 ;;
   esac
+  case ${FABRIC_SIBLINGS:-1} in
+    1) ;;
+    0) common+=(--no-fabric-siblings) ;;
+    *) echo "FABRIC_SIBLINGS must be 0 or 1" >&2; exit 2 ;;
+  esac
   say "start rank 1 on $WORKER, then rank 0 here (leader $address, profile $PROFILE)"
   stop
   script_on_worker install/start-node.sh --rank 1 "${common[@]}"
