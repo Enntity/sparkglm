@@ -12,7 +12,7 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca rocep1s0f0]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
-                     [--display-carveout] [--no-fabric-siblings] [--cuda-cache DIR] [--name NAME]
+                     [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
   --model-root       directory holding nvidia--GLM-5.3-Flash-NVFP4,
@@ -36,12 +36,15 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      (2 GiB more KV cache). The container starts with
                      CAP_SYS_ADMIN to export it, which the server drops before
                      it loads anything; use it on both ranks (default: off)
+  --kv-shard         split the KV cache between the two Sparks, about 1.8x the
+                     pool for the same memory; use it on both ranks, without
+                     --prefix-cache-dir (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
 }
 rank="" leader="" iface="" model_root="" image="" hca=rocep1s0f0
-cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=1
+cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=1 kvshard=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -57,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --prefix-cache-dir) pc_dir=$2; shift 2 ;;
     --prefix-cache-gb) pc_gb=$2; shift 2 ;;
     --display-carveout) carveout=1; shift ;;
+    --kv-shard) kvshard=1; shift ;;
     --no-fabric-siblings) siblings=0; shift ;;
     *) usage ;;
   esac
@@ -125,7 +129,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" ${profile_mount[@]+"${profile_mount[@]}"} ${pc_args[@]+"${pc_args[@]}"} \
   ${carveout_args[@]+"${carveout_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
-  -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" \
+  -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
   -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \

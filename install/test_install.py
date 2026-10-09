@@ -145,7 +145,7 @@ class LaunchContract(unittest.TestCase):
     def test_both_profiles_cache_prompt_prefixes(self):
         # Multi-turn agents resend the whole conversation every turn; without
         # prefix caching each turn re-prefills it from scratch.
-        for name in ('4x512k', '8x128k'):
+        for name in ('4x512k', '4x1m', '8x128k'):
             profile = json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())
             argv, _ = serve.launch(self.environment, profile)
             with self.subTest(profile=name):
@@ -164,7 +164,7 @@ class LaunchContract(unittest.TestCase):
         # the option off; the lossy and the not-yet-qualified options stay out
         # of a shipped profile.
         envs = [json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())['environment']
-                for name in ('4x512k', '8x128k')]
+                for name in ('4x512k', '4x1m', '8x128k')]
         exact = ('ATLAS_GLM_SPARSE_PREFILL_PIPE', 'ATLAS_GLM_MOE_PREFILL_PERSIST',
                  'ATLAS_GLM_MOE_UNPERMUTE_VEC', 'ATLAS_GLM_INDEX_LOGITS_V2', 'ATLAS_GLM_INDEX_SPLIT',
                  'ATLAS_GLM_ROUTER_PREFILL_CUTLASS', 'ATLAS_GLM_MOE_DECODE_M16',
@@ -175,11 +175,14 @@ class LaunchContract(unittest.TestCase):
                  'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_RDMA_ONESHOT', 'ATLAS_RDMA_PAIR_CHAIN',
                  'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_DFLASH_CTX_ASYNC_POS', 'ATLAS_GLM_STRICT_SPEC')
         # Lossless but not bit-for-bit against the option off: the prefill queue
-        # order, and a verify width taken from the drafter's confidence (verify
-        # numerics already depend on the width). The first draft of a request no
-        # longer reads a row the previous request left behind.
+        # order, a verify width taken from the drafter's confidence (verify
+        # numerics already depend on the width), and copy (prompt-lookup) drafts,
+        # which change only how many tokens a step accepts (byte-identical at a
+        # pinned width). The first draft of a request no longer reads a row the
+        # previous request left behind.
         policy = {'ATLAS_PREFILL_SRPT': '1', 'ATLAS_DFLASH_CONF_WIDTH': '1',
-                  'ATLAS_DFLASH_FIRST_APPEND': 'none'}
+                  'ATLAS_DFLASH_FIRST_APPEND': 'none', 'ATLAS_DFLASH_COPY_DRAFTS': '1',
+                  'ATLAS_DFLASH_COPY_REPLY_MATCH': '16', 'ATLAS_DFLASH_COPY_MISS_MAX': '3'}
         held_back = ('ATLAS_GLM_MLA_KVB_MXFP8', 'ATLAS_GLM_INDEX_MXFP8', 'ATLAS_GLM_KV_SHARD',
                      'ATLAS_GLM_PC_FINISH_LEAF', 'ATLAS_GLM_VERIFY_GRAPH', 'ATLAS_GLM_STEP_FUSE',
                      'ATLAS_GLM_LAYER_FORK', 'ATLAS_GLM_L2_AHEAD',
@@ -220,6 +223,17 @@ class LaunchContract(unittest.TestCase):
         lines = (HERE.parent/'.env.example').read_text().splitlines()
         self.assertIn('#DISPLAY_CARVEOUT=1', lines)
         self.assertFalse([l for l in lines if l.startswith('DISPLAY_CARVEOUT')])
+
+    def test_kv_shard_is_opt_in_and_excludes_the_disk_tier(self):
+        _, env = serve.launch(self.environment, self.profile)
+        self.assertNotIn('ATLAS_GLM_KV_SHARD', env)
+        _, env = serve.launch(dict(self.environment, SPARKGLM_KV_SHARD='1'), self.profile)
+        self.assertEqual((env['ATLAS_GLM_KV_SHARD'], env['ATLAS_GLM_KV_SHARD_COMPACT']), ('1', '1'))
+        for bad in ('yes', '2', ' 1', ''):
+            with self.subTest(switch=bad), self.assertRaises(ValueError):
+                serve.launch(dict(self.environment, SPARKGLM_KV_SHARD=bad), self.profile)
+        with self.assertRaises(ValueError):
+            serve.launch(dict(self.environment, SPARKGLM_KV_SHARD='1', SPARKGLM_PREFIX_CACHE_GB='48'), self.profile)
 
     def test_disk_prefix_cache_is_off_unless_sized(self):
         # Ambient tier variables are dropped like any other ATLAS_* flag.
@@ -279,6 +293,10 @@ class LaunchContract(unittest.TestCase):
             run, docker_run = start('1', '--no-fabric-siblings')
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertIn('-e FABRIC_SIBLINGS=0 ', docker_run[0])
+            self.assertIn('-e SPARKGLM_KV_SHARD=0 ', docker_run[0])
+            run, docker_run = start('0', '--kv-shard')
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e SPARKGLM_KV_SHARD=1 ', docker_run[0])
             cache = root/'nvme'
             for rank in ('0', '1'):
                 run, docker_run = start(rank, '--prefix-cache-dir', str(cache))
@@ -310,6 +328,15 @@ class LaunchContract(unittest.TestCase):
         argv, _ = serve.launch(self.environment, small)
         self.assertIn('--max-seq-len=131072', argv)
         self.assertIn('--max-num-seqs=8', argv)
+        # The model's full window, four requests sharing one pool; otherwise the 4x512k profile.
+        full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
+        base = json.loads(serve.profile_path({}, HERE).read_text())
+        argv, _ = serve.launch(self.environment, full)
+        self.assertIn('--max-seq-len=1048576', argv)
+        self.assertIn('--max-num-seqs=4', argv)
+        self.assertEqual(full['environment'], base['environment'])
+        self.assertEqual([a for a in full['server_argv'] if not a.startswith('--max-seq-len=')],
+                         [a for a in base['server_argv'] if not a.startswith('--max-seq-len=')])
         for bad in ('../x', '', 'a/b', '.hidden'):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 serve.profile_path({'SPARKGLM_PROFILE': bad}, HERE)

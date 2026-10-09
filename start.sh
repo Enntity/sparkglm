@@ -13,7 +13,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
 : "${WORKER:?set WORKER in .env to the ssh destination of the other Spark (see .env.example)}"
 MODEL_ROOT=${MODEL_ROOT:-$HOME/models/sparkglm}
-PROFILE=${PROFILE:-4x512k}
+PROFILE=${PROFILE:-4x1m}
 FABRIC_HCA=${FABRIC_HCA:-rocep1s0f0}
 IMAGE=${IMAGE:-$(install/build.sh --tag)}
 CHECKPOINT=nvidia/GLM-5.3-Flash-NVFP4@423acf37583782c51c142d145aef733d72943d93
@@ -102,6 +102,19 @@ serve() {
     0) ;;
     1) common+=(--display-carveout) ;;
     *) echo "DISPLAY_CARVEOUT must be 0 or 1" >&2; exit 2 ;;
+  esac
+  # The KV shard is the default; the disk prefix cache cannot run beside it yet,
+  # so setting PREFIX_CACHE_DIR keeps the shard off unless KV_SHARD=1 asks for both.
+  local shard=${KV_SHARD:-}
+  if [[ -z $shard ]]; then
+    shard=1
+    [[ -z ${PREFIX_CACHE_DIR:-} ]] || { shard=0; say "PREFIX_CACHE_DIR is set: KV shard off (set KV_SHARD=0 to silence this)"; }
+  fi
+  case $shard in
+    0) ;;
+    1) [[ -z ${PREFIX_CACHE_DIR:-} ]] || { echo "KV_SHARD=1 and PREFIX_CACHE_DIR cannot be combined; unset one" >&2; exit 2; }
+       common+=(--kv-shard) ;;
+    *) echo "KV_SHARD must be 0 or 1" >&2; exit 2 ;;
   esac
   case ${FABRIC_SIBLINGS:-1} in
     1) ;;
