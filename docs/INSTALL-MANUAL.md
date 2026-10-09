@@ -5,7 +5,7 @@ time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261009` @ `e034500d` ([`install/atlas-source.json`](../install/atlas-source.json)) |
+| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261009-final` @ `923947e9` ([`install/atlas-source.json`](../install/atlas-source.json)) |
 | Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |

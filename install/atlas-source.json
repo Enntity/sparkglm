@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261009",
-  "commit": "e034500d858742d131529e56179453e8afb45dce",
-  "tree": "edc66e7c3ca234e6aac3026c2b8242119dc42183",
+  "branch": "sparkglm/atlas-20261009-final",
+  "commit": "923947e9231d906ec0687fd3bc859b66e4d30abc",
+  "tree": "d5fa90b7aa99a4a79b802b304702f0495096881a",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -17,9 +17,9 @@
       "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1. Plus: sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) size and place in the display carveout."
     },
     "integration": {
-      "branch": "sparkglm/atlas-20261009",
-      "commit": "7838b34c + 9 cherry-picks",
-      "note": "sparkglm/atlas-20261007-strings plus the kv-shard carveout placement (exp/kvshard-20261008), copy drafts (exp/copy-drafts-20261008), the role-literal fix (fix/role-literal-strip-chatml) and the Poolside header hold (sparkqwen/rc15-fixes 25d14fcb), cherry-picked with -x."
+      "branch": "sparkglm/atlas-20261009-final",
+      "commit": "e034500d + 3 cherry-picks",
+      "note": "sparkglm/atlas-20261009 plus the disk prefix-cache tier beside the KV shard (feat/kvshard-nvme: each rank spills and restores only the latents it owns) and the bit-exact shard (feat/kvshard-exact: few-row MLA attention takes one canonical decomposition with the shard on and off, so sharding changes no output bit), cherry-picked with -x."
     }
   },
   "kernel_target": "glm-5.3-flash",
