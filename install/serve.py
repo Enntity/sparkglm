@@ -87,22 +87,17 @@ def disk_prefix_cache(gb):
             'ATLAS_SSM_TIER_SLOTS': '2'}
 
 
-def kv_shard(environ, disk_tier):
+def kv_shard(environ):
     """Engine settings that split GLM's MLA latent KV between the two ranks,
-    when SPARKGLM_KV_SHARD=1 (default off): each rank stores half the blocks'
-    latents, so the shared pool holds about 1.8x the tokens for the same
-    memory (with the display carveout at 0.89: 120,186 blocks against 67,608;
-    single-request decode unchanged, four at once -3%). The disk prefix-cache
-    tier spills latents by physical block, which a shard cannot serve, so the
-    two exclude each other."""
+    when SPARKGLM_KV_SHARD=1: each rank stores the latents of half the blocks,
+    so the shared pool holds about 1.8x the tokens for the same memory. The
+    disk prefix-cache tier runs beside it: each rank spills and restores only
+    the latents it owns."""
     switch = environ.get('SPARKGLM_KV_SHARD', '0')
     if switch not in ('0', '1'):
         raise ValueError('SPARKGLM_KV_SHARD must be 0 or 1')
     if switch == '0':
         return {}
-    if disk_tier:
-        raise ValueError('SPARKGLM_KV_SHARD=1 and the disk prefix cache (SPARKGLM_PREFIX_CACHE_GB) '
-                         'cannot be combined; switch one off')
     return {'ATLAS_GLM_KV_SHARD': '1', 'ATLAS_GLM_KV_SHARD_COMPACT': '1'}
 
 
@@ -144,9 +139,8 @@ def launch(environ, profile):
             raise ValueError('SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.80 to 0.95')
         args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
                 for a in args]
-    disk_tier = disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', ''))
-    env.update(disk_tier)
-    env.update(kv_shard(environ, disk_tier))
+    env.update(disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', '')))
+    env.update(kv_shard(environ))
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
         raise ValueError('Invalid SERVED_MODEL_NAME')

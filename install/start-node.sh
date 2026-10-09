@@ -37,8 +37,7 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      CAP_SYS_ADMIN to export it, which the server drops before
                      it loads anything; use it on both ranks (default: off)
   --kv-shard         split the KV cache between the two Sparks, about 1.8x the
-                     pool for the same memory; use it on both ranks, without
-                     --prefix-cache-dir (default: off)
+                     pool for the same memory; use it on both ranks (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2

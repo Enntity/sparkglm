@@ -103,17 +103,9 @@ serve() {
     1) common+=(--display-carveout) ;;
     *) echo "DISPLAY_CARVEOUT must be 0 or 1" >&2; exit 2 ;;
   esac
-  # The KV shard is the default; the disk prefix cache cannot run beside it yet,
-  # so setting PREFIX_CACHE_DIR keeps the shard off unless KV_SHARD=1 asks for both.
-  local shard=${KV_SHARD:-}
-  if [[ -z $shard ]]; then
-    shard=1
-    [[ -z ${PREFIX_CACHE_DIR:-} ]] || { shard=0; say "PREFIX_CACHE_DIR is set: KV shard off (set KV_SHARD=0 to silence this)"; }
-  fi
-  case $shard in
+  case ${KV_SHARD:-1} in
     0) ;;
-    1) [[ -z ${PREFIX_CACHE_DIR:-} ]] || { echo "KV_SHARD=1 and PREFIX_CACHE_DIR cannot be combined; unset one" >&2; exit 2; }
-       common+=(--kv-shard) ;;
+    1) common+=(--kv-shard) ;;
     *) echo "KV_SHARD must be 0 or 1" >&2; exit 2 ;;
   esac
   case ${FABRIC_SIBLINGS:-1} in
