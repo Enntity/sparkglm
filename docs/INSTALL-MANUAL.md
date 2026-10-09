@@ -36,9 +36,11 @@ any other tree, and builds:
 
 A cold build downloads the CUDA base images and compiles everything; allow 30
 to 60 minutes, of which the engine's kernels take about 18. With a warm
-BuildKit cache it took about 5 minutes on our Sparks. `ATLAS_BUILD_JOBS`
-(default 4) trades speed for memory. Keep models off the Spark while it
-builds.
+BuildKit cache it takes about 3 minutes on our Sparks. `ATLAS_BUILD_JOBS`
+(default: one job per ~10 GiB of free memory, at most half the cores) trades
+speed for memory, and `ATLAS_IMAGE_CHECKS=0` skips the in-image release checks
+for an engine commit that already passed them. Keep models off the Spark while
+it builds.
 
 ## 3. Download the pinned checkpoints
 
