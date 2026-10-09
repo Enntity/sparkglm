@@ -31,9 +31,21 @@ GIT_LFS_SKIP_SMUDGE=1 git -C "$context/engine" -c advice.detachedHead=false chec
 git -C "$product" archive HEAD install | tar -x -C "$context"
 cp "$here/dockerignore" "$context/.dockerignore"
 
-docker build --build-arg "INSTALL_TREE=$tree" \
-  --build-arg "BUILD_JOBS=${ATLAS_BUILD_JOBS:-4}" \
-  -f "$context/install/Dockerfile" -t "$image" "$context" >&2
+# Parallel compile jobs: ATLAS_BUILD_JOBS, else one per ~10 GiB of free memory
+# (nvcc on CUTLASS units takes several GiB each; GB10 memory is shared with the
+# host), at most half the cores and at least 2.
+jobs=${ATLAS_BUILD_JOBS:-$(awk -v cores="$(nproc)" '/MemAvailable/ {
+  j = int($2 / 1048576 / 10); if (j > cores / 2) j = int(cores / 2); if (j < 2) j = 2; print j }' /proc/meminfo)}
+args=(--build-arg "INSTALL_TREE=$tree" --build-arg "BUILD_JOBS=$jobs" -f "$context/install/Dockerfile")
+echo "building $image with $jobs jobs" >&2
+# The release checks (the `checks` stage) run unless ATLAS_IMAGE_CHECKS=0, for
+# builds whose engine commit already passed them elsewhere.
+case ${ATLAS_IMAGE_CHECKS:-1} in
+  1) docker build "${args[@]}" --target checks "$context" >&2 ;;
+  0) ;;
+  *) echo 'ATLAS_IMAGE_CHECKS must be 0 or 1' >&2; exit 2 ;;
+esac
+docker build "${args[@]}" --target runtime -t "$image" "$context" >&2
 [[ $(docker image inspect -f '{{.Architecture}} {{index .Config.Labels "io.enntity.sparkglm.install-tree"}}' "$image") == "arm64 $tree" ]] || {
   echo "built image $image has the wrong architecture or install-tree label" >&2; exit 1; }
 echo "$image"

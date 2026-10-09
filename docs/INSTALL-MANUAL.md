@@ -5,7 +5,7 @@ time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261009` @ `e034500d` ([`install/atlas-source.json`](../install/atlas-source.json)) |
+| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261009-final` @ `b85befc6` ([`install/atlas-source.json`](../install/atlas-source.json)) |
 | Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
@@ -36,9 +36,11 @@ any other tree, and builds:
 
 A cold build downloads the CUDA base images and compiles everything; allow 30
 to 60 minutes, of which the engine's kernels take about 18. With a warm
-BuildKit cache it took about 5 minutes on our Sparks. `ATLAS_BUILD_JOBS`
-(default 4) trades speed for memory. Keep models off the Spark while it
-builds.
+BuildKit cache it takes about 3 minutes on our Sparks. `ATLAS_BUILD_JOBS`
+(default: one job per ~10 GiB of free memory, at most half the cores) trades
+speed for memory, and `ATLAS_IMAGE_CHECKS=0` skips the in-image release checks
+for an engine commit that already passed them. Keep models off the Spark while
+it builds.
 
 ## 3. Download the pinned checkpoints
 

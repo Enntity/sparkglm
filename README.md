@@ -229,7 +229,7 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261009` (pinned in
+`sparkglm/atlas-20261009-final` (pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 

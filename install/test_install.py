@@ -224,7 +224,7 @@ class LaunchContract(unittest.TestCase):
         self.assertIn('#DISPLAY_CARVEOUT=1', lines)
         self.assertFalse([l for l in lines if l.startswith('DISPLAY_CARVEOUT')])
 
-    def test_kv_shard_is_opt_in_and_excludes_the_disk_tier(self):
+    def test_kv_shard_is_opt_in_in_the_image_and_runs_beside_the_disk_tier(self):
         _, env = serve.launch(self.environment, self.profile)
         self.assertNotIn('ATLAS_GLM_KV_SHARD', env)
         _, env = serve.launch(dict(self.environment, SPARKGLM_KV_SHARD='1'), self.profile)
@@ -232,8 +232,9 @@ class LaunchContract(unittest.TestCase):
         for bad in ('yes', '2', ' 1', ''):
             with self.subTest(switch=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_KV_SHARD=bad), self.profile)
-        with self.assertRaises(ValueError):
-            serve.launch(dict(self.environment, SPARKGLM_KV_SHARD='1', SPARKGLM_PREFIX_CACHE_GB='48'), self.profile)
+        _, env = serve.launch(dict(self.environment, SPARKGLM_KV_SHARD='1', SPARKGLM_PREFIX_CACHE_GB='48'),
+                              self.profile)
+        self.assertEqual((env['ATLAS_GLM_KV_SHARD'], env['ATLAS_KV_NVME_GB']), ('1', '24'))
 
     def test_disk_prefix_cache_is_off_unless_sized(self):
         # Ambient tier variables are dropped like any other ATLAS_* flag.
