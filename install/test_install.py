@@ -145,7 +145,7 @@ class LaunchContract(unittest.TestCase):
     def test_both_profiles_cache_prompt_prefixes(self):
         # Multi-turn agents resend the whole conversation every turn; without
         # prefix caching each turn re-prefills it from scratch.
-        for name in ('4x512k', '8x128k'):
+        for name in ('4x512k', '4x1m', '8x128k'):
             profile = json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())
             argv, _ = serve.launch(self.environment, profile)
             with self.subTest(profile=name):
@@ -164,7 +164,7 @@ class LaunchContract(unittest.TestCase):
         # the option off; the lossy and the not-yet-qualified options stay out
         # of a shipped profile.
         envs = [json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())['environment']
-                for name in ('4x512k', '8x128k')]
+                for name in ('4x512k', '4x1m', '8x128k')]
         exact = ('ATLAS_GLM_SPARSE_PREFILL_PIPE', 'ATLAS_GLM_MOE_PREFILL_PERSIST',
                  'ATLAS_GLM_MOE_UNPERMUTE_VEC', 'ATLAS_GLM_INDEX_LOGITS_V2', 'ATLAS_GLM_INDEX_SPLIT',
                  'ATLAS_GLM_ROUTER_PREFILL_CUTLASS', 'ATLAS_GLM_MOE_DECODE_M16',
@@ -328,6 +328,15 @@ class LaunchContract(unittest.TestCase):
         argv, _ = serve.launch(self.environment, small)
         self.assertIn('--max-seq-len=131072', argv)
         self.assertIn('--max-num-seqs=8', argv)
+        # The model's full window, four requests sharing one pool; otherwise the 4x512k profile.
+        full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
+        base = json.loads(serve.profile_path({}, HERE).read_text())
+        argv, _ = serve.launch(self.environment, full)
+        self.assertIn('--max-seq-len=1048576', argv)
+        self.assertIn('--max-num-seqs=4', argv)
+        self.assertEqual(full['environment'], base['environment'])
+        self.assertEqual([a for a in full['server_argv'] if not a.startswith('--max-seq-len=')],
+                         [a for a in base['server_argv'] if not a.startswith('--max-seq-len=')])
         for bad in ('../x', '', 'a/b', '.hidden'):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 serve.profile_path({'SPARKGLM_PROFILE': bad}, HERE)
