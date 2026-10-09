@@ -103,6 +103,12 @@ serve() {
     1) common+=(--display-carveout) ;;
     *) echo "DISPLAY_CARVEOUT must be 0 or 1" >&2; exit 2 ;;
   esac
+  case ${KV_SHARD:-0} in
+    0) ;;
+    1) [[ -z ${PREFIX_CACHE_DIR:-} ]] || { echo "KV_SHARD=1 and PREFIX_CACHE_DIR cannot be combined; unset one" >&2; exit 2; }
+       common+=(--kv-shard) ;;
+    *) echo "KV_SHARD must be 0 or 1" >&2; exit 2 ;;
+  esac
   case ${FABRIC_SIBLINGS:-1} in
     1) ;;
     0) common+=(--no-fabric-siblings) ;;

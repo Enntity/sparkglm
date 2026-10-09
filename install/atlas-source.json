@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261007-strings",
-  "commit": "7838b34c18785ea876a758eb4806d005d3fcda38",
-  "tree": "d20749a55db35bae54a75ab2d67c5ce3def2021f",
+  "branch": "sparkglm/atlas-20261009",
+  "commit": "e034500d858742d131529e56179453e8afb45dce",
+  "tree": "edc66e7c3ca234e6aac3026c2b8242119dc42183",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261007-strings",
-      "commit": "89f2927b4b729db8da3925449d3e252d321d13db",
-      "note": "upstream/glm53-flash-20261004-gram (619da6ff: strict structured output, linear-cost grammar compile, masked DFlash verify for strict grammars) plus two tool-use fixes: the GLM (poolside_v1) tool parser keeps argument text and types it from the tool schema, so string parameters are no longer turned into booleans, numbers or lists; and the GLM template omits the reasoning-effort header on the empty think block (thinking off with tools)."
+      "branch": "upstream/glm53-flash-20261009",
+      "commit": "576ad34e",
+      "note": "upstream/glm53-flash-20261007-strings (GLM tool arguments keep their schema types; no effort header on the empty think block) plus copy (prompt-lookup) drafts beside DFlash2 (ATLAS_DFLASH_COPY_DRAFTS), the bare role-literal strip limited to ChatML models (GLM streamed replies lost the words tool/user/assistant), and Poolside tool-call headers held until the call validates."
     },
     "sparkglm_only": {
       "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
-      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1."
+      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1. Plus: sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) size and place in the display carveout."
     },
     "integration": {
-      "branch": "fix/poolside-string-args",
-      "commit": "72588541 + 1a39c032 + 7838b34c",
-      "note": "This pin is sparkglm/atlas-20261005-cvplace (72588541) plus the two upstream-candidate fixes, cherry-picked unchanged; on the MLPerf edge-agentic BFCL leg the parser fix moves 83.72 to 88.74 overall (Enntity/sparkglm-research experiments/2026-10-06-mlperf-edge-agentic)."
+      "branch": "sparkglm/atlas-20261009",
+      "commit": "7838b34c + 9 cherry-picks",
+      "note": "sparkglm/atlas-20261007-strings plus the kv-shard carveout placement (exp/kvshard-20261008), copy drafts (exp/copy-drafts-20261008), the role-literal fix (fix/role-literal-strip-chatml) and the Poolside header hold (sparkqwen/rc15-fixes 25d14fcb), cherry-picked with -x."
     }
   },
   "kernel_target": "glm-5.3-flash",
