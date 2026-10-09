@@ -54,6 +54,12 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # License notices of every third-party crate compiled into the binary.
 COPY install/rust-notices.py /product/install/rust-notices.py
 RUN python3 /product/install/rust-notices.py /build /build/dist/notices-rust
+
+# Release checks on the same Linux/CUDA build as the shipped binary. A stage of
+# their own: the runtime image below copies only from `builder`, so BuildKit
+# runs these only when build.sh asks for this target (ATLAS_IMAGE_CHECKS=1, the
+# default).
+FROM builder AS checks
 # Check the actual compiled GLM module set and the startup vision selector.
 # CUDA stubs permit these CPU-only tests without GPU build entitlements.
 RUN mkdir -p /opt/cuda-stubs && \
@@ -135,7 +141,7 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
       grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log; \
     done
 
-FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
+FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3 AS runtime
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow-change-held-packages \
     python3 ca-certificates ffmpeg libnccl2=2.31.2-1+cuda13.3 libibverbs1 librdmacm1 \
     ibverbs-providers libnl-3-200 libnl-route-3-200 && rm -rf /var/lib/apt/lists/*
