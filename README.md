@@ -9,8 +9,10 @@ GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
 parallelism across both boxes over one ConnectX-7 cable, NVIDIA's NVFP4
 checkpoint, DFlash2 speculative decoding, prefix caching, up to four
 concurrent requests with the model's full 1M context each, and an
-OpenAI-compatible API. Greedy output is the same whether a request runs alone
-or beside others.
+OpenAI-compatible API. Decoding is concurrency-invariant: a request's greedy
+output does not depend on what else is running or on how the drafter proposes.
+Prefill is not yet row-invariant, so a prompt long enough to prefill in
+several chunks (over 8K tokens) can still differ when the engine is busy.
 Multi-turn agents get a cached conversation back: a turn of a 45K-token
 conversation starts in under a second instead of re-reading the whole
 transcript.
@@ -248,15 +250,16 @@ comparison videos.
 
 ## The engine
 
-Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261009-rc2` (pinned in
-[`install/atlas-source.json`](install/atlas-source.json)), built from three
-layers:
+Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) commit
+`f2b805e7` on `sparkglm/atlas-20261009-rc2` (pinned in
+[`install/atlas-source.json`](install/atlas-source.json)). Its tree is
+identical to `sparkglm/atlas-20261009-rc2-layered`, which is built from three
+layers (the next release pins the layered branch itself):
 
 1. Atlas-Inf `main`.
-2. GLM-5.3-Flash support and optimizations (this release:
-   `upstream/glm53-flash-20261009-rc2`), which we intend to propose to
-   Atlas-Inf after review. It started as
+2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
+   release `upstream/glm53-flash-20261009-rc2`), which we intend to propose
+   to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
