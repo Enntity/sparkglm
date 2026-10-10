@@ -25,10 +25,13 @@ What to know before relying on SparkGLM.
 
 ## Capacity and prefix caching
 
-- All requests share one KV pool, which also holds the prefix cache: about
-  600K tokens at the default 0.88 memory utilization, and about 1.13M at 0.91
-  on dedicated Sparks. A request needs pool room for its whole context, so four
-  full 512K requests do not fit at once; later requests wait for room.
+- All requests share one KV pool, which also holds the prefix cache. Unsplit,
+  it is about 600K tokens at the default 0.88 memory utilization and about
+  1.13M at 0.91 on dedicated Sparks. With the KV shard (`./start.sh`'s default)
+  it holds about 1.8x that: 2.61M tokens at 0.91 with the display carveout, or
+  2.36M with the disk prefix cache. A request needs pool room for its whole
+  context, so four full 1M requests do not fit at once; later requests wait
+  for room.
 - At 0.93 on dedicated Sparks the pool is about 1.63M tokens, and rank 0 went
   down to 1.35 GB of available memory at the end of a four-session 204K fill.
 - At 0.92, a Spark sharing the host with other services went down to 3.1 GB of
@@ -36,8 +39,10 @@ What to know before relying on SparkGLM.
   only on Sparks that run nothing else.
 - Under real mixed traffic at 0.93, rank 0 dropped below our 1 GiB memory guard
   about hourly (2026-10-02 to 10-04), so our production setting is now 0.91.
-  At 0.91 the pool is about 1.13M tokens, or about 1.38M with
-  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. The GPU
+  At 0.91 the unsplit pool is about 1.13M tokens, or about 1.38M with
+  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. With the
+  KV shard, the carveout and the disk prefix cache (our production setup),
+  a four-session 204K fill left rank 0 at 4.8 GB free at worst. The GPU
   does not cache the carveout in L2, so only the latent KV pools go there;
   a cacheable mapping that could also take the index buffers is tracked in
   [#32](https://github.com/Enntity/sparkglm/issues/32).

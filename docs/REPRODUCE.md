@@ -4,14 +4,15 @@ Run the drivers in [`bench/`](../bench/) on rank 0 against the running engine.
 Run one workload at a time, with nothing else using the pair. They need only
 Python 3; the comparison videos also need Pillow and ffmpeg.
 
-The published numbers and their raw receipts are in
-[`results/2026-09-29-atlas-merged/`](../results/2026-09-29-atlas-merged/RESULT.md).
+The current release's numbers and raw receipts are in
+[`results/2026-10-09-rc2/`](../results/2026-10-09-rc2/RESULT.md); earlier
+releases' are in the other folders under [`results/`](../results/).
 
-## Default profile (4 × 512K)
+## Default profile (4 × 1M)
 
 ```sh
 cd bench
-# Matrix, three passes. Compare the sum of the five summary walls to 154.8 s.
+# Matrix, three passes. Compare the sum of the five summary walls to 136.3 s.
 for p in 1 2 3; do MATRIX_SALT=mb-vx2-7c31 python3 run_matrix.py out-matrix-$p matrix; done
 # Staggered C4 field guide: a discarded warmup plus three runs. Use a fresh salt.
 MATRIX_SALT=fg-$(date +%s) python3 run_matrix.py out-field field

@@ -9,7 +9,7 @@ time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
 | Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
-| Profiles | [`install/profiles/`](../install/profiles/): `4x512k` (default) and `8x128k` |
+| Profiles | [`install/profiles/`](../install/profiles/): `4x1m` (what `./start.sh` runs), `4x512k` (the `start-node.sh` default) and `8x128k` |
 
 ## 1. Get the recipe
 
@@ -88,20 +88,30 @@ until curl -sf http://127.0.0.1:8893/health; do sleep 10; done
 the CUDA kernel cache (`~/.cache/atlas-cuda`), and so do the first requests of
 each shape; later starts reuse it. Run one warmup pass before measuring.
 
-**Profiles.** `--profile 8x128k` selects the other shipped profile. A path to a
-JSON file runs your own profile. Use the same profile on both ranks.
+**Profiles.** `start-node.sh` defaults to `4x512k`. `--profile 4x1m` runs what
+`./start.sh` runs (four requests of up to 1,048,576 tokens), and
+`--profile 8x128k` selects the third shipped profile. A path to a JSON file
+runs your own profile. Use the same profile on both ranks.
 
-**Memory share.** `--gpu-memory-utilization 0.91` on both ranks gives a KV
-pool of about 1.13M tokens on Sparks that run nothing else; without it the
-profile's 0.88 gives about 600K. We run 0.91: above it, real traffic took our
-rank 0 below 1 GiB free.
+**Memory share.** `--gpu-memory-utilization 0.91` on both ranks gives an
+unsplit KV pool of about 1.13M tokens on Sparks that run nothing else; without
+it the profile's 0.88 gives about 600K. We run 0.91: above it, real traffic
+took our rank 0 below 1 GiB free.
+
+**KV shard.** `--kv-shard` on both ranks splits the KV cache between the two
+Sparks: each stores the latents of half the blocks, so the pool holds about
+1.8x the tokens, and the output is bit-identical to the unsplit pool's.
+`./start.sh` turns it on by default; `start-node.sh` leaves it off unless you
+pass the flag. At 0.91 with the display carveout the pool is about 2.61M
+tokens, or 2.36M with the disk prefix cache.
 
 **Prefix cache on disk.** `--prefix-cache-dir DIR` (and optionally
 `--prefix-cache-gb 48`) on both ranks keeps evicted prefix-cache entries on
 each node's disk; see the README for what it costs.
 
 **Display memory as KV cache.** `--display-carveout` on both ranks lends each
-Spark's 2 GiB display carveout to the KV cache (about 1.37M tokens at 0.91).
+Spark's 2 GiB display carveout to the KV cache (about 1.38M tokens at 0.91
+unsplit, 2.61M with `--kv-shard`).
 The container starts with `CAP_SYS_ADMIN` to export it, which the server
 drops before it loads anything, and shares the lock directory
 `/run/lock/sparkglm`. It needs a validated driver (580.173.02 or 580.178.04)
