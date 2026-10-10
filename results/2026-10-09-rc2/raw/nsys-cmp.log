@@ -1,0 +1,92 @@
+health: {"status":"ready","model":"glm-5.3-flash-atlas"}
+prose x1: 96 tokens in 2.45s = 39.2 tok/s aggregate (under nsys)
+code x1: 96 tokens in 1.69s = 56.8 tok/s aggregate (under nsys)
+prose x1: 384 tokens in 9.44s = 40.7 tok/s aggregate (under nsys)
+code x1: 384 tokens in 5.61s = 68.5 tok/s aggregate (under nsys)
+Done: 96 tokens (length) 44.7 tok/s	tok_step=2.526
+Done: 96 tokens (length) 69.0 tok/s	tok_step=5.263
+Done: 384 tokens (length) 42.0 tok/s	tok_step=2.394
+Done: 384 tokens (length) 72.6 tok/s	tok_step=5.721
+== rank0 c1-prose
+steps 157.3  step 59.9 ms  busy 53.5 ms  idle 6.4 ms
+ 18.78ms   42.7/st   439.5us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf_p 48x1x1
+  9.13ms  181.4/st    50.4us   w4a16_gemv_tc8_touch 256x1x1
+  9.11ms   42.7/st   213.1us   glm_moe_decode_m16s_k128w_zskip_l2pf_p 48x1x1
+  2.21ms   11.2/st   197.7us   mxfp8_gemv_tc8 256x1x1
+  2.09ms   74.1/st    28.2us   rms_norm_vanilla_regs 3x1x1
+  1.76ms   43.0/st    40.9us   w4a16_gemv_tc8_pair_touch 64x1x2
+  1.47ms    1.0/st  1448.7us   mxfp8_gemv_tc8 4840x1x1
+  1.45ms   59.5/st    24.4us   glm_hc_decode_finalize_ilp_bf16 3x1x1
+  1.30ms   43.0/st    30.1us   moe_build_tile_worklist_scan 1x1x1
+  1.19ms   34.6/st    34.4us   kda_recurrent_bf16_verify_rec_owners 32x1x1
+  1.19ms   43.0/st    27.6us   moe_sort_by_expert_scan 1x1x1
+  1.18ms   34.6/st    34.1us   dense_gemv_bf16_tc8_planes 256x1x2
+  0.96ms   27.8/st    34.4us   quantize_bf16_to_nvfp4 3x1x1
+  0.90ms    6.1/st   145.8us   w4a16_gemv_tc8 768x1x1
+== rank1 c1-prose
+steps 157.3  step 59.9 ms  busy 56.8 ms  idle 3.1 ms
+== rank0 c1-code
+steps 67.4  step 82.7 ms  busy 76.0 ms  idle 6.7 ms
+ 31.84ms   42.4/st   751.3us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf_p 48x1x1
+ 15.33ms   42.4/st   361.8us   glm_moe_decode_m16s_k128w_zskip_l2pf_p 48x1x1
+  9.45ms  180.2/st    52.4us   w4a16_gemv_tc8_touch 256x1x1
+  2.33ms   11.1/st   209.6us   mxfp8_gemv_tc8 256x1x1
+  1.91ms   87.8/st    21.7us   rdma_oneshot_bf16 16x1x1
+  1.88ms   66.5/st    28.2us   rms_norm_vanilla_regs 8x1x1
+  1.70ms   43.0/st    39.6us   w4a16_gemv_tc8_pair_touch 64x1x2
+  1.55ms   34.3/st    45.2us   kda_recurrent_bf16_verify_rec_owners 32x1x1
+  1.49ms    1.0/st  1477.7us   mxfp8_gemv_tc8 4840x1x1
+  1.32ms   43.0/st    30.7us   moe_build_tile_worklist_scan 1x1x1
+  1.27ms    0.6/st  2044.3us   glm_moe_decode_m32s_gate_up_silu_k128w_l2pf_p 48x1x1
+  1.27ms    2.0/st   629.6us   w4a16_gemm 64x1x1
+  1.23ms   43.0/st    28.6us   moe_sort_by_expert_scan 1x1x1
+  1.21ms   53.4/st    22.7us   glm_hc_decode_finalize_ilp_bf16 8x1x1
+== rank1 c1-code
+steps 67.4  step 82.7 ms  busy 79.4 ms  idle 3.3 ms
+NSYSDEV-DONE rc2n
+health: {"status":"ready","model":"glm-5.3-flash-atlas"}
+prose x1: 96 tokens in 2.53s = 37.9 tok/s aggregate (under nsys)
+code x1: 96 tokens in 1.56s = 61.6 tok/s aggregate (under nsys)
+prose x1: 384 tokens in 9.25s = 41.5 tok/s aggregate (under nsys)
+code x1: 384 tokens in 5.27s = 72.9 tok/s aggregate (under nsys)
+Done: 96 tokens (length) 43.2 tok/s	tok_step=2.400
+Done: 96 tokens (length) 76.4 tok/s	tok_step=5.647
+Done: 384 tokens (length) 42.9 tok/s	tok_step=2.523
+Done: 384 tokens (length) 77.4 tok/s	tok_step=6.210
+== rank0 c1-prose
+steps 150.4  step 61.3 ms  busy 54.9 ms  idle 6.4 ms
+ 10.59ms   25.1/st   421.4us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x24x1
+  7.97ms   25.1/st   317.3us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x24x1
+  4.83ms   81.4/st    59.3us   w4a16_gemv_batch3_touch 1024x1x1
+  4.78ms    9.2/st   519.1us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x32x1
+  4.12ms   86.8/st    47.5us   w4a16_gemv_tc8_touch 256x1x1
+  3.24ms   34.6/st    93.5us   kda_commit_records 32x1x1
+  3.23ms    5.3/st   609.3us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x40x1
+  3.22ms    9.2/st   349.9us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x32x1
+  2.15ms   11.2/st   192.1us   mxfp8_gemv_tc8 256x1x1
+  2.04ms    5.3/st   384.8us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x40x1
+  1.92ms   67.0/st    28.7us   rms_norm_vanilla_regs 3x1x1
+  1.66ms   42.7/st    38.8us   w4a16_gemv_tc8_pair_touch 64x1x2
+  1.47ms    1.0/st  1448.2us   mxfp8_gemv_tc8 4840x1x1
+  1.30ms   53.8/st    24.1us   glm_hc_decode_finalize_ilp_bf16 3x1x1
+== rank1 c1-prose
+steps 150.4  step 61.3 ms  busy 58.5 ms  idle 2.8 ms
+== rank0 c1-code
+steps 61.5  step 85.3 ms  busy 78.5 ms  idle 6.7 ms
+ 25.23ms   27.3/st   924.0us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x64x1
+ 14.55ms   27.3/st   533.0us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x64x1
+  8.77ms  165.5/st    53.0us   w4a16_gemv_tc8_touch 256x1x1
+  3.57ms   34.3/st   104.2us   kda_commit_records 32x1x1
+  3.25ms    4.8/st   680.1us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x48x1
+  3.25ms    4.1/st   792.8us   glm_moe_decode_m16s_gate_up_silu_k128w_l2pf 8x56x1
+  2.28ms   11.1/st   205.8us   mxfp8_gemv_tc8 256x1x1
+  2.17ms   72.8/st    29.8us   rms_norm_vanilla_regs 8x1x1
+  2.15ms   92.9/st    23.1us   rdma_oneshot_bf16 16x1x1
+  2.00ms    4.8/st   419.6us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x48x1
+  1.90ms    4.1/st   464.9us   glm_moe_decode_m16s_k128w_zskip_l2pf 16x56x1
+  1.60ms   42.3/st    37.9us   w4a16_gemv_tc8_pair_touch 64x1x2
+  1.57ms   34.3/st    45.8us   kda_recurrent_bf16_verify_rec_owners 32x1x1
+  1.49ms    1.0/st  1479.0us   mxfp8_gemv_tc8 4840x1x1
+== rank1 c1-code
+steps 61.5  step 85.2 ms  busy 82.1 ms  idle 3.2 ms
+NSYSDEV-DONE prodn

@@ -1,0 +1,46 @@
+4.0K	/home/user/atlas-nvme/kv 4.0K	/home/user/atlas-nvme/ssm 
+== rc_fast up: 47067 blocks × 16 tok/block = 753072 max KV tokens 
+[+13 min] fast up
+[fast-rc] 22/24 answers correct; TTFT median: turn 1 10.51 s, turn 2 0.81 s, turn 3 3.15 s; prompt tokens [25476, 25531, 25543, 25553, 25567, 25575, 25607]
+[fast-rc] rank 0: fast I/O, records released, pool 7500 blocks; 16 restores, ms [42.3, 41.7, 39.6, 42.5, 44.1, 45.4, 43.1, 45.2, 45.0, 44.1, 44.4, 48.4, 37.6, 46.9, 37.6, 46.1]; median 27.7 us/block, read 5031 MB/s, flush 1.1 ms, writer wait 8.4 ms, 13.6 blocks/scatter run, 12.4 blocks/gather run; s
+wrote /home/user/sparkglm-dev/port-nvme-fast-rc.json (154 s)
+[+16 min] fast probe
+rank0 errors: 1 rank1 errors: 5
+4.0K	/home/user/atlas-nvme/kv 4.0K	/home/user/atlas-nvme/ssm 
+logprob hash {'off': ['246cd1331b41', '246cd1331b41'], 'warm': ['246cd1331b41', '246cd1331b41']} IDENTICAL
+== lossless warm fast
+(pair outputs byte-identical across arms: 2 of 2 — informational, they decode side by side)
+
+  PASS  the reference is a `warm` arm, the candidate a tier arm — fast-rc vs warm-rc
+  PASS  [warm-rc] no tier, and a pool that is not capped: nothing was evicted — tier False, 0 restores, capped False
+  PASS  [fast-rc] the tier restored (its own restore lines) — 16 restore lines
+  PASS  the two arms used the same documents — 1089 vs 1089 lines
+  PASS  turn-1 prompts identical across arms (token counts)
+  PASS  [warm-rc] every warm turn hit the cache (resident)
+  PASS  [warm-rc] no 'no SSM snapshot', no rank disagreement, no F83 cap
+  PASS  turn 1 (cold in both arms) is byte-identical: the pair is deterministic from start to start
+  PASS  turn2: all 8 outputs byte-identical to the resident arm's (first restore)
+  PASS  turn3: all 4 outputs byte-identical to the resident arm's (second restore; 400 generated tokens)
+  PASS  turn 4 (third restore): the same tokens, every logprob within 0.05 of the resident arm's — largest difference 0.0000; 2 of 2 requests bit-equal
+
+VERDICT: GO (lossless: fast-rc vs warm-rc)
+== restores per rank
+rank0: 16 restores; 32800 spills; rank-agree 0
+rank1: 16 restores; 32800 spills; rank-agree 0
+RC-DONE
+== s0_rc2 up: 57260 blocks × 16 tok/block = 916160 max KV tokens agree on 57100 
+== spark-rc2-f2b805e7
+REPRODUCIBLE rc2-spark-rc2-f2b805e7
+hash ['246cd1331b41']
+{"arm": "rc2-spark-rc2-f2b805e7", "code-c1": 54.6, "code-c2": 71.3, "code-c4": 87.7, "prose-c1": 42.2, "prose-c2": 53.9, "prose-c4": 65.4, "c4a==c1": [true, true, true, true], "c4b==c1": [true, true, true, true], "c4a==c4b": [true, true, true, true]}
+AB-DONE rc2
+== s0_bv1q up: 57093 blocks × 16 tok/block = 913488 max KV tokens 
+== spark-rel-3d795
+REPRODUCIBLE rc2base-spark-rel-3d795
+hash ['de6a323e9085']
+{"arm": "rc2base-spark-rel-3d795", "code-c1": 52.9, "code-c2": 71.7, "code-c4": 87.1, "prose-c1": 43.6, "prose-c2": 53.4, "prose-c4": 65.7, "c4a==c1": [false, false, false, false], "c4b==c1": [false, false, false, false], "c4a==c4b": [false, false, false, false]}
+AB-DONE rc2base
+== s0_rc2 up: 57233 blocks × 16 tok/block = 915728 max KV tokens 
+rc2 arith: 491/500 = 98.2% (95% ±1.2 pts); errors 0
+rc2 needle: 24/24 = 100.0% (95% ±0.0 pts); errors 0
+RC2-DONE
