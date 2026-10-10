@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261009-final",
-  "commit": "b85befc684772cf2fda5829b1fe2598883448c26",
-  "tree": "29305f3eccdebadc215fc02d9cf569d3b4d2fe03",
+  "branch": "sparkglm/atlas-20261009-rc2",
+  "commit": "f2b805e73d36a7e5527622e24f2f8199052e01e6",
+  "tree": "513bf0c7187cc202a54980533fb4c5325ec72b2e",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -17,9 +17,9 @@
       "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1. Plus: sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) size and place in the display carveout."
     },
     "integration": {
-      "branch": "sparkglm/atlas-20261009-final",
-      "commit": "e034500d + 3 cherry-picks + 2",
-      "note": "sparkglm/atlas-20261009 plus the disk prefix-cache tier beside the KV shard (feat/kvshard-nvme: each rank spills and restores only the latents it owns) and the bit-exact shard (feat/kvshard-exact: few-row MLA attention takes one canonical decomposition with the shard on and off, so sharding changes no output bit), cherry-picked with -x; then fix/canonical-history: one split count for every row count, so a row's bits no longer depend on the DFlash verify width beside it."
+      "branch": "sparkglm/atlas-20261009-rc2",
+      "commit": "b85befc6 + 6",
+      "note": "sparkglm/atlas-20261009-final plus: the canonical verify (exp/canonical-verify: one row-invariant kernel family per op for every verify width, plain decode as a one-row verify, dense FFN included, so greedy output no longer depends on the DFlash width, the drafter or concurrency; ATLAS_GLM_CANONICAL_VERIFY, default on), persistent prefetching MoE decode kernels (exp/moe-decode-bw, bit-identical; ATLAS_GLM_MOE_DECODE_PERSIST, on in the profiles) and one-launch KDA record commits (exp/kda-commit-batch, bit-identical), cherry-picked with -x."
     }
   },
   "kernel_target": "glm-5.3-flash",
