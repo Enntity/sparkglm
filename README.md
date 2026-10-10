@@ -8,7 +8,7 @@ GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
 [Atlas](https://github.com/Enntity/atlas) inference engine: tensor and expert
 parallelism across both boxes over one ConnectX-7 cable, NVIDIA's NVFP4
 checkpoint, DFlash2 speculative decoding, prefix caching, up to four
-concurrent requests with the model's full 1M context each, and an
+concurrent requests with a per-request limit of the model's full 1M context, and an
 OpenAI-compatible API. Decoding is concurrency-invariant: a request's greedy
 output does not depend on what else is running or on how the drafter proposes.
 Prefill is not yet row-invariant, so a prompt long enough to prefill in
@@ -127,6 +127,10 @@ videos are supported.
 - `4x512k`: up to four requests with up to 512K each.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
+
+The context limit applies to each request; it does not reserve that much KV
+for every concurrent slot. At the measured 2.36M-token pool size, four full
+1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
 The KV cache is split between the two Sparks (`KV_SHARD`, on by default): each
@@ -253,10 +257,11 @@ comparison videos.
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) commit
 `f2b805e7` on `sparkglm/atlas-20261009-rc2` (pinned in
 [`install/atlas-source.json`](install/atlas-source.json)). Its tree is
-identical to `sparkglm/atlas-20261009-rc2-layered`, which is built from three
-layers (the next release pins the layered branch itself):
+identical to `sparkglm/atlas-20261009-rc2-layered` at `fea1ef6c` (tree
+`513bf0c7`), which is built from three
+layers:
 
-1. Atlas-Inf `main`.
+1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
    release `upstream/glm53-flash-20261009-rc2`), which we intend to propose
    to Atlas-Inf after review. It started as
@@ -266,6 +271,13 @@ layers (the next release pins the layered branch itself):
 3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
+
+These are published Enntity release snapshots, separate from current
+Atlas-Inf `main`. The manifest's top-level commit and tree identify the
+measured engine; its `layers` entries record the earlier integration history.
+The tree-equivalent layered reconstruction uses the RC2 contribution series
+at `a1c9b1bc`. The manifest stays unchanged so the install tree still names
+the measured image.
 
 ## History
 

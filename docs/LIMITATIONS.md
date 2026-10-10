@@ -9,19 +9,27 @@ What to know before relying on SparkGLM.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
 - Each README row comes from the release its receipt names. RigMark decode,
-  cold prefill and staggered arrivals and the staggered C4 field guide were
-  re-measured on the current release (2026-10-05); RigMark short-code
-  concurrency is from 2026-09-30, and the quality probe is from the first Atlas
-  release.
+  cold prefill, staggered arrivals, the staggered C4 field guide, the Matrix
+  and the four-session 204K fill were re-measured on the current release,
+  2026-10-09 RC2. RigMark short-code concurrency was also re-measured on RC2
+  (47.7 tok/s at one stream, 69.5 at four); the earlier 2026-09-30 receipt is
+  kept for history. The quality probe's first recorded run is from the first
+  Atlas release, but the 500-item arithmetic (491/500) and two-hop 24K needle
+  (24/24) sets were re-run on RC2.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
 
-## Not yet measured with the recipe image
+## Not yet measured
 
-- **Long context:** we have not measured it with the recipe image. On the same
+- **Long context:** on 2026-10-09 RC2 we ran four concurrent ~204K-token
+  sessions with cached follow-ups (12/12 and 8/8 exact) and a two-hop 24K
+  needle probe (24/24), but we have not exercised a single request anywhere
+  near the profile's full 1,048,576-token window under load. On an earlier
   engine commit, before the thinking-budget fix, four concurrent 190K requests
   and one 500K request completed with at least 8.3 GB of host memory free.
-- **Endurance, cancellation under load, and multimodal work at full context:**
-  not measured.
+- **Chunked prefill and endurance:** prefill is not row-invariant. A prompt
+  long enough to prefill in several chunks (over 8K tokens) can still differ
+  when the engine is busy, and long-context endurance, cancellation under load
+  and multimodal work at full context are not measured.
 
 ## Capacity and prefix caching
 
@@ -38,11 +46,12 @@ What to know before relying on SparkGLM.
   free memory. GB10 hosts can hang when memory runs out, so raise the setting
   only on Sparks that run nothing else.
 - Under real mixed traffic at 0.93, rank 0 dropped below our 1 GiB memory guard
-  about hourly (2026-10-02 to 10-04), so our production setting is now 0.91.
-  At 0.91 the unsplit pool is about 1.13M tokens, or about 1.38M with
-  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. With the
-  KV shard, the carveout and the disk prefix cache (our production setup),
-  a four-session 204K fill left rank 0 at 4.8 GB free at worst. The GPU
+  about hourly (2026-10-02 to 10-04), so our production setting is 0.91. At
+  0.91 the pool is about 1.13M tokens unsplit, or about 1.38M with
+  `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. On the
+  2026-10-09 RC2 release, with the KV shard, the carveout and the disk prefix
+  cache, the pool is about 2.36M tokens and a four-session 204K fill left
+  rank 0 at 4.8 GB free at worst. The GPU
   does not cache the carveout in L2, so only the latent KV pools go there;
   a cacheable mapping that could also take the index buffers is tracked in
   [#32](https://github.com/Enntity/sparkglm/issues/32).
@@ -77,33 +86,46 @@ What to know before relying on SparkGLM.
 
 ## Performance gaps
 
-We compare against the published RiNGSiDE and mmastrac vLLM TP2 results, not
-runs on our pair. On RigMark with RiNGSiDE's cell set
-([decode, prefill and staggered arrivals](../results/2026-10-05-rigmark/RESULT.md)
-on this release, [short-code concurrency](../results/2026-09-30-rigmark/RESULT.md)
-on 2026-09-30), Atlas is ahead of RiNGSiDE's TP2 row on single-stream decode,
-cold prefill at 8K-64K and newcomer time to first token under staggered
-arrivals. Still behind or unmeasured:
+These come from two different kinds of comparison and should not be read as
+one table.
 
-- mmastrac's TP2 row (63.1 / 36.6 / 89.1 tok/s code / prose / structured,
-  published 2026-09-30) against our 65.7 / 36.3 / 91.6: about 4% ahead on
-  code, about 1% behind on prose and 3% ahead on structured;
-- short code at six streams: 97.3 tok/s for RiNGSiDE against our 62.0, because
-  the 4 x 512K profile serves four sequences at a time; the 8 x 128K profile,
-  which serves eight, has not been measured with RigMark.
+**Same-pair.** Mia's TensorFold v1.10 was run on our pair for the current release
+([receipts](../results/2026-10-09-rc2/RESULT.md)). On that probe Atlas is
+ahead on staggered C4 (~16K: 49.9 s vs 60.2; ~32K: 77.3 s vs 100.1) and on
+the Matrix (136.3 s vs 166.9), while TensorFold is faster at single-stream
+decode on the same probe prompts (about 49.8 vs 42.2 tok/s prose, 68.5 vs 54.6
+code). TensorFold is exl3-based, whose experts are about 8% smaller per rank
+than our NVFP4 experts, and our MoE decode kernels already read weights at the
+GB10 bandwidth roofline.
+
+**External, published not re-run.** Against the published RiNGSiDE vLLM TP2
+figures on their RigMark cell set, Atlas is ahead on single-stream decode,
+cold prefill at 8K-64K and newcomer time to first token under staggered
+arrivals. Their short-code result is 97.3 tok/s at six streams; RC2 measured
+69.5 tok/s at four streams. The default 4 x 1M profile serves four requests
+at a time, so these are different concurrency settings.
+The 8 x 128K profile, which serves eight, has not been measured with RigMark.
+Older comparisons, including the mmastrac vLLM TP2 figures, remain in their
+dated result bundles.
 
 ## Behaviour
 
 - Requests with thinking disabled still get a short, low-effort reasoning
   block, returned in `reasoning_content`. The reasoning budget is enforced, so
   structured answers are not trapped inside reasoning.
-- The quality probe scored 11/12 on two-hop needles in the recorded run; the
-  same engine scored 10–12/12 across earlier runs. Arithmetic scored 40/40.
-- Greedy decoding is not yet reproducible across request histories. The
-  drafter's first proposal of a request reads a context row left by the
-  previous request, so the same short prompt can take a different wording
-  path, at a different speed, depending on what ran before it. Every token
-  is still verified by the full model. A fix is in test.
+- RC2 scored 491/500 on the larger arithmetic set and 24/24 on two-hop 24K
+  needles. Arithmetic scores across the tested engine configurations ranged
+  from 484 to 495; single runs do not establish a quality ranking. Earlier
+  small-probe scores remain in their dated result bundles.
+- Four greedy prompts run one at a time at C1, then all four together
+  at C4, twice, gave the same output every time: each C4 run matched the C1
+  output and the two C4 runs matched each other (batched verify, adaptive
+  draft width, copy drafts and the prefix cache on;
+  `raw/rc2-spark-rc2-f2b805e7.json`, against 0 of 4 on the 2026-10-09 morning
+  release). This is the measured four-prompt result, not a general proof.
+  Prefill is not row-invariant, so a prompt long enough to prefill in several
+  chunks (over 8K tokens) can still differ when the engine is busy (see
+  "Not yet measured").
 - Long prompts were not reproducible before 2026-09-30. A missing barrier in
   the kernel that normalizes sparse-index keys let one in roughly 60,000
   prompt tokens store a key normalized with a wrong mean. The key stayed in
