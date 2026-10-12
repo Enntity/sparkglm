@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261009-rc2",
-  "commit": "f2b805e73d36a7e5527622e24f2f8199052e01e6",
-  "tree": "513bf0c7187cc202a54980533fb4c5325ec72b2e",
+  "branch": "sparkglm/atlas-20261012-rc4-layered",
+  "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
+  "tree": "ae5e79f813ba20cfed8e2497207a1857fafbccf9",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261009",
-      "commit": "576ad34e",
-      "note": "upstream/glm53-flash-20261007-strings (GLM tool arguments keep their schema types; no effort header on the empty think block) plus copy (prompt-lookup) drafts beside DFlash2 (ATLAS_DFLASH_COPY_DRAFTS), the bare role-literal strip limited to ChatML models (GLM streamed replies lost the words tool/user/assistant), and Poolside tool-call headers held until the call validates."
+      "branch": "upstream/glm53-flash-20261012-rc4",
+      "commit": "ad04763856efbfa7cae81436e3a4a67e4290c2b4",
+      "note": "upstream/glm53-flash-20261009-rc2 (a1c9b1bc) plus ten engine commits, each behind its own switch: one-shot all-reduce stages on the SMs (ATLAS_RDMA_ONESHOT_SM_STAGE), the MoE routing chain in two launches (ATLAS_GLM_MOE_ROUTE_FUSE), the verify dense FFN split across the pair (ATLAS_GLM_DENSE_TP_SPLIT), KDA record commits over a fixed grid (ATLAS_GLM_KDA_COMMIT_CTAS), the DFlash2 selector's threshold top-k (ATLAS_GLM_DRAFT_TP_TOPK), drafter uploads without draining the stream (ATLAS_DFLASH_ASYNC_UPLOADS), the MLA layer front in two launches (ATLAS_GLM_MLA_FUSE), chunk-tiled MXFP8 twins (ATLAS_GLM_MXFP8_TILED), DFlash2 selector edge-weight twins (ATLAS_DFLASH2_EDGE) and NVFP4/MXFP8 twins of the drafter's delta projections (ATLAS_DFLASH_CONV_TWIN)."
     },
     "sparkglm_only": {
-      "commit": "72588541a466f53cb9d38afd74c515e14ab601db",
-      "note": "The unchanged FlashKDA/native sparse-MLA prefill bridges and GB10 display-carveout KV placement from fdd2f965, then the carveout takes latent KV pools only (ATLAS_KV_CARVEOUT_ORDER, default latent): the GPU maps the carveout L2-uncached, and sparse-index buffers there slowed 64K cold prefill by 7% (Enntity/sparkglm#30). Fork-only; used only with DISPLAY_CARVEOUT=1. Plus: sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) size and place in the display carveout."
+      "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
+      "note": "The seven SparkGLM-only commits of sparkglm/atlas-20261009-rc2-layered (a1c9b1bc..fea1ef6c), cherry-picked unchanged onto the upstream candidate: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
-      "branch": "sparkglm/atlas-20261009-rc2",
-      "commit": "b85befc6 + 6",
-      "note": "sparkglm/atlas-20261009-final plus: the canonical verify (exp/canonical-verify: one row-invariant kernel family per op for every verify width, plain decode as a one-row verify, dense FFN included, so greedy output no longer depends on the DFlash width, the drafter or concurrency; ATLAS_GLM_CANONICAL_VERIFY, default on), persistent prefetching MoE decode kernels (exp/moe-decode-bw, bit-identical; ATLAS_GLM_MOE_DECODE_PERSIST, on in the profiles) and one-launch KDA record commits (exp/kda-commit-batch, bit-identical), cherry-picked with -x."
+      "branch": "exp/prose-rc4",
+      "commit": "c60896331253aa9e3f897d554278b3b45f58e7cf",
+      "note": "The measured candidate: sparkglm/atlas-20261009-rc2-layered (fea1ef6c) plus the same ten engine commits. Its tree equals the pinned layered commit's tree (ae5e79f8), so the image is the engine measured on the pair."
     }
   },
   "kernel_target": "glm-5.3-flash",
