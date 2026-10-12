@@ -19,6 +19,27 @@ re-layered on `upstream/glm53-flash`.
   commits (formatting, a doc link, the strix-hip selector copy, an unused variable), none of which touches the decode
   path. The speed and exactness receipts below were measured on RC4.
 
+**RC4.1 checked live through LLooM** (image `cfb463a952b5`, production settings):
+- A single `write_file` call of 3,516 tokens (a 612-line file) returns intact with `finish_reason` "tool_calls". RC4
+  cut the same request at 1,026 tokens and returned no tool call.
+- The prompt-logprob hash is `246cd1331b41`, unchanged.
+- Prose and code decode, 12 prompts × 256 tokens: 45.56 / 64.53 tok/s (RC4: 45.57 / 64.91).
+- Four concurrent ~204K-token sessions: 12/12 and 8/8.
+- [RigMark Quality](https://github.com/alexellis/rigmark-quality) 0.2 (suite `74709c7c`, temperature 0, 16K output
+  cap, 28 turns), artefacts passed out of 13 tasks:
+
+  | Reasoning effort | RC4 | RC4.1 |
+  |---|---:|---:|
+  | low | 10 | **11** |
+  | default | 9 | **11** |
+
+  - On RC4, four task runs ended on the cut ("model exhausted output token cap"). On RC4.1 none do.
+  - go-transfer-ledger now passes at both settings, and go-worker-pool at default.
+  - The remaining failures are the model's own:
+    - **arkade-add:** no edit before the turn budget ran out in a 6,116-line Go file, at every effort tried;
+    - **statement-redact:** fails the hidden checks.
+  - These are task diagnostics, not a model score.
+
 ## What changed since RC2
 
 Ten engine changes, each behind its own switch, and one profile change, all on in the profiles. None of them changes a
