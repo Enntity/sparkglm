@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261012-rc4.1-layered",
-  "commit": "301479a20612c91243266a3fc7eea3100b99ad59",
-  "tree": "ac5a080b608b6cbdf420db63d76906ea450392dd",
+  "branch": "sparkglm/atlas-20261012-rc4.2-layered",
+  "commit": "dfb9c26a95c96faa9f94c44e23343b0f2b4f9db6",
+  "tree": "89e392a3d19535bf153d4cabe5d7ffee1e378382",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "fix/glm-tool-value-markers",
-      "commit": "ade7b01281b422d2fefb16205685aabc3d46d9f4",
-      "note": "upstream/glm53-flash at 0b515eec (upstream/glm53-flash-20261012-rc4: the RC4 engine commits on a1c9b1bc plus four CI-only fixes, none changing GB10 runtime behavior) plus the GLM tool-value fix: the envelope-stuck guard (MAX_TOOL_BODY_TOKENS = 1024) recognized parameter values only by Qwen's <parameter=...> token ids, so it cut any GLM tool call longer than about 1024 tokens (finish_reason length, no tool call); GLM's single-token <arg_value>/</arg_value> are now resolved at startup and value bodies tracked by them."
+      "branch": "upstream/glm53-flash-20261012-rc4.2",
+      "commit": "d8a55e0f3fe10374272249da66c026563ad2b1a9",
+      "note": "upstream/glm53-flash at 0b515eec (the RC4 engine commits plus four CI-only fixes) plus the GLM tool-value fix ade7b012 (tool calls longer than 1024 tokens were cut: the envelope-stuck guard knew only Qwen's parameter markers) plus d8a55e0f: when the same tool calls return the same non-error result twice or more, the latest tool result gets a <REPEAT NOTICE> and that turn the xhigh thinking rung (unless the client set a budget), and <tool_call> stays open and unbiased; the loop detector no longer hard-masks <tool_call>, which had left GLM narrating its intended action as prose."
     },
     "sparkglm_only": {
-      "commit": "301479a20612c91243266a3fc7eea3100b99ad59",
-      "note": "The seven SparkGLM-only commits re-layered on the upstream candidate: FlashKDA/native sparse-MLA prefill bridges (the first, 661a26a0, now declares the KV-shard flag its native bridge reads, which upstream dropped as unused), GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
+      "commit": "dfb9c26a95c96faa9f94c44e23343b0f2b4f9db6",
+      "note": "The seven SparkGLM-only commits re-layered on the upstream candidate (26812d35..dfb9c26a): FlashKDA/native sparse-MLA prefill bridges (the first, 26812d35, declares the KV-shard flag its native bridge reads, which upstream dropped as unused), GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
       "branch": "sparkglm/atlas-20261012-rc4-layered",
       "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
-      "note": "RC4 (tree ae5e79f8, the measured exp/prose-rc4 c6089633). This pin differs from it by the tool-value fix (spark-server only) and the four CI-only upstream commits; the decode path is unchanged."
+      "note": "RC4 (tree ae5e79f8, the measured exp/prose-rc4 c6089633). This pin differs from it by two spark-server changes (the tool-value fix and the repeat notice) and four CI-only upstream commits; the decode path is unchanged. RC4.1 was sparkglm/atlas-20261012-rc4.1-layered 301479a2."
     }
   },
   "kernel_target": "glm-5.3-flash",
