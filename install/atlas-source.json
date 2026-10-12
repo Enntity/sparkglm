@@ -2,24 +2,24 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261012-rc4-layered",
-  "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
-  "tree": "ae5e79f813ba20cfed8e2497207a1857fafbccf9",
+  "branch": "sparkglm/atlas-20261012-rc4.1-layered",
+  "commit": "301479a20612c91243266a3fc7eea3100b99ad59",
+  "tree": "ac5a080b608b6cbdf420db63d76906ea450392dd",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261012-rc4",
-      "commit": "ad04763856efbfa7cae81436e3a4a67e4290c2b4",
-      "note": "upstream/glm53-flash-20261009-rc2 (a1c9b1bc) plus ten engine commits, each behind its own switch: one-shot all-reduce stages on the SMs (ATLAS_RDMA_ONESHOT_SM_STAGE), the MoE routing chain in two launches (ATLAS_GLM_MOE_ROUTE_FUSE), the verify dense FFN split across the pair (ATLAS_GLM_DENSE_TP_SPLIT), KDA record commits over a fixed grid (ATLAS_GLM_KDA_COMMIT_CTAS), the DFlash2 selector's threshold top-k (ATLAS_GLM_DRAFT_TP_TOPK), drafter uploads without draining the stream (ATLAS_DFLASH_ASYNC_UPLOADS), the MLA layer front in two launches (ATLAS_GLM_MLA_FUSE), chunk-tiled MXFP8 twins (ATLAS_GLM_MXFP8_TILED), DFlash2 selector edge-weight twins (ATLAS_DFLASH2_EDGE) and NVFP4/MXFP8 twins of the drafter's delta projections (ATLAS_DFLASH_CONV_TWIN)."
+      "branch": "fix/glm-tool-value-markers",
+      "commit": "ade7b01281b422d2fefb16205685aabc3d46d9f4",
+      "note": "upstream/glm53-flash at 0b515eec (upstream/glm53-flash-20261012-rc4: the RC4 engine commits on a1c9b1bc plus four CI-only fixes, none changing GB10 runtime behavior) plus the GLM tool-value fix: the envelope-stuck guard (MAX_TOOL_BODY_TOKENS = 1024) recognized parameter values only by Qwen's <parameter=...> token ids, so it cut any GLM tool call longer than about 1024 tokens (finish_reason length, no tool call); GLM's single-token <arg_value>/</arg_value> are now resolved at startup and value bodies tracked by them."
     },
     "sparkglm_only": {
-      "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
-      "note": "The seven SparkGLM-only commits of sparkglm/atlas-20261009-rc2-layered (a1c9b1bc..fea1ef6c), cherry-picked unchanged onto the upstream candidate: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
+      "commit": "301479a20612c91243266a3fc7eea3100b99ad59",
+      "note": "The seven SparkGLM-only commits re-layered on the upstream candidate: FlashKDA/native sparse-MLA prefill bridges (the first, 661a26a0, now declares the KV-shard flag its native bridge reads, which upstream dropped as unused), GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
-      "branch": "exp/prose-rc4",
-      "commit": "c60896331253aa9e3f897d554278b3b45f58e7cf",
-      "note": "The measured candidate: sparkglm/atlas-20261009-rc2-layered (fea1ef6c) plus the same ten engine commits. Its tree equals the pinned layered commit's tree (ae5e79f8), so the image is the engine measured on the pair."
+      "branch": "sparkglm/atlas-20261012-rc4-layered",
+      "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
+      "note": "RC4 (tree ae5e79f8, the measured exp/prose-rc4 c6089633). This pin differs from it by the tool-value fix (spark-server only) and the four CI-only upstream commits; the decode path is unchanged."
     }
   },
   "kernel_target": "glm-5.3-flash",

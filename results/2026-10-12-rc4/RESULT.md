@@ -4,6 +4,21 @@ The image is `846ee9e1e501`. It runs engine `5c523903` on `sparkglm/atlas-202610
 `upstream/glm53-flash-20261012-rc4` at `ad047638` plus the unchanged SparkGLM-only layer. Its tree (`ae5e79f8`) is
 identical to `exp/prose-rc4` at `c6089633`, the build measured below.
 
+## RC4.1 hotfix: long GLM tool calls
+
+The pin is now engine `301479a2` on `sparkglm/atlas-20261012-rc4.1-layered` (tree `ac5a080b`). It is RC4 plus one fix,
+re-layered on `upstream/glm53-flash`.
+
+- **The bug.** A guard ends a tool call that stays in its envelope for more than 1,024 tokens (`MAX_TOOL_BODY_TOKENS`).
+  Parameter values are exempt, but the guard recognized them only by Qwen's `<parameter=…>` token ids. On GLM every
+  value token counted as envelope, so any tool call longer than about 1,024 tokens (a large file write, say) ended
+  with `finish_reason` "length" and no tool call. The bug predates RC2.
+- **The fix** (`ade7b012`): the engine resolves GLM's single-token `<arg_value>` and `</arg_value>` at startup and
+  tracks value bodies by them. Sampling is unchanged; the markers only gate the guard.
+- **Everything else is RC4.** Against RC4's tree the pin adds only this spark-server change and four CI-only upstream
+  commits (formatting, a doc link, the strix-hip selector copy, an unused variable), none of which touches the decode
+  path. The speed and exactness receipts below were measured on RC4.
+
 ## What changed since RC2
 
 Ten engine changes, each behind its own switch, and one profile change, all on in the profiles. None of them changes a

@@ -256,14 +256,14 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261012-rc4-layered` at `5c523903` (tree `ae5e79f8`, pinned in
+`sparkglm/atlas-20261012-rc4.1-layered` at `301479a2` (tree `ac5a080b`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash-20261012-rc4` at `ad047638`), which we intend
-   to propose to Atlas-Inf after review. It started as
+   release `upstream/glm53-flash` at `0b515eec` plus the tool-value fix
+   `ade7b012`), which we intend to propose to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
@@ -272,9 +272,9 @@ layers:
    display carveout (including where the split KV pools are placed in it).
 
 These are published Enntity release snapshots, separate from current
-Atlas-Inf `main`. The pinned tree is identical to the measured candidate
-`exp/prose-rc4` at `c6089633`; the manifest's `layers` entries record the
-layering.
+Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
+`c6089633`) plus the GLM tool-value fix and four CI-only upstream commits; the
+manifest's `layers` entries record the layering.
 
 ## History
 
