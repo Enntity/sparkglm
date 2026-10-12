@@ -28,7 +28,8 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 Measured on two DGX Sparks joined by one 200G cable, with images built from
 a fresh clone. Receipts and caveats:
-[this release: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
+[this release: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
+[RC2: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
 [the display carveout's KV placement](results/2026-10-05-carveout-placement/RESULT.md),
 [a faster verify step and cheaper warm turns](results/2026-09-30-decode-step/RESULT.md),
 [RigMark decode, prefill and staggered arrivals on 2026-10-05](results/2026-10-05-rigmark/RESULT.md),
@@ -53,7 +54,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **136.3 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
 | Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.9 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
 | Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **77.3 s** | Mia TensorFold v1.10 100.1 s |
-| Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **42.9 / 61.7 tok/s** | 41.2 / 61.8 on 2026-10-09 morning; Mia TensorFold v1.10 is faster here ([release notes](results/2026-10-09-rc2/RESULT.md)) |
+| Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **45.6 / 64.9 tok/s** | 42.8 / 61.4 with RC2 (2026-10-09), same output bits ([release notes](results/2026-10-12-rc4/RESULT.md)) |
 | RigMark decode, code / prose / structured (thinking on, low effort) | **65.5 / 36.5 / 88.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
 | RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.72 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
 | RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.80 / 3.54 s** | RiNGSiDE 4.70 / 5.15 s |
