@@ -129,6 +129,10 @@ videos are supported.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
 
+All three set `ATLAS_LOOP_NO_SUPPRESS=1`: when an agent repeats the same tool call,
+the engine logs it but no longer masks tool calls for the next turn, which had
+left the model repeating its intended action as prose.
+
 The context limit applies to each request; it does not reserve that much KV
 for every concurrent slot. At the measured 2.36M-token pool size, four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.

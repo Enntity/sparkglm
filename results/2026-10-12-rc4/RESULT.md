@@ -4,6 +4,17 @@ The image is `846ee9e1e501`. It runs engine `5c523903` on `sparkglm/atlas-202610
 `upstream/glm53-flash-20261012-rc4` at `ad047638` plus the unchanged SparkGLM-only layer. Its tree (`ae5e79f8`) is
 identical to `exp/prose-rc4` at `c6089633`, the build measured below.
 
+## RC4.2: no tool-call hard-mask on repeated calls
+
+RC4.2 changes one profile switch; the engine (`301479a2`, tree `ac5a080b`) and every receipt below are unchanged.
+
+- **The incident.** In production, an agent on RC4.1 ran the same `grep` three times and got the same result each time.
+  The engine's loop detector then hard-masked `<tool_call>` for the next turn. Unable to call a tool, the model wrote
+  the action it meant to take as prose and repeated the same paragraph for 756 tokens, twice within a minute. The mask
+  has been in Atlas since its May release.
+- **The switch.** All three profiles now set `ATLAS_LOOP_NO_SUPPRESS=1`. The detector still detects, logs and meters
+  repeated calls and keeps its soft bias; only the hard mask on `<tool_call>` is skipped.
+
 ## RC4.1 hotfix: long GLM tool calls
 
 The pin is now engine `301479a2` on `sparkglm/atlas-20261012-rc4.1-layered` (tree `ac5a080b`). It is RC4 plus one fix,
