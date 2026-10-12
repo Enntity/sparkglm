@@ -74,7 +74,9 @@ matches that converter; otherwise it moves any older overlay aside.
 Start rank **1** (the worker) first, then rank **0** (the leader). The
 `--leader-address` is rank 0's IPv4 address on the direct cable. Each rank
 finds its own fabric interface from the RoCE device (`--fabric-hca`, default
-`rocep1s0f0`). Pass `--fabric-interface` to override it.
+`rocep1s0f0`, the first port). If the cable is on the second port, pass
+`--fabric-hca rocep1s0f1` on that Spark (`./start.sh` detects this itself).
+Pass `--fabric-interface` to override the interface.
 
 ```sh
 # on rank 1:
