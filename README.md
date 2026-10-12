@@ -121,6 +121,11 @@ Streaming, tool calls, JSON and structured output, reasoning controls
 (`chat_template_kwargs.enable_thinking`, `reasoning_effort`), images and short
 videos are supported.
 
+When an agent repeats the same tool call and gets the same result, the engine
+adds a repeat notice to that result and lets the model think harder on that
+turn; it no longer blocks tool calls, which had left the model narrating the
+action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
+
 **Profiles** (`PROFILE` in `.env`):
 
 - `4x1m` (default): up to four requests with up to 1,048,576 tokens each, the
@@ -128,10 +133,6 @@ videos are supported.
 - `4x512k`: up to four requests with up to 512K each.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
-
-All three set `ATLAS_LOOP_NO_SUPPRESS=1`: when an agent repeats the same tool call,
-the engine logs it but no longer masks tool calls for the next turn, which had
-left the model repeating its intended action as prose.
 
 The context limit applies to each request; it does not reserve that much KV
 for every concurrent slot. At the measured 2.36M-token pool size, four full
@@ -260,14 +261,15 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261012-rc4.1-layered` at `301479a2` (tree `ac5a080b`, pinned in
+`sparkglm/atlas-20261012-rc4.2-layered` at `dfb9c26a` (tree `89e392a3`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash` at `0b515eec` plus the tool-value fix
-   `ade7b012`), which we intend to propose to Atlas-Inf after review. It started as
+   release `upstream/glm53-flash-20261012-rc4.2` at `d8a55e0f`: `0b515eec`
+   plus the tool-value fix and the repeat notice), which we intend to propose
+   to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
@@ -277,8 +279,8 @@ layers:
 
 These are published Enntity release snapshots, separate from current
 Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
-`c6089633`) plus the GLM tool-value fix and four CI-only upstream commits; the
-manifest's `layers` entries record the layering.
+`c6089633`) plus the GLM tool-value fix, the repeat notice and four CI-only
+upstream commits; the manifest's `layers` entries record the layering.
 
 ## History
 
