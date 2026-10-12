@@ -28,7 +28,8 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 Measured on two DGX Sparks joined by one 200G cable, with images built from
 a fresh clone. Receipts and caveats:
-[this release: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
+[this release: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
+[RC2: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
 [the display carveout's KV placement](results/2026-10-05-carveout-placement/RESULT.md),
 [a faster verify step and cheaper warm turns](results/2026-09-30-decode-step/RESULT.md),
 [RigMark decode, prefill and staggered arrivals on 2026-10-05](results/2026-10-05-rigmark/RESULT.md),
@@ -50,14 +51,14 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
 | Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
 | Cold 61K / 125K prompt: time to first token | **25.0 / 49.1 s** | 29.2 / 62.5 s two engines ago |
-| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **136.3 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
-| Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.9 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
-| Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **77.3 s** | Mia TensorFold v1.10 100.1 s |
-| Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **42.9 / 61.7 tok/s** | 41.2 / 61.8 on 2026-10-09 morning; Mia TensorFold v1.10 is faster here ([release notes](results/2026-10-09-rc2/RESULT.md)) |
-| RigMark decode, code / prose / structured (thinking on, low effort) | **65.5 / 36.5 / 88.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
-| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.72 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
+| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **132.1 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.5 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
+| Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **76.3 s** | Mia TensorFold v1.10 100.1 s |
+| Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **45.6 / 64.9 tok/s** | 42.8 / 61.4 with RC2 (2026-10-09), same output bits ([release notes](results/2026-10-12-rc4/RESULT.md)) |
+| RigMark decode, code / prose / structured (thinking on, low effort) | **72.3 / 38.3 / 91.7 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
+| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.91 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
 | RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.80 / 3.54 s** | RiNGSiDE 4.70 / 5.15 s |
-| RigMark short code, 1 / 4 streams, aggregate | **47.7 / 69.5 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 1M profile serves 4 at a time) |
+| RigMark short code, 1 / 4 streams, aggregate | **47.0 / 70.9 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 1M profile serves 4 at a time) |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |
 | Strict JSON object with 96 required keys, temperature 0 | **39 s**, 59 tok/s, valid | engine killed (out of memory) two releases ago |
@@ -254,17 +255,15 @@ comparison videos.
 
 ## The engine
 
-Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) commit
-`f2b805e7` on `sparkglm/atlas-20261009-rc2` (pinned in
-[`install/atlas-source.json`](install/atlas-source.json)). Its tree is
-identical to `sparkglm/atlas-20261009-rc2-layered` at `fea1ef6c` (tree
-`513bf0c7`), which is built from three
+Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
+`sparkglm/atlas-20261012-rc4.1-layered` at `301479a2` (tree `ac5a080b`, pinned in
+[`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash-20261009-rc2`), which we intend to propose
-   to Atlas-Inf after review. It started as
+   release `upstream/glm53-flash` at `0b515eec` plus the tool-value fix
+   `ade7b012`), which we intend to propose to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
@@ -273,11 +272,9 @@ layers:
    display carveout (including where the split KV pools are placed in it).
 
 These are published Enntity release snapshots, separate from current
-Atlas-Inf `main`. The manifest's top-level commit and tree identify the
-measured engine; its `layers` entries record the earlier integration history.
-The tree-equivalent layered reconstruction uses the RC2 contribution series
-at `a1c9b1bc`. The manifest stays unchanged so the install tree still names
-the measured image.
+Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
+`c6089633`) plus the GLM tool-value fix and four CI-only upstream commits; the
+manifest's `layers` entries record the layering.
 
 ## History
 
