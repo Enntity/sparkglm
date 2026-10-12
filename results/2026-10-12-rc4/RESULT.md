@@ -50,7 +50,25 @@ step time, 52.6 ms against 55.9 ms per prose step in the bursts run. The bursts 
   (`raw/fill-prod.json`). The lowest MemAvailable on rank 0 during the fill was 4.4 GiB (`raw/prod-mem-rank0.log`).
 - 45K-token multi-turn and a 35K-token replay: all correct, cached turns start in 0.7–0.9 s (`raw/pc-prod.json`).
 
-Rows of the README not listed here were not re-run for this release.
+**Release suite through LLooM** (the same runs as RC2's receipts, same settings; RC2's numbers from
+`../2026-10-09-rc2/`):
+
+| | This release | RC2 |
+|---|---:|---:|
+| RigMark decode, code / prose / structured, tok/s (median of 3, `raw/rig-decode.json`) | **72.3 / 38.3 / 91.7** | 65.5 / 36.5 / 88.8 |
+| RigMark cold prefill 8K / 32K / 64K, TTFT (s) | 3.29 / 12.47 / 23.91 | 3.29 / 12.47 / 23.72 |
+| RigMark staggered arrivals, prefill first: newcomer TTFT at 2 / 4 (s) (`raw/rig-conc.json`) | 2.80 / 3.54 | 2.80 / 3.54 |
+| RigMark short code, 1 / 2 / 3 / 4 streams aggregate, tok/s (mean of 2 rounds) | 47.0 / **60.5** / 66.8 / **70.9** | 47.7 / 55.2 / 65.4 / 69.5 |
+| Staggered C4 field guide, ~16K input (median of 5), s (`raw/field-16k/`) | **49.5** | 49.9 |
+| Staggered C4 field guide, ~32K input (median of 3), s (`raw/field-32k/`) | **76.3** | 77.3 |
+| Matrix (C1/C2 16K and 32K, C4 16K; sum of walls), s (`raw/matrix/`) | **132.1** | 136.3 |
+| Quality probe: arithmetic / two-hop needle | 39/40 / 12/12 | 39/40 / 12/12 |
+
+- RigMark samples, so its output text and lengths differ between runs and engines; its decode rows are not an
+  equal-text comparison. Two structured runs came out compact (441 tokens: 91.3, 91.7 tok/s) and one pretty-printed
+  (694 tokens: 95.5).
+- Prefill does not change: the new kernels run in decode and verify. The 64K row is within run-to-run spread.
+- The matrix's C4 16K case is 41.1 s against 40.5 s; the C1 and C2 cases are faster.
 
 ## Verify the receipts
 

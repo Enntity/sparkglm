@@ -51,14 +51,14 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
 | Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
 | Cold 61K / 125K prompt: time to first token | **25.0 / 49.1 s** | 29.2 / 62.5 s two engines ago |
-| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **136.3 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
-| Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.9 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
-| Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **77.3 s** | Mia TensorFold v1.10 100.1 s |
+| Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **132.1 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
+| Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.5 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
+| Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **76.3 s** | Mia TensorFold v1.10 100.1 s |
 | Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **45.6 / 64.9 tok/s** | 42.8 / 61.4 with RC2 (2026-10-09), same output bits ([release notes](results/2026-10-12-rc4/RESULT.md)) |
-| RigMark decode, code / prose / structured (thinking on, low effort) | **65.5 / 36.5 / 88.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
-| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.72 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
+| RigMark decode, code / prose / structured (thinking on, low effort) | **72.3 / 38.3 / 91.7 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
+| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.91 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
 | RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.80 / 3.54 s** | RiNGSiDE 4.70 / 5.15 s |
-| RigMark short code, 1 / 4 streams, aggregate | **47.7 / 69.5 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 1M profile serves 4 at a time) |
+| RigMark short code, 1 / 4 streams, aggregate | **47.0 / 70.9 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 1M profile serves 4 at a time) |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |
 | Strict JSON object with 96 required keys, temperature 0 | **39 s**, 59 tok/s, valid | engine killed (out of memory) two releases ago |
