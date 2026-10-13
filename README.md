@@ -261,7 +261,7 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261012-rc4.2-layered` at `dfb9c26a` (tree `89e392a3`, pinned in
+`fix/sparkglm-rc4.2-refusal-content` at `6f27e8fa` (tree `bd5f8d88`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
@@ -277,10 +277,18 @@ layers:
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
 
+On top of the RC4.2 layered tree, one further commit preserves the full
+blocking assistant content alongside the refusal metadata, so a classifier
+refusal no longer returns an empty assistant turn (Atlas-Inf issue 172). The
+classifier and tool gating are unchanged, and it adds streaming regression
+coverage for the refusal path. This is a correctness fix only: it carries no
+new performance evidence, and every measured number above is unchanged.
+
 These are published Enntity release snapshots, separate from current
 Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
 `c6089633`) plus the GLM tool-value fix, the repeat notice and four CI-only
-upstream commits; the manifest's `layers` entries record the layering.
+upstream commits, followed by the refusal-content fix; the manifest's
+`layers` entries record the layering.
 
 ## History
 
