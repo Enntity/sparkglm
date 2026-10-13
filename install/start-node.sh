@@ -9,7 +9,7 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
-                     [--fabric-interface IFACE] [--fabric-hca rocep1s0f0]
+                     [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--cuda-cache DIR] [--name NAME]
@@ -19,10 +19,9 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      incoai--GLM-5.3-Flash-DFlash2 and atlas-overlay (convert.sh)
   --image            the image tag, install/build.sh --tag
   --fabric-interface the fabric's network interface on THIS node (default: the
-                     interface of --fabric-hca, e.g. enp1s0f0np0)
-  --no-fabric-siblings  use only --fabric-hca, without the device behind the
-                     other PCIe domain; for boards that wire it to a second
-                     physical port with no cable to the other Spark (ASUS GX10)
+                     interface of the first --fabric-hca; otherwise required)
+  --no-fabric-siblings  compatibility option; explicit HCA lists are always
+                     passed without adding another device
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:
@@ -42,8 +41,8 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
 EOF
   exit 2
 }
-rank="" leader="" iface="" model_root="" image="" hca=rocep1s0f0
-cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=1 kvshard=0
+rank="" leader="" iface="" model_root="" image="" hca=""
+cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -65,10 +64,35 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ $rank == 0 || $rank == 1 ]] && [[ -n $leader && -n $model_root && -n $image ]] || usage
-if [[ -z $iface ]]; then
-  iface=$(ls "/sys/class/infiniband/$hca/device/net" 2>/dev/null | head -1)
-  [[ -n $iface ]] || { echo "no network interface for $hca; pass --fabric-interface" >&2; exit 2; }
+sysfs=${FABRIC_SYSFS:-/sys/class/infiniband}
+if [[ -z $hca ]]; then
+  [[ -n $iface ]] || { echo "pass --fabric-hca or --fabric-interface; no port is assumed" >&2; exit 2; }
+  matches=()
+  for dev in "$sysfs"/*; do
+    [[ -e $dev/device/net/$iface ]] && matches+=("${dev##*/}")
+  done
+  [[ ${#matches[@]} == 1 ]] || { echo "ambiguous or missing RDMA device for $iface; pass --fabric-hca" >&2; exit 2; }
+  hca=${matches[0]}
 fi
+[[ $hca =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*$ ]] ||
+  { echo "invalid --fabric-hca device list" >&2; exit 2; }
+if [[ -z $iface ]]; then
+  primary=${hca%%,*}
+  matches=("$sysfs/$primary"/device/net/*)
+  [[ ${#matches[@]} == 1 && -e ${matches[0]} ]] ||
+    { echo "ambiguous or missing network interface for $primary; pass --fabric-interface" >&2; exit 2; }
+  iface=${matches[0]##*/}
+fi
+[[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ && -e $sysfs/${hca%%,*}/device/net/$iface ]] ||
+  { echo "--fabric-interface must belong to the first --fabric-hca device" >&2; exit 2; }
+IFS=',' read -r -a rails <<< "$hca"
+seen=,
+for rail in "${rails[@]}"; do
+  [[ $seen != *,"$rail",* ]] || { echo "duplicate RDMA device $rail" >&2; exit 2; }
+  seen+="$rail,"
+  grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
+    { echo "RDMA device $rail is missing or down" >&2; exit 2; }
+done
 model_root=$(realpath "$model_root")
 overlay="$model_root/atlas-overlay"
 checkpoint="$model_root/nvidia--GLM-5.3-Flash-NVFP4"
@@ -92,7 +116,6 @@ if [[ -n $pc_dir || -n $pc_gb ]]; then
     { echo "--prefix-cache-gb must be a whole number from 16 to 100" >&2; exit 2; }
 fi
 name=${name:-atlas-sparkglm-rank$rank}
-docker rm -f "$name" >/dev/null 2>&1 || true
 # The engine unlinks its cache files while they are open and sweeps any a crash
 # left behind, so nothing carries over a restart.
 pc_args=()
@@ -118,6 +141,7 @@ if [[ -n $carveout ]]; then
 fi
 # The overlay links into the original checkpoint, so it is mounted at the same
 # absolute path inside the container.
+docker rm -f "$name" >/dev/null 2>&1 || true
 docker run -d --name "$name" --restart no --network host --ipc host \
   --shm-size 32g --memory 114g --gpus all --device /dev/infiniband:/dev/infiniband \
   --cap-add IPC_LOCK --cap-add SYS_NICE --ulimit memlock=-1:-1 \

@@ -20,7 +20,7 @@ class LaunchContract(unittest.TestCase):
     def setUp(self):
         self.profile = json.loads(serve.profile_path({}, HERE).read_text())
         self.environment = {'NODE_RANK': '0', 'MASTER_ADDR': '192.0.2.1',
-                            'FABRIC_INTERFACE': 'enp1s0f0np0', 'MODEL_PATH': '/models/overlay',
+                            'FABRIC_INTERFACE': 'enp1s0f0np0', 'FABRIC_HCA': 'rocep1s0f0', 'MODEL_PATH': '/models/overlay',
                             'DRAFTER_PATH': '/models/drafter'}
 
     def test_two_rank_contract_and_private_ports(self):
@@ -100,6 +100,16 @@ class LaunchContract(unittest.TestCase):
                 (port/'gid_attrs'/'types'/str(i)).write_text(kind + '\n')
             (port/'gid_attrs'/'types'/str(len(gids))).mkdir()  # reading it fails, like an empty slot
 
+    def test_missing_hca_fails_and_explicit_rails_are_exact(self):
+        missing = dict(self.environment)
+        missing.pop('FABRIC_HCA', None)
+        with self.assertRaises(ValueError):
+            serve.launch(missing, self.profile)
+        env = dict(self.environment, FABRIC_HCA='rocep1s0f1,roceP2p1s0f1')
+        _, result = serve.launch(env, self.profile)
+        self.assertEqual(result['ATLAS_RDMA_RAILS'], env['FABRIC_HCA'])
+        self.assertEqual(result['NCCL_IB_HCA'], env['FABRIC_HCA'])
+
     def test_fabric_hca_lists_and_same_port_siblings(self):
         # GB10 attaches its ConnectX-7 through two PCIe domains, so one cable
         # appears as two RDMA devices (domain 0000 and 0002, same bus:dev.fn).
@@ -118,7 +128,7 @@ class LaunchContract(unittest.TestCase):
         argv, env = serve.launch(dict(self.environment, FABRIC_HCA='a0,b1'), self.profile)
         self.assertEqual(env['NCCL_IB_HCA'], 'a0,b1')
         self.assertEqual(env['ATLAS_RDMA_RAILS'], 'a0,b1')
-        for bad in ('', 'a0,', 'a0,b1\nX=1', 'a0;b1'):
+        for bad in ('', 'a0,', 'a0,b1\nX=1', 'a0;b1', 'a0:1', 'a0,a0'):
             with self.subTest(hca=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, FABRIC_HCA=bad), self.profile)
 
@@ -268,6 +278,10 @@ class LaunchContract(unittest.TestCase):
                 (models/path).parent.mkdir(parents=True)
                 (models/path).touch()
             bin_dir.mkdir()
+            sysfs = root/'sysfs'
+            (sysfs/'rocep1s0f0/device/net/enp1s0f0np0').mkdir(parents=True)
+            (sysfs/'rocep1s0f0/ports/1').mkdir(parents=True)
+            (sysfs/'rocep1s0f0/ports/1/state').write_text('4: ACTIVE')
             # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
             for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
                                ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
@@ -283,14 +297,14 @@ class LaunchContract(unittest.TestCase):
                      '--model-root', str(models), '--image', 'img', '--fabric-interface', 'enp1s0f0np0',
                      '--cuda-cache', str(root/'cuda'), *extra],
                     capture_output=True, text=True,
-                    env=dict(os.environ, PATH=f'{bin_dir}:{os.environ["PATH"]}', **fake))
+                    env=dict(os.environ, PATH=f'{bin_dir}:{os.environ["PATH"]}', FABRIC_SYSFS=str(sysfs), **fake))
                 log = (root/'docker.log').read_text() if (root/'docker.log').exists() else ''
                 return run, [line for line in log.splitlines() if line.startswith('run ')]
 
             run, docker_run = start('0')
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertNotIn('prefix-cache', docker_run[0].lower())
-            self.assertIn('-e FABRIC_SIBLINGS=1 ', docker_run[0])
+            self.assertIn('-e FABRIC_SIBLINGS=0 ', docker_run[0])
             run, docker_run = start('1', '--no-fabric-siblings')
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertIn('-e FABRIC_SIBLINGS=0 ', docker_run[0])
@@ -315,12 +329,14 @@ class LaunchContract(unittest.TestCase):
                 with self.subTest(extra=extra):
                     self.assertNotEqual(run.returncode, 0)
                     self.assertEqual(docker_run, [])
+                    self.assertFalse((root/'docker.log').exists(), 'invalid cache must not stop a container')
                     self.assertIn('prefix-cache', run.stderr)
             for fake in ({'FSTYPE': 'tmpfs'}, {'FSTYPE': 'overlayfs'}, {'FREE_KB': str(47 * 1048576)}):
                 run, docker_run = start('0', '--prefix-cache-dir', str(cache), **fake)
                 with self.subTest(fake=fake):
                     self.assertNotEqual(run.returncode, 0)
                     self.assertEqual(docker_run, [])
+                    self.assertFalse((root/'docker.log').exists(), 'invalid cache must not stop a container')
                     self.assertIn('prefix-cache', run.stderr)
 
     def test_profiles_are_selected_by_name(self):

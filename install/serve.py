@@ -24,8 +24,9 @@ def fabric_hcas(value, sysfs=Path('/sys/class/infiniband'), siblings=True):
     other Spark.
     """
     names = value.split(',')
-    if not all(re.fullmatch(r'[A-Za-z0-9_.:-]+', name) for name in names):
-        raise ValueError('Invalid fabric interface or HCA')
+    if (not all(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', name) for name in names)
+            or len(names) != len(set(names))):
+        raise ValueError('FABRIC_HCA must list unique exact RDMA device names, without spaces or :port suffixes')
 
     def pci(dev):
         try:
@@ -112,10 +113,10 @@ def launch(environ, profile):
     interface = environ['FABRIC_INTERFACE']
     if not re.fullmatch(r'[A-Za-z0-9_.:-]+', interface):
         raise ValueError('Invalid fabric interface or HCA')
-    siblings = environ.get('FABRIC_SIBLINGS', '1')
+    siblings = environ.get('FABRIC_SIBLINGS', '0')
     if siblings not in ('0', '1'):
         raise ValueError('FABRIC_SIBLINGS must be 0 or 1')
-    hcas = fabric_hcas(environ.get('FABRIC_HCA', 'rocep1s0f0'), siblings=siblings == '1')
+    hcas = fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings == '1')
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
     drafter = environ.get('DRAFTER_PATH', '/models/drafter')
     for label, path in (('MODEL_PATH', model), ('DRAFTER_PATH', drafter)):
