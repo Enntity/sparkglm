@@ -1,0 +1,42 @@
+{
+  "schema": "sparkglm.maintenance-qualification/v1",
+  "date": "2026-10-13",
+  "productBuildCommit": "5063c13ea6f196046b76ce6e5c8b4d4200cccc9a",
+  "reference": "ghcr.io/enntity/atlas-sparkglm@sha256:5ec57d5522a95463b600a17471ce60712b315566e04c0a3bb6af1d84a1de0a4a",
+  "tag": "ghcr.io/enntity/atlas-sparkglm:ed7548dfe442",
+  "engineCommit": "6f27e8fa0afe65180a169e54361a77565787ae27",
+  "installTree": "ed7548dfe442949283b54c7160605429046cd46f",
+  "localImageId": "sha256:5ec57d5522a95463b600a17471ce60712b315566e04c0a3bb6af1d84a1de0a4a",
+  "engineTree": "bd5f8d88a93e1b7a8504e1974e03055928d2a5cf",
+  "build": {
+    "architecture": "arm64",
+    "hardware": "NVIDIA GB10",
+    "jobs": 1,
+    "elapsedSeconds": 801.031,
+    "allConfiguredChecksPassed": true
+  },
+  "tests": {
+    "installerAndFabric": 27,
+    "converter": 3,
+    "refusal": 25,
+    "streaming": 43,
+    "nativeChecks": [
+      "vision module and guards",
+      "GLM repair policy and index capacity",
+      "lifecycle",
+      "tool stopping",
+      "admission",
+      "cancellation and disconnect",
+      "tool parser (one existing ignored test)",
+      "DFlash verify and sequence policy",
+      "refusal",
+      "streaming"
+    ]
+  },
+  "limitations": [
+    "This receipt proves image construction and configured regression gates, not live GLM inference or a fresh performance benchmark.",
+    "The GLM pair is reserved for a separate MTP experiment; production activation and model canaries are pending a coordinated window.",
+    "Whole-workspace Clippy on the Mac fails in unchanged Linux-only tests and newer Rust lint rules; the release image uses Rust 1.93.1.",
+    "The historical RC4 benchmark receipts are unchanged and do not measure this maintenance image."
+  ]
+}
