@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261012-rc4.2-layered",
-  "commit": "dfb9c26a95c96faa9f94c44e23343b0f2b4f9db6",
-  "tree": "89e392a3d19535bf153d4cabe5d7ffee1e378382",
+  "branch": "fix/sparkglm-rc4.2-refusal-content",
+  "commit": "6f27e8fa0afe65180a169e54361a77565787ae27",
+  "tree": "bd5f8d88a93e1b7a8504e1974e03055928d2a5cf",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -20,6 +20,10 @@
       "branch": "sparkglm/atlas-20261012-rc4-layered",
       "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
       "note": "RC4 (tree ae5e79f8, the measured exp/prose-rc4 c6089633). This pin differs from it by two spark-server changes (the tool-value fix and the repeat notice) and four CI-only upstream commits; the decode path is unchanged. RC4.1 was sparkglm/atlas-20261012-rc4.1-layered 301479a2."
+    },
+    "refusal_content": {
+      "commit": "6f27e8fa0afe65180a169e54361a77565787ae27",
+      "note": "The single-commit fix after RC4.2 for Atlas-Inf issue 172: the full blocking assistant content is preserved alongside the refusal metadata (previously the body was dropped, leaving an empty assistant turn). Classifier and tool gating are unchanged; adds streaming regression coverage for the refusal path. One commit on top of the RC4.2 layered tree; no decode-path changes. Performance has not been remeasured."
     }
   },
   "kernel_target": "glm-5.3-flash",

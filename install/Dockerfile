@@ -141,6 +141,17 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
       grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log; \
     done
 
+# Refusal content: keep the full blocking response body alongside refusal
+# metadata, and cover the existing streaming content contract.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for filter in refusal api::chat_stream; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "$filter" \
+        > /tmp/atlas-refusal-check.log 2>&1 || { cat /tmp/atlas-refusal-check.log; exit 1; }; \
+      cat /tmp/atlas-refusal-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-refusal-check.log; \
+    done
+
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3 AS runtime
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow-change-held-packages \
     python3 ca-certificates ffmpeg libnccl2=2.31.2-1+cuda13.3 libibverbs1 librdmacm1 \
