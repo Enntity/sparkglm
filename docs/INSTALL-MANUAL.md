@@ -73,10 +73,11 @@ matches that converter; otherwise it moves any older overlay aside.
 
 Start rank **1** (the worker) first, then rank **0** (the leader). The
 `--leader-address` is rank 0's IPv4 address on the direct cable. Each rank
-finds its own fabric interface from the RoCE device (`--fabric-hca`, default
-`rocep1s0f0`, the first port). If the cable is on the second port, pass
-`--fabric-hca rocep1s0f1` on that Spark (`./start.sh` detects this itself).
-Pass `--fabric-interface` to override the interface.
+uses the explicitly selected local RDMA device (`--fabric-hca`) or derives it
+from an unambiguous `--fabric-interface`. No physical port number is assumed.
+A comma-separated `--fabric-hca` list uses its first device for the socket
+interface and passes the full list to the engine. The list is exact: other
+PCIe-domain devices are not added automatically.
 
 ```sh
 # on rank 1:
@@ -131,7 +132,7 @@ and a headless Spark; see the README.
   on `roceP2p1s0f0`:** the board wires the ConnectX-7's second PCIe domain to a
   separate physical port rather than to the same cable (ASUS GX10). An
   unaddressed second port is now left out automatically; if it has an address
-  but no cable to the other Spark, set `FABRIC_SIBLINGS=0` in `.env` (or pass
+  but no cable to the other Spark, use an exact `FABRIC_HCA` list in `.env` (or pass
   `--no-fabric-siblings` to `install/start-node.sh` on both ranks). The fabric
   then runs on the one cabled device: one RDMA rail instead of two.
 - **The host stops responding under load:** GB10 memory is shared with the
@@ -140,3 +141,27 @@ and a headless Spark; see the README.
 - **A rank exits during loading:** `docker logs atlas-sparkglm-rank0`, or
   `./start.sh logs worker`. The launcher refuses to start without a verified
   overlay and a complete drafter.
+
+## Per-node fabric selection
+
+`./start.sh fabric` runs a read-only preflight on both hosts. It reports their
+selected HCA lists, network interfaces and IPv4 addresses. `./start.sh` performs
+the same check before preparation or stopping existing containers. A missing,
+down or mismatched override fails. Zero matching pairs, multiple matches
+(including multiple addresses on one interface), or ambiguous extra rails also
+fail with an error. Active backchannels are not presumed to reach the peer.
+
+Set `LEADER_FABRIC_HCA`, `WORKER_FABRIC_HCA`, `LEADER_FABRIC_INTERFACE` and
+`WORKER_FABRIC_INTERFACE` independently in `.env`. A side without its own setting
+inherits the corresponding legacy `FABRIC_HCA` or `FABRIC_INTERFACE` value.
+If an HCA list is supplied, its first device selects the socket interface;
+list every desired rail in matching peer order on both nodes. For example,
+one host can use `rocep1s0f1,roceP2p1s0f1` and the other
+`rocep1s0f0,roceP2p1s0f0`. Each listed pair must have a unique matching IPv4 subnet.
+The same physical port number or HCA name on both machines is not required.
+`LEADER_ADDRESS`, if supplied, must match the selected leader interface.
+
+The launch scripts pass exact lists with `FABRIC_SIBLINGS=0`. In particular,
+select both intended rails explicitly on dual-domain systems; automatic sibling
+expansion could select a backchannel on other board layouts. Direct container
+launches must supply `FABRIC_HCA`; a missing value fails instead of using port 0.
