@@ -5,7 +5,7 @@ time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `fix/sparkglm-rc4.2-refusal-content` @ `6f27e8fa` ([`install/atlas-source.json`](../install/atlas-source.json)) |
+| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261014-vpc` @ `8180ae56` ([`install/atlas-source.json`](../install/atlas-source.json)) |
 | Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
@@ -115,10 +115,9 @@ each node's disk; see the README for what it costs.
 **Display memory as KV cache.** `--display-carveout` on both ranks lends each
 Spark's 2 GiB display carveout to the KV cache (about 1.38M tokens at 0.91
 unsplit, 2.61M with `--kv-shard`).
-The container starts with `CAP_SYS_ADMIN` to export it, which the server
-drops before it loads anything, and shares the lock directory
-`/run/lock/sparkglm`. It needs a validated driver (580.173.02 or 580.178.04)
-and a headless Spark; see the README.
+The containers share the lock directory `/run/lock/sparkglm`. It needs an
+NVIDIA driver that lends the display memory (580.76.05 or later) and a
+headless Spark; see the README.
 
 **Stopping.** `docker rm -f atlas-sparkglm-rank0` (and `-rank1`).
 

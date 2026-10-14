@@ -158,9 +158,8 @@ DISPLAY_CARVEOUT_LOCK = '/run/lock/sparkglm/display-carveout.lock'
 def display_carveout(environ, argv):
     """`argv` under `spark display-carveout`, which lends the GB10's 2 GiB
     display carveout to the KV cache, when SPARKGLM_DISPLAY_CARVEOUT=1 (default
-    off). The container then needs CAP_SYS_ADMIN for the export, which the
-    launcher drops before the server starts, and the host's /run/lock/sparkglm;
-    it serves without the carveout if it cannot lend it."""
+    off). The container needs the host's /run/lock/sparkglm; it serves without
+    the carveout if the driver cannot lend it."""
     switch = environ.get('SPARKGLM_DISPLAY_CARVEOUT', '0')
     if switch not in ('0', '1'):
         raise ValueError('SPARKGLM_DISPLAY_CARVEOUT must be 0 or 1')

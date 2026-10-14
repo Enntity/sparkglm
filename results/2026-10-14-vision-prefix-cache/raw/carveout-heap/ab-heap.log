@@ -1,0 +1,47 @@
+== heap-latent up
+   r0 spark::display_carveout: display carveout: 2042 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r0 spark::display_carveout: display carveout: driver 580.178.04, 2042 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r0 spark_model::factory::build::kv_carveout: KV cache: display carveout 2042 MiB holds 4 buffers (2042 MiB) → 126726 blocks (+29194, +29.9%) for the same system memory
+   r0 spark_runtime::cuda_backend::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 126726 blocks × 11 layers = 5.5 GB total (V aliases K)
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   r1 spark::display_carveout: display carveout: 2044 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r1 spark::display_carveout: display carveout: driver 580.178.04, 2044 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r1 spark_model::factory::build::glm: KV cache: rank 1 fits 183186 blocks; all ranks agree on 126726
+   r1 spark_model::factory::build::kv_carveout: KV cache: display carveout 2044 MiB holds 2 buffers (1476 MiB) → 183186 blocks (+26805, +17.1%) for the same system memory
+   r1 spark_runtime::cuda_backend::display_carveout: Display carveout: 2044 MiB mapped at 0x21c0000000 for KV pools
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 126726 blocks × 11 layers = 5.5 GB total (V aliases K)
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   lp: REPRODUCIBLE heap-heap-latent
+   prefill/32768: 3 cold/immediate-replay pairs
+     1: cold 2430.9 tok/s (13.480s)
+     2: cold 2436.0 tok/s (13.451s)
+     3: cold 2464.4 tok/s (13.296s)
+   prefill/65536: 3 cold/immediate-replay pairs
+     1: cold 2551.4 tok/s (25.686s)
+     2: cold 2521.7 tok/s (25.989s)
+     3: cold 2580.1 tok/s (25.401s)
+== heap-size up
+   r0 spark::display_carveout: display carveout: 2042 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r0 spark::display_carveout: display carveout: driver 580.178.04, 2042 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r0 spark_model::factory::build::kv_carveout: KV cache: display carveout 2042 MiB holds 5 buffers (2042 MiB) → 101376 blocks (+30140, +42.3%) for the same system memory
+   r0 spark_runtime::cuda_backend::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 101376 blocks × 11 layers = 4.4 GB total (V aliases K)
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   r1 spark::display_carveout: display carveout: 2044 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r1 spark::display_carveout: display carveout: driver 580.178.04, 2044 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r1 spark_model::factory::build::glm: KV cache: rank 1 fits 181486 blocks; all ranks agree on 101376
+   r1 spark_model::factory::build::kv_carveout: KV cache: display carveout 2044 MiB holds 2 buffers (1462 MiB) → 181486 blocks (+26556, +17.1%) for the same system memory
+   r1 spark_runtime::cuda_backend::display_carveout: Display carveout: 2044 MiB mapped at 0x21c0000000 for KV pools
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 101376 blocks × 11 layers = 4.4 GB total (V aliases K)
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   lp: REPRODUCIBLE heap-heap-size
+   prefill/32768: 3 cold/immediate-replay pairs
+     1: cold 2435.8 tok/s (13.453s)
+     2: cold 2423.7 tok/s (13.520s)
+     3: cold 2429.0 tok/s (13.490s)
+   prefill/65536: 3 cold/immediate-replay pairs
+     1: cold 2556.5 tok/s (25.635s)
+     2: cold 2527.6 tok/s (25.928s)
+     3: cold 2525.9 tok/s (25.946s)
+HEAP-DONE

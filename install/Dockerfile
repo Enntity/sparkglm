@@ -77,6 +77,15 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     { cat /tmp/atlas-vision-check.log; exit 1; }; \
     cat /tmp/atlas-vision-check.log && grep -F 'test result: ok. 2 passed;' /tmp/atlas-vision-check.log
 
+# The display carveout comes from the driver's scanout heap: the size search
+# keeps the largest free range and refuses an allocator that is not the heap.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    display_carveout > /tmp/atlas-carveout-check.log 2>&1 || \
+    { cat /tmp/atlas-carveout-check.log; exit 1; }; \
+    cat /tmp/atlas-carveout-check.log && grep -F 'test result: ok. 6 passed;' /tmp/atlas-carveout-check.log
+
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
@@ -150,6 +159,19 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
         > /tmp/atlas-refusal-check.log 2>&1 || { cat /tmp/atlas-refusal-check.log; exit 1; }; \
       cat /tmp/atlas-refusal-check.log; \
       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-refusal-check.log; \
+    done
+
+# Vision prefix cache: content keys (different images miss, a re-sent image
+# hits, ranks agree), the rank-1 receive-only tower, the per-chunk encode and
+# its stream ordering, and the hash/deferred fields on the rank wire.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for check in spark-runtime:vision spark-model:vision_cache spark-model:vision_transport \
+                          spark-model:vision_encoder spark-model:embed_chunk; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p "${check%%:*}" --lib "${check#*:}" \
+        > /tmp/atlas-vision-cache-check.log 2>&1 || { cat /tmp/atlas-vision-cache-check.log; exit 1; }; \
+      cat /tmp/atlas-vision-cache-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-vision-cache-check.log; \
     done
 
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3 AS runtime

@@ -1,0 +1,31 @@
+== list up
+   r0 spark::display_carveout: display carveout: 2046 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r0 spark::display_carveout: display carveout: DISPLAY_FRM at 0x280200000
+   r0 spark_model::factory::build::kv_carveout: KV cache: display carveout 2046 MiB holds 4 buffers (2046 MiB) → 126976 blocks (+30755, +32.0%) for the same system memory
+   r0 spark_runtime::cuda_backend::display_carveout: Display carveout: 2046 MiB mapped at 0x21c0000000 for KV pools
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 126976 blocks × 11 layers = 5.5 GB total (V aliases K)
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   r1 spark::display_carveout: display carveout: 2046 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r1 spark::display_carveout: display carveout: DISPLAY_FRM at 0x280200000
+   r1 spark_model::factory::build::glm: KV cache: rank 1 fits 182472 blocks; all ranks agree on 126976
+   r1 spark_model::factory::build::kv_carveout: KV cache: display carveout 2046 MiB holds 2 buffers (1470 MiB) → 182472 blocks (+26700, +17.1%) for the same system memory
+   r1 spark_runtime::cuda_backend::display_carveout: Display carveout: 2046 MiB mapped at 0x21c0000000 for KV pools
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 126976 blocks × 11 layers = 5.5 GB total (V aliases K)
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   lp: REPRODUCIBLE heap-list
+   prefill/32768: 3 cold/immediate-replay pairs
+     1: cold 2168.2 tok/s (15.113s)
+     2: cold 2373.6 tok/s (13.805s)
+     3: cold 2222.4 tok/s (14.745s)
+   prefill/65536: 3 cold/immediate-replay pairs
+     1: cold 2491.1 tok/s (26.308s)
+     2: cold 2468.5 tok/s (26.549s)
+     3: cold 2496.0 tok/s (26.257s)
+== heap-latent up
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 106838 blocks × 11 layers = 4.6 GB total (V aliases K)
+   r0 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   r0 WARN spark::display_carveout: display carveout not lent: RM alloc device: status 0x33; running without it
+   r1 spark_model::factory::build::glm: KV cache: rank 1 fits 155296 blocks; all ranks agree on 106838
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 106838 blocks × 11 layers = 4.6 GB total (V aliases K)
+   r1 spark_runtime::kv_cache::paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+   r1 WARN spark::display_carveout: display carveout not lent: RM alloc device: status 0x33; running without it

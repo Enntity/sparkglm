@@ -200,17 +200,14 @@ goes from 163,177 to 147,480 blocks (2.61M to 2.36M tokens). Each GiB added
 ## Display memory as KV cache (optional, DGX Spark only)
 
 Each DGX Spark's firmware sets aside 2 GiB of memory for the display (the
-`DISPLAY_FRM` carveout). Linux never sees it, and on the GB10 the NVIDIA
-driver never allocates from it, so on a headless Spark it sits unused. With
-`DISPLAY_CARVEOUT=1`, the engine borrows it for the KV cache: it places whole
+`DISPLAY_FRM` carveout). Linux never sees it; the NVIDIA driver manages it as
+the display's own memory pool, and on a headless Spark the display uses only
+a few MiB of it. With `DISPLAY_CARVEOUT=1`, the engine asks the driver for
+the rest (about 2042 MiB) and borrows it for the KV cache: it places whole
 per-layer latent KV pools there, so the pool grows while system memory stays
-exactly as it was.
-
-The GPU does not cache this memory in its L2 (the driver maps it uncached), so
-data read more than once costs more there. The engine keeps the sparse-index
-buffers, which every prefill query re-reads, in ordinary memory; placing them
-in the carveout made a 64K cold prefill 7% slower
-([results/2026-10-05-carveout-placement](results/2026-10-05-carveout-placement/RESULT.md)).
+exactly as it was. Because the driver hands it out, it never overlaps what
+the display uses, and the GPU caches it like ordinary memory
+([results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md)).
 
 On our pair at 0.91 GPU memory utilization, the pool grows from 70,501 to
 86,005 blocks per Spark (+19.4%, about 1.13M to 1.38M tokens). Cold prefill
@@ -225,20 +222,18 @@ DISPLAY_CARVEOUT=1   # default off; set 0 or delete the line to roll back
 
 What it takes:
 
-- **Container privilege.** Exporting the carveout needs `CAP_SYS_ADMIN`, so
-  each rank's container starts with `--cap-add SYS_ADMIN`. The engine starts
-  through `spark display-carveout`, which exports the memory, takes a host
-  lock, drops `CAP_SYS_ADMIN` from every capability set (including the
-  bounding set) and only then starts the server. The server itself runs
-  without it.
+- **No extra container privilege.** The engine starts through
+  `spark display-carveout`, which allocates the memory from the driver, takes
+  a host lock and then starts the server.
 - **One user per Spark.** The lock in `/run/lock/sparkglm` lets one process
   per host hold the carveout. `start.sh` creates the directory.
-- **Validated drivers only.** The engine uses the carveout only with NVIDIA
-  driver versions checked against the open GPU kernel module source (580.173.02
-  and 580.178.04). With another driver, or if the export fails, it serves
-  without the carveout and logs why.
-- **A headless Spark.** A display attached to the Spark could need that
-  memory; we run ours headless.
+- **Driver.** Every NVIDIA open GPU kernel module release from 580.76.05 to
+  615.78.08 provides it; the engine checks what the driver gives rather than
+  its version. If the driver cannot lend it, the engine serves without the
+  carveout and logs why.
+- **A headless Spark.** The engine takes what the display is not using when
+  it starts; a display attached later may find no room for its surfaces.
+  We run ours headless.
 
 This is SparkGLM-only: it ships in the SparkGLM layer of the engine fork, not
 in the upstream Atlas series. The idea comes from kindling-spark-os's
@@ -261,15 +256,15 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`fix/sparkglm-rc4.2-refusal-content` at `6f27e8fa` (tree `bd5f8d88`, pinned in
+`sparkglm/atlas-20261014-vpc` at `8180ae56` (tree `0f1b58bd`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash-20261012-rc4.2` at `d8a55e0f`: `0b515eec`
-   plus the tool-value fix and the repeat notice), which we intend to propose
-   to Atlas-Inf after review. It started as
+   release `upstream/glm53-flash-20261014-vpc` at `28f64b91`: the RC4.2
+   candidate `d8a55e0f` plus the vision prefix cache below), which we intend
+   to propose to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
@@ -277,18 +272,27 @@ layers:
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
 
-On top of the RC4.2 layered tree, one further commit preserves the full
-blocking assistant content alongside the refusal metadata, so a classifier
-refusal no longer returns an empty assistant turn (Atlas-Inf issue 172). The
-classifier and tool gating are unchanged, and it adds streaming regression
-coverage for the refusal path. This is a correctness fix only: it carries no
-new performance evidence, and every measured number above is unchanged.
+On top, the refusal-content fix preserves the full blocking assistant content
+alongside the refusal metadata, so a classifier refusal no longer returns an
+empty assistant turn (Atlas-Inf issue 172).
+
+**Image prompts use the prefix cache.** Every image used to be the same run
+of placeholder tokens, so image prompts bypassed the prefix cache entirely:
+once an image entered a long conversation, every turn re-prefilled the whole
+history and re-encoded every image. The cache key now replaces each
+placeholder with an id derived from its image's SHA-256 content hash, so a
+different image never shares KV and the same image hits; text before the first
+image keys as before. Only images a prefill actually computes go through the
+vision encoder, the second Spark no longer loads the vision tower (rank 0
+encodes and sends the rows), and concurrent image prompts keep their vision
+state per request. Text prompts run exactly as before (prompt-logprob hash
+unchanged). Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
 
 These are published Enntity release snapshots, separate from current
 Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
-`c6089633`) plus the GLM tool-value fix, the repeat notice and four CI-only
-upstream commits, followed by the refusal-content fix; the manifest's
-`layers` entries record the layering.
+`c6089633`) plus the GLM tool-value fix, the repeat notice, four CI-only
+upstream commits and the vision prefix cache, followed by the refusal-content
+fix; the manifest's `layers` entries record the layering.
 
 ## History
 
