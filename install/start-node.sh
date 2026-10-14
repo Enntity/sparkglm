@@ -32,9 +32,7 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      (default: off)
   --prefix-cache-gb  their disk budget in GiB (default 48); the same on both ranks
   --display-carveout lend the GB10's 2 GiB display carveout to the KV cache
-                     (2 GiB more KV cache). The container starts with
-                     CAP_SYS_ADMIN to export it, which the server drops before
-                     it loads anything; use it on both ranks (default: off)
+                     (2 GiB more KV cache); use it on both ranks (default: off)
   --kv-shard         split the KV cache between the two Sparks, about 1.8x the
                      pool for the same memory; use it on both ranks (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
@@ -136,7 +134,7 @@ carveout_args=()
 if [[ -n $carveout ]]; then
   lock_dir=/run/lock/sparkglm
   mkdir -p "$lock_dir" && chmod 1777 "$lock_dir" 2>/dev/null || true
-  carveout_args=(--cap-add SYS_ADMIN --mount "type=bind,src=$lock_dir,dst=$lock_dir"
+  carveout_args=(--mount "type=bind,src=$lock_dir,dst=$lock_dir"
     -e SPARKGLM_DISPLAY_CARVEOUT=1)
 fi
 # The overlay links into the original checkpoint, so it is mounted at the same

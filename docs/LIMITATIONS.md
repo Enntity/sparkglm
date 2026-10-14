@@ -51,13 +51,11 @@ What to know before relying on SparkGLM.
   `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. On the
   2026-10-09 RC2 release, with the KV shard, the carveout and the disk prefix
   cache, the pool is about 2.36M tokens and a four-session 204K fill left
-  rank 0 at 4.8 GB free at worst. The GPU
-  does not cache the carveout in L2, so only the latent KV pools go there;
-  a cacheable mapping that could also take the index buffers is tracked in
-  [#32](https://github.com/Enntity/sparkglm/issues/32).
-- `DISPLAY_CARVEOUT=1` needs `CAP_SYS_ADMIN` on the containers (dropped before
-  the server starts), a validated NVIDIA driver (580.173.02 or 580.178.04) and
-  a headless Spark. It has been measured on our pair only.
+  rank 0 at 4.8 GB free at worst. Only the latent KV pools go to the
+  carveout; they already fill it.
+- `DISPLAY_CARVEOUT=1` needs an NVIDIA driver that lends the display memory
+  (open kernel modules 580.76.05 or later) and a headless Spark. It has been
+  measured on our two pairs only.
 - Prefix caching keeps 16 recurrent-state snapshots, one per recent request.
   A conversation idle for longer than that is re-prefilled from its deepest
   remaining cached block, or from scratch.

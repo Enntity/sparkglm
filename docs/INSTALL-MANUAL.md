@@ -115,10 +115,9 @@ each node's disk; see the README for what it costs.
 **Display memory as KV cache.** `--display-carveout` on both ranks lends each
 Spark's 2 GiB display carveout to the KV cache (about 1.38M tokens at 0.91
 unsplit, 2.61M with `--kv-shard`).
-The container starts with `CAP_SYS_ADMIN` to export it, which the server
-drops before it loads anything, and shares the lock directory
-`/run/lock/sparkglm`. It needs a validated driver (580.173.02 or 580.178.04)
-and a headless Spark; see the README.
+The containers share the lock directory `/run/lock/sparkglm`. It needs an
+NVIDIA driver that lends the display memory (580.76.05 or later) and a
+headless Spark; see the README.
 
 **Stopping.** `docker rm -f atlas-sparkglm-rank0` (and `-rank1`).
 

@@ -3,8 +3,8 @@
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
   "branch": "sparkglm/atlas-20261014-vpc",
-  "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
-  "tree": "0f1b58bd925bee58fc44735265cb0714cc72397d",
+  "commit": "289cefbccdd6c13117228863c7237da17e47a92a",
+  "tree": "f0fde299e80f3330ffab5c166c6104738be615bd",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
@@ -18,12 +18,16 @@
     },
     "integration": {
       "branch": "sparkglm/atlas-20261014-vpc",
-      "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
-      "note": "The previous pin (fix/sparkglm-rc4.2-refusal-content 6f27e8fa) plus the three vision commits, layered: tree 0f1b58bd is identical to the tested feat/vision-prefix-cache a699ffec. RC4's decode path is unchanged."
+      "commit": "289cefbccdd6c13117228863c7237da17e47a92a",
+      "note": "The previous pin (fix/sparkglm-rc4.2-refusal-content 6f27e8fa) plus the three vision commits, layered (8180ae56, tree 0f1b58bd identical to the tested feat/vision-prefix-cache a699ffec), plus the display-carveout commit. RC4's decode path is unchanged."
     },
     "refusal_content": {
       "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
       "note": "The refusal-content fix (6f27e8fa on RC4.2, Atlas-Inf issue 172) re-applied on top: the full blocking assistant content is preserved alongside the refusal metadata."
+    },
+    "display_carveout_heap": {
+      "commit": "289cefbccdd6c13117228863c7237da17e47a92a",
+      "note": "SparkGLM-only (fix/carveout-scanout-heap): the launcher allocates the display carveout from the driver's own scanout heap over DISPLAY_FRM (GB10 is RM chip GB20B, whose display surfaces live there), GPU-cacheable. No CAP_SYS_ADMIN, no overlap with the display's allocations, L2-cached like cuMemAlloc memory; no driver-version allowlist (ABI and heap identical in open-gpu-kernel-modules 580.76.05 to 615.78.08)."
     }
   },
   "kernel_target": "glm-5.3-flash",

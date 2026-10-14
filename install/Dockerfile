@@ -77,6 +77,15 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     { cat /tmp/atlas-vision-check.log; exit 1; }; \
     cat /tmp/atlas-vision-check.log && grep -F 'test result: ok. 2 passed;' /tmp/atlas-vision-check.log
 
+# The display carveout comes from the driver's scanout heap: the size search
+# keeps the largest free range and refuses an allocator that is not the heap.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark \
+    display_carveout > /tmp/atlas-carveout-check.log 2>&1 || \
+    { cat /tmp/atlas-carveout-check.log; exit 1; }; \
+    cat /tmp/atlas-carveout-check.log && grep -F 'test result: ok. 6 passed;' /tmp/atlas-carveout-check.log
+
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
