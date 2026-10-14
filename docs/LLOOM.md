@@ -19,5 +19,9 @@ engine. Setup does four things on each Spark:
 Starting launches rank 1, then rank 0, and routes the gateway model
 `glm-5.3-flash-atlas` to the leader.
 
+LLooM doesn't set host options, so cap the GPU clock on both Sparks first:
+`sudo bash gpu-clock-cap.sh` from a SparkGLM checkout on each (see the
+README's requirements).
+
 The recipe is additive: it doesn't change your default model or aliases.
 Nothing is built or converted while a runtime starts.

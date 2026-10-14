@@ -80,6 +80,10 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
   copied to the other Spark over the cable (about a minute).
 - Nothing else using the GPUs' memory. GB10 memory is shared with the host,
   and the engine uses most of it.
+- The GPU clock capped on both Sparks: run `./start.sh clock-cap` once (it
+  asks for `sudo` on each). Uncapped, a long cold prefill can power a Spark off
+  with nothing in any log. The cap costs about 3% of raw matmul throughput
+  ([results](results/2026-10-13-clock-cap/RESULT.md)).
 
 ## What `./start.sh` does
 
@@ -103,7 +107,11 @@ already done, so rerunning it just restarts the engine.
 4. **Serve.** Starts rank 1 over ssh, then rank 0, and waits for health
    (about 2.5 minutes), then answers one smoke-test question.
 
-Other commands: `./start.sh stop | status | logs [worker] | build | download | convert`.
+Before pulling, downloading or starting anything, it checks that
+`gpu-clock-cap.service` is active on both Sparks and stops if not
+(`CLOCK_CAP=0` skips the check).
+
+Other commands: `./start.sh clock-cap | stop | status | logs [worker] | build | download | convert`.
 
 ## Use it
 
