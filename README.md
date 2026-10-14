@@ -261,15 +261,15 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`fix/sparkglm-rc4.2-refusal-content` at `6f27e8fa` (tree `bd5f8d88`, pinned in
+`sparkglm/atlas-20261014-vpc` at `8180ae56` (tree `0f1b58bd`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` base at `6a3d24ec`.
 2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash-20261012-rc4.2` at `d8a55e0f`: `0b515eec`
-   plus the tool-value fix and the repeat notice), which we intend to propose
-   to Atlas-Inf after review. It started as
+   release `upstream/glm53-flash-20261014-vpc` at `28f64b91`: the RC4.2
+   candidate `d8a55e0f` plus the vision prefix cache below), which we intend
+   to propose to Atlas-Inf after review. It started as
    Reiner Schmidt's port
    ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
    the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
@@ -277,18 +277,27 @@ layers:
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
 
-On top of the RC4.2 layered tree, one further commit preserves the full
-blocking assistant content alongside the refusal metadata, so a classifier
-refusal no longer returns an empty assistant turn (Atlas-Inf issue 172). The
-classifier and tool gating are unchanged, and it adds streaming regression
-coverage for the refusal path. This is a correctness fix only: it carries no
-new performance evidence, and every measured number above is unchanged.
+On top, the refusal-content fix preserves the full blocking assistant content
+alongside the refusal metadata, so a classifier refusal no longer returns an
+empty assistant turn (Atlas-Inf issue 172).
+
+**Image prompts use the prefix cache.** Every image used to be the same run
+of placeholder tokens, so image prompts bypassed the prefix cache entirely:
+once an image entered a long conversation, every turn re-prefilled the whole
+history and re-encoded every image. The cache key now replaces each
+placeholder with an id derived from its image's SHA-256 content hash, so a
+different image never shares KV and the same image hits; text before the first
+image keys as before. Only images a prefill actually computes go through the
+vision encoder, the second Spark no longer loads the vision tower (rank 0
+encodes and sends the rows), and concurrent image prompts keep their vision
+state per request. Text prompts run exactly as before (prompt-logprob hash
+unchanged). Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
 
 These are published Enntity release snapshots, separate from current
 Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
-`c6089633`) plus the GLM tool-value fix, the repeat notice and four CI-only
-upstream commits, followed by the refusal-content fix; the manifest's
-`layers` entries record the layering.
+`c6089633`) plus the GLM tool-value fix, the repeat notice, four CI-only
+upstream commits and the vision prefix cache, followed by the refusal-content
+fix; the manifest's `layers` entries record the layering.
 
 ## History
 

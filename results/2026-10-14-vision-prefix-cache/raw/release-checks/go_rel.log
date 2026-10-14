@@ -1,0 +1,61 @@
+== base up (ghcr.io/enntity/atlas-sparkglm@sha256:5ec57d5522a95463b600a17471ce60712b315566e04c0a3bb6af1d84a1de0a4a): 
+REPRODUCIBLE rel-base
+rel-base {"prose": {"tok_s": 43.68, "tok_step_mean": 2.501, "n": 12}, "code": {"tok_s": 63.84, "tok_step_mean": 4.881, "n": 12}}
+-- base footprint:
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 99.9 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 2.1 GB for KV → 23968 blocks × 16 tok/block = 383488 max 
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.5 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 6.9 GB for KV → 114217 blocks × 16 tok/block = 1827472 m
+spark_model::factory::build::glm: KV cache: rank 1 fits 114217 blocks; all ranks agree on 23968
+-- base log errors: rank0 0 rank1 1
+== new up (ghcr.io/enntity/atlas-sparkglm:03f0ecc85c27): 
+REPRODUCIBLE rel-new
+rel-new {"prose": {"tok_s": 44.06, "tok_step_mean": 2.501, "n": 12}, "code": {"tok_s": 63.42, "tok_step_mean": 4.881, "n": 12}}
+long tool call: finish tool_calls completion_tokens 3516 tool_calls 1 has f150 True
+turn 5 {'ttft': 0.96, 'prompt_tokens': 45528, 'cached': 45488, 'correct': True} '266033'
+turn 6 {'ttft': 0.7, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+rel-new: 8/8 correct
+B_green_triangle: ttft 8.81 s, prompt 296, cached 0: 'green triangle'
+A_blue_square: ttft 21.4 s, prompt 47772, cached 0: 'Blue square'
+race: A correct, B correct
+turn 1: ttft 27.83 s, prompt 68135, cached 0: 'A red circle on a white background.'
+turn 2: ttft 0.72 s, prompt 68159, cached 68128: 'Red'
+turn 3: ttft 0.9 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+turn 4: ttft 1.02 s, prompt 68242, cached 68176: 'Apple'
+turn 5: ttft 0.83 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+order_PQ: ttft 1.13 s, prompt 574, cached 16: 'first: red circle; second: blue square.'
+order_QP: ttft 1.13 s, prompt 574, cached 16: 'first: blue square; second: red circle'
+single_P: ttft 1.81 s, prompt 2240, cached 272: 'red circle'
+single_R: ttft 2.0 s, prompt 2240, cached 272: 'green triangle'
+single_P_again: ttft 0.43 s, prompt 2240, cached 2240: 'red circle'
+{"tag": "rel", "minutes": 20.5, "requests": 449, "failures": 5} {'img-a': (127, 0, 5.86, 18.17), 'img-b': (124, 0, 5.97, 19.09), 'short': (149, 4, 5.82, 14.3), 'text': (49, 1, 16.62, 50.45)}
+-- new footprint:
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.8 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 3.1 GB for KV → 43317 blocks × 16 tok/block = 693072 max
+spark_model::weight_loader::glm5::vision: GLM vision: rank receives encoded rows; vision weights not loaded
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 100.3 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 9.1 GB for KV → 154538 blocks × 16 tok/block = 2472608 m
+spark_model::factory::build::glm: KV cache: rank 1 fits 154538 blocks; all ranks agree on 43317
+-- new log errors: rank0 0 rank1 3
+== fill up (ghcr.io/enntity/atlas-sparkglm:03f0ecc85c27): 
+turn 1: ttft 28.4 s, prompt 68135, cached 0: 'A red circle on a white background.'
+turn 2: ttft 0.69 s, prompt 68159, cached 68128: 'Red'
+turn 3: ttft 0.9 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+turn 4: ttft 1.0 s, prompt 68242, cached 68176: 'Apple'
+turn 5: ttft 0.78 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+{"tag": "rel-fill1", "correct": 12, "n": 12, "prompt_tokens_max": 204414, "wall_s": 350.2}
+{"tag": "rel-fill2", "correct": 11, "n": 12, "prompt_tokens_max": 204258, "wall_s": 344.9}
+{"tag": "rel-fill3", "correct": 12, "n": 12, "prompt_tokens_max": 204289, "wall_s": 346.8}
+{"tag": "rel-fill4", "correct": 11, "n": 12, "prompt_tokens_max": 204289, "wall_s": 351.3}
+{"tag": "rel-fill5", "correct": 11, "n": 12, "prompt_tokens_max": 204328, "wall_s": 348.0}
+image turn 5 after fills: ttft 1.65 s, prompt 68257, cached 68256: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+same text as before the fills: True
+-- fill footprint:
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 103.2 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 6.2 GB for KV → 101019 blocks × 16 tok/block = 1616304 m
+spark_model::weight_loader::glm5::vision: GLM vision: rank receives encoded rows; vision weights not loaded
+spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 100.2 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 9.2 GB for KV → 155681 blocks × 16 tok/block = 2490896 m
+spark_model::factory::build::glm: KV cache: rank 1 fits 155681 blocks; all ranks agree on 101019
+-- fill log errors: rank0 0 rank1 3
+spark_model::factory::build::kv_nvme: NVMe spill tiers: reserving 502.5 MiB of host memory out of the KV budget (staging + on-disk index at a full ATLAS_KV_NVME_GB + 223.1 MiB SSM tier arena/staging)
+spark_model::factory::build::kv_nvme: prefix cache NVMe spill tier ON (rank 0): /prefix-cache/kv (ATLAS_KV_NVME_DIR, O_DIRECT, unlinked), latent shard: 106496 B/block record for this rank's blocks (latent + pooled index), 12288 B for the peer's (pooled index o
+spark_model::model::kv_nvme: NVMe prefix restore: 4266/4266 blocks (68256 tokens after 0 resident) in 101.9 ms; tier 158582/433892 slots, 162848 spills, 4266 restores, 0 failures; evict 45.9 ms + read 41.0 ms (6180 MB/s); spill path (fast): 162848 blocks in 78
+min MemAvailable GiB base: rank0 4.39 rank1 10.88
+min MemAvailable GiB new: rank0 3.69 rank1 11.74
+min MemAvailable GiB fill: rank0 2.87 rank1 8.53
+REL-DONE

@@ -1,0 +1,59 @@
+decode/code: 1 runs
+  1: 69.0 tok/s, TTFT 0.828s, 1715 tokens
+decode/prose: 1 runs
+  1: 38.6 tok/s, TTFT 0.724s, 1016 tokens
+decode/structured: 1 runs
+  1: 89.8 tok/s, TTFT 0.729s, 444 tokens
+concurrency/1: 2 rounds of code
+  1: aggregate 47.7 tok/s, median stream 56.0 tok/s
+  2: aggregate 45.9 tok/s, median stream 52.7 tok/s
+concurrency/2: 2 rounds of code
+  1: aggregate 55.9 tok/s, median stream 34.4 tok/s
+  2: aggregate 57.1 tok/s, median stream 33.7 tok/s
+concurrency/3: 2 rounds of code
+  1: aggregate 55.7 tok/s, median stream 22.1 tok/s
+  2: aggregate 65.1 tok/s, median stream 27.3 tok/s
+concurrency/4: 2 rounds of code
+  1: aggregate 69.8 tok/s, median stream 21.4 tok/s
+  2: aggregate 67.9 tok/s, median stream 21.4 tok/s
+staggered/2: 2 rounds, 1 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 13.713s (0.94x solo), incumbent stall 3.361s (whole-stream p95 gap 0.072s)
+  1: prefill-first short TTFT median 3.625s (4.93x solo), long TTFT 15.082s (1.04x solo)
+  2: decode-first newcomer TTFT 13.545s (0.99x solo), incumbent stall 3.327s (whole-stream p95 gap 0.069s)
+  2: prefill-first short TTFT median 3.537s (4.88x solo), long TTFT 14.991s (1.09x solo)
+staggered/4: 2 rounds, 3 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 13.883s (1.02x solo), incumbent stall 3.388s (whole-stream p95 gap 0.125s)
+  1: prefill-first short TTFT median 3.798s (5.06x solo), long TTFT 15.765s (1.16x solo)
+  2: decode-first newcomer TTFT 13.789s (1.02x solo), incumbent stall 3.370s (whole-stream p95 gap 0.122s)
+  2: prefill-first short TTFT median 3.823s (5.06x solo), long TTFT 15.790s (1.17x solo)
+result: /home/enntitysparkadmin/final-bench/prod-5ec57d5/rig-conc.json
+card: /home/enntitysparkadmin/final-bench/prod-5ec57d5/rig-conc.card.txt
+
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  3/3 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      glm-5.3-flash-atlas                                                          │
+│  APPLIANCE  2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:40fabcaf6e96  •  dirty  •  worktree:7c17a097cc0d                         │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              69.0 tok/s      25.7s last     69.0–69.0     ✓ 1/1                    │
+│  PROSE             38.6 tok/s      27.0s last     38.6–38.6     ✓ 1/1                    │
+│  STRUCTURED*       89.8 tok/s       5.7s last     89.8–89.8     ✓ 1/1                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ CAPPED CONCURRENT GENERATION ───────────────────────────────────────────────────────────┤
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 46.8  •  C2 56.5  •  C3 60.4  •  C4 68.8 tok/s                           │
+│  C4 OUTPUT STATE   normal stop 0/8  •  visible 8/8  •  reasoning may be included         │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  S4 • 3 RUNNING + 1 ARRIVING • 32,768-TOKEN LONG REQUEST • 1024/256-TOKEN CAPS           │
+│  DECODE-FIRST   long TTFT 13.84s (1.02x solo)  •  incumbent stall 3.38s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 3.81s (5.06x solo)  •  long TTFT 1.16x solo  •  2/2 valid     │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:8ed923a7d2ead961…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
