@@ -2,28 +2,28 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "fix/sparkglm-rc4.2-refusal-content",
-  "commit": "6f27e8fa0afe65180a169e54361a77565787ae27",
-  "tree": "bd5f8d88a93e1b7a8504e1974e03055928d2a5cf",
+  "branch": "sparkglm/atlas-20261014-vpc",
+  "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
+  "tree": "0f1b58bd925bee58fc44735265cb0714cc72397d",
   "layers": {
     "atlas_inf_main_base": "6a3d24ecb891adac1fac8edeef92de29bb6f3e15",
     "upstream_candidate": {
-      "branch": "upstream/glm53-flash-20261012-rc4.2",
-      "commit": "d8a55e0f3fe10374272249da66c026563ad2b1a9",
-      "note": "upstream/glm53-flash at 0b515eec (the RC4 engine commits plus four CI-only fixes) plus the GLM tool-value fix ade7b012 (tool calls longer than 1024 tokens were cut: the envelope-stuck guard knew only Qwen's parameter markers) plus d8a55e0f: when the same tool calls return the same non-error result twice or more, the latest tool result gets a <REPEAT NOTICE> and that turn the xhigh thinking rung (unless the client set a budget), and <tool_call> stays open and unbiased; the loop detector no longer hard-masks <tool_call>, which had left GLM narrating its intended action as prose."
+      "branch": "upstream/glm53-flash-20261014-vpc",
+      "commit": "28f64b91f38ddbc0904ec56b705b769af3872c8a",
+      "note": "The RC4.2 upstream candidate upstream/glm53-flash-20261012-rc4.2 (d8a55e0f) plus three vision commits: image prompts keyed by content for the prefix cache (each placeholder becomes an id derived from its image's SHA-256 hash and its index, so different images never share KV and a re-sent image hits; Atlas issue 58), TP workers load no vision weights (rank 0 encodes and broadcasts the rows), and per-sequence vision state with per-chunk encoding (only images a chunk computes go through the ViT; image prompts interleave without sharing encoder rows)."
     },
     "sparkglm_only": {
-      "commit": "dfb9c26a95c96faa9f94c44e23343b0f2b4f9db6",
-      "note": "The seven SparkGLM-only commits re-layered on the upstream candidate (26812d35..dfb9c26a): FlashKDA/native sparse-MLA prefill bridges (the first, 26812d35, declares the KV-shard flag its native bridge reads, which upstream dropped as unused), GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
+      "commit": "fc58aaacab5f5d3b35f5c0cc326eb7af3f1993c2",
+      "note": "The seven SparkGLM-only commits re-applied on the vision upstream candidate (08c07e96..fc58aaac, unchanged from RC4.2's 26812d35..dfb9c26a): FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement (latent pools only, ATLAS_KV_CARVEOUT_ORDER), and sharded latent pools (ATLAS_GLM_KV_SHARD, opt-in through SPARKGLM_KV_SHARD) sized and placed in the carveout. Fork-only; the carveout is used only with DISPLAY_CARVEOUT=1."
     },
     "integration": {
-      "branch": "sparkglm/atlas-20261012-rc4-layered",
-      "commit": "5c523903c886d1abf2f4bda6a0af1cdf91c28523",
-      "note": "RC4 (tree ae5e79f8, the measured exp/prose-rc4 c6089633). This pin differs from it by two spark-server changes (the tool-value fix and the repeat notice) and four CI-only upstream commits; the decode path is unchanged. RC4.1 was sparkglm/atlas-20261012-rc4.1-layered 301479a2."
+      "branch": "sparkglm/atlas-20261014-vpc",
+      "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
+      "note": "The previous pin (fix/sparkglm-rc4.2-refusal-content 6f27e8fa) plus the three vision commits, layered: tree 0f1b58bd is identical to the tested feat/vision-prefix-cache a699ffec. RC4's decode path is unchanged."
     },
     "refusal_content": {
-      "commit": "6f27e8fa0afe65180a169e54361a77565787ae27",
-      "note": "The single-commit fix after RC4.2 for Atlas-Inf issue 172: the full blocking assistant content is preserved alongside the refusal metadata (previously the body was dropped, leaving an empty assistant turn). Classifier and tool gating are unchanged; adds streaming regression coverage for the refusal path. One commit on top of the RC4.2 layered tree; no decode-path changes. Performance has not been remeasured."
+      "commit": "8180ae5681529bf73fe0262da19549b6dffe6710",
+      "note": "The refusal-content fix (6f27e8fa on RC4.2, Atlas-Inf issue 172) re-applied on top: the full blocking assistant content is preserved alongside the refusal metadata."
     }
   },
   "kernel_target": "glm-5.3-flash",
