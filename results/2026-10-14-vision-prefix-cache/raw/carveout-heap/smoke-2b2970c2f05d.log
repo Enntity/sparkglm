@@ -1,0 +1,28 @@
+   r0 spark::display_carveout: display carveout: 2042 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r0 spark::display_carveout: display carveout: driver 580.178.04, 2042 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r0 spark_model::factory::build::kv_carveout: KV cache: display carveout 2042 MiB holds 4 buffers (1990 MiB) → 123524 blocks (+36150, +41.4%) for the same system memory
+   r0 spark_runtime::cuda_backend::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+   r1 spark::display_carveout: display carveout: 2044 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+   r1 spark::display_carveout: display carveout: driver 580.178.04, 2044 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+   r1 spark_model::factory::build::glm: KV cache: rank 1 fits 183774 blocks; all ranks agree on 123524
+   r1 spark_model::factory::build::kv_carveout: KV cache: display carveout 2044 MiB holds 2 buffers (1481 MiB) → 183774 blocks (+26890, +17.1%) for the same system memory
+   r1 spark_model::weight_loader::glm5::vision: GLM vision: rank receives encoded rows; vision weights not loaded
+   r1 spark_runtime::cuda_backend::display_carveout: Display carveout: 2044 MiB mapped at 0x21c0000000 for KV pools
+   r0 CapEff CapEff:	00000000a88465fb
+   r1 CapEff CapEff:	00000000a88465fb
+   lp: REPRODUCIBLE cv "hash": "246cd1331b41"
+   pc_test: cv: 8/8 correct
+   race2: B_green_triangle: ttft 9.32 s, prompt 296, cached 0: 'green triangle'
+   race2: A_blue_square: ttft 21.91 s, prompt 47772, cached 0: 'Blue square'
+   race2: race: A correct, B correct
+   conv: turn 1: ttft 27.78 s, prompt 68135, cached 0: 'A red circle on a white background.'
+   conv: turn 2: ttft 0.75 s, prompt 68159, cached 68128: 'Red'
+   conv: turn 3: ttft 0.92 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+   conv: turn 4: ttft 1.0 s, prompt 68242, cached 68176: 'Apple'
+   conv: turn 5: ttft 0.77 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+   swap: order_PQ: ttft 1.1 s, prompt 574, cached 16: 'first: red circle; second: blue square.'
+   swap: order_QP: ttft 1.15 s, prompt 574, cached 16: 'first: blue square; second: red circle'
+   swap: single_P: ttft 1.85 s, prompt 2240, cached 272: 'red circle'
+   swap: single_R: ttft 2.01 s, prompt 2240, cached 272: 'green triangle'
+   swap: single_P_again: ttft 0.42 s, prompt 2240, cached 2240: 'red circle'
+CV-DONE

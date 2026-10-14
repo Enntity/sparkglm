@@ -1,9 +1,11 @@
-# 2026-10-14: image prompts use the prefix cache (engine sparkglm/atlas-20261014-vpc)
+# 2026-10-14: image prompts use the prefix cache; the display carveout comes from the driver (engine sparkglm/atlas-20261014-vpc)
 
-The image is `03f0ecc85c27`. It runs engine `8180ae56` on `sparkglm/atlas-20261014-vpc`: the upstream candidate
-`upstream/glm53-flash-20261014-vpc` at `28f64b91` (RC4.2's `d8a55e0f` plus three vision commits), the unchanged
-SparkGLM-only layer and the refusal-content fix. Text prompts run exactly as on RC4.2. Not yet published to GHCR or
-deployed.
+The release image is `2b2970c2f05d` (`ghcr.io/enntity/atlas-sparkglm@sha256:94b837ef3ea7b3f54c158ce568e611405b1bd167edd56c734d8e90d2d6291cb6`).
+It runs engine `289cefbc` on `sparkglm/atlas-20261014-vpc`: the upstream candidate `upstream/glm53-flash-20261014-vpc`
+at `28f64b91` (RC4.2's `d8a55e0f` plus three vision commits), the SparkGLM-only layer, the refusal-content fix
+(`8180ae56`) and the display-carveout commit (see [Display carveout](#display-carveout-from-the-drivers-scanout-heap)).
+Text prompts run exactly as on RC4.2. The release checks and benchmarks below ran on the candidate image
+`03f0ecc85c27` (engine `8180ae56`); the release image passed the smoke in the carveout section.
 
 ## What changed
 
@@ -25,7 +27,7 @@ deployed.
 
 Two DGX Sparks (ennspark03/04), production settings from the shipped `4x1m` profile: 0.91, KV shard, NVMe prefix and
 SSM tiers, 1M context. Both images ran back to back on the same pair, the new one against RC4.2's production image
-`ed7548dfe442` (`5ec57d55`). On this pair the display carveout is not available (03 runs a desktop session) and other
+`ed7548dfe442` (`5ec57d55`). In these runs the display carveout was off (the test launcher lacked the capability the previous export needed) and other
 resident services left rank 0 less free memory than production's ennspark01, so every pool below is smaller than
 production's and set by rank 0's free memory; the comparisons are like for like.
 
@@ -85,6 +87,41 @@ The RC4 release suite (`raw/summarize_bench.py` reproduces RC4's published table
   text and lengths differ between runs; its rows move both ways within run-to-run spread.
 - The numbers sit below RC4's on ennspark01/02 (for example RigMark code 72.3, field guide 16K 49.5 s) for both images:
   that is the pair (no display carveout, smaller pool, other residents on 03), not the release.
+
+## Display carveout from the driver's scanout heap
+
+RM knows the GB10 as chip GB20B and manages the 2 GiB `DISPLAY_FRM` carveout as the display's own memory pool (its
+scanout heap): display surfaces are allocated there, about 4 MiB on a headless Spark. The previous launcher wrapped
+the whole region in one memory object, overlapping (and zeroing) those surfaces; it needed `CAP_SYS_ADMIN`, only ran
+on two validated driver versions, and the GPU mapped the memory L2-uncached. The launcher now asks the driver's heap
+for its largest free range, GPU-cacheable:
+
+- **No container privilege.** The containers start without `--cap-add SYS_ADMIN` (`install/start-node.sh`, the LLooM
+  recipe); the smoke ran with CapEff `a88465fb`.
+- **No overlap with the display.** The driver hands out 2042 MiB on spark03 and 2044 MiB on spark04 of 2046.
+- **L2-cached** (`raw/carveout-heap/cvbench-heap-gpucache{0,1}.txt`): a 4 MiB region re-read runs at 1,762 GB/s
+  (cuMemAlloc 1,770; the old export 260), a dependent load takes 156 ns (old 404).
+- **Any driver that lends it.** The numbers and layouts used are identical in every open GPU kernel module release from
+  580.76.05 to 615.78.08; the engine checks what the driver gives rather than its version.
+
+Three arms on 03/04, shipped 4x1m profile, 0.91 (`raw/carveout-heap/ab-list.log`, `ab-heap.log`; RigMark cold
+prefill, 3 runs):
+
+| Arm | Agreed blocks | Logprob hash | 32K | 64K |
+|---|---:|---|---|---|
+| Previous export (memory list, SYS_ADMIN) | 126,976 | `246cd1331b41` | 15.11 / 13.81 / 14.75 s | 26.31 / 26.55 / 26.26 s |
+| Driver heap, latent pools (default) | 126,726 | `246cd1331b41` | 13.48 / 13.45 / 13.30 s | 25.69 / 25.99 / 25.40 s |
+| Driver heap, any pool (`ATLAS_KV_CARVEOUT_ORDER=size`) | 101,376* | `246cd1331b41` | 13.45 / 13.52 / 13.49 s | 25.64 / 25.93 / 25.95 s |
+
+\* Rank 0 had less free system memory at that boot; the carveout's own share was +30,140 blocks (+29,194 latent).
+The 4 MiB the display keeps cost 250 blocks (0.2%); 64K cold prefill is about 2% faster than with the previous export,
+and index buffers in the carveout no longer slow prefill. The default stays latent pools only: on this profile they
+already fill the carveout.
+
+Release-image smoke (`raw/carveout-heap/smoke-2b2970c2f05d.log`), containers without SYS_ADMIN: carveout lent on both
+ranks, rank 1 loads no vision weights, logprob hash `246cd1331b41`, prefix-cache test 8/8 (`pc-cv.json`), interleaved
+image prompts both correct (`race-cv.json`), conversation turns 2–5 in 0.75–1.0 s with 68K cached (`conv-cv.json`),
+swaps correct and a re-sent image fully cached (`swap-cv.json`).
 
 ## Not covered
 
