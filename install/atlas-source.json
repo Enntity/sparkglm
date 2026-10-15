@@ -2,19 +2,19 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261015-shared",
-  "commit": "93b3e1907a4177294b2fc258ed4114ad37a960af",
-  "tree": "8b8b04db74a55bcb42315b72da632e8da3ca3478",
+  "branch": "sparkglm/atlas-20261015-vision",
+  "commit": "1631500464fb3bf1d12a720f0907729e3f83edff",
+  "tree": "e356f19963df45dc17c34743f0cb0613dfc72563",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {
-      "branch": "upstream/atlas-shared-20261015",
-      "commit": "fb80cbe075e9e6541311caabd819337f0be5e63a",
-      "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the vision prefix cache, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
+      "branch": "upstream/atlas-shared-20261015-vision",
+      "commit": "a94648109f3c9a9a739e6cdf3d9630acaf45bac8",
+      "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the shared vision fixes (every tower encodes per chunk into per-sequence state, vision layout errors fail only their request, MRoPE positions from the whole prompt, vision markup in message text encodes as text) and the vision prefix cache for every tower, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
     },
     "sparkglm_only": {
-      "branch": "sparkglm/atlas-20261015-shared",
-      "commit": "93b3e1907a4177294b2fc258ed4114ad37a960af",
+      "branch": "sparkglm/atlas-20261015-vision",
+      "commit": "1631500464fb3bf1d12a720f0907729e3f83edff",
       "note": "The SparkGLM-only commits on the shared layer: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement (latent pools, allocated from the driver's scanout heap) and sharded latent pools sized and placed in the carveout. Fork-only."
     }
   },

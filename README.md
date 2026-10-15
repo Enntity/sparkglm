@@ -256,13 +256,13 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261015-shared` at `93b3e190` (tree `8b8b04db`, pinned in
+`sparkglm/atlas-20261015-vision` at `16315004` (tree `e356f199`, pinned in
 [`install/atlas-source.json`](install/atlas-source.json)), built from three
 layers:
 
 1. Atlas-Inf `main` at `7ffd183f`.
-2. The shared Spark engine layer `upstream/atlas-shared-20261015` at
-   `fb80cbe0`, which [SparkQwen](https://github.com/Enntity/sparkqwen) builds on too. It holds
+2. The shared Spark engine layer `upstream/atlas-shared-20261015-vision` at
+   `a9464810`, which [SparkQwen](https://github.com/Enntity/sparkqwen) builds on too. It holds
    GLM-5.3-Flash support and optimizations, which we intend to propose to
    Atlas-Inf after review (it started as Reiner Schmidt's port,
    [Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark);
@@ -271,8 +271,11 @@ layers:
    model-independent work both products share: speculation that commits
    exactly the tokens plain greedy decode commits (one lowest-index tie rule),
    shared-prefix admission, opt-in content-loop steering, batched prefix-cache
-   eviction, the refusal-content fix (Atlas-Inf issue 172) and the vision
-   prefix cache below.
+   eviction, the refusal-content fix (Atlas-Inf issue 172), the vision
+   prefix cache below and the vision fixes both models share: every vision
+   tower encodes per chunk into per-sequence state, a malformed vision
+   layout fails only its request, MRoPE positions come from the whole
+   prompt, and vision markup typed in message text encodes as text.
 3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
