@@ -1,0 +1,56 @@
+-- clocks (uncapped): cap 01 inactive 02 inactive; 01 3003 MHz, 2418 MHz
+##### start 2026-10-15T11:51:35-07:00 CLOCKS=uncapped
+##### GLM new: RigMark 11:51:35
+== sparkglm gvu: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:f0f8a55c3da2
+== gvu up in 112 s: 113801 blocks × 16 tok/block = 1820816 max KV tokens 
+   engine: sparkglm/atlas-20261015-vision 16315004  MemAvailable 4 / 6 GiB
+rig-decode exit 0
+rig-conc exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              69.1 tok/s      37.2s last     67.5–70.5     ✓ 3/3                    │
+│  PROSE             39.3 tok/s      26.3s last     38.2–39.4     ✓ 3/3                    │
+│  STRUCTURED*       91.9 tok/s       5.6s last     90.5–92.0     ✓ 3/3                    │
+│  64K PREFILL   cold 2,750 tok/s  •  immediate replay 225,736 tok/s                       │
+│  ●  3/3 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              67.3 tok/s      37.3s last     67.3–67.3     ✓ 1/1                    │
+│  PROSE             38.2 tok/s      25.8s last     38.2–38.2     ✓ 1/1                    │
+│  STRUCTURED*       90.8 tok/s       5.6s last     90.8–90.8     ✓ 1/1                    │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 47.7  •  C2 58.8  •  C3 62.7  •  C4 72.8 tok/s                           │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  DECODE-FIRST   long TTFT 12.84s (1.03x solo)  •  incumbent stall 3.16s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 3.54s (4.83x solo)  •  long TTFT 1.19x solo  •  2/2 valid     │
+-- glm-gvu log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### Qwen qrvu: RigMark (8x32k, 0.88) 12:08:41
+== sparkqwen qrvu: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:4e29c8c22671
+== qrvu up in 43 s: 203192 blocks × 16 tok/block = 3251072 max KV tokens 
+   engine: sparkqwen/atlas-20261015-vision 1954e759  MemAvailable 15 / 17 GiB
+rigmark exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              85.0 tok/s      22.2s last     84.1–86.2     ✓ 3/3                    │
+│  PROSE             50.2 tok/s      24.8s last     50.2–51.4     ✓ 3/3                    │
+│  STRUCTURED*       96.5 tok/s       6.4s last     95.7–97.5     ✓ 3/3                    │
+│  16K PREFILL   cold 4,008 tok/s  •  immediate replay 72,888 tok/s                        │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 60.0  •  C2 105.3  •  C4 167.5  •  C8 254.7 tok/s                        │
+-- qwen-qrvu log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### Qwen qrpu: RigMark (8x32k, 0.88) 12:13:26
+== sparkqwen qrpu: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen@sha256:ac3a5c7da4841cacc810755da01b074b8216224409d7937a19dcfced569b72f0
+== qrpu up in 43 s: 204206 blocks × 16 tok/block = 3267296 max KV tokens 
+   engine: sparkqwen/atlas-20261013-prefill fcf9735f  MemAvailable 15 / 16 GiB
+rigmark exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              85.8 tok/s      20.6s last     82.2–87.0     ✓ 3/3                    │
+│  PROSE             52.4 tok/s      25.1s last     51.5–53.4     ✓ 3/3                    │
+│  STRUCTURED*       95.3 tok/s       6.5s last     94.9–96.8     ✓ 3/3                    │
+│  16K PREFILL   cold 3,988 tok/s  •  immediate replay 72,821 tok/s                        │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 60.3  •  C2 101.9  •  C4 174.8  •  C8 266.8 tok/s                        │
+-- qwen-qrpu log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+-- clocks (end of run): cap 01 inactive 02 inactive; 01 3003 MHz, 2418 MHz
+##### done 2026-10-15T12:18:13-07:00
+-- clocks (restored): cap 01 active 02 active; 01 3003 MHz, 2418 MHz

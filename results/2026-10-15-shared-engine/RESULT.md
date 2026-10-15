@@ -109,25 +109,27 @@ build-time check stages passed and the image was loaded on ennspark02. On the pa
 ## RigMark
 
 [RigMark](https://github.com/alexellis/rigmark) (Alex Ellis, MIT) at `40fabcaf`, the release-suite cells and command
-lines of [2026-10-12-rc4](../2026-10-12-rc4/RESULT.md) (`raw/vision/vis_run.sh`, `rig_glm`), thinking on with low
-effort, against the server directly. The README's figures are RC4's, measured on 2026-10-12 before ennspark01/02 got
-their GPU clock cap (`nvidia-smi -lgc 300,2200`, since 2026-10-13 after ennspark02's power-offs). Current production,
-`2b2970c2f05d`, was measured on 2026-10-14 as its candidate image `03f0ecc85c27` (engine `8180ae56`; the release added the
-carveout fix) on ennspark03/04, also capped, with other services resident
-([2026-10-14-vision-prefix-cache](../2026-10-14-vision-prefix-cache/RESULT.md)).
+lines of [2026-10-12-rc4](../2026-10-12-rc4/RESULT.md) (`rig_glm` in `raw/vision/vis_run.sh`), thinking on with low
+effort, against the server directly. Since 2026-10-13 ennspark01/02 run with their GPU clocks capped
+(`gpu-clock-cap.service`, `nvidia-smi -lgc 300,2200`, after ennspark02's power-offs); the README's figures (RC4) were
+measured before that. The headline run therefore lifted the cap for its duration (`CLOCKS=uncapped` in
+`raw/vision-uncapped/vis_rig.sh`: the service is stopped on both Sparks, which resets the clocks, and started again
+when the run ends; the GPUs ran at 2,437–2,522 MHz under load). Production serving stays capped.
 
-| | This release (01/02, capped) | README: RC4 (01/02, uncapped) | Current production, 2026-10-14 (03/04, capped) |
-|---|---:|---:|---:|
-| Output gates, decode run / concurrency run | 9/9, 3/3 | not in the card, 3/3 | 9/9, 3/3 |
-| Decode, code / prose / structured, tok/s (median of 3) | 68.9 / 38.6 / 92.0 | 72.3 / 38.3 / 91.7 | 66.7 / 37.2 / 90.4 |
-| Cold prefill 8K / 32K / 64K, TTFT (s) | 3.39 / 12.84 / 24.37 | 3.29 / 12.47 / 23.91 | 3.63 / 13.35 / 25.51 |
-| Staggered arrivals, prefill first: newcomer TTFT at 2 / 4 (s) | 2.93 / 3.70 | 2.80 / 3.54 | 3.05 / 4.38 |
-| Short code, 1 / 2 / 3 / 4 streams aggregate, tok/s | 48.4 / 56.4 / 63.4 / 71.3 | 47.0 / 60.5 / 66.8 / 70.9 | 48.2 / 58.3 / 63.3 / 68.7 |
+| | This release, uncapped | README: RC4, uncapped (2026-10-12) | This release, capped | Current production, capped (2026-10-14, 03/04) |
+|---|---:|---:|---:|---:|
+| Output gates, decode run / concurrency run | 9/9, 3/3 | not in the card, 3/3 | 9/9, 3/3 | 9/9, 3/3 |
+| Decode, code / prose / structured, tok/s (median of 3) | 69.1 / 39.3 / 91.9 | 72.3 / 38.3 / 91.7 | 68.9 / 38.6 / 92.0 | 66.7 / 37.2 / 90.4 |
+| Cold prefill 8K / 32K / 64K, TTFT (s) | 3.29 / 12.48 / 23.83 | 3.29 / 12.47 / 23.91 | 3.39 / 12.84 / 24.37 | 3.63 / 13.35 / 25.51 |
+| Staggered arrivals, prefill first: newcomer TTFT at 2 / 4 (s) | 2.81 / 3.54 | 2.80 / 3.54 | 2.93 / 3.70 | 3.05 / 4.38 |
+| Short code, 1 / 2 / 3 / 4 streams aggregate, tok/s | 47.7 / 58.8 / 62.7 / 72.8 | 47.0 / 60.5 / 66.8 / 70.9 | 48.4 / 56.4 / 63.4 / 71.3 | 48.2 / 58.3 / 63.3 / 68.7 |
 
-RigMark samples (temperature 0 but lengths vary), so its decode rows are not equal-text comparisons. This release's
-code runs were 65.8–70.0 tok/s; RC4's were 68.8–72.4. The equal-text probes are closer: same-pair cold prefill
-matched production within 1% earlier today ([Checks](#checks-ennspark0102-production-settings)), and greedy decode tokens
-per step are identical.
+Uncapped, prefill and staggered arrivals match RC4 to within 0.3%. RigMark samples, so each decode run writes a
+different program: this release's three code runs wrote 2,454 / 2,096 / 2,588 tokens at 67.5 / 69.1 / 70.5 tok/s,
+RC4's 2,172 / 2,360 / 1,813 tokens at 68.8 / 72.3 / 72.4. The equal-text probe (same prompts, forced length) shows the
+same tokens per step as production and no slower steps ([Checks](#checks-ennspark0102-production-settings)), so the
+code row's 4% is within RigMark's run-to-run spread rather than a decode change. Capped, the release is ahead of
+current production's capped run on every row but two-stream short code.
 
 ## Receipts
 
@@ -137,4 +139,5 @@ engine) and JSON results. Files named `*prod*` are production, `*gfinal*` the fi
 `*pfnew*` the intermediate builds before the transpose and sequence-parallel fixes, kept because the text above
 cites them. `raw/release/` holds the first release candidate's build log, scripts and smoke receipts (its `rel-smoke.out`
 also covers SparkQwen's). `raw/vision/` holds the release image's: build, suite, fill and RigMark receipts
-(`rig-gv-*`, with the appliance metadata it declared).
+(`rig-gv-*`, capped, with the appliance metadata it declared); `raw/vision-uncapped/` holds the uncapped
+RigMark run (`rig-gvu-*`).
