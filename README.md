@@ -255,10 +255,12 @@ comparison videos.
 
 ## The engine
 
-Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
+Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) release tag
 `sparkglm/atlas-20261015-vision` at `16315004` (tree `e356f199`, pinned in
-[`install/atlas-source.json`](install/atlas-source.json)), built from three
-layers:
+[`install/atlas-source.json`](install/atlas-source.json)). The fork keeps one
+branch per layer: `spark-shared`, which SparkQwen builds on too, and `sparkglm`
+on top of it ([branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md)).
+The engine is built from three layers:
 
 1. Atlas-Inf `main` at `7ffd183f`.
 2. The shared Spark engine layer `upstream/atlas-shared-20261015-vision` at
