@@ -255,26 +255,39 @@ comparison videos.
 
 ## The engine
 
-Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) branch
-`sparkglm/atlas-20261014-vpc` at `8180ae56` (tree `0f1b58bd`, pinned in
-[`install/atlas-source.json`](install/atlas-source.json)), built from three
-layers:
+Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) release tag
+`sparkglm/atlas-20261015-vision` at `16315004` (tree `e356f199`, pinned in
+[`install/atlas-source.json`](install/atlas-source.json)). The fork keeps one
+branch per layer: `spark-shared`, which SparkQwen builds on too, and `sparkglm`
+on top of it ([branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md)).
+The engine is built from three layers:
 
-1. Atlas-Inf `main` base at `6a3d24ec`.
-2. GLM-5.3-Flash support and optimizations (`upstream/glm53-flash`, at this
-   release `upstream/glm53-flash-20261014-vpc` at `28f64b91`: the RC4.2
-   candidate `d8a55e0f` plus the vision prefix cache below), which we intend
-   to propose to Atlas-Inf after review. It started as
-   Reiner Schmidt's port
-   ([Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark));
-   the engine's `docs/porting/GLM_5_3_FLASH.md` has the history.
+1. Atlas-Inf `main` at `7ffd183f`.
+2. The shared Spark engine layer `upstream/atlas-shared-20261015-vision` at
+   `a9464810`, which [SparkQwen](https://github.com/Enntity/sparkqwen) builds on too. It holds
+   GLM-5.3-Flash support and optimizations, which we intend to propose to
+   Atlas-Inf after review (it started as Reiner Schmidt's port,
+   [Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark);
+   the engine's `docs/porting/GLM_5_3_FLASH.md` has the history); the
+   Qwen3.8-Flash-Next series, whose paths stay off for GLM; and the
+   model-independent work both products share: speculation that commits
+   exactly the tokens plain greedy decode commits (one lowest-index tie rule),
+   shared-prefix admission, opt-in content-loop steering, batched prefix-cache
+   eviction, the refusal-content fix (Atlas-Inf issue 172), the vision
+   prefix cache below and the vision fixes both models share: every vision
+   tower encodes per chunk into per-sequence state, a malformed vision
+   layout fails only its request, MRoPE positions come from the whole
+   prompt, and vision markup typed in message text encodes as text.
 3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
    which rely on libraries built outside the Atlas tree, and the GB10
    display carveout (including where the split KV pools are placed in it).
 
-On top, the refusal-content fix preserves the full blocking assistant content
-alongside the refusal metadata, so a classifier refusal no longer returns an
-empty assistant turn (Atlas-Inf issue 172).
+The profiles set `ATLAS_MOE_INPLACE_TRANSPOSE=0`: the shared engine's default
+in-place MoE transpose keeps every expert's allocation, which on GB10 costs
+about 1.5 GB of kernel memory per Spark that the KV pool would otherwise get.
+Against the previous engine, text prompts score the same prompt logprobs and
+the prefix-cache, fill, tool-call and vision checks pass
+([results/2026-10-15-shared-engine](results/2026-10-15-shared-engine/RESULT.md)).
 
 **Image prompts use the prefix cache.** Every image used to be the same run
 of placeholder tokens, so image prompts bypassed the prefix cache entirely:
@@ -289,10 +302,7 @@ state per request. Text prompts run exactly as before (prompt-logprob hash
 unchanged). Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
 
 These are published Enntity release snapshots, separate from current
-Atlas-Inf `main`. The pinned tree is RC4's measured tree (`exp/prose-rc4` at
-`c6089633`) plus the GLM tool-value fix, the repeat notice, four CI-only
-upstream commits and the vision prefix cache, followed by the refusal-content
-fix; the manifest's `layers` entries record the layering.
+Atlas-Inf `main`; the manifest's `layers` entries record the layering.
 
 ## History
 

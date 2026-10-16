@@ -1,0 +1,169 @@
+##### start 2026-10-15T00:03:33-07:00
+== sparkglm prod: MemAvailable 113 / 112 GiB; image ghcr.io/enntity/atlas-sparkglm@sha256:94b837ef3ea7b3f54c158ce568e611405b1bd167edd56c734d8e90d2d6291cb6
+== prod up in 166 s: 146213 blocks × 16 tok/block = 2339408 max KV tokens 
+   engine: sparkglm/atlas-20261014-vpc 289cefbc  MemAvailable 3 / 5 GiB
+-- prompt-logprob hash
+REPRODUCIBLE glm-prod
+hash ['246cd1331b41', '246cd1331b41']
+-- prefix-cache test
+turn 6 {'ttft': 1.15, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+glm-prod: 8/8 correct
+-- repeat repro
+ "same_cmd_again": false
+}
+-- long tool call
+long tool call: finish tool_calls tokens 3516 tool_calls 1 has f150 True
+-- speed probe
+glm_prod {"prose": {"tok_s": 39.98, "tok_step_mean": 2.506, "n": 12}, "code": {"tok_s": 61.22, "tok_step_mean": 4.874, "n": 12}}
+-- vision gate
+B_green_triangle: ttft 10.24 s, prompt 296, cached 0: 'green triangle'
+A_blue_square: ttft 22.49 s, prompt 47772, cached 0: 'Blue square'
+race: A correct, B correct
+turn 1: ttft 26.75 s, prompt 68135, cached 0: 'A red circle on a white background.'
+turn 2: ttft 0.74 s, prompt 68159, cached 68128: 'Red'
+turn 3: ttft 0.97 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+turn 4: ttft 1.13 s, prompt 68242, cached 68176: 'Apple'
+turn 5: ttft 0.83 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+order_PQ: ttft 1.16 s, prompt 574, cached 16: 'first: red circle; second: blue square.'
+order_QP: ttft 1.12 s, prompt 574, cached 16: 'first: blue square; second: red circle'
+single_P: ttft 1.81 s, prompt 2240, cached 272: 'red circle'
+single_R: ttft 2.0 s, prompt 2240, cached 272: 'green triangle'
+single_P_again: ttft 0.44 s, prompt 2240, cached 2240: 'red circle'
+-- min MemAvailable rank0 kB: 00:08:28 3381208
+glm_suite.sh: line 20: warning: command substitution: ignored null byte in input
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0; memguard: 2026-10-08T15:55:32-07:00 killed atlas-sparkglm-rank0 at MemAvailable=996976kB
+== sparkglm new: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:6c7156d220c2
+== new FAILED TO START
+36 kernel(s) declared expected-absent in this target's MODEL.toml [expected_absent] (no action):
+    inferspark_prefill_512tc::inferspark_prefill_512tc, moe_persist_marker::moe_w4a16_k64_strides_m_tiles, moe_silu_mul::silu_mul_quant_fp8, moe_w4a16::moe_w4a16_down_t_k64_fp4, moe_w4a16::moe_w4a16_fused_gate_up_t_k64_fp4, moe_w4a16::moe_w
+
+2026-10-15T07:16:22.213535Z  WARN spark_runtime::cuda_backend: backend drop reclaimed 149597 allocation(s) that no owner released — expected if a load was abandoned part-way, otherwise an unregistered owner
+Error: 1 unresolved kernel lookup(s) for (glm-5.3-flash, sm_121, nvfp4). Each one resolved to handle 0, so its dispatch site is on a silent fallback path:
+  1. w4a16_gemv::w4a16_gemv_qg_batch4  at crates/spark-model/src/layers/qwen3_attention/init.rs:651  (glm-5.3-flash, sm_121, nvfp4)  [SHADOW-DROPPED: common/ defines it, this target's kernel file shadows common/ without it - port it in as a
+
+Either gate the lookup on this model's config so it is never issued (see `qwen3_attention::init`), fix the build so the kernel is compiled, or declare it in this target's MODEL.toml [expected_absent] with a stated reason.
+
+If you wish to allow this model to be served, you can pass
+--dangerously-allow-unresolved-kernel-lookups. But note that performance may be
+seriously degraded. We recommend you open a GitHub issue and/or open a PR to
+solve this issue.
+
+NCCL version 2.31.2+cuda13.3
+│ w8a16_gemm_pipelined               6877c736e13c   used                 N
+│ w8a16_gemm_t                       2d77c473cf82   used                 N
+│ w8a16_gemm_t_m128                  02ac98f727f2   used                 N
+│ w8a16_gemv                         3d89c168b3f9   used                 N
+│ w8a16_gemv_batch4                  340977e6688b   used                 N
+│ w8a16_gemv_fused                   bd3342f79a99   used                 N
+│ wht_bf16                           e6a015d83736   used                 N
+│ widen_block_scale_f32              79165f4d8859   -                    N
+└─
+
+36 kernel(s) declared expected-absent in this target's MODEL.toml [expected_absent] (no action):
+    inferspark_prefill_512tc::inferspark_prefill_512tc, moe_persist_marker::moe_w4a16_k64_strides_m_tiles, moe_silu_mul::silu_mul_quant_fp8, moe_w4a16::moe_w4a16_down_t_k64_fp4, moe_w4a16::moe_w4a16_fused_gate_up_t_k64_fp4, moe_w4a16::moe_w
+
+2026-10-15T07:16:22.395134Z  WARN spark_runtime::cuda_backend: backend drop reclaimed 149191 allocation(s) that no owner released — expected if a load was abandoned part-way, otherwise an unregistered owner
+2026-10-15T07:16:22.589195Z ERROR spark::ep_peer_lifeline: EP peer lost: bootstrap connection to RANK0_HOST:29510 closed; terminating rank
+== sparkqwen prod: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen@sha256:ac3a5c7da4841cacc810755da01b074b8216224409d7937a19dcfced569b72f0
+== prod up in 43 s: 87743 blocks × 16 tok/block = 1403888 max KV tokens 
+   engine: sparkqwen/atlas-20261013-prefill fcf9735f  MemAvailable 34 / 36 GiB
+-- prompt-logprob hash
+REPRODUCIBLE qwen-prod
+hash ['8713a659d5d3', '8713a659d5d3']
+-- sq_bench
+prefill 8192 0 8170 2.188
+prefill 8192 1 8169 2.186
+prefill 16384 0 16390 4.309
+prefill 16384 1 16408 4.381
+prefill 28672 0 28809 7.732
+prefill 28672 1 28819 7.728
+conc 1 0 50.96
+conc 1 1 48.76
+conc 2 0 85.88
+conc 2 1 82.84
+conc 4 0 130.17
+conc 4 1 127.0
+warm 8192 0 8162 32 2.196
+warm 8192 1 8191 8160 0.182
+warm 8192 2 8239 8176 0.204
+warm 8192 3 8286 8224 0.199
+warm 8192 4 8333 8272 0.173
+warm 8192 5 8380 8320 0.193
+warm 20480 0 20542 32 5.519
+warm 20480 1 20571 20528 0.227
+warm 20480 2 20622 20560 0.19
+warm 20480 3 20670 20608 0.205
+warm 20480 4 20718 20656 0.198
+warm 20480 5 20766 20704 0.199
+wrote ~/sparkqwen-dev/bench-qwen-prod.json
+-- vision gate (images were never tested on SparkQwen)
+B_green_triangle: ttft 2.91 s, prompt 240, cached 0: 'green triangle'
+A_blue_square: ttft 16.72 s, prompt 52711, cached 0: 'Green triangle'
+race: A WRONG, B correct
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+-- min MemAvailable rank0 kB: 00:21:10 35549692
+qwen_suite.sh: line 10: warning: command substitution: ignored null byte in input
+-- log scan: rank0 panics 0 errors 2; rank1 panics 0 errors 1; memguard: 2026-10-08T15:55:32-07:00 killed atlas-sparkglm-rank0 at MemAvailable=996976kB
+== sparkqwen new: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:493ceb94bf67
+== new up in 43 s: 85786 blocks × 16 tok/block = 1372576 max KV tokens 
+   engine: sparkqwen/atlas-shared-20261014 cbcaefeb  MemAvailable 35 / 36 GiB
+-- prompt-logprob hash
+REPRODUCIBLE qwen-new
+hash ['8713a659d5d3', '8713a659d5d3']
+-- sq_bench
+prefill 8192 0 8170 2.185
+prefill 8192 1 8169 2.196
+prefill 16384 0 16390 4.309
+prefill 16384 1 16408 4.378
+prefill 28672 0 28809 7.727
+prefill 28672 1 28819 7.731
+conc 1 0 51.07
+conc 1 1 48.64
+conc 2 0 85.77
+conc 2 1 82.74
+conc 4 0 130.33
+conc 4 1 126.18
+warm 8192 0 8162 32 2.187
+warm 8192 1 8191 8160 0.179
+warm 8192 2 8239 8176 0.202
+warm 8192 3 8286 8224 0.177
+warm 8192 4 8333 8272 0.174
+warm 8192 5 8380 8320 0.192
+warm 20480 0 20542 32 5.543
+warm 20480 1 20571 20528 0.23
+warm 20480 2 20622 20560 0.19
+warm 20480 3 20670 20608 0.215
+warm 20480 4 20718 20656 0.207
+warm 20480 5 20766 20704 0.203
+wrote ~/sparkqwen-dev/bench-qwen-new.json
+-- vision gate (images were never tested on SparkQwen)
+B_green_triangle: ttft 2.94 s, prompt 240, cached 0: 'green triangle'
+A_blue_square: ttft 16.76 s, prompt 52711, cached 0: 'Green triangle'
+race: A WRONG, B correct
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 111] Connection refused>
+-- min MemAvailable rank0 kB: 00:26:29 35921808
+qwen_suite.sh: line 10: warning: command substitution: ignored null byte in input
+-- log scan: rank0 panics 0 errors 2; rank1 panics 0 errors 1; memguard: 2026-10-08T15:55:32-07:00 killed atlas-sparkglm-rank0 at MemAvailable=996976kB
+##### done 2026-10-15T00:26:34-07:00

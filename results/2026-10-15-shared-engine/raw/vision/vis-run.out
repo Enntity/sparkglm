@@ -1,0 +1,206 @@
+##### start 2026-10-15T09:11:42-07:00
+##### GLM new: cold prefill, suite, vision, RigMark 09:11:42
+== sparkglm gv: MemAvailable 117 / 115 GiB; image ghcr.io/enntity/atlas-sparkglm:f0f8a55c3da2
+== gv up in 128 s: 120469 blocks × 16 tok/block = 1927504 max KV tokens 
+   engine: sparkglm/atlas-20261015-vision 16315004  MemAvailable 4 / 5 GiB
+{'size': 8192, 'rep': 0, 'tokens': 6473, 'ttft': 2.992}
+{'size': 8192, 'rep': 1, 'tokens': 6363, 'ttft': 2.86}
+{'size': 32768, 'rep': 0, 'tokens': 25939, 'ttft': 10.779}
+{'size': 32768, 'rep': 1, 'tokens': 26017, 'ttft': 10.795}
+{'size': 65536, 'rep': 0, 'tokens': 51404, 'ttft': 20.121}
+{'size': 65536, 'rep': 1, 'tokens': 51561, 'ttft': 20.186}
+{'size': 131072, 'rep': 0, 'tokens': 106473, 'ttft': 40.423}
+{'size': 131072, 'rep': 1, 'tokens': 102287, 'ttft': 39.414}
+-- prompt-logprob hash
+REPRODUCIBLE glm-gv
+hash ['246cd1331b41', '246cd1331b41']
+-- prefix-cache test
+turn 6 {'ttft': 0.7, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+glm-gv: 8/8 correct
+-- repeat repro
+ "same_cmd_again": false
+}
+-- long tool call
+long tool call: finish tool_calls tokens 3516 tool_calls 1 has f150 True
+-- speed probe
+glm_gv {"prose": {"tok_s": 43.96, "tok_step_mean": 2.507, "n": 12}, "code": {"tok_s": 63.1, "tok_step_mean": 4.903, "n": 12}}
+-- vision gate
+B_green_triangle: ttft 5.11 s, prompt 296, cached 0: 'green triangle'
+A_blue_square: ttft 20.39 s, prompt 47772, cached 0: 'Blue square'
+race: A correct, B correct
+turn 1: ttft 26.36 s, prompt 68135, cached 0: 'A red circle on a white background.'
+turn 2: ttft 0.71 s, prompt 68159, cached 68128: 'Red'
+turn 3: ttft 0.88 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+turn 4: ttft 0.99 s, prompt 68242, cached 68176: 'Apple'
+turn 5: ttft 0.75 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+order_PQ: ttft 1.12 s, prompt 574, cached 16: 'first: red circle; second: blue square.'
+order_QP: ttft 1.11 s, prompt 574, cached 16: 'first: blue square; second: red circle'
+single_P: ttft 1.78 s, prompt 2240, cached 272: 'red circle'
+single_R: ttft 1.89 s, prompt 2240, cached 272: 'green triangle'
+single_P_again: ttft 0.42 s, prompt 2240, cached 2240: 'red circle'
+-- min MemAvailable rank0 kB: 09:22:42 4120016
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0; memguard: 2026-10-15T00:55:29-07:00 killed atlas-sparkglm-rank0 at MemAvailable=1027344kB
+race text identical to the pre-vision engine (gfinal): True
+conv text identical to the pre-vision engine (gfinal): True
+swap text identical to the pre-vision engine (gfinal): True
+rig-decode exit 0
+rig-conc exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              68.9 tok/s      29.9s last     65.8–70.0     ✓ 3/3                    │
+│  PROSE             38.6 tok/s      27.9s last     36.3–39.3     ✓ 3/3                    │
+│  STRUCTURED*       92.0 tok/s       5.7s last     89.8–94.4     ✓ 3/3                    │
+│  64K PREFILL   cold 2,690 tok/s  •  immediate replay 224,313 tok/s                       │
+│  ●  3/3 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              66.0 tok/s      34.2s last     66.0–66.0     ✓ 1/1                    │
+│  PROSE             38.7 tok/s      27.7s last     38.7–38.7     ✓ 1/1                    │
+│  STRUCTURED*       94.2 tok/s       8.1s last     94.2–94.2     ✓ 1/1                    │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 48.4  •  C2 56.4  •  C3 63.4  •  C4 71.3 tok/s                           │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  DECODE-FIRST   long TTFT 13.18s (1.03x solo)  •  incumbent stall 3.23s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 3.70s (4.98x solo)  •  long TTFT 1.19x solo  •  2/2 valid     │
+-- glm-gv log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### GLM new: fill 09:39:29
+== sparkglm gvfill: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:f0f8a55c3da2
+== gvfill up in 118 s: 113470 blocks × 16 tok/block = 1815520 max KV tokens 
+   engine: sparkglm/atlas-20261015-vision 16315004  MemAvailable 4 / 6 GiB
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 102.50 GB, tracked 100.82 GB (device 99.36 GB by driver accounting + host 1.46 GB) → 102.50 GB pre-KV
+ld: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.5 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 6.9 GB for KV → 113470 blocks × 16 tok/block = 1815520 max KV tokens
+ld::kv_carveout: KV cache: display carveout 2042 MiB holds 3 buffers (1757 MiB) → 145379 blocks (+31909, +28.1%) for the same system memory
+nd::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+{"tag": "glm-gvfill", "correct": 12, "n": 12, "prompt_tokens_max": 204383, "wall_s": 329.6}
+   min MemAvailable rank0 kB during fill: 09:42:55 4145480
+-- glm-gvfill log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### GLM production: RigMark 09:47:47
+== gp skipped: production RigMark is already published (sparkglm results/2026-10-12-rc4, 2026-10-14-vision-prefix-cache)
+##### Qwen new: hash, vision gates, sq_bench (8x262k, 0.70) 09:48:33
+== sparkqwen qv: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:4e29c8c22671
+== qv up in 43 s: 86207 blocks × 16 tok/block = 1379312 max KV tokens 
+   engine: sparkqwen/atlas-20261015-vision 1954e759  MemAvailable 34 / 36 GiB
+-- prompt-logprob hash (release 8713a659d5d3)
+REPRODUCIBLE qwen-qv
+hash ['8713a659d5d3', '8713a659d5d3']
+-- vpc race2
+B_green_triangle: ttft 2.89 s, prompt 240, cached 0: 'green triangle'
+A_blue_square: ttft 17.16 s, prompt 52711, cached 0: 'blue square'
+race: A correct, B correct
+-- vpc race
+A_red_circle: ttft 1.81 s, prompt 52711, cached 52480: 'Red circle'
+B_blue_square: ttft 0.35 s, prompt 240, cached 16: 'blue square'
+race: A correct, B correct
+-- vpc conv
+turn 1: ttft 21.67 s, prompt 75081, cached 0: 'It shows a **red circle**.'
+turn 2: ttft 0.36 s, prompt 75114, cached 75072: 'Red'
+turn 3: ttft 0.26 s, prompt 75146, cached 75104: 'The screenshot displays a solid red circle centered on a plain white background. The shape is simple and unifo'
+turn 4: ttft 0.34 s, prompt 75220, cached 75136: 'Apple'
+turn 5: ttft 0.25 s, prompt 75245, cached 75216: 'A solid red circle is centered on a plain white background. The image contains no text, borders, or other grap'
+-- vpc swap
+order_PQ: ttft 0.52 s, prompt 458, cached 16: 'first: red circle; second: blue square'
+order_QP: ttft 0.51 s, prompt 458, cached 208: 'first: blue square; second: red circle'
+single_P: ttft 0.98 s, prompt 2338, cached 208: 'red circle'
+single_R: ttft 0.98 s, prompt 2338, cached 208: 'green triangle'
+single_P_again: ttft 0.16 s, prompt 2338, cached 2336: 'red circle'
+-- sq_bench
+decode json 0 0.169 62.69 384
+decode json 1 0.166 64.56 384
+decode json 2 0.172 64.51 384
+prefill 2048 0 2022 0.772
+prefill 2048 1 2023 0.756
+prefill 8192 0 8170 2.197
+prefill 8192 1 8169 2.193
+prefill 16384 0 16390 4.306
+prefill 16384 1 16408 4.382
+prefill 28672 0 28809 7.709
+prefill 28672 1 28819 7.727
+conc 1 0 51.02
+conc 1 1 48.42
+conc 2 0 85.97
+conc 2 1 83.25
+conc 4 0 130.4
+conc 4 1 126.48
+warm 8192 0 8162 32 2.246
+warm 8192 1 8191 8160 0.215
+warm 8192 2 8239 8176 0.198
+warm 8192 3 8286 8224 0.182
+warm 8192 4 8333 8272 0.177
+warm 8192 5 8380 8320 0.198
+warm 20480 0 20542 32 5.539
+warm 20480 1 20571 20528 0.23
+warm 20480 2 20622 20560 0.194
+warm 20480 3 20670 20608 0.242
+warm 20480 4 20718 20656 0.222
+warm 20480 5 20766 20704 0.216
+wrote ~/sparkqwen-dev/bench-qwen-qv.json
+-- qwen-qv log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 8320 (snapshot_id 11)
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 20480 (snapshot_id 13)
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 20544 (snapshot_id 14)
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 20608 (snapshot_id 15)
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 20672 (snapshot_id 16)
+INFO spark_model::model::trait_impl::prefill_b::qwen4exp_ckpt: qwen4_exp mid-chunk SSM checkpoint saved at token 20736 (snapshot_id 17)
+##### Qwen new: containment (vision markup escaping off) 09:54:42
+== sparkqwen qvm0: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:4e29c8c22671
+== qvm0 up in 43 s: 86529 blocks × 16 tok/block = 1384464 max KV tokens 
+   engine: sparkqwen/atlas-20261015-vision 1954e759  MemAvailable 34 / 36 GiB
+-- vpc conv (expect a failed request, not a dead pair)
+turn 2: ttft -1 s, prompt None, cached None: ''
+turn 3: ttft -1 s, prompt None, cached None: ''
+turn 4: ttft -1 s, prompt None, cached None: ''
+turn 5: ttft -1 s, prompt None, cached None: ''
+-- containers: rank0 running rank1 running
+-- vpc race2 after the failure
+B_green_triangle: ttft 1.62 s, prompt 240, cached 0: 'green triangle'
+A_blue_square: ttft 15.57 s, prompt 52711, cached 0: 'blue square'
+race: A correct, B correct
+-- containers: rank0 running rank1 running
+-- qwen-qvm0 log scan: rank0 panics 0 errors 5; rank1 panics 0 errors 0
+2026-10-15T16:55:42.302195Z  WARN spark::main_modules::serve_phases::build: EP worker: request failed on every rank: vision pad overlay exceeds the resident window: base=0, prior=196, chunk=3, skipped
+2026-10-15T16:55:55.824386Z  WARN spark::main_modules::serve_phases::build: EP worker: request failed on every rank: vision pad overlay exceeds the resident window: base=0, prior=196, chunk=3, skipped
+2026-10-15T16:56:09.339715Z  WARN spark::main_modules::serve_phases::build: EP worker: request failed on every rank: vision pad overlay exceeds the resident window: base=0, prior=196, chunk=3, skipped
+##### Qwen new: cached turns equal cold ones (fresh servers) 09:57:41
+-- cold turn 2
+cold turn 2: ttft 22.96 s, prompt 75114, cached 0: 'Red'
+turn 2 warm == cold: True
+-- cold turn 3
+cold turn 3: ttft 23.85 s, prompt 75146, cached 0: 'The screenshot displays a solid red circle centered on a plain white background. The shape is simple and unifo'
+turn 3 warm == cold: True
+-- cold turn 5
+cold turn 5: ttft 22.98 s, prompt 75245, cached 0: 'A solid red circle is centered on a plain white background. The image contains no text, borders, or other grap'
+turn 5 warm == cold: True
+-- swapcold
+cold order_QP: ttft 0.58 s, prompt 458, cached 0: 'first: blue square; second: red circle'
+order_QP warm == cold: True
+cold single_R: ttft 1.2 s, prompt 2338, cached 16: 'green triangle'
+single_R warm == cold: True
+-- qwen-qvsc log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### Qwen new: RigMark (8x32k, 0.88) 10:04:53
+== sparkqwen qrv: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:4e29c8c22671
+== qrv up in 42 s: 203885 blocks × 16 tok/block = 3262160 max KV tokens 
+   engine: sparkqwen/atlas-20261015-vision 1954e759  MemAvailable 15 / 17 GiB
+rigmark exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              85.1 tok/s      22.8s last     83.6–86.4     ✓ 3/3                    │
+│  PROSE             50.7 tok/s      25.7s last     48.7–52.4     ✓ 3/3                    │
+│  STRUCTURED*       96.3 tok/s       6.5s last     95.5–97.0     ✓ 3/3                    │
+│  16K PREFILL   cold 3,818 tok/s  •  immediate replay 68,419 tok/s                        │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 58.2  •  C2 103.5  •  C4 164.2  •  C8 256.0 tok/s                        │
+-- qwen-qrv log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### Qwen production: RigMark (8x32k, 0.88) 10:09:47
+== sparkqwen qrp: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen@sha256:ac3a5c7da4841cacc810755da01b074b8216224409d7937a19dcfced569b72f0
+== qrp up in 43 s: 203593 blocks × 16 tok/block = 3257488 max KV tokens 
+   engine: sparkqwen/atlas-20261013-prefill fcf9735f  MemAvailable 15 / 16 GiB
+rigmark exit 0
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              80.7 tok/s      20.8s last     80.2–84.2     ✓ 3/3                    │
+│  PROSE             50.9 tok/s      23.7s last     50.4–52.3     ✓ 3/3                    │
+│  STRUCTURED*       94.5 tok/s       6.6s last     93.3–94.6     ✓ 3/3                    │
+│  16K PREFILL   cold 3,778 tok/s  •  immediate replay 73,392 tok/s                        │
+│  SHORT CODE • END-TO-END • 256-TOKEN CAP PER AGENT                                       │
+│  AGGREGATE   C1 61.0  •  C2 98.0  •  C4 161.3  •  C8 249.2 tok/s                         │
+-- qwen-qrp log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### done 2026-10-15T10:14:32-07:00

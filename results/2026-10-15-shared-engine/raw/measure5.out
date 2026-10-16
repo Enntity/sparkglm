@@ -1,0 +1,23 @@
+== wnew pid 1641145
+VmSize: 317895064 kB VmRSS: 2493568 kB RssAnon: 1613616 kB RssFile: 330928 kB RssShmem: 549024 kB VmData: 2278960 kB 
+awk: fatal: cannot open file `/proc/1641145/smaps_rollup' for reading: Permission denied
+
+1641145, 113417 MiB
+MemAvailable kB 4306028  Cached kB 4483404  Shmem kB 549380
+awk: fatal: cannot open file `/proc/1641145/smaps' for reading: Permission denied
+##### start 2026-10-15T02:44:57-07:00
+== sparkglm fnew3: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:317f41c93f46
+== fnew3 up in 118 s: 114003 blocks × 16 tok/block = 1824048 max KV tokens 
+   engine: sparkglm/atlas-shared-20261014 051751a9  MemAvailable 4 / 5 GiB
+ld::kv_budget: KV budget self-relative (auto): baseline-free 116.3 GB − free-now 13.8 GB = Atlas-own 102.5 GB; co-tenants 5.4 GB excluded (set ATLAS_KV_EXTERNAL_RESERVE_GB to override)
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 102.47 GB, tracked 100.82 GB (device 99.36 GB by driver accounting + host 1.46 GB) → 102.47 GB pre-KV
+ld: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.5 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 6.9 GB for KV → 114003 blocks × 16 tok/block = 1824048 max KV tokens
+ld::kv_carveout: KV cache: display carveout 2042 MiB holds 3 buffers (1765 MiB) → 146063 blocks (+32060, +28.1%) for the same system memory
+nd::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+paged_impl: KV cache: 146063 blocks × 11 layers = 6.3 GB total (V aliases K)
+sparse_index_impl: Sparse index cache: 146063 blocks × 11 layers × 1024 bytes/block + 2585 tails (slot-mapped) = 1791.2 MiB
+paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+idle: 
+{"tag": "glm-fnew3", "correct": 12, "n": 12, "prompt_tokens_max": 204383, "wall_s": 374.8}
+   min MemAvailable rank0 kB during fill: 02:49:46 4323288 2.497GiB 
+##### done 2026-10-15T02:54:15-07:00

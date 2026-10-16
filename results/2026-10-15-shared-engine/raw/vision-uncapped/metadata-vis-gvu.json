@@ -1,0 +1,20 @@
+{
+  "hardware": "2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance",
+  "topology": "TP2/EP2, direct ConnectX-7 RoCE link (RDMA pair)",
+  "negotiated_link_speed": "200 Gb/s",
+  "model": "nvidia/GLM-5.3-Flash-NVFP4",
+  "model_revision": "local lloom cache nvidia--GLM-5.3-Flash-NVFP4",
+  "quantisation": "NVIDIA NVFP4",
+  "kv_cache_dtype": "fp8_g128",
+  "kv_cache_memory_per_rank": 9052818944,
+  "kv_cache_layout": "MLA latent fp8_g128 (8448 B per 16-token block per layer, 11 layers) + sparse-index cache (1024 B per block per layer + slot-mapped tails); 2 GiB of it in the GB10 display carveout",
+  "logical_kv_tokens": 1362608,
+  "serving_engine": "Atlas (Enntity/atlas sparkglm/atlas-20261015-vision @ 16315004), image ghcr.io/enntity/atlas-sparkglm:f0f8a55c3da2, SparkGLM 4x1m profile, GPU_MEMORY_UTILIZATION=0.91, display carveout, KV shard, GPU clocks uncapped",
+  "serving_image": "ghcr.io/enntity/atlas-sparkglm:f0f8a55c3da2 via start-node.sh",
+  "drafter": "DFlash2 incoai/GLM-5.3-Flash-DFlash2, gamma 8, greedy",
+  "context_limit": 1048576,
+  "max_sequences": 4,
+  "gpu_memory_utilisation": 0.91,
+  "scheduler": "max-num-seqs 4, 8K prefill chunks, SP prefill",
+  "competing_traffic": "none"
+}

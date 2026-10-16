@@ -1,0 +1,147 @@
+##### start 2026-10-15T08:11:29-07:00
+##### GLM 08:11:29
+== sparkglm rel: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:948aabe47fa4
+== rel up in 118 s: 116512 blocks × 16 tok/block = 1864192 max KV tokens 
+   engine: sparkglm/atlas-20261015-shared 93b3e190  MemAvailable 4 / 5 GiB
+{'size': 8192, 'rep': 0, 'tokens': 6361, 'ttft': 2.927}
+{'size': 8192, 'rep': 1, 'tokens': 6362, 'ttft': 2.813}
+{'size': 32768, 'rep': 0, 'tokens': 26490, 'ttft': 11.138}
+{'size': 32768, 'rep': 1, 'tokens': 25379, 'ttft': 10.54}
+{'size': 65536, 'rep': 0, 'tokens': 52378, 'ttft': 20.662}
+{'size': 65536, 'rep': 1, 'tokens': 51195, 'ttft': 20.325}
+{'size': 131072, 'rep': 0, 'tokens': 105366, 'ttft': 40.173}
+{'size': 131072, 'rep': 1, 'tokens': 104204, 'ttft': 39.852}
+-- prompt-logprob hash
+REPRODUCIBLE glm-rel
+hash ['246cd1331b41', '246cd1331b41']
+-- prefix-cache test
+turn 6 {'ttft': 0.7, 'prompt_tokens': 45556, 'cached': 45520, 'correct': True} '696467'
+glm-rel: 8/8 correct
+-- repeat repro
+ "same_cmd_again": false
+}
+-- long tool call
+long tool call: finish tool_calls tokens 3516 tool_calls 1 has f150 True
+-- speed probe
+glm_rel {"prose": {"tok_s": 44.38, "tok_step_mean": 2.507, "n": 12}, "code": {"tok_s": 63.66, "tok_step_mean": 4.903, "n": 12}}
+-- vision gate
+B_green_triangle: ttft 4.3 s, prompt 296, cached 0: 'green triangle'
+A_blue_square: ttft 19.57 s, prompt 47772, cached 0: 'Blue square'
+race: A correct, B correct
+turn 1: ttft 26.35 s, prompt 68135, cached 0: 'A red circle on a white background.'
+turn 2: ttft 0.72 s, prompt 68159, cached 68128: 'Red'
+turn 3: ttft 0.88 s, prompt 68181, cached 68144: 'The screenshot shows a solid red circle centered on a plain white background. There are no other elements, tex'
+turn 4: ttft 1.0 s, prompt 68242, cached 68176: 'Apple'
+turn 5: ttft 0.74 s, prompt 68257, cached 68240: 'A bright red circular shape sits in the middle of a white canvas. The image contains nothing besides this sing'
+order_PQ: ttft 1.12 s, prompt 574, cached 16: 'first: red circle; second: blue square.'
+order_QP: ttft 1.11 s, prompt 574, cached 16: 'first: blue square; second: red circle'
+single_P: ttft 1.78 s, prompt 2240, cached 272: 'red circle'
+single_R: ttft 1.89 s, prompt 2240, cached 272: 'green triangle'
+single_P_again: ttft 0.42 s, prompt 2240, cached 2240: 'red circle'
+-- min MemAvailable rank0 kB: 08:19:23 5139804
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0; memguard: 2026-10-15T00:55:29-07:00 killed atlas-sparkglm-rank0 at MemAvailable=1027344kB
+== sparkglm relfill: MemAvailable 117 / 116 GiB; image ghcr.io/enntity/atlas-sparkglm:948aabe47fa4
+== relfill up in 112 s: 114146 blocks × 16 tok/block = 1826336 max KV tokens 
+   engine: sparkglm/atlas-20261015-shared 93b3e190  MemAvailable 4 / 5 GiB
+ld::kv_budget: KV budget self-relative (auto): baseline-free 117.1 GB − free-now 14.6 GB = Atlas-own 102.5 GB; co-tenants 4.6 GB excluded (set ATLAS_KV_EXTERNAL_RESERVE_GB to override)
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 102.46 GB, tracked 100.82 GB (device 99.36 GB by driver accounting + host 1.46 GB) → 102.46 GB pre-KV
+ld: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.5 GB pre-KV + 1.3 GB reserve + 0.1 GB lazy BF16 → 6.9 GB for KV → 114146 blocks × 16 tok/block = 1826336 max KV tokens
+ld::kv_carveout: KV cache: display carveout 2042 MiB holds 3 buffers (1767 MiB) → 146246 blocks (+32100, +28.1%) for the same system memory
+nd::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+paged_impl: KV cache: 146246 blocks × 11 layers = 6.3 GB total (V aliases K)
+paged_impl: KV cache: 516 blocks × 5 layers = 0.2 GB total
+{"tag": "glm-relfill", "correct": 12, "n": 12, "prompt_tokens_max": 204383, "wall_s": 327.1}
+   min MemAvailable rank0 kB during fill: 08:29:00 4550040
+##### Qwen 08:32:55
+== sparkqwen qrel: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:9a0df5f1474a
+== qrel up in 43 s: 86769 blocks × 16 tok/block = 1388304 max KV tokens 
+   engine: sparkqwen/atlas-20261015-shared b914c5e1  MemAvailable 34 / 36 GiB
+-- prompt-logprob hash
+REPRODUCIBLE qwen-qrel
+hash ['8713a659d5d3', '8713a659d5d3']
+-- sq_bench decode prefill conc warm
+decode json 0 0.166 62.12 384
+decode json 1 0.165 64.32 384
+decode json 2 0.164 63.46 384
+prefill 2048 0 2022 0.791
+prefill 2048 1 2023 0.775
+prefill 8192 0 8170 2.228
+prefill 8192 1 8169 2.195
+prefill 16384 0 16390 4.339
+prefill 16384 1 16408 4.455
+prefill 28672 0 28809 7.749
+prefill 28672 1 28819 7.727
+conc 1 0 50.8
+conc 1 1 48.51
+conc 2 0 85.57
+conc 2 1 82.88
+conc 4 0 130.29
+conc 4 1 126.68
+warm 8192 0 8162 32 2.188
+warm 8192 1 8191 8160 0.186
+warm 8192 2 8239 8176 0.205
+warm 8192 3 8286 8224 0.212
+warm 8192 4 8333 8272 0.174
+warm 8192 5 8380 8320 0.199
+warm 20480 0 20542 32 5.545
+warm 20480 1 20571 20528 0.229
+warm 20480 2 20622 20560 0.188
+warm 20480 3 20670 20608 0.217
+warm 20480 4 20718 20656 0.208
+warm 20480 5 20766 20704 0.206
+wrote ~/sparkqwen-dev/bench-qwen-qrel.json
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 63.61 GB, tracked 61.93 GB (device 60.49 GB by driver accounting + host 1.44 GB) → 63.61 GB pre-KV
+ld: KV cache: 121.7 GB total × 70% util = 85.2 GB budget; 63.6 GB pre-KV + 4.7 GB reserve → 16.9 GB for KV (incl. 1.0 GB for 768 B/token of per-sequence indexer state) → 86769 blocks × 16 tok/block = 1388304 max KV tokens
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+== sparkqwen qprod: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen@sha256:ac3a5c7da4841cacc810755da01b074b8216224409d7937a19dcfced569b72f0
+== qprod up in 43 s: 86481 blocks × 16 tok/block = 1383696 max KV tokens 
+   engine: sparkqwen/atlas-20261013-prefill fcf9735f  MemAvailable 34 / 36 GiB
+-- sq_bench decode
+decode prose 0 0.221 52.03 384
+decode prose 1 0.17 54.54 384
+decode prose 2 0.186 54.7 384
+decode code 0 0.156 67.22 384
+decode code 1 0.162 70.26 384
+decode code 2 0.157 70.07 384
+decode json 0 0.168 62.63 384
+decode json 1 0.166 64.72 384
+decode json 2 0.166 64.69 384
+wrote ~/sparkqwen-dev/bench-qwen-qprod.json
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 63.66 GB, tracked 61.96 GB (device 60.49 GB by driver accounting + host 1.48 GB) → 63.66 GB pre-KV
+ld: KV cache: 121.7 GB total × 70% util = 85.2 GB budget; 63.7 GB pre-KV + 4.7 GB reserve → 16.8 GB for KV (incl. 1.0 GB for 768 B/token of per-sequence indexer state) → 86481 blocks × 16 tok/block = 1383696 max KV tokens
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+== sparkqwen qrel2: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen:9a0df5f1474a
+== qrel2 up in 37 s: 86399 blocks × 16 tok/block = 1382384 max KV tokens 
+   engine: sparkqwen/atlas-20261015-shared b914c5e1  MemAvailable 34 / 36 GiB
+-- sq_bench decode
+decode prose 0 0.213 52.01 384
+decode prose 1 0.174 54.85 384
+decode prose 2 0.169 54.8 384
+decode code 0 0.158 67.22 384
+decode code 1 0.163 70.31 384
+decode code 2 0.156 70.41 384
+decode json 0 0.169 62.31 384
+decode json 1 0.169 64.72 384
+decode json 2 0.165 64.68 384
+wrote ~/sparkqwen-dev/bench-qwen-qrel2.json
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 63.68 GB, tracked 61.93 GB (device 60.49 GB by driver accounting + host 1.44 GB) → 63.68 GB pre-KV
+ld: KV cache: 121.7 GB total × 70% util = 85.2 GB budget; 63.7 GB pre-KV + 4.7 GB reserve → 16.8 GB for KV (incl. 1.0 GB for 768 B/token of per-sequence indexer state) → 86399 blocks × 16 tok/block = 1382384 max KV tokens
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+== sparkqwen qprod2: MemAvailable 116 / 116 GiB; image ghcr.io/enntity/atlas-sparkqwen@sha256:ac3a5c7da4841cacc810755da01b074b8216224409d7937a19dcfced569b72f0
+== qprod2 up in 38 s: 86413 blocks × 16 tok/block = 1382608 max KV tokens 
+   engine: sparkqwen/atlas-20261013-prefill fcf9735f  MemAvailable 34 / 36 GiB
+-- sq_bench decode
+decode prose 0 0.216 52.08 384
+decode prose 1 0.171 54.94 384
+decode prose 2 0.173 54.95 384
+decode code 0 0.158 67.76 384
+decode code 1 0.165 70.32 384
+decode code 2 0.153 70.33 384
+decode json 0 0.167 62.69 384
+decode json 1 0.164 64.8 384
+decode json 2 0.165 64.79 384
+wrote ~/sparkqwen-dev/bench-qwen-qprod2.json
+ld::kv_budget: KV own-footprint cross-check: free-memory measure 63.68 GB, tracked 61.96 GB (device 60.49 GB by driver accounting + host 1.48 GB) → 63.68 GB pre-KV
+ld: KV cache: 121.7 GB total × 70% util = 85.2 GB budget; 63.7 GB pre-KV + 4.7 GB reserve → 16.8 GB for KV (incl. 1.0 GB for 768 B/token of per-sequence indexer state) → 86413 blocks × 16 tok/block = 1382608 max KV tokens
+-- log scan: rank0 panics 0 errors 0; rank1 panics 0 errors 0
+##### done 2026-10-15T08:44:38-07:00
