@@ -106,6 +106,27 @@ build-time check stages passed and the image was loaded on ennspark02. On the pa
 - Fill 12/12 in 329.6 s; lowest rank-0 MemAvailable 4.15 GB; 102.50 GB before the KV pool, 145,379 blocks.
 - No panics or errors on either rank.
 
+## Speed: same prompts, production against this release
+
+RigMark samples, so a single run per cell moves by several percent. The deciding check is same-prompt and uncapped,
+alternating production `2b2970c2f05d` and this release on fresh starts on ennspark01/02 (`raw/abab-uncapped/`,
+`ab_step.sh`, every run's summary in `ab-r1.out`):
+- `multi_probe`: 12 prose and 12 code prompts, 256 forced tokens each, greedy. It gives tokens per step and step time.
+- RigMark short-code concurrency, 1–4 streams, two rounds.
+
+| Start | Prose tok/s, ms per step | Code tok/s, ms per step | Short code 1 / 2 / 3 / 4 streams, tok/s |
+|---|---:|---:|---:|
+| Production 1 | 45.30, 55.21 | 64.35, 75.85 | 50.7 / 57.4 / 64.2 / 70.9 |
+| This release 1 | 45.24, 55.28 | 64.74, 75.73 | 47.5 / 59.1 / 67.3 / 70.4 |
+| Production 2 | 45.27, 55.25 | 64.42, 75.77 | 45.9 / 59.4 / 65.2 / 68.3 |
+| This release 2 | 45.31, 55.20 | 64.68, 75.80 | 47.5 / 58.8 / 67.5 / 70.5 |
+
+- Step time is the same to 0.1 ms. Tokens per step are 2.501 prose on both, and 4.903 code against production's 4.881.
+- The same production image gave 50.7 and then 45.9 tok/s at one stream, so a RigMark cell's run-to-run spread is
+  larger than the differences in the RigMark table below.
+- The harness reused its arm counter, so the second run of each image overwrote the first one's JSON (`*-gn2`,
+  `*-gp2`). `ab-r1.out` keeps every run's numbers.
+
 ## RigMark
 
 [RigMark](https://github.com/alexellis/rigmark) (Alex Ellis, MIT) at `40fabcaf`, the release-suite cells and command
@@ -128,7 +149,8 @@ Uncapped, prefill and staggered arrivals match RC4 to within 0.3%. RigMark sampl
 different program: this release's three code runs wrote 2,454 / 2,096 / 2,588 tokens at 67.5 / 69.1 / 70.5 tok/s,
 RC4's 2,172 / 2,360 / 1,813 tokens at 68.8 / 72.3 / 72.4. The equal-text probe (same prompts, forced length) shows the
 same tokens per step as production and no slower steps ([Checks](#checks-ennspark0102-production-settings)), so the
-code row's 4% is within RigMark's run-to-run spread rather than a decode change. Capped, the release is ahead of
+code row's 4% is within RigMark's run-to-run spread rather than a decode change; the same-prompt comparison
+above confirms it. Capped, the release is ahead of
 current production's capped run on every row but two-stream short code.
 
 ## Receipts

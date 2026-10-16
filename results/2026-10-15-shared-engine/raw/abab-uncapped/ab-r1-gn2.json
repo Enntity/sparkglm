@@ -1,0 +1,796 @@
+{
+  "concurrency": {
+    "1": {
+      "aggregate_end_to_end_tokens_per_second": {
+        "maximum": 50.291,
+        "median": 47.539,
+        "minimum": 44.788,
+        "p90": 50.291
+      },
+      "per_stream_decode_tokens_per_second": {
+        "maximum": 59.29,
+        "median": 55.235,
+        "minimum": 51.18,
+        "p90": 59.29
+      },
+      "per_stream_ttft_seconds": {
+        "maximum": 0.787,
+        "median": 0.759,
+        "minimum": 0.73,
+        "p90": 0.787
+      },
+      "rounds": [
+        {
+          "aggregate_end_to_end_tokens_per_second": 44.788,
+          "completion_tokens": 256,
+          "round": 1,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 4.98238,
+              "decode_tokens_per_second": 51.18,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system time.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate tokens per second, up to Burst.\ntype Limiter struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tlast     time.Time\n\trate     float64 // tokens per second\n\tburst    float64\n\tclock    Clock\n\tmaxBurst float64 // guard against overflow; burst is validated anyway\n}\n\n// New creates a Limiter with the given refill rate (tokens per second)\n// and burst capacity. Both must be > 0.\nfunc New(rate float64, burst int, clock Clock) (*Limiter, error) {\n\tif rate <= 0 {\n\t\treturn nil, errors.New(\"ratelimit: rate must be > ",
+              "output_characters": 953,
+              "output_sha256": "ff58235e73d9a171b7ecdfd64bc84d205712e61d103dd999dbf8a160b4280746",
+              "prompt_tokens": 134,
+              "reasoning_characters": 52,
+              "reasoning_sha256": "c628095cb5b7245ff642bfa57fd0e35fce7c92186d172063b7f4d1e7eb3ad399",
+              "response_tail_seconds": 0.002168,
+              "stream_done_marker": true,
+              "stream_sha256": "0c3c181d58e70bc765982c92d6e6895d2edf09944fbb4876be5bc3d5f055b09c",
+              "time_to_first_visible_seconds": 1.064573,
+              "time_to_last_output_seconds": 5.712708,
+              "ttft_seconds": 0.730328,
+              "wall_seconds": 5.714875
+            }
+          ],
+          "wall_seconds": 5.715813
+        },
+        {
+          "aggregate_end_to_end_tokens_per_second": 50.291,
+          "completion_tokens": 256,
+          "round": 2,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 4.300859,
+              "decode_tokens_per_second": 59.29,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by time.Now.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate tokens per second, up to Burst.\ntype Limiter struct {\n\tmu       sync.Mutex\n\trate     float64 // tokens per second\n\tburst    float64 // bucket capacity\n\ttokens   float64 // current tokens\n\tlastFill time.Time\n\tclock    Clock\n}\n\nvar (\n\tErrNonPositiveRate  = errors.New(\"ratelimit: rate must be > 0\")\n\tErrNonPositiveBurst = errors.New(\"ratelimit: burst must be > 0\")\n\tErrNilClock         = errors.New(\"ratelimit: clock must not be nil\")\n)\n\n// New creates a Limiter with the given refill rate (tokens/sec), burst\n// capacity, and clock.",
+              "output_characters": 976,
+              "output_sha256": "9b34ffec2aa4106eee3f649f314ec01e28f68aae607ec45ee241c846445de206",
+              "prompt_tokens": 133,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.002125,
+              "stream_done_marker": true,
+              "stream_sha256": "9b34ffec2aa4106eee3f649f314ec01e28f68aae607ec45ee241c846445de206",
+              "time_to_first_visible_seconds": 0.786797,
+              "time_to_last_output_seconds": 5.087656,
+              "ttft_seconds": 0.786797,
+              "wall_seconds": 5.089781
+            }
+          ],
+          "wall_seconds": 5.09039
+        }
+      ]
+    },
+    "2": {
+      "aggregate_end_to_end_tokens_per_second": {
+        "maximum": 59.711,
+        "median": 58.806,
+        "minimum": 57.902,
+        "p90": 59.711
+      },
+      "per_stream_decode_tokens_per_second": {
+        "maximum": 35.812,
+        "median": 34.572,
+        "minimum": 33.575,
+        "p90": 35.812
+      },
+      "per_stream_ttft_seconds": {
+        "maximum": 1.532,
+        "median": 1.129,
+        "minimum": 0.719,
+        "p90": 1.532
+      },
+      "rounds": [
+        {
+          "aggregate_end_to_end_tokens_per_second": 59.711,
+          "completion_tokens": 512,
+          "round": 1,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 7.120616,
+              "decode_tokens_per_second": 35.812,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"math\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system time.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// It permits bursts up to Burst tokens, refilling at Rate tokens per second.\ntype Limiter struct {\n\tmu      sync.Mutex\n\trate    float64 // tokens per second\n\tburst   int     // bucket capacity\n\ttokens  float64 // current tokens\n\tlastRef time.Time\n\tclock   Clock\n}\n\nvar ErrInvalidParams = errors.New(\"ratelimit: rate and burst must be positive\")\n\n// New creates a Limiter with the given refill rate (tokens/sec) and burst capacity.\nfunc New(rate float64, burst int, clock Clock) (*Limiter, error) {\n\tif rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) ||",
+              "output_characters": 973,
+              "output_sha256": "149ec6d9dc9bd085688715074d4e66f045956d3ab2314828b1d1dda006729ef7",
+              "prompt_tokens": 133,
+              "reasoning_characters": 22,
+              "reasoning_sha256": "af6f043f26025000aeb3ba955cd4e01df3f98b893747d92a1b99562b764fc47e",
+              "response_tail_seconds": 0.002301,
+              "stream_done_marker": true,
+              "stream_sha256": "74a0b961618d020e11c7055139734c64a45f3428bdf34b46cb05f009a71993ca",
+              "time_to_first_visible_seconds": 1.63601,
+              "time_to_last_output_seconds": 8.571124,
+              "ttft_seconds": 1.450508,
+              "wall_seconds": 8.573425
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 7.446482,
+              "decode_tokens_per_second": 34.244,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// The bucket starts full and refills at rate tokens per second,\n// capped at burst tokens.\ntype Limiter struct {\n\tmu     sync.Mutex\n\trate   float64   // tokens per second\n\tburst  float64   // bucket capacity\n\ttokens float64   // current tokens\n\tlast   time.Time // last refill time\n\tclock  Clock\n}\n\n// New creates a Limiter with the given refill rate (tokens/sec) and burst\n// (bucket capacity). rate must be > 0 and burst must be >= 1.\nfunc New(rate float64, burst int) (*Limiter, error) {\n\treturn NewWithClock(rate, burst, realClock{})\n}\n\n// NewWithClock is New with an injectable clock.\nfunc NewWithClock(rate float64, burst int, clock Clock) (*Limiter, error",
+              "output_characters": 967,
+              "output_sha256": "daa2fd66de56d2df9288803a91bdb81ef342214c3a66e17ec417bab85fb4d593",
+              "prompt_tokens": 134,
+              "reasoning_characters": 19,
+              "reasoning_sha256": "aeeca6ef7d56cc8b81124ee64ca083786bfc106c6fc57c0800bbce37c752dcc2",
+              "response_tail_seconds": 0.00736,
+              "stream_done_marker": true,
+              "stream_sha256": "2ade434b97a35ec4e7496c10cfe52baa3e6eec1daf9835b60a2132a1d316c38d",
+              "time_to_first_visible_seconds": 1.636045,
+              "time_to_last_output_seconds": 8.16512,
+              "ttft_seconds": 0.718637,
+              "wall_seconds": 8.172479
+            }
+          ],
+          "wall_seconds": 8.574649
+        },
+        {
+          "aggregate_end_to_end_tokens_per_second": 57.902,
+          "completion_tokens": 512,
+          "round": 2,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 7.306605,
+              "decode_tokens_per_second": 34.9,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "**ratelimit.go**\n```go\n// Package ratelimit implements a concurrency-safe token-bucket rate limiter.\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock reports the current time. It is an interface so tests can inject a\n// fake clock.\ntype Clock interface {\n\tNow() time.Time\n}\n\n// systemClock is the production Clock backed by the wall clock.\ntype systemClock struct{}\n\nfunc (systemClock) Now() time.Time { return time.Now() }\n\n// SystemClock is the default Clock used by New when no clock is supplied.\nvar SystemClock Clock = systemClock{}\n\n// Limiter is a concurrency-safe token-bucket rate limiter. The zero value is\n// not usable; construct one with New.\ntype Limiter struct {\n\tmu sync.Mutex\n\n\trate     float64     // tokens added per second\n\tburst    float64     // maximum tokens the bucket may hold\n\ttokens   float64     // tokens currently available\n\tlastFill time.Time   // time of the last refill computation\n\tclock    Clock       // injectable clock\n}\n\n// New returns a Limiter that refills at rate tokens per second and holds at\n",
+              "output_characters": 1062,
+              "output_sha256": "49a1266c9d103aa00293e9314e88c9062d5a720f38183509827f4ee7b18e0e22",
+              "prompt_tokens": 131,
+              "reasoning_characters": 22,
+              "reasoning_sha256": "af6f043f26025000aeb3ba955cd4e01df3f98b893747d92a1b99562b764fc47e",
+              "response_tail_seconds": 0.00258,
+              "stream_done_marker": true,
+              "stream_sha256": "7cdde61fd36c1b5af54875cc5a80c82f7b40d05ff9b0fc6592f0fdff65bf8c0b",
+              "time_to_first_visible_seconds": 1.702194,
+              "time_to_last_output_seconds": 8.838733,
+              "ttft_seconds": 1.532128,
+              "wall_seconds": 8.841313
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 7.594919,
+              "decode_tokens_per_second": 33.575,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\n// realClock uses the wall clock.\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter must be created with New and must not be copied after first use.\ntype Limiter struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tlast     time.Time\n\trate     float64 // tokens per second\n\tburst    float64 // bucket capacity\n\tclock    Clock\n}\n\nvar (\n\tErrNonPositiveRate  = errors.New(\"ratelimit: rate must be > 0\")\n\tErrNonPositiveBurst = errors.New(\"ratelimit: burst must be > 0\")\n\tErrNilClock         = errors.New(\"ratelimit: clock must not be nil\")\n)\n\n// New creates a Limiter with the given refill rate (tokens per second),\n// burst capacity, and clock. If clock is nil, the wall clock is used.\nfunc New(rate float64",
+              "output_characters": 967,
+              "output_sha256": "2779f8f11fd0140a75e5350630f35dd6f0b0254bb7bc43961ea6d9abbf3dd52b",
+              "prompt_tokens": 128,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.006764,
+              "stream_done_marker": true,
+              "stream_sha256": "2779f8f11fd0140a75e5350630f35dd6f0b0254bb7bc43961ea6d9abbf3dd52b",
+              "time_to_first_visible_seconds": 0.808367,
+              "time_to_last_output_seconds": 8.403287,
+              "ttft_seconds": 0.808367,
+              "wall_seconds": 8.410051
+            }
+          ],
+          "wall_seconds": 8.842603
+        }
+      ]
+    },
+    "3": {
+      "aggregate_end_to_end_tokens_per_second": {
+        "maximum": 69.574,
+        "median": 67.545,
+        "minimum": 65.516,
+        "p90": 69.574
+      },
+      "per_stream_decode_tokens_per_second": {
+        "maximum": 29.961,
+        "median": 26.251,
+        "minimum": 24.576,
+        "p90": 27.31
+      },
+      "per_stream_ttft_seconds": {
+        "maximum": 2.381,
+        "median": 1.512,
+        "minimum": 0.723,
+        "p90": 2.222
+      },
+      "rounds": [
+        {
+          "aggregate_end_to_end_tokens_per_second": 65.516,
+          "completion_tokens": 768,
+          "round": 1,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 9.337102,
+              "decode_tokens_per_second": 27.31,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system clock.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate tokens per second, up to burst capacity.\ntype Limiter struct {\n\tmu       sync.Mutex\n\trate     float64 // tokens per second\n\tburst    float64 // max tokens\n\ttokens   float64 // current tokens\n\tlast     time.Time\n\tlastZero time.Time // last time tokens hit zero (for WaitN-style callers, optional)\n\tclock    Clock\n}\n\nvar ErrInvalidRate = errors.New(\"ratelimit: rate must be > 0\")\nvar ErrInvalidBurst = errors.New(\"ratelimit: burst must be > 0\")\nvar ErrNilClock = errors.New(\"ratelimit: clock must not be nil\")\n\n// New creates a Limiter with the given refill rate (",
+              "output_characters": 1008,
+              "output_sha256": "9f446dcbb29facbe2eb868243cea0a6fd413e274504ef968ea212480e507ec20",
+              "prompt_tokens": 132,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.0024,
+              "stream_done_marker": true,
+              "stream_sha256": "9f446dcbb29facbe2eb868243cea0a6fd413e274504ef968ea212480e507ec20",
+              "time_to_first_visible_seconds": 2.381458,
+              "time_to_last_output_seconds": 11.71856,
+              "ttft_seconds": 2.381458,
+              "wall_seconds": 11.72096
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 10.375925,
+              "decode_tokens_per_second": 24.576,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\n// realClock uses the wall clock.\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock is the production clock.\nvar RealClock Clock = realClock{}\n\n// ErrInvalidCapacity is returned when capacity <= 0.\nvar ErrInvalidCapacity = errors.New(\"ratelimit: capacity must be > 0\")\n\n// ErrInvalidRate is returned when rate <= 0.\nvar ErrInvalidRate = errors.New(\"ratelimit: rate must be > 0\")\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate tokens per second, up to capacity.\ntype Limiter struct {\n\tmu       sync.Mutex\n\tclock    Clock\n\tcapacity float64\n\trate     float64 // tokens per second\n\ttokens   float64\n\tlast     time.Time\n}\n\n// New creates a Limiter with the given burst capacity and refill rate\n// (tokens per second). The bucket starts full.\nfunc New(capacity int,",
+              "output_characters": 1018,
+              "output_sha256": "78b365eb98e3a54a56e6ebe640855e05ee0682ab16de9a540217b82c05ec03d2",
+              "prompt_tokens": 129,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.008636,
+              "stream_done_marker": true,
+              "stream_sha256": "78b365eb98e3a54a56e6ebe640855e05ee0682ab16de9a540217b82c05ec03d2",
+              "time_to_first_visible_seconds": 0.782503,
+              "time_to_last_output_seconds": 11.158428,
+              "ttft_seconds": 0.782503,
+              "wall_seconds": 11.167063
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 10.099194,
+              "decode_tokens_per_second": 25.25,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "**ratelimit.go**\n```go\n// Package ratelimit implements a concurrency-safe token-bucket rate limiter.\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter must be created by New; the zero value is not usable.\ntype Limiter struct {\n\tmu        sync.Mutex\n\tclock     Clock\n\trate      float64       // tokens per second\n\tburst     float64       // bucket capacity\n\ttokens    float64       // current tokens\n\tlastFill  time.Time\n}\n\n// New creates a Limiter that emits rate tokens per second with a maximum\n// burst capacity. rate must be > 0 and burst must be >= 1.\nfunc New(rate float64, burst int) (*Limiter, error) {\n\treturn NewWithClock(rate, burst, realClock{})\n}\n\n// NewWithClock is New with an injectable Clock.\nfunc NewWithClock(rate float64",
+              "output_characters": 992,
+              "output_sha256": "1a472bdb99441279124115bd01ec2b74ae49c5d37c8881f10ae0ba7751ab6371",
+              "prompt_tokens": 135,
+              "reasoning_characters": 22,
+              "reasoning_sha256": "af6f043f26025000aeb3ba955cd4e01df3f98b893747d92a1b99562b764fc47e",
+              "response_tail_seconds": 0.006586,
+              "stream_done_marker": true,
+              "stream_sha256": "8f7ab76361e6475caa4971e924d1c76ad81151c5db2a4880d17cd705d8120735",
+              "time_to_first_visible_seconds": 2.481298,
+              "time_to_last_output_seconds": 11.608141,
+              "ttft_seconds": 1.508947,
+              "wall_seconds": 11.614727
+            }
+          ],
+          "wall_seconds": 11.722314
+        },
+        {
+          "aggregate_end_to_end_tokens_per_second": 69.574,
+          "completion_tokens": 768,
+          "round": 2,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 8.511168,
+              "decode_tokens_per_second": 29.961,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock is the production clock.\nvar RealClock Clock = realClock{}\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter must be constructed with NewLimiter; the zero value is invalid.\ntype Limiter struct {\n\tmu        sync.Mutex\n\tclock     Clock\n\trate      float64 // tokens per second\n\tburst     float64 // bucket capacity\n\ttokens    float64\n\tlastFill  time.Time\n}\n\n// NewLimiter creates a Limiter adding rate tokens per second, with capacity burst.\nfunc NewLimiter(rate float64, burst int) (*Limiter, error) {\n\treturn NewLimiterWithClock(rate, burst, RealClock)\n}\n\n// NewLimiterWithClock is like NewLimiter with an injectable clock.\nfunc NewLimiterWithClock(rate float64, burst int, clock Clock) (*Limiter,",
+              "output_characters": 977,
+              "output_sha256": "2d12195a95861c871daf120d2e1da1bd3f9fad0dd2ec7c3475305e52a321eb02",
+              "prompt_tokens": 131,
+              "reasoning_characters": 31,
+              "reasoning_sha256": "0b43e4ed336e57da5a7c92d31a4254d0a9a41023d9c266c81567fdeb7ede531d",
+              "response_tail_seconds": 0.008809,
+              "stream_done_marker": true,
+              "stream_sha256": "142760090f059b9c9096a2eaf469db819b51a303db7f46e42ccb16d32951d86a",
+              "time_to_first_visible_seconds": 2.473929,
+              "time_to_last_output_seconds": 10.733254,
+              "ttft_seconds": 2.222086,
+              "wall_seconds": 10.742063
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 9.357013,
+              "decode_tokens_per_second": 27.252,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system time.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// The bucket holds up to Burst tokens and refills at Rate tokens per second.\ntype Limiter struct {\n\tmu     sync.Mutex\n\ttokens float64\n\tlast   time.Time\n\n\tBurst int\n\tRate  float64 // tokens per second\n\tclock Clock\n}\n\n// New creates a Limiter with the given burst size and refill rate (tokens/sec).\nfunc New(burst int, rate float64, clock Clock) (*Limiter, error) {\n\tif burst <= 0 {\n\t\treturn nil, errors.New(\"ratelimit: burst must be > 0\")\n\t}\n\tif rate <= 0 {\n\t\treturn nil, errors.New(\"ratelimit: rate must be > ",
+              "output_characters": 917,
+              "output_sha256": "e92c4b670200a99f19cbd82156560bc70c0a262c6d888564d85da7fcd53b57da",
+              "prompt_tokens": 132,
+              "reasoning_characters": 44,
+              "reasoning_sha256": "50a3a2e3e0ab8838134b6d3e37b85d1c4071f01d2955731c420e4c7069eb406e",
+              "response_tail_seconds": 0.007399,
+              "stream_done_marker": true,
+              "stream_sha256": "000e5641c9d1d59f199462eb6a6cbfac53703222ea9161dd5140982c6ba1b142",
+              "time_to_first_visible_seconds": 2.755191,
+              "time_to_last_output_seconds": 10.872081,
+              "ttft_seconds": 1.515067,
+              "wall_seconds": 10.879479
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 10.312416,
+              "decode_tokens_per_second": 24.727,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by the system time.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate tokens/s up to capacity burst.\ntype Limiter struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tlast     time.Time\n\trate     float64 // tokens per second\n\tburst    float64 // bucket capacity\n\tclock    Clock\n}\n\nvar ErrInvalidParams = errors.New(\"ratelimit: rate and burst must be > 0\")\n\n// NewLimiter creates a limiter with the given refill rate (tokens per\n// second) and burst capacity. The bucket starts full.\nfunc NewLimiter(rate, burst float64) (*Limiter, error) {\n\treturn NewLimiterWithClock(rate, burst, RealClock())\n}\n\n// NewLimiterWithClock",
+              "output_characters": 990,
+              "output_sha256": "ffa5c062164e259a41ab539cb0d23d838ec652f3d80707f85d7f153b41f8e202",
+              "prompt_tokens": 132,
+              "reasoning_characters": 30,
+              "reasoning_sha256": "45a60a23ec0e05c6a91d84ac853d18a5f2a871d88435a8d8503b92a903ee586f",
+              "response_tail_seconds": 0.002343,
+              "stream_done_marker": true,
+              "stream_sha256": "5f17be3c770f47c8df6744bc85dd745a52af451b8e0bfcfb83fc4e5329409c1f",
+              "time_to_first_visible_seconds": 2.374593,
+              "time_to_last_output_seconds": 11.035221,
+              "ttft_seconds": 0.722805,
+              "wall_seconds": 11.037564
+            }
+          ],
+          "wall_seconds": 11.03858
+        }
+      ]
+    },
+    "4": {
+      "aggregate_end_to_end_tokens_per_second": {
+        "maximum": 70.848,
+        "median": 70.523,
+        "minimum": 70.198,
+        "p90": 70.848
+      },
+      "per_stream_decode_tokens_per_second": {
+        "maximum": 24.847,
+        "median": 21.713,
+        "minimum": 19.052,
+        "p90": 24.368
+      },
+      "per_stream_ttft_seconds": {
+        "maximum": 2.983,
+        "median": 2.186,
+        "minimum": 0.793,
+        "p90": 2.958
+      },
+      "rounds": [
+        {
+          "aggregate_end_to_end_tokens_per_second": 70.198,
+          "completion_tokens": 1024,
+          "round": 1,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 11.304901,
+              "decode_tokens_per_second": 22.557,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "**ratelimit.go**\n```go\n// Package ratelimit implements a concurrency-safe token-bucket rate limiter.\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock reports the current time. It is an injection point for tests.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter must be created by New; the zero value is not usable.\ntype Limiter struct {\n\tmu       sync.Mutex\n\tclock    Clock\n\tcapacity int64      // max tokens\n\ttokens   float64    // current tokens\n\trate     float64    // tokens per second\n\tlast     time.Time  // last refill time\n}\n\n// New creates a Limiter with the given burst capacity and refill rate\n// (tokens added per second). The bucket starts full.\nfunc New(capacity int, ratePerSec float64, opts ...Option) (*Limiter, error) {\n\tif capacity <= 0 {\n\t\treturn nil, fmt.Errorf(\"ratelimit: capacity must be",
+              "output_characters": 983,
+              "output_sha256": "7f3d5768d84622fa6bfcc933a45aec4e4317dbe31a1051c00d712ace7c2794f6",
+              "prompt_tokens": 130,
+              "reasoning_characters": 30,
+              "reasoning_sha256": "45a60a23ec0e05c6a91d84ac853d18a5f2a871d88435a8d8503b92a903ee586f",
+              "response_tail_seconds": 0.011401,
+              "stream_done_marker": true,
+              "stream_sha256": "ad0ff400e532d607c5be66e2f28cf41a3cbb9f595432b826f72fda7b600d2a84",
+              "time_to_first_visible_seconds": 3.200292,
+              "time_to_last_output_seconds": 13.446415,
+              "ttft_seconds": 2.141514,
+              "wall_seconds": 13.457816
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 11.014276,
+              "decode_tokens_per_second": 23.152,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock is the production clock.\nvar RealClock Clock = realClock{}\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter is not usable until created via NewLimiter; the zero value\n// is invalid and its methods will panic.\ntype Limiter struct {\n\tmu       sync.Mutex\n\tclock    Clock\n\trate     float64       // tokens per second\n\tburst    float64       // bucket capacity\n\ttokens   float64       // current tokens\n\tlast     time.Time     // last refill time\n}\n\nvar (\n\tErrNonPositiveRate  = errors.New(\"ratelimit: rate must be > 0\")\n\tErrNonPositiveBurst = errors.New(\"ratelimit: burst must be > 0\")\n\tErrNilClock         = errors.New(\"ratelimit: clock must not be nil\")\n)\n\n// NewLimiter creates",
+              "output_characters": 958,
+              "output_sha256": "13ad3d4939e0ae49b11b57b36ae19d2d3a49c59fdf95782d8a11a32450f70463",
+              "prompt_tokens": 131,
+              "reasoning_characters": 27,
+              "reasoning_sha256": "0b3acc8403ec469b09b04be516f98e059799ba61dabe4c94250bbf24a6f23331",
+              "response_tail_seconds": 0.006922,
+              "stream_done_marker": true,
+              "stream_sha256": "16aaeda55fc67143eb63fe49474026d37cd0b318cbdb3d0e12ec16349ccadf0b",
+              "time_to_first_visible_seconds": 3.200858,
+              "time_to_last_output_seconds": 13.91182,
+              "ttft_seconds": 2.897544,
+              "wall_seconds": 13.918742
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 13.153919,
+              "decode_tokens_per_second": 19.386,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate Rate per second, up to Burst.\ntype Limiter struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tlast     time.Time\n\tBurst    int\n\tRate     float64 // tokens per second\n\tMaxBurst int     // maximum allowed Burst in New; 0 disables the cap\n\tclock    Clock\n}\n\n// ErrInvalidConfig is returned by New for non-positive rate or burst.\nvar ErrInvalidConfig = errors.New(\"ratelimit: rate and burst must be positive\")\n\n// New creates a Limiter with the given refill rate (tokens/sec) and burst\n// capacity. If maxBurst > 0, burst must not exceed it.\nfunc New(rate float64, burst int, maxBurst int) (*Limiter, error) {\n\treturn NewWith",
+              "output_characters": 961,
+              "output_sha256": "efbf6d90af925e499720720586dc493f98c6974c3b72dc824dc25e66a5700807",
+              "prompt_tokens": 132,
+              "reasoning_characters": 31,
+              "reasoning_sha256": "0b43e4ed336e57da5a7c92d31a4254d0a9a41023d9c266c81567fdeb7ede531d",
+              "response_tail_seconds": 0.002796,
+              "stream_done_marker": true,
+              "stream_sha256": "54cc4c29fd19751935a50da33ac9b2508392936eaf3b1541f6e7ab23871fd18e",
+              "time_to_first_visible_seconds": 3.312825,
+              "time_to_last_output_seconds": 14.582715,
+              "ttft_seconds": 1.428796,
+              "wall_seconds": 14.585511
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 10.464536,
+              "decode_tokens_per_second": 24.368,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Tokens refill continuously at rate Rate tokens per second, up to Burst.\ntype Limiter struct {\n\tmu      sync.Mutex\n\ttokens  float64\n\tlast    time.Time\n\tBurst   int\n\tRate    float64 // tokens per second\n\tclock   Clock\n}\n\nvar ErrInvalidConfig = errors.New(\"ratelimit: burst must be > 0 and rate must be > 0\")\n\n// New creates a Limiter with the given burst capacity and refill rate\n// (tokens per second). The bucket starts full.\nfunc New(burst int, rate float64) (*Limiter, error) {\n\treturn NewWithClock(burst, rate, realClock{})\n}\n\n// NewWithClock is New with an injectable Clock.\nfunc NewWithClock(burst int, rate float64, c Clock) (*Limiter, error) {\n\tif burst",
+              "output_characters": 967,
+              "output_sha256": "2bb27073f9fcb2a98bdaabbeba9df8faf0b140ffe04fa60ac81ccf4ded47b7dc",
+              "prompt_tokens": 133,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.009973,
+              "stream_done_marker": true,
+              "stream_sha256": "2bb27073f9fcb2a98bdaabbeba9df8faf0b140ffe04fa60ac81ccf4ded47b7dc",
+              "time_to_first_visible_seconds": 2.982523,
+              "time_to_last_output_seconds": 13.447059,
+              "ttft_seconds": 2.982523,
+              "wall_seconds": 13.457032
+            }
+          ],
+          "wall_seconds": 14.587262
+        },
+        {
+          "aggregate_end_to_end_tokens_per_second": 70.848,
+          "completion_tokens": 1024,
+          "round": 2,
+          "streams": [
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 13.384377,
+              "decode_tokens_per_second": 19.052,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// RealClock returns a Clock backed by time.Now.\nfunc RealClock() Clock { return realClock{} }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Zero value is not usable; use New.\ntype Limiter struct {\n\tmu        sync.Mutex\n\trate      float64   // tokens per second\n\tburst     float64   // bucket capacity\n\ttokens    float64   // current tokens\n\tlast      time.Time // last refill time\n\tclock     Clock\n}\n\nvar ErrInvalidParams = errors.New(\"ratelimit: rate and burst must be > 0\")\n\n// New creates a Limiter that emits rate tokens per second, with a\n// maximum capacity of burst. The bucket starts full.\nfunc New(rate float64, burst int, clock Clock) (*Limiter, error) {\n\tif rate <= 0 || burst <= 0 {\n\t\treturn nil, ErrInvalidParams\n\t",
+              "output_characters": 990,
+              "output_sha256": "1fa147ff3743dee42ff9f89f8c9eb68fd1600bfa66c38413f8fe31fbdcd34769",
+              "prompt_tokens": 131,
+              "reasoning_characters": 0,
+              "reasoning_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "response_tail_seconds": 0.006759,
+              "stream_done_marker": true,
+              "stream_sha256": "1fa147ff3743dee42ff9f89f8c9eb68fd1600bfa66c38413f8fe31fbdcd34769",
+              "time_to_first_visible_seconds": 0.792751,
+              "time_to_last_output_seconds": 14.177128,
+              "ttft_seconds": 0.792751,
+              "wall_seconds": 14.183887
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 10.26266,
+              "decode_tokens_per_second": 24.847,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\ntype Limiter struct {\n\tmu        sync.Mutex\n\trate      float64   // tokens per second\n\tburst     float64   // bucket capacity\n\ttokens    float64   // current tokens\n\tlast      time.Time // last refill time\n\tclock     Clock\n}\n\nvar (\n\tErrNonPositiveRate  = errors.New(\"ratelimit: rate must be > 0\")\n\tErrNonPositiveBurst = errors.New(\"ratelimit: burst must be > 0\")\n\tErrNilClock         = errors.New(\"ratelimit: clock must not be nil\")\n)\n\n// New returns a Limiter with the given refill rate (tokens/sec) and burst\n// (capacity). The bucket starts full.\nfunc New(rate float64, burst int, clock Clock) (*Limiter, error) {\n\tif rate <= 0",
+              "output_characters": 934,
+              "output_sha256": "23926810ec62955a029dcd76cd4f131dc03c9d0bf17360a3c6abbf275b0a09c0",
+              "prompt_tokens": 134,
+              "reasoning_characters": 19,
+              "reasoning_sha256": "aeeca6ef7d56cc8b81124ee64ca083786bfc106c6fc57c0800bbce37c752dcc2",
+              "response_tail_seconds": 0.009525,
+              "stream_done_marker": true,
+              "stream_sha256": "ae3335d2439940b72eb0b24176373bb8da63704dbd7a7bd579b1633f6c06fb2b",
+              "time_to_first_visible_seconds": 3.284094,
+              "time_to_last_output_seconds": 13.221034,
+              "ttft_seconds": 2.958373,
+              "wall_seconds": 13.230559
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 12.526198,
+              "decode_tokens_per_second": 20.357,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "**ratelimit.go**\n```go\n// Package ratelimit implements a concurrency-safe token-bucket rate limiter.\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\n// SystemClock is the default real-time Clock.\ntype SystemClock struct{}\n\n// Now returns the current wall-clock time.\nfunc (SystemClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// A Limiter must be constructed via NewLimiter and is safe for concurrent use.\ntype Limiter struct {\n\tmu        sync.Mutex\n\tclock     Clock\n\tcapacity  int64\n\trefill    float64 // tokens per second\n\ttokens    float64\n\tlastFill  time.Time\n}\n\n// NewLimiter creates a Limiter with the given burst capacity and refill rate\n// (tokens per second). The bucket starts full.\nfunc NewLimiter(capacity int, refillPerSec float64, clock Clock) (*Limiter, error) {\n\tif capacity <= 0 {\n\t\treturn nil, errors.New(\"ratelimit:",
+              "output_characters": 993,
+              "output_sha256": "a4b78a3573cdb04ce136fe798badcf8c5a03f8b858bf375fdb8f4ea0db198d0a",
+              "prompt_tokens": 132,
+              "reasoning_characters": 22,
+              "reasoning_sha256": "af6f043f26025000aeb3ba955cd4e01df3f98b893747d92a1b99562b764fc47e",
+              "response_tail_seconds": 0.008531,
+              "stream_done_marker": true,
+              "stream_sha256": "5e436f7624b4cc64078b580ef1f3810c1b300a8df9443eca9261d3b345ef3f21",
+              "time_to_first_visible_seconds": 3.168854,
+              "time_to_last_output_seconds": 14.039444,
+              "ttft_seconds": 1.513246,
+              "wall_seconds": 14.047975
+            },
+            {
+              "completion_tokens": 256,
+              "decode_seconds": 12.218732,
+              "decode_tokens_per_second": 20.87,
+              "finish_reason": "length",
+              "measured_sse_events": 255,
+              "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\n// SystemClock is the production Clock.\ntype SystemClock struct{}\n\nfunc (SystemClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// It is safe for concurrent use by multiple goroutines.\ntype Limiter struct {\n\tmu        sync.Mutex\n\tclock     Clock\n\trate      float64 // tokens per second\n\tburst     float64 // bucket capacity\n\ttokens    float64\n\tlastRefill time.Time\n}\n\n// ErrInvalidConfig is returned by New when arguments are invalid.\nvar ErrInvalidConfig = errors.New(\"ratelimit: invalid configuration\")\n\n// New creates a Limiter with the given refill rate (tokens per second)\n// and burst capacity (maximum bucket size). The bucket starts full.\nfunc New(rate float64, burst int, clock Clock) (*Limiter, error) {\n\tif rate <= 0 {\n\t\treturn nil, fmt.Errorf(\"%w: rate must be > 0,",
+              "output_characters": 1004,
+              "output_sha256": "5e1d5e53cfd138e8e16cff79d19f7ae09942ba15d13d78138e50f84ff46fb49c",
+              "prompt_tokens": 134,
+              "reasoning_characters": 27,
+              "reasoning_sha256": "0b3acc8403ec469b09b04be516f98e059799ba61dabe4c94250bbf24a6f23331",
+              "response_tail_seconds": 0.002355,
+              "stream_done_marker": true,
+              "stream_sha256": "0fbd12aa048d2bfba37f1f47632edff88f3393ea4eb3eef285d63ace44f91dea",
+              "time_to_first_visible_seconds": 3.406952,
+              "time_to_last_output_seconds": 14.449515,
+              "ttft_seconds": 2.230783,
+              "wall_seconds": 14.45187
+            }
+          ],
+          "wall_seconds": 14.453503
+        }
+      ]
+    }
+  },
+  "decode": {
+    "code": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 68.796,
+        "median": 68.796,
+        "minimum": 68.796,
+        "p90": 68.796
+      },
+      "runs": [
+        {
+          "completion_tokens": 1968,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 28.591968,
+          "decode_tokens_per_second": 68.796,
+          "finish_reason": "stop",
+          "measured_sse_events": 1966,
+          "output": "```go\n// ratelimit.go\npackage ratelimit\n\nimport (\n\t\"errors\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Clock abstracts time for testability.\ntype Clock interface {\n\tNow() time.Time\n}\n\ntype realClock struct{}\n\nfunc (realClock) Now() time.Time { return time.Now() }\n\n// Limiter is a concurrency-safe token-bucket rate limiter.\n// Zero value is not usable; use New.\ntype Limiter struct {\n\tmu       sync.Mutex\n\ttokens   float64\n\tlast     time.Time\n\trate     float64 // tokens per second\n\tburst    float64\n\tclock    Clock\n\tnowFn    func() time.Time // fast path when clock is realClock\n}\n\n// New creates a Limiter with the given refill rate (tokens per second)\n// and burst capacity. rate and burst must be > 0.\nfunc New(rate, burst float64) (*Limiter, error) {\n\treturn NewWithClock(rate, burst, nil)\n}\n\n// NewWithClock is New with an injectable Clock; nil means real time.\nfunc NewWithClock(rate, burst float64, c Clock) (*Limiter, error) {\n\tif rate <= 0 {\n\t\treturn nil, errors.New(\"ratelimit: rate must be > 0\")\n\t}\n\tif burst <= 0 {\n\t\treturn nil, errors.New(\"ratelimit: burst must be > 0\")\n\t}\n\tif c == nil {\n\t\tc = realClock{}\n\t}\n\tl := &Limiter{\n\t\ttokens: burst,\n\t\trate:   rate,\n\t\tburst:  burst,\n\t\tclock:  c,\n\t}\n\tif rc, ok := c.(realClock); ok {\n\t\t_ = rc\n\t\tl.nowFn = time.Now\n\t}\n\treturn l, nil\n}\n\nfunc (l *Limiter) now() time.Time {\n\tif l.nowFn != nil {\n\t\treturn l.nowFn()\n\t}\n\treturn l.clock.Now()\n}\n\n// advance refills tokens up to t and updates last.\n// Caller must hold l.mu.\nfunc (l *Limiter) advance(t time.Time) {\n\tif !l.last.IsZero() {\n\t\tif elapsed := t.Sub(l.last); elapsed > 0 {\n\t\t\tl.tokens += elapsed.Seconds() * l.rate\n\t\t\tif l.tokens > l.burst {\n\t\t\t\tl.tokens = l.burst\n\t\t\t}\n\t\t}\n\t}\n\tl.last = t\n}\n\n// AllowN reports whether n events may happen at time t.\n// It consumes n tokens if allowed.\nfunc (l *Limiter) AllowN(t time.Time, n int) bool {\n\tif n < 0 {\n\t\treturn false\n\t}\n\tl.mu.Lock()\n\tdefer l.mu.Unlock()\n\tl.advance(t)\n\tif float64(n) <= l.tokens {\n\t\tl.tokens -= float64(n)\n\t\treturn true\n\t}\n\treturn false\n}\n\n// Allow reports whether one event may happen now.\nfunc (l *Limiter) Allow() bool {\n\treturn l.AllowN(l.now(), 1)\n}\n\n// AllowAt reports whether one event may happen at time t.\nfunc (l *Limiter) AllowAt(t time.Time) bool {\n\treturn l.AllowN(t, 1)\n}\n\n// Tokens returns the current number of available tokens at time t.\nfunc (l *Limiter) Tokens(t time.Time) float64 {\n\tl.mu.Lock()\n\tdefer l.mu.Unlock()\n\tl.advance(t)\n\treturn l.tokens\n}\n```\n\n```go\n// ratelimit_test.go\npackage ratelimit\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\ntype fakeClock struct {\n\tt time.Time\n}\n\nfunc (f *fakeClock) Now() time.Time { return f.t }\nfunc (f *fakeClock) Advance(d time.Duration) {\n\tf.t = f.t.Add(d)\n}\n\nfunc TestNewValidation(t *testing.T) {\n\tcases := []struct {\n\t\tname    string\n\t\trate    float64\n\t\tburst   float64\n\t\twantErr bool\n\t}{\n\t\t{\"ok\", 1, 1, false},\n\t\t{\"zero rate\", 0, 1, true},\n\t\t{\"negative rate\", -1, 1, true},\n\t\t{\"zero burst\", 1, 0, true},\n\t\t{\"negative burst\", 1, -5, true},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\t_, err := New(tc.rate, tc.burst)\n\t\t\tif (err != nil) != tc.wantErr {\n\t\t\t\tt.Fatalf(\"New(%v,%v) err=%v, wantErr=%v\", tc.rate, tc.burst, err, tc.wantErr)\n\t\t\t}\n\t\t})\n\t}\n}\n\nfunc TestAllowN(t *testing.T) {\n\tbase := time.Unix(1700000000, 0)\n\tcases := []struct {\n\t\tname  string\n\t\trate  float64\n\t\tburst float64\n\t\tsteps []struct {\n\t\t\tat    time.Duration\n\t\t\tn     int\n\t\t\tallow bool\n\t\t}\n\t}{\n\t\t{\n\t\t\tname: \"burst consumed then denied\", rate: 1, burst: 3,\n\t\t\tsteps: []struct {\n\t\t\t\tat    time.Duration\n\t\t\t\tn     int\n\t\t\t\tallow bool\n\t\t\t}{\n\t\t\t\t{0, 3, true}, {0, 1, false}, {time.Second, 1, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"refill accumulates\", rate: 2, burst: 2,\n\t\t\tsteps: []struct {\n\t\t\t\tat    time.Duration\n\t\t\t\tn     int\n\t\t\t\tallow bool\n\t\t\t}{\n\t\t\t\t{0, 2, true}, {0, 1, false},\n\t\t\t\t{500 * time.Millisecond, 1, true}, // 1 token refilled\n\t\t\t\t{500 * time.Millisecond, 1, true}, // another token\n\t\t\t\t{0, 1, false},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"burst cap not exceeded\", rate: 10, burst: 2,\n\t\t\tsteps: []struct {\n\t\t\t\tat    time.Duration\n\t\t\t\tn     int\n\t\t\t\tallow bool\n\t\t\t}{\n\t\t\t\t{0, 2, true},\n\t\t\t\t{10 * time.Second, 3, false}, // capped at 2\n\t\t\t\t{10 * time.Second, 2, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"negative n denied\", rate: 1, burst: 1,\n\t\t\tsteps: []struct {\n\t\t\t\tat    time.Duration\n\t\t\t\tn     int\n\t\t\t\tallow bool\n\t\t\t}{\n\t\t\t\t{0, -1, false},\n\t\t\t\t{0, 1, true},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"time going backwards is safe\", rate: 1, burst: 1,\n\t\t\tsteps: []struct {\n\t\t\t\tat    time.Duration\n\t\t\t\tn     int\n\t\t\t\tallow bool\n\t\t\t}{\n\t\t\t\t{time.Second, 1, true},\n\t\t\t\t{0, 1, false}, // no negative refill\n\t\t\t},\n\t\t},\n\t}\n\tfor _, tc := range cases {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tfc := &fakeClock{t: base}\n\t\t\tl, err := NewWithClock(tc.rate, tc.burst, fc)\n\t\t\tif err != nil {\n\t\t\t\tt.Fatalf(\"NewWithClock: %v\", err)\n\t\t\t}\n\t\t\tfor i, s := range tc.steps {\n\t\t\t\tfc.Advance(s.at)\n\t\t\t\tgot := l.AllowN(fc.t, s.n)\n\t\t\t\tif got != s.allow {\n\t\t\t\t\tt.Fatalf(\"step %d: AllowN(%v,%d)=%v, want %v\", i, s.at, s.n, got, s.allow)\n\t\t\t\t}\n\t\t\t}\n\t\t})\n\t}\n}\n\nfunc TestTokensRefillCap(t *testing.T) {\n\tfc := &fakeClock{t: time.Unix(0, 0)}\n\tl, _ := NewWithClock(1, 5, fc)\n\tif got := l.Tokens(fc.t); got != 5 {\n\t\tt.Fatalf(\"initial tokens = %v, want 5\", got)\n\t}\n\tl.AllowN(fc.t, 5)\n\tfc.Advance(100 * time.Second)\n\tif got := l.Tokens(fc.t); got != 5 {\n\t\tt.Fatalf(\"tokens after long idle = %v, want 5 (capped)\", got)\n\t}\n}\n\nfunc TestConcurrentAllow(t *testing.T) {\n\tfc := &fakeClock{t: time.Unix(0, 0)}\n\tl, _ := NewWithClock(1000, 100, fc)\n\tvar mu sync.Mutex\n\tallowed := 0\n\tvar wg sync.WaitGroup\n\tfor i := 0; i < 200; i++ {\n\t\twg.Add(1)\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tif l.AllowN(fc.t, 1) {\n\t\t\t\tmu.Lock()\n\t\t\t\tallowed++\n\t\t\t\tmu.Unlock()\n\t\t\t}\n\t\t}()\n\t}\n\twg.Wait()\n\tif allowed != 100 {\n\t\tt.Fatalf(\"allowed = %d, want 100\", allowed)\n\t}\n}\n```",
+          "output_characters": 5772,
+          "output_sha256": "3bb08edc087f95c02f45b388722e78a2c89bf84cbc3b303fedf42e054137e4ee",
+          "prompt_tokens": 130,
+          "reasoning_characters": 22,
+          "reasoning_sha256": "af6f043f26025000aeb3ba955cd4e01df3f98b893747d92a1b99562b764fc47e",
+          "response_tail_seconds": 0.053399,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "f65a41aa94c29ee709b1df94e50cdce46ce3db26dd0646191a8442b2f72aa2c6",
+          "time_to_first_visible_seconds": 0.844233,
+          "time_to_last_output_seconds": 29.357975,
+          "ttft_seconds": 0.766008,
+          "wall_seconds": 29.411375
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 29.358,
+        "median": 29.358,
+        "minimum": 29.358,
+        "p90": 29.358
+      },
+      "ttft_seconds": {
+        "maximum": 0.766,
+        "median": 0.766,
+        "minimum": 0.766,
+        "p90": 0.766
+      },
+      "wall_seconds": {
+        "maximum": 29.411,
+        "median": 29.411,
+        "minimum": 29.411,
+        "p90": 29.411
+      }
+    },
+    "prose": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 38.935,
+        "median": 38.935,
+        "minimum": 38.935,
+        "p90": 38.935
+      },
+      "runs": [
+        {
+          "completion_tokens": 1002,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 25.709568,
+          "decode_tokens_per_second": 38.935,
+          "finish_reason": "stop",
+          "measured_sse_events": 1000,
+          "output": "**MEMO: GPU Capacity \u2014 Buy More or Use What We Have Better**\n\n**To:** Engineering Leadership\n**From:** Infrastructure Team\n**Re:** Hardware expansion vs. utilisation improvement for our inference fleet\n\n**Background**\n\nWe are approaching a decision point on our AI compute capacity. Our current fleet of eight GPUs is running at roughly 55% average utilisation, but that number hides significant variance: weekday business hours see sustained peaks above 90%, while nights and weekends sit near 15%. Queue times during peak periods have crept from seconds to minutes, and two product teams have told us they are delaying feature launches because they cannot get reliable access to the fleet. The default instinct \u2014 buy more hardware \u2014 deserves scrutiny, because the utilisation data suggests our real problem may be scheduling rather than supply.\n\n**The case for buying more hardware**\n\nThe straightforward argument is that demand is growing and will keep growing. Our usage has roughly doubled over the past year, and if that trend holds, even perfect scheduling buys us only a few quarters of headroom. Additional capacity would also give us genuine reliability headroom: right now, a single hardware failure during peak hours degrades service for everyone, because we have no slack to absorb it. Latency-sensitive workloads \u2014 the interactive inference paths our customer-facing features depend on \u2014 are the first to suffer when the fleet saturates, and no amount of clever queueing fixes the physics of a full GPU.\n\nThere is also a hidden cost to congestion that doesn't show up on an invoice. Engineers waiting on jobs, teams shipping features late, and the opportunity cost of experiments nobody runs because the queue is too long \u2014 these are real, if hard to quantify. Buying capacity makes that constraint disappear immediately and lets the team focus on product work rather than capacity triage.\n\n**The case for improving utilisation**\n\nBut the utilisation numbers tell a different story. Fifty-five percent average utilisation means we own nearly twice the hardware our average demand requires; we simply hold it in the wrong shape. Our largest jobs are long-running batch workloads that occupy GPUs continuously even when their actual compute intensity is bursty. Interactive and batch work share the same pool with no priority separation, so a nightly training run can block a customer-facing request. We have never implemented fractional GPU allocation, so a job needing 10% of a card takes a whole one. And we have no mechanism for shifting batch work into the overnight and weekend troughs, which represent enormous idle capacity we are already paying depreciation on.\n\nThe engineering work to fix this \u2014 a proper scheduler with workload classes, batch deferral windows, and finer-grained allocation \u2014 is perhaps six to eight weeks of effort from two engineers. Against that, the quote for four additional GPUs, including hosting, power, and networking, is a substantial recurring commitment that locks us into a capacity curve we may not need if demand patterns shift.\n\n**Reversibility and risk**\n\nThis is where the asymmetry matters. Buying hardware is largely irreversible at our scale. Once we sign a hosting contract or take delivery of cards, that spend is committed whether or not we need it, and reselling specialised hardware recovers a fraction of its cost. Improving utilisation is the opposite: it is an investment in software and process that pays off regardless of what we later decide. If we fix scheduling and then still need more capacity, the scheduler work is not wasted \u2014 it makes the new hardware more effective too. If we buy hardware first and never fix scheduling, we will simply saturate the larger fleet the same way and be back here in a year, having paid twice.\n\n**Recommendation**\n\nCommit to the utilisation work first, with a hard decision gate. We should spend the next two months building workload separation, batch deferral, and fractional allocation, targeting 75% sustained utilisation with peak queue times under ten seconds. If we hit that target and demand continues to grow, we will have earned a much better-informed purchase decision \u2014 and possibly deferred it by two quarters. If we miss the target because the work proves harder than expected, we escalate the hardware request immediately with the benefit of knowing exactly what the scheduler could and could not deliver.\n\n**Uncertainty**\n\nI want to be honest about what we don't know. Our demand forecast is extrapolated from one year of growth in a product area that may not grow linearly. The 55% utilisation figure may understate real contention in ways our coarse metrics don't capture. And the engineering estimate carries normal risk of surprises. The two-month gate is designed precisely to convert that uncertainty into evidence before we commit capital. The cost of waiting, in engineer time and some continued peak-hour friction, is modest and recoverable. The cost of buying prematurely is not.\n\nI recommend we approve the utilisation project now and schedule the capacity decision for the end of the quarter.",
+          "output_characters": 5129,
+          "output_sha256": "0778b51e572e7f36b71b096f744299e09ae7eaf6f46683bb4bf5479d836bf8da",
+          "prompt_tokens": 125,
+          "reasoning_characters": 62,
+          "reasoning_sha256": "de67786d423b4f7b993b812759bdd5ac76d372c9ec74fec8fe6bd9fce0cde02c",
+          "response_tail_seconds": 0.002284,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "eb2476e095ccffdb8aa74dc84f06609018b7fb4889e68ed05681872c01f73bc3",
+          "time_to_first_visible_seconds": 1.122608,
+          "time_to_last_output_seconds": 26.430643,
+          "ttft_seconds": 0.721075,
+          "wall_seconds": 26.432928
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 26.431,
+        "median": 26.431,
+        "minimum": 26.431,
+        "p90": 26.431
+      },
+      "ttft_seconds": {
+        "maximum": 0.721,
+        "median": 0.721,
+        "minimum": 0.721,
+        "p90": 0.721
+      },
+      "wall_seconds": {
+        "maximum": 26.433,
+        "median": 26.433,
+        "minimum": 26.433,
+        "p90": 26.433
+      }
+    },
+    "structured": {
+      "completion_gate": {
+        "passed": 1,
+        "total": 1
+      },
+      "decode_tokens_per_second": {
+        "maximum": 90.999,
+        "median": 90.999,
+        "minimum": 90.999,
+        "p90": 90.999
+      },
+      "runs": [
+        {
+          "completion_tokens": 444,
+          "completion_validation": {
+            "valid": true
+          },
+          "decode_seconds": 4.868159,
+          "decode_tokens_per_second": 90.999,
+          "finish_reason": "stop",
+          "measured_sse_events": 442,
+          "output": "[{\"index\":1,\"square\":1},{\"index\":2,\"square\":4},{\"index\":3,\"square\":9},{\"index\":4,\"square\":16},{\"index\":5,\"square\":25},{\"index\":6,\"square\":36},{\"index\":7,\"square\":49},{\"index\":8,\"square\":64},{\"index\":9,\"square\":81},{\"index\":10,\"square\":100},{\"index\":11,\"square\":121},{\"index\":12,\"square\":144},{\"index\":13,\"square\":169},{\"index\":14,\"square\":196},{\"index\":15,\"square\":225},{\"index\":16,\"square\":256},{\"index\":17,\"square\":289},{\"index\":18,\"square\":324},{\"index\":19,\"square\":361},{\"index\":20,\"square\":400},{\"index\":21,\"square\":441},{\"index\":22,\"square\":484},{\"index\":23,\"square\":529},{\"index\":24,\"square\":576},{\"index\":25,\"square\":625},{\"index\":26,\"square\":676},{\"index\":27,\"square\":729},{\"index\":28,\"square\":784},{\"index\":29,\"square\":841},{\"index\":30,\"square\":900},{\"index\":31,\"square\":961},{\"index\":32,\"square\":1024},{\"index\":33,\"square\":1089},{\"index\":34,\"square\":1156},{\"index\":35,\"square\":1225},{\"index\":36,\"square\":1296},{\"index\":37,\"square\":1369},{\"index\":38,\"square\":1444},{\"index\":39,\"square\":1521},{\"index\":40,\"square\":1600},{\"index\":41,\"square\":1681},{\"index\":42,\"square\":1764},{\"index\":43,\"square\":1849},{\"index\":44,\"square\":1936},{\"index\":45,\"square\":2025},{\"index\":46,\"square\":2116},{\"index\":47,\"square\":2209},{\"index\":48,\"square\":2304},{\"index\":49,\"square\":2401},{\"index\":50,\"square\":2500}]",
+          "output_characters": 1299,
+          "output_sha256": "654a5359e59bad57071f454922f88d55d393a17d6eec293ae79ea185c3cd7453",
+          "prompt_tokens": 110,
+          "reasoning_characters": 21,
+          "reasoning_sha256": "6207a91bfdacf7e99b056778286fb5c27d451d48a54484b785c5be5ab526abf2",
+          "response_tail_seconds": 0.002401,
+          "run": 1,
+          "stream_done_marker": true,
+          "stream_sha256": "30b1fc74b0de63235e85b4406d9d75686d1e19af4665d6c983444895494d8747",
+          "time_to_first_visible_seconds": 0.921856,
+          "time_to_last_output_seconds": 5.582965,
+          "ttft_seconds": 0.714807,
+          "wall_seconds": 5.585366
+        }
+      ],
+      "time_to_last_output_seconds": {
+        "maximum": 5.583,
+        "median": 5.583,
+        "minimum": 5.583,
+        "p90": 5.583
+      },
+      "ttft_seconds": {
+        "maximum": 0.715,
+        "median": 0.715,
+        "minimum": 0.715,
+        "p90": 0.715
+      },
+      "wall_seconds": {
+        "maximum": 5.585,
+        "median": 5.585,
+        "minimum": 5.585,
+        "p90": 5.585
+      }
+    }
+  },
+  "protocol": {
+    "prompts_sha256": "0c3ac4015813af6a1b967659bd2289990fde895a5e43ae065b894d1e1f909ecb",
+    "prompts_version": "1.0.0",
+    "repository_dirty": true,
+    "repository_revision": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+    "repository_source": "git-worktree",
+    "repository_source_sha256": "71cf88ee30ff5e0c976ad5b1d8221af9115447a690039ac9aa020a85015fe300",
+    "repository_worktree_sha256": "7c17a097cc0dd9384713c172bf097b632f7898b6d6d33a978ce180de6a59e5cd",
+    "version": "1.1.0"
+  },
+  "run": {
+    "appliance": {
+      "competing_traffic": "none",
+      "context_limit": 524288,
+      "drafter": "DFlash2 incoai/GLM-5.3-Flash-DFlash2, gamma 8, greedy",
+      "gpu_memory_utilisation": 0.91,
+      "hardware": "2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance",
+      "kv_cache_dtype": "fp8_g128",
+      "kv_cache_layout": "MLA latent fp8_g128 (8448 B per 16-token block per layer, 11 layers) + sparse-index cache (1024 B per block per layer + slot-mapped tails); 2 GiB of it in the GB10 display carveout",
+      "kv_cache_memory_per_rank": 9052818944,
+      "logical_kv_tokens": 1362608,
+      "max_sequences": 4,
+      "model": "nvidia/GLM-5.3-Flash-NVFP4",
+      "model_revision": "local lloom cache nvidia--GLM-5.3-Flash-NVFP4",
+      "negotiated_link_speed": "200 Gb/s",
+      "quantisation": "NVIDIA NVFP4",
+      "scheduler": "max-num-seqs 4, 8K prefill chunks, SP prefill",
+      "serving_engine": "Atlas (Enntity/atlas sparkglm/atlas-20261007-strings @ 7838b34c), image ghcr.io/enntity/atlas-sparkglm:6e2006864b70, SparkGLM 4x512k profile, GPU_MEMORY_UTILIZATION=0.91, display carveout on (latent pools only)",
+      "serving_image": "ghcr.io/enntity/atlas-sparkglm:6e2006864b70 via LLooM",
+      "topology": "TP2/EP2, direct ConnectX-7 RoCE link (RDMA pair)"
+    },
+    "comparison_id": "step-r1-gn2",
+    "finished_at": "2026-10-16T00:11:46.803905+00:00",
+    "label": "r1-gn2",
+    "model": "glm-5.3-flash-atlas",
+    "platform": "Linux-6.17.0-1029-nvidia-aarch64-with-glibc2.39",
+    "python": "3.12.3",
+    "started_at": "2026-10-16T00:09:25.339773+00:00"
+  },
+  "schema": 1,
+  "settings": {
+    "concurrency": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "concurrency_runs": 2,
+    "concurrency_tokens": 256,
+    "concurrency_workload": "code",
+    "decode_tokens": 4096,
+    "extra_body": {
+      "chat_template_kwargs": {
+        "reasoning_effort": "low"
+      }
+    },
+    "prefill_depths": [],
+    "prefill_runs": 3,
+    "runs": 1,
+    "seed": 20260905,
+    "staggered": [],
+    "staggered_arrival_tokens": 256,
+    "staggered_delay_seconds": 1.0,
+    "staggered_depth": 32768,
+    "staggered_incumbent_tokens": 1024,
+    "staggered_runs": 3,
+    "staggered_workload": "code",
+    "temperature": 0.0,
+    "top_p": 1.0
+  }
+}
