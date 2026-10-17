@@ -27,9 +27,9 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 ## What it does
 
 Measured on two DGX Sparks joined by one 200G cable. Rows marked † are this
-release, FP4-Local, measured on dev binaries of the pinned engine (the
-release-image receipts are pending); the others ran images built from a fresh
-clone with the NVFP4 checkpoint. Receipts and caveats:
+release, FP4-Local: RigMark and ToolEvalBench on the release image
+`c8ced64316bf`, the other † rows on dev binaries of the same engine. The
+unmarked rows ran images built from a fresh clone with the NVFP4 checkpoint. Receipts and caveats:
 [this release: FP4-Local, ToolEvalBench, kindling's benchmarks](results/2026-10-17-fp4local/RESULT.md),
 [the shared engine](results/2026-10-15-shared-engine/RESULT.md),
 [RC4: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
@@ -49,7 +49,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 |---|---|---|
 | Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.67 s** | 17.6 s with caching off |
 | Four concurrent ~204K-token sessions, cached follow-up turns † | 12/12 numbers retrieved (two cut to 3 digits by the probe's token cap) | |
-| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.66M tokens**, up to 1M per request | 2.34M with the NVFP4 checkpoint, same engine |
+| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.66M tokens** (2.90M on the release image's start), up to 1M per request | 2.34M with the NVFP4 checkpoint, same engine |
 | Same greedy output at 1 and 4 concurrent requests † | **8/8 prompts** | 0/4 on 2026-10-09 morning |
 | Replaying a 35K-token prompt † | **0.38 s** (13.4 s cold) | |
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
@@ -60,18 +60,22 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **76.3 s** | Mia TensorFold v1.10 100.1 s |
 | Single-stream decode, kindling's `bench.py`, code / prose / structured / counting (thinking off, 16 prompts each) † | **72.8 / 44.4 / 99.5 / 112.2 tok/s** | kindling vLLM TP=2 (published) 66.2 / 42.6 / 94.7 / 97.2 |
 | Mixed streams, kindling's `bench.py`, 4 / 8 at once, aggregate † | **82.6 / 100.6 tok/s** | kindling TP=2 (published) 82.6 / 109.6; 89 / 116 remeasured |
-| RigMark decode, code / prose / structured (thinking on, low effort) † | **69.1 / 39.1 / 94.9 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
-| RigMark cold prefill 8K / 32K / 64K: time to first token † | **3.29 / 12.45 / 23.80 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
-| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.80 / 3.54 s** | RiNGSiDE 4.70 / 5.15 s |
-| RigMark short code, 1 / 4 streams, aggregate † | **53.2 / 71.1 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (the 4 × 512K profile serves 4 at a time) |
+| RigMark decode, code / prose / structured (thinking on, low effort) † | **67.9 / 37.0 / 90.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 · NVFP4 checkpoint (RC4) 72.3 / 38.3 / 91.7 |
+| RigMark cold prefill 8K / 32K / 64K: time to first token † | **3.21 / 11.89 / 22.67 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s · RC4 3.29 / 12.47 / 23.91 s |
+| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 † | **2.64 / 3.36 s** | RiNGSiDE 4.70 / 5.15 s · RC4 2.80 / 3.54 s |
+| RigMark short code, 1 / 4 / 6 streams, aggregate † | **47.8 / 72.2 / 81.4 tok/s** | RiNGSiDE 44.0 at 1 stream, 97.3 at 6 · RC4 47.0 / 70.9 at 1 / 4 |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |
 | Strict JSON object with 96 required keys, temperature 0 | **39 s**, 59 tok/s, valid | engine killed (out of memory) two releases ago |
-| ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
+| ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
 | Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
 These are measurements on our pair, not a guarantee for yours. Rows not re-run
-for this release keep the receipts linked above. Kindling's figures are for
+for this release keep the receipts linked above. Against RC4 on the NVFP4
+checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
+the QAD weights change how often the drafter's proposals are accepted, so
+decode speed is not an engine-only comparison
+([details](results/2026-10-17-fp4local/RESULT.md#speed)). Kindling's figures are for
 their vLLM recipe with the NVFP4 checkpoint; ours ran their benchmark scripts
 against FP4-Local ([details](results/2026-10-17-fp4local/RESULT.md#speed)). Our
 profiles prefill in 8K chunks: 16K chunks are faster but halve the KV pool. Known gaps and open questions

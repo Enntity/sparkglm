@@ -17,11 +17,13 @@ What to know before relying on SparkGLM.
   Atlas release, but the 500-item arithmetic (491/500) and two-hop 24K needle
   (24/24) sets were re-run on RC2.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
-- The 2026-10-17 FP4-Local rows (marked in the README) were measured on dev
-  binaries of the pinned engine on the previous image; the release image built
-  from this recipe has not been measured yet. RigMark ran two runs a cell, an
-  earlier build of the series and without the four prefill switches (they do
-  not change decode).
+- Of the 2026-10-17 FP4-Local rows (marked in the README), RigMark, the prompt
+  logprobs, tool calls and ToolEvalBench ran on the release image; the gates,
+  the KV-pool comparison and kindling's benchmarks ran on dev binaries of the
+  same engine on the previous image. RigMark runs two runs a cell.
+- RigMark decode on FP4-Local is 1–6% below RC4's on the NVFP4 checkpoint. The
+  weights differ, and with them the drafter's acceptance; we have not
+  separated that from engine effects.
 
 ## Not yet measured
 
@@ -101,9 +103,8 @@ What to know before relying on SparkGLM.
   ToolEvalBench (91, one trial) ([docs/ENGINE.md](ENGINE.md)).
 - Image prompts on FP4-Local's MXFP8/NVFP4 vision tower have been checked only
   as far as loading; the race, conversation and caching gates have not run.
-- RigMark staggered arrivals, the Matrix, the field guide and the 925K-token
-  needle have not been re-run on FP4-Local; those README rows are from the
-  NVFP4 checkpoint.
+- The Matrix, the field guide and the 925K-token needle have not been re-run
+  on FP4-Local; those README rows are from the NVFP4 checkpoint.
 - Serving the NVFP4 checkpoint through `CHECKPOINT_REPO`/`CHECKPOINT_REVISION`
   has not been run end to end through `./start.sh`; the same engine served it
   through `start-node.sh` with production's prompt logprobs.
@@ -127,10 +128,9 @@ GB10 bandwidth roofline.
 **External, published not re-run.** Against the published RiNGSiDE vLLM TP2
 figures on their RigMark cell set, Atlas is ahead on single-stream decode,
 cold prefill at 8K-64K and newcomer time to first token under staggered
-arrivals. Their short-code result is 97.3 tok/s at six streams; RC2 measured
-69.5 tok/s at four streams. The default 4 x 1M profile serves four requests
-at a time, so these are different concurrency settings.
-The 8 x 128K profile, which serves eight, has not been measured with RigMark.
+arrivals. Their short-code result is 97.3 tok/s at six streams; the
+FP4-Local release image measured 81.4 tok/s at six on the 8 x 128K profile
+(90.5 at eight), so at six streams their recipe is ahead.
 Older comparisons, including the mmastrac vLLM TP2 figures, remain in their
 dated result bundles.
 
