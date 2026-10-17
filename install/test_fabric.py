@@ -114,3 +114,80 @@ class Fabric(unittest.TestCase):
             self.assertNotEqual(result.returncode,0)
             self.assertIn('missing or down',result.stderr)
             self.assertFalse((root/'DOCKER_CALLED').exists())
+
+
+class CheckpointOverride(unittest.TestCase):
+    """start.sh up with a fake inventory, transport, Docker and converter, keeping
+    .env parsing, the convert decision and both real start-node.sh calls."""
+
+    def run_start(self, env_text, repo):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(ROOT/'install', root/'install')
+            shutil.copy(ROOT/'fabric.py', root/'fabric.py')
+            text = (ROOT/'start.sh').read_text()
+            start = text.index('fabric_ports() {')
+            end = text.index('\npick_fabric()', start)
+            text = text[:start]+"fabric_ports() { echo 'left nic0 192.0.2.1/24'; }\n"+text[end:]
+            text = text.replace('case ${1:-up} in', 'build() { :; }\ndownload() { :; }\ncase ${1:-up} in')
+            (root/'start.sh').write_text(text)
+            # The converter writes the overlay's marker and says where it ran.
+            (root/'install/convert.sh').write_text('#!/bin/bash\necho "convert $*" >> "$DOCKER_CALLS"\n'
+                                                   'mkdir -p "$1/atlas-overlay" && touch "$1/atlas-overlay/sparkglm-verified.json"\n')
+            (root/'.env').write_text(env_text)
+            models = root/'models'
+            for name in (repo.replace('/', '--'), 'incoai--GLM-5.3-Flash-DFlash2'):
+                (models/name).mkdir(parents=True)
+                (models/name/'config.json').write_text('{}')
+            sysfs = root/'sysfs'
+            for dev, nic in [('left', 'nic0'), ('right', 'nic1')]:
+                (sysfs/dev/'device/net'/nic).mkdir(parents=True)
+                (sysfs/dev/'ports/1').mkdir(parents=True)
+                (sysfs/dev/'ports/1/state').write_text('4: ACTIVE')
+            bindir = root/'bin'; bindir.mkdir()
+            scripts = {
+                'ssh': '#!/bin/bash\nshift 3\nif [[ "$*" == "bash -s" ]]; then cat >/dev/null; '
+                       "echo 'right nic1 192.0.2.2/24'; else bash -c \"$*\"; fi\n",
+                'docker': '#!/bin/bash\nprintf "%s\\n" "$*" >> "$DOCKER_CALLS"\n',
+                'curl': '#!/bin/sh\nprintf \'%s\\n\' \'{"choices":[{"message":{"content":"391"}}]}\'\n'}
+            for name, body in scripts.items():
+                path = bindir/name; path.write_text(body); path.chmod(0o755)
+            env = {k: v for k, v in os.environ.items() if 'FABRIC' not in k and k != 'LEADER_ADDRESS'}
+            env.update(PATH=f'{bindir}:{os.environ["PATH"]}', MODEL_ROOT=str(models), IMAGE='test-image',
+                       FABRIC_SYSFS=str(sysfs), HOME=str(root), DOCKER_CALLS=str(root/'docker.log'))
+            result = subprocess.run(['bash', str(root/'start.sh')], env=env, capture_output=True, text=True)
+            log = root/'docker.log'
+            lines = log.read_text().splitlines() if log.exists() else []
+            return result, [l for l in lines if l.startswith('run ')], [l for l in lines if l.startswith('convert ')]
+
+    def test_fp4local_is_served_as_published(self):
+        result, calls, converts = self.run_start('WORKER=you@worker.example\n', 'nvidia/GLM-5.3-Flash-FP4-Local')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(converts, [])
+        self.assertEqual(len(calls), 2)
+        for rank, call in zip(('1', '0'), calls):
+            self.assertIn(f'NODE_RANK={rank}', call)
+            self.assertRegex(call, r'MODEL_PATH=\S*/models/nvidia--GLM-5\.3-Flash-FP4-Local ')
+            self.assertNotIn('atlas-overlay', call)
+
+    def test_env_can_serve_the_nvfp4_checkpoint_through_its_overlay(self):
+        env = ('WORKER=you@worker.example\nCHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4\n'
+               'CHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93\n')
+        result, calls, converts = self.run_start(env, 'nvidia/GLM-5.3-Flash-NVFP4')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(converts), 2)  # this node, then the worker
+        self.assertEqual(len(calls), 2)
+        for call in calls:
+            self.assertRegex(call, r'MODEL_PATH=\S*/models/atlas-overlay ')
+            self.assertIn('nvidia--GLM-5.3-Flash-NVFP4', call)
+            self.assertNotIn('FP4-Local', call)
+
+    def test_half_an_override_is_refused(self):
+        for env in ('WORKER=w\nCHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4\n',
+                    'WORKER=w\nCHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93\n',
+                    'WORKER=w\nCHECKPOINT_REPO=../x\nCHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93\n'):
+            result, calls, converts = self.run_start(env, 'nvidia/GLM-5.3-Flash-NVFP4')
+            with self.subTest(env=env):
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('CHECKPOINT_REVISION', result.stderr)
+                self.assertEqual((calls, converts), ([], []))

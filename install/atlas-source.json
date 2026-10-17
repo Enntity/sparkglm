@@ -2,9 +2,9 @@
   "schema": "sparkglm.atlas-engine-source/v2",
   "note": "The Atlas engine is built from the public Enntity/atlas fork at this exact commit; build.sh refuses any other tree.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/atlas-20261015-vision",
-  "commit": "1631500464fb3bf1d12a720f0907729e3f83edff",
-  "tree": "e356f19963df45dc17c34743f0cb0613dfc72563",
+  "branch": "sparkglm/atlas-20261017-fp4local",
+  "commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+  "tree": "14316380f8931e2ee45ddaec5345028002c64620",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {
@@ -13,9 +13,9 @@
       "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the shared vision fixes (every tower encodes per chunk into per-sequence state, vision layout errors fail only their request, MRoPE positions from the whole prompt, vision markup in message text encodes as text) and the vision prefix cache for every tower, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
     },
     "sparkglm_only": {
-      "branch": "sparkglm/atlas-20261015-vision",
-      "commit": "1631500464fb3bf1d12a720f0907729e3f83edff",
-      "note": "The SparkGLM-only commits on the shared layer: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement (latent pools, allocated from the driver's scanout heap) and sharded latent pools sized and placed in the carveout. Fork-only."
+      "branch": "sparkglm/atlas-20261017-fp4local",
+      "commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+      "note": "The SparkGLM layer (sparkglm/atlas-20261015-vision, 16315004: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement and sharded latent pools in the carveout) plus the FP4-Local series: the lossless NVFP4-CSF (csf_32x2_v1) block-scale decoder, decoded per slice under expert TP; FP4-Local's MXFP8 and FP8_PB_WO projections loaded through production's arms on exact (MXFP8) or nearest (FP8 block) BF16 copies, its quantized MTP experts and ViT, and every quantized source released after expansion; four exact prefill options the profiles set (ATLAS_GLM_KDA_SIDE_PROJ_LT, ATLAS_GLM_KDA_CONV_PLANES, ATLAS_GLM_HC_PREFILL_FUSE2, ATLAS_GLM_SP_GATHER_OVERLAP); tools + response_format under tool_choice auto compiled as one tool-call-or-JSON union grammar; and default-off options: every group in the checkpoint's own format (ATLAS_GLM_FP4L_NATIVE and per-group switches), the drafter's prompt window on warm turns (ATLAS_DFLASH_WARM_CTX), packed multi-prompt prefill (ATLAS_GLM_PACKED_PREFILL), ATLAS_TAIL_SPLIT_MIN_TOKENS and the per-request TTFT trace (ATLAS_TTFT_TRACE). Commits marked `shared:` are model-independent and are candidates for the shared layer; they sit in this layer until it moves. Fork-only."
     }
   },
   "kernel_target": "glm-5.3-flash",

@@ -16,7 +16,13 @@ if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
 MODEL_ROOT=${MODEL_ROOT:-$HOME/models/sparkglm}
 PROFILE=${PROFILE:-4x1m}
 IMAGE=${IMAGE:-}
-CHECKPOINT=nvidia/GLM-5.3-Flash-NVFP4@423acf37583782c51c142d145aef733d72943d93
+CHECKPOINT=nvidia/GLM-5.3-Flash-FP4-Local@76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
+# .env may name another checkpoint (both values or neither); the image stays the same.
+if [[ -n ${CHECKPOINT_REPO:-} || -n ${CHECKPOINT_REVISION:-} ]]; then
+  [[ ${CHECKPOINT_REPO:-} =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$ && ${CHECKPOINT_REVISION:-} =~ ^[0-9a-f]{40}$ ]] ||
+    { echo 'set both CHECKPOINT_REPO (owner/name) and CHECKPOINT_REVISION (a 40-hex commit) in .env, or neither' >&2; exit 2; }
+  CHECKPOINT=$CHECKPOINT_REPO@$CHECKPOINT_REVISION
+fi
 DRAFTER=incoai/GLM-5.3-Flash-DFlash2@7d74cdd881ed7e32c31175984a67823127b66cfe
 API=http://127.0.0.1:8893
 NAME=atlas-sparkglm-rank
@@ -103,7 +109,10 @@ download() {
   done
 }
 
+# Only NVIDIA's earlier NVFP4 release needs the MTP overlay; FP4-Local ships its
+# MTP layer quantized and is served as published.
 convert() {
+  [[ ${CHECKPOINT%@*} == nvidia/GLM-5.3-Flash-NVFP4 ]] || { say "no overlay: ${CHECKPOINT%@*} is served as published"; return; }
   say "overlay on this node"; install/convert.sh "$MODEL_ROOT" "$IMAGE"
   say "overlay on $WORKER"; script_on_worker install/convert.sh "$MODEL_ROOT" "$IMAGE"
 }
@@ -117,9 +126,9 @@ state() { docker inspect -f '{{.State.Status}}' "${NAME}0" 2>/dev/null || echo a
 worker_state() { on_worker docker inspect -f '{{.State.Status}}' "${NAME}1" 2>/dev/null || echo absent; }
 
 serve() {
-  local common address
+  local common address repo=${CHECKPOINT%@*}
   address=$ip0
-  common=(--leader-address "$address" --model-root "$MODEL_ROOT" --image "$IMAGE"
+  common=(--leader-address "$address" --model-root "$MODEL_ROOT" --checkpoint "${repo/\//--}" --image "$IMAGE"
           --profile "$PROFILE"
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
           ${PREFIX_CACHE_DIR:+--prefix-cache-dir "$PREFIX_CACHE_DIR"} ${PREFIX_CACHE_GB:+--prefix-cache-gb "$PREFIX_CACHE_GB"})

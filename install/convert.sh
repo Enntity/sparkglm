@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
 # Convert and verify the checkpoint overlay on THIS node (about a minute, needs
-# the GPU). Atlas serves the NVIDIA checkpoint through an overlay that quantizes
-# the 864 MTP matrices it needs; everything else links back to the original.
+# the GPU), for NVIDIA's earlier NVFP4 checkpoint only: Atlas serves it through
+# an overlay that quantizes the 864 BF16 MTP matrices it needs; everything else
+# links back to the original. The default FP4-Local checkpoint needs none.
 # Skips the work when the overlay was already verified with this converter.
 set -euo pipefail
 [[ $# == 2 ]] || { echo 'usage: convert.sh MODEL_ROOT IMAGE' >&2; exit 2; }
