@@ -88,7 +88,9 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 
 # Exercise the serving-capacity boundary and terminal error delivery on the
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
-COPY engine/test_data/lightning_dspark_config.json test_data/lightning_dspark_config.json
+# The model and runtime test fixtures (the FP4-Local configs, header extracts and CSF golden data
+# the glm5 and weight-map tests embed), as SparkQwen's image copies them.
+COPY engine/test_data/ test_data/
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     set -eu; for filter in glm_repair_policy glm_index_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
