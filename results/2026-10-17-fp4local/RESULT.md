@@ -6,8 +6,9 @@ replacing [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-F
 The engine is the release tag `sparkglm/atlas-20261017-fp4local` at `b3b016ab` (tree `14316380`): the shared-engine
 release (`16315004`) plus the FP4-Local series. Its tree is identical to `dc6084a5`, the commit the gates below ran.
 FP4-Local ships its MTP layer quantized, so the 16 GB MTP overlay `convert.sh` wrote for the NVFP4 checkpoint is
-gone. The NVFP4 checkpoint still works on the same image, through its overlay, and scores production's prompt
-logprobs bit for bit.
+gone. The NVFP4 checkpoint still works on the same engine, through its overlay, and scores production's prompt
+logprobs bit for bit. The recipe's image is `ghcr.io/enntity/atlas-sparkglm:c8ced64316bf`
+([Release image](#release-image)): the dev gates' prompt logprobs, tools 21/21, ToolEvalBench 91.
 
 ## The checkpoint
 
@@ -61,8 +62,8 @@ ennspark01/02, one 200G cable, GPU clocks uncapped, `GPU_MEMORY_UTILIZATION=0.91
 48 GB disk prefix cache, each arm from a fresh start with an empty cache directory (`raw/harness/up.sh`). The engine
 ran as dev binaries of the FP4-Local series on the shared-engine image `f0f8a55c3da2`, through a copy of
 `start-node.sh` that mounts the binary and the checkpoint directory, so each log's `atlas-recipe-start` line names that
-image's source (`16315004`). The binary for each arm is named below; the release image built from this recipe is
-[pending](#release-image-pending).
+image's source (`16315004`). The binary for each arm is named below. The [release image](#release-image) built from
+this recipe was measured afterwards with the same settings.
 
 ## Gates
 
@@ -100,7 +101,8 @@ Same binary, same settings (`4x1m`, 0.91, carveout, shard, disk prefix cache), b
 | KV pool | **166,044 blocks, 2.66M tokens** | 146,512 blocks, 2.34M tokens |
 
 The pool comes from a free-memory measurement that moves between starts: FP4-Local's production-mode starts in these
-receipts gave 157,655–167,874 blocks at 0.91 (the release candidate's: 157,950). Prefill in 16K chunks costs about
+receipts gave 157,655–167,874 blocks at 0.91 (the release candidate's: 157,950), and the release image's `4x1m` start
+181,120 (2.90M tokens; its carveout took two buffers). Prefill in 16K chunks costs about
 4.1 GB more before the KV pool and halves it (77,348 blocks, `raw/prefill/ov-on16k/serve.rank0.log`).
 
 ## ToolEvalBench
@@ -157,17 +159,28 @@ The profiles keep 8K chunks: 16K chunks halve the KV pool (above), and a longer 
 longer. A dedicated prefill workload can set `--max-prefill-tokens=16384` in its own profile.
 
 **[RigMark](https://github.com/alexellis/rigmark)** (Alex Ellis) at `40fabcaf`, thinking on with low effort, 2 runs a
-cell, `4x512k`, the same build as `kb-f1` before the switches (decode is unaffected by them;
-`raw/rigmark/rig-f1.*`; gates 6/6):
+cell. The release image ran the full cell set of [bench/RIGMARK.md](../../bench/RIGMARK.md) on `8x128k`
+(`raw/recipe/rig-*`, gates 6/6 and 6/6). An earlier dev build ran a short set on `4x512k` before the prefill switches
+(`raw/rigmark/rig-f1.*`, gates 6/6).
 
-| | FP4-Local | NVFP4, shared-engine release (uncapped, 2026-10-15) |
-|---|---:|---:|
-| Decode, code / prose / structured (tok/s) | 69.1 / 39.1 / 94.9 | 69.1 / 39.3 / 91.9 |
-| Cold prefill 8K / 32K / 64K: time to first token (s) | 3.29 / 12.45 / 23.80 | 3.29 / 12.48 / 23.83 |
-| Short code, 1 / 2 / 4 streams aggregate (tok/s) | 53.2 / 60.2 / 71.1 | 47.7 / 58.8 / 72.8 |
+| | Release image, `8x128k` | Dev build f1, `4x512k` | NVFP4, README (RC4, 2026-10-12) | NVFP4, shared engine (2026-10-15) |
+|---|---:|---:|---:|---:|
+| Decode, code / prose / structured (tok/s) | 67.9 / 37.0 / 90.8 (prose run: 67.7 / 37.1 / 91.0) | 69.1 / 39.1 / 94.9 | 72.3 / 38.3 / 91.7 | 69.1 / 39.3 / 91.9 |
+| Cold prefill 8K / 32K / 64K: time to first token (s) | 3.21 / 11.89 / 22.67 | 3.29 / 12.45 / 23.80 | 3.29 / 12.47 / 23.91 | 3.29 / 12.48 / 23.83 |
+| Staggered arrivals, prefill first: newcomer TTFT at 2 / 4 / 6 / 8 (s) | 2.64 / 3.36 / 4.08 / 4.75 | – | 2.80 / 3.54 at 2 / 4 | 2.81 / 3.54 at 2 / 4 |
+| Short code, 1 / 2 / 3 / 4 streams aggregate (tok/s) | 47.8 / 60.6 / 68.6 / 72.2 | 53.2 / 60.2 / – / 71.1 | 47.0 / – / – / 70.9 | 47.7 / 58.8 / 62.7 / 72.8 |
 
-RigMark samples, so each run writes a different program; its short-code cells move by several percent from start to
-start ([2026-10-15](../2026-10-15-shared-engine/RESULT.md#speed-same-prompts-production-against-this-release)).
+On the release image, short code at 5 / 6 / 8 streams is 81.2 / 81.4 / 90.5 tok/s and short prose at 1 / 2 / 3 / 4 /
+5 / 6 / 8 streams 34.6 / 46.4 / 55.0 / 58.5 / 60.9 / 64.1 / 72.1. With eight requests running, a 32K-token newcomer
+waits 14.00 s for its first token when decoding goes first (1.18x its solo time; the incumbents stall up to 3.55 s);
+with prefill first a short newcomer waits 4.75 s (6.79x solo) and the long one 1.44x solo.
+
+Cold prefill is 2–5% faster than the README's RC4 figures, and staggered newcomers start 5% sooner. Single-stream
+decode is lower: 6% on code, 3% on prose, 1% on structured. That is not an engine-only comparison: the
+checkpoint changed, and QAD weights change how often the DFlash2 drafter's proposals are accepted, so decode speed
+moves with the model as well as the kernels. RigMark samples, so each run writes a different program; its cells move by
+several percent from start to start
+([2026-10-15](../2026-10-15-shared-engine/RESULT.md#speed-same-prompts-production-against-this-release)).
 
 **Mixed concurrency**, kindling `mixed4`/`mixed8`, `8x128k`, 8 batches (`raw/concurrency/`): 85.2 / 100.9 tok/s without the
 prefill switches; median time to first token 2.44 / 4.67 s.
@@ -203,10 +216,32 @@ reads 28.3 MB in 143.8 µs (`nbench-60f6.txt`, per rank, M=1). These arms prefil
 - **`ATLAS_TAIL_SPLIT_MIN_TOKENS=512` with `ATLAS_PREFILL_BURST=1`** (`raw/concurrency/ad-burst/`): 84.7 / 104.4 tok/s,
   1.95 / 3.66 s.
 
-## Release image: PENDING
+## Release image
 
-To be added after `./start.sh` builds the image from this recipe on the pair: the build log and image tag, the start
-log, the prompt-logprob hash, `tool_probe.py` and RigMark on the release image.
+`ghcr.io/enntity/atlas-sparkglm:c8ced64316bf` (install tree `c8ced64316bf`, engine `b3b016ab`) was built by
+`install/build.sh` from this branch on ennspark01 (warm BuildKit cache; all 14 build-time check stages passed,
+`raw/recipe/build.log`), loaded on ennspark02 (the same image id, `29beb60fb7d2`) and published to GHCR (digest
+`sha256:0b91fd790afb2ee3aa5a7f39a0bc5a90db05751436ae7810e00f129c36ebbb7b`). The first build of the branch's earlier
+install tree stopped in the check stage: the FP4-Local unit tests read fixtures from the engine's `test_data/`, which
+the Dockerfile now copies whole. Settings as in [Setup](#setup), on the shipped profiles (`raw/recipe/rel17.log` is
+the driver's log):
+
+| Check | Result |
+|---|---|
+| Start, `4x1m` | `atlas-recipe-start` names profile `4x1m` and source `Enntity/atlas@b3b016ab`; KV pool 181,120 blocks (`start-4x1m.rank0.log`) |
+| Prompt logprobs of the 48,875-token text, two runs | `25bc828eea3f` both times, the dev gates' hash (`lp-glm-REL.json`) |
+| `tool_probe.py`, 7 cases x 3 | 21/21 (`tools-REL.json`) |
+| Tools + `response_format` probe, 5 runs, thinking off / on | 5/5 / 5/5 schema-valid final answers |
+| ToolEvalBench, one trial, seed 42 | 91 (126/138; `teb-REL.log`, `teb-REL-*.md`), as in the three-trial dev runs (91.0 ± 0.0) |
+| RigMark, `8x128k` (KV pool 144,464 blocks, `start-8x128k.rank0.log`) | [Speed](#speed); `rig-code-full.*`, `rig-prose.*` |
+
+The checkpoint was already on disk, so this run did not exercise a fresh download.
+
+**RigMark receipt metadata.** The receipts were first written from another product's metadata template, so
+`run.appliance` named the Qwen checkpoint and its KV layout. Only those declared fields were corrected (the FP4-Local
+checkpoint, the profile, the KV pool from each run's start log), and the card's JSON hash line updated to match:
+`rig-code-full.json` `472b96fa…` → `a828cf5c…`, `rig-prose.json` `d996548e…` → `70f93321…`, and the dev
+`rig-f1.json` `6fc337f9…` → `cbe13db6…`. Measurements, output hashes and gates are unchanged.
 
 ## Not covered
 
@@ -214,7 +249,7 @@ log, the prompt-logprob hash, `tool_probe.py` and RigMark on the release image.
 - The NVFP4 checkpoint through the new `CHECKPOINT_REPO`/`CHECKPOINT_REVISION` path end to end (the same binary served
   it through `start-node.sh`, above).
 - Image prompts on FP4-Local's MXFP8/NVFP4 vision tower beyond loading.
-- RigMark staggered arrivals and the 925K-token needle on FP4-Local.
+- The 925K-token needle on FP4-Local.
 
 ## Receipts
 
@@ -224,7 +259,8 @@ warning or error. Host paths and fabric addresses are replaced (`~`, `RANK0_HOST
 - `gates/`: the release candidate's gates (`*-rc2*`), the g2 binary's FP4-Local (`N`) and NVFP4 (`O`) starts.
 - `toolevalbench/`: one directory per arm with the tool's log, cross-trial summary and profile.
 - `bench/`: kindling bench (`kb-f1.json`) with both profiles, and the warm-context arms (`warm-ctx/`).
-- `rigmark/`: card, JSON receipt and log.
+- `recipe/`: the release image's build and start logs, prompt logprobs, tools, ToolEvalBench and RigMark.
+- `rigmark/`: the dev build's RigMark card, JSON receipt and log.
 - `prefill/`: one directory per cold-prefill arm: `prefill.txt`, prompt-logprob hash, profile, log summary.
 - `concurrency/`: the mixed-stream arms.
 - `native/`: the checkpoint-format arms and the GEMV microbenchmark `nbench-60f6.txt`.

@@ -1,0 +1,875 @@
+building ghcr.io/enntity/atlas-sparkglm:c8ced64316bf with 10 jobs
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 13.18kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 99B done
+#3 DONE 0.0s
+
+#4 [native  1/11] FROM docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 42.38MB 0.3s done
+#5 DONE 0.4s
+
+#6 [builder  2/13] RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |     sh -s -- -y --profile minimal --default-toolchain 1.93.1
+#6 CACHED
+
+#7 [native  7/11] COPY install/flash_kda/ /product/install/flash_kda/
+#7 CACHED
+
+#8 [builder  1/13] RUN apt-get update -qq && apt-get install -y -qq --allow-change-held-packages     curl pkg-config cmake libclang-dev libibverbs-dev librdmacm-dev     libnccl2=2.31.2-1+cuda13.3 libnccl-dev=2.31.2-1+cuda13.3 && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [native 10/11] WORKDIR /product/install/converter
+#9 CACHED
+
+#10 [builder  7/13] COPY engine/kernels/ kernels/
+#10 CACHED
+
+#11 [builder  4/13] WORKDIR /build
+#11 CACHED
+
+#12 [builder  9/13] COPY engine/jinja-templates/ jinja-templates/
+#12 CACHED
+
+#13 [builder  8/13] COPY engine/vendor/ vendor/
+#13 CACHED
+
+#14 [native 11/11] RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS     -shared -Xcompiler=-fPIC wrapper.cu -o libatlas_mtp_quantize.so &&     PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -v
+#14 CACHED
+
+#15 [checks  3/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     vision_guard_ > /tmp/atlas-vision-check.log 2>&1 ||     { cat /tmp/atlas-vision-check.log; exit 1; };     cat /tmp/atlas-vision-check.log && grep -F 'test result: ok. 2 passed;' /tmp/atlas-vision-check.log
+#15 CACHED
+
+#16 [builder  3/13] RUN git clone https://github.com/NVIDIA/cutlass.git /opt/cutlass &&     git -C /opt/cutlass checkout cf064d2e6bad2886238ac565b3b49007764f4939
+#16 CACHED
+
+#17 [checks  2/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p atlas-kernels --lib     glm5_target_ships_native_vision_module -- --ignored > /tmp/atlas-kernel-check.log 2>&1 ||     { cat /tmp/atlas-kernel-check.log; exit 1; };     cat /tmp/atlas-kernel-check.log && grep -F 'test result: ok. 1 passed;' /tmp/atlas-kernel-check.log
+#17 CACHED
+
+#18 [native  3/11] RUN git clone https://github.com/flashinfer-ai/flashinfer.git /opt/flashinfer &&     git -C /opt/flashinfer checkout --detach 8eccd0c1352165302840c0e19066bc42d36dbd7a
+#18 CACHED
+
+#19 [builder  6/13] COPY engine/crates/ crates/
+#19 CACHED
+
+#20 [native  6/11] COPY install/build-native.sh /product/install/build-native.sh
+#20 CACHED
+
+#21 [native  4/11] COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
+#21 CACHED
+
+#22 [builder 12/13] COPY install/rust-notices.py /product/install/rust-notices.py
+#22 CACHED
+
+#23 [builder 13/13] RUN python3 /product/install/rust-notices.py /build /build/dist/notices-rust
+#23 CACHED
+
+#24 [checks  1/14] RUN mkdir -p /opt/cuda-stubs &&     ln -s /usr/local/cuda/lib64/stubs/libcuda.so /opt/cuda-stubs/libcuda.so.1
+#24 CACHED
+
+#25 [native  2/11] RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends     git ca-certificates build-essential python3 && rm -rf /var/lib/apt/lists/*
+#25 CACHED
+
+#26 [native  8/11] COPY install/converter/ /product/install/converter/
+#26 CACHED
+
+#27 [builder 10/13] COPY engine/tests/fixtures/ tests/fixtures/
+#27 CACHED
+
+#28 [native  9/11] RUN bash /product/install/build-native.sh /engine /opt/flashinfer /product /opt/atlas/native
+#28 CACHED
+
+#29 [builder  5/13] COPY engine/Cargo.toml engine/Cargo.lock engine/rust-toolchain.toml engine/README.md ./
+#29 CACHED
+
+#30 [native  5/11] COPY engine/research/flash-kda-prefill /engine/research/flash-kda-prefill
+#30 CACHED
+
+#31 [builder 11/13] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     cargo build --locked --release -j "10" -p spark-server &&     install -D target/release/spark /build/dist/spark
+#31 CACHED
+
+#32 [checks  4/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     display_carveout > /tmp/atlas-carveout-check.log 2>&1 ||     { cat /tmp/atlas-carveout-check.log; exit 1; };     cat /tmp/atlas-carveout-check.log && grep -F 'test result: ok. 6 passed;' /tmp/atlas-carveout-check.log
+#32 CACHED
+
+#33 [checks  5/14] COPY engine/test_data/ test_data/
+#33 DONE 0.1s
+
+#34 [checks  6/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     set -eu; for filter in glm_repair_policy glm_index_capacity; do       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64       cargo test --locked --release -j "10" -p spark-model --lib "$filter"         > /tmp/atlas-model-check.log 2>&1 || { cat /tmp/atlas-model-check.log; exit 1; };       cat /tmp/atlas-model-check.log;       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-model-check.log;     done
+#34 32.07 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#34 32.07 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#34 32.07 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#34 32.07 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#34 32.07    Compiling spark-model v1.0.0-beta-preview (/build/crates/spark-model)
+#34 32.07     Finished `release` profile [optimized] target(s) in 31.81s
+#34 32.07      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#34 32.07 
+#34 32.07 running 4 tests
+#34 32.07 test speculative::glm_repair_policy::tests::exact_lane_and_overflow_checked ... ok
+#34 32.07 test speculative::glm_repair_policy::tests::repair_context_bounds_larger_serving_profiles ... ok
+#34 32.07 test speculative::glm_repair_policy::tests::arena_context_only_bounds_selected_glm_repair ... ok
+#34 32.07 test speculative::glm_repair_policy::tests::long_context_requires_explicit_fixed_mtp2_and_bounded_owners ... ok
+#34 32.07 
+#34 32.07 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1983 filtered out; finished in 0.00s
+#34 32.07 
+#34 32.07 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1983 filtered out; finished in 0.00s
+#34 32.23 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#34 32.23 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#34 32.23 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#34 32.23 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#34 32.23     Finished `release` profile [optimized] target(s) in 0.07s
+#34 32.23      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#34 32.23 
+#34 32.23 running 2 tests
+#34 32.23 test layers::qwen3_attention::glm_index_capacity::tests::exact_row_fits_and_short_or_invalid_arena_fails ... ok
+#34 32.23 test layers::qwen3_attention::glm_index_capacity::tests::final_short_chunk_uses_allocated_arena_at_large_context ... ok
+#34 32.23 
+#34 32.23 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1985 filtered out; finished in 0.00s
+#34 32.23 
+#34 32.23 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1985 filtered out; finished in 0.00s
+#34 DONE 32.3s
+
+#35 [checks  7/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     scheduler::lifecycle_tests > /tmp/atlas-lifecycle-check.log 2>&1 ||     { cat /tmp/atlas-lifecycle-check.log; exit 1; };     cat /tmp/atlas-lifecycle-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-lifecycle-check.log
+#35 0.381 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#35 0.381 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#35 0.381 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#35 0.381 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#35 0.381     Finished `release` profile [optimized] target(s) in 0.15s
+#35 0.381      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#35 0.381 
+#35 0.381 running 13 tests
+#35 0.381 test scheduler::lifecycle_tests::early_stop_one_token_short_of_budget_is_not_length ... ok
+#35 0.381 test scheduler::lifecycle_tests::call_site::call_site_passes_the_real_last_token_and_eos ... ok
+#35 0.381 test scheduler::lifecycle_tests::call_site::call_site_passes_the_real_seq_len ... ok
+#35 0.381 test scheduler::lifecycle_tests::call_site::call_site_passes_the_real_guard ... ok
+#35 0.381 test scheduler::lifecycle_tests::call_site::call_site_passes_the_real_budget ... ok
+#35 0.381 test scheduler::lifecycle_tests::call_site::terminal_model_error_is_sent_as_error_without_successful_done ... ok
+#35 0.381 test scheduler::lifecycle_tests::length_means_budget_exhausted_only ... ok
+#35 0.381 test scheduler::lifecycle_tests::empty_output_edges ... ok
+#35 0.381 test scheduler::lifecycle_tests::eos_on_the_last_budgeted_token_is_stop_not_length ... ok
+#35 0.381 test scheduler::lifecycle_tests::non_truncating_stops_are_not_relabelled_as_length ... ok
+#35 0.381 test scheduler::lifecycle_tests::normal_stops_are_unchanged ... ok
+#35 0.381 test scheduler::lifecycle_tests::timeout_unchanged_and_still_outranks_everything ... ok
+#35 0.381 test scheduler::lifecycle_tests::token_derived_stops_outrank_non_timeout_guards ... ok
+#35 0.381 
+#35 0.381 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2767 filtered out; finished in 0.00s
+#35 0.381 
+#35 0.382 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2767 filtered out; finished in 0.00s
+#35 DONE 0.4s
+
+#36 [checks  8/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     auto_tool_eos_tests > /tmp/atlas-tool-stop-check.log 2>&1 ||     { cat /tmp/atlas-tool-stop-check.log; exit 1; };     cat /tmp/atlas-tool-stop-check.log && grep -F 'test result: ok. 7 passed;' /tmp/atlas-tool-stop-check.log
+#36 0.421 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#36 0.421 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#36 0.421 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#36 0.421 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#36 0.421     Finished `release` profile [optimized] target(s) in 0.14s
+#36 0.421      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#36 0.421 
+#36 0.421 running 7 tests
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::completed_tool_call_can_end_after_tool_result ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::opened_incomplete_tool_call_still_holds_post_think_eos ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::active_tool_body_still_holds_post_think_eos ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::auto_tools_without_current_call_allow_short_plain_answer ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::required_tool_call_still_holds_post_think_eos ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::thinking_disabled_auto_tools_still_allow_short_plain_answer ... ok
+#36 0.421 test scheduler::decode_logits_step::auto_tool_eos_tests::auto_tools_plain_eos_is_not_held_by_sticky_request ... ok
+#36 0.421 
+#36 0.421 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2773 filtered out; finished in 0.00s
+#36 0.421 
+#36 0.421 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2773 filtered out; finished in 0.00s
+#36 DONE 0.4s
+
+#37 [checks  9/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     scheduler::admission::tests > /tmp/atlas-admission-check.log 2>&1 ||     { cat /tmp/atlas-admission-check.log; exit 1; };     cat /tmp/atlas-admission-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-admission-check.log
+#37 0.405 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#37 0.405 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#37 0.405 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#37 0.405 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#37 0.405     Finished `release` profile [optimized] target(s) in 0.12s
+#37 0.405      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#37 0.405 
+#37 0.405 running 12 tests
+#37 0.405 test scheduler::admission::tests::block_math_matches_legacy_formula ... ok
+#37 0.405 test scheduler::admission::tests::admission_stops_at_first_misfit_no_head_of_line_bypass ... ok
+#37 0.405 test scheduler::admission::tests::c128_overflow_queues_instead_of_admit_then_shoot ... ok
+#37 0.405 test scheduler::admission::tests::fits_everything_admission_unchanged ... ok
+#37 0.405 test scheduler::admission::tests::ep_zero_capacity_rejects_even_a_single_request ... ok
+#37 0.405 test scheduler::admission::tests::ep_oversized_blocking_request_gets_error_before_allocation ... ok
+#37 0.405 test scheduler::admission::tests::in_flight_commitments_reduce_capacity ... ok
+#37 0.405 test scheduler::admission::tests::two_chunked_image_requests_are_admitted_in_the_same_tick ... ok
+#37 0.405 test scheduler::admission::tests::ep_oversized_stream_gets_error_before_allocation ... ok
+#37 0.405 test scheduler::admission::tests::liveness_oversized_lone_request_still_admits ... ok
+#37 0.405 test scheduler::admission::tests::watermark_caps_the_decode_reservation ... ok
+#37 0.405 test scheduler::admission::tests::watermark_zero_reserves_prompt_only_legacy ... ok
+#37 0.405 
+#37 0.405 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 2768 filtered out; finished in 0.00s
+#37 0.405 
+#37 0.406 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 2768 filtered out; finished in 0.00s
+#37 DONE 0.4s
+
+#38 [checks 10/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     set -eu; for filter in cancellation_tests disconnect_prefill_tests buffered_disconnect_; do       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64       timeout --signal=TERM --kill-after=10s 180       cargo test --locked --release -j "10" -p spark-server --bin spark "$filter"         > /tmp/atlas-cancel-check.log 2>&1 || { cat /tmp/atlas-cancel-check.log; exit 1; };       cat /tmp/atlas-cancel-check.log;       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-cancel-check.log;     done
+#38 0.427 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#38 0.427 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#38 0.427 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#38 0.427 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#38 0.427     Finished `release` profile [optimized] target(s) in 0.15s
+#38 0.427      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#38 0.427 
+#38 0.427 running 10 tests
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::buffered_live_receiver_still_emits ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::non_spec_without_cancel_still_enforces_token_and_context_limits ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::buffered_disconnect_retires_dead_receiver_at_emit ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::buffered_disconnect_retires_at_decode_boundary ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::streaming_cancel_semantics_unchanged_for_blocking_helper ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::non_spec_preset_cancel_retires_without_committing_sampled_token ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::non_spec_midbatch_cancel_preserves_other_rows_and_original_mapping ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::emit_and_retirement_helper_preserve_budgets_and_finish_precedence ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::non_spec_cancel_after_sampling_is_rechecked_before_commit ... ok
+#38 0.427 test scheduler::emit_step::tests::cancellation_tests::cancelled_host_sampling_preserves_request_adaptive_state_serial_and_parallel ... ok
+#38 0.427 
+#38 0.427 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 2770 filtered out; finished in 0.00s
+#38 0.427 
+#38 0.428 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 2770 filtered out; finished in 0.00s
+#38 0.615 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#38 0.615 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#38 0.615 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#38 0.615 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#38 0.615     Finished `release` profile [optimized] target(s) in 0.10s
+#38 0.615      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#38 0.615 
+#38 0.615 running 2 tests
+#38 0.615 test scheduler::phase_continue_prefills::disconnect_prefill_tests::streaming_prefill_is_never_retired_by_disconnect_sweep ... ok
+#38 0.615 test scheduler::phase_continue_prefills::disconnect_prefill_tests::dead_blocking_prefill_retires_and_live_one_survives ... ok
+#38 0.615 
+#38 0.615 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2778 filtered out; finished in 0.00s
+#38 0.615 
+#38 0.615 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2778 filtered out; finished in 0.00s
+#38 0.824 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#38 0.824 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#38 0.824 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#38 0.824 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#38 0.824     Finished `release` profile [optimized] target(s) in 0.11s
+#38 0.824      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#38 0.824 
+#38 0.824 running 5 tests
+#38 0.824 test scheduler::emit_step::tests::cancellation_tests::buffered_disconnect_retires_at_decode_boundary ... ok
+#38 0.824 test scheduler::emit_step::tests::cancellation_tests::buffered_disconnect_retires_dead_receiver_at_emit ... ok
+#38 0.824 test scheduler::preempt_tests::resume::buffered_disconnect_drops_parked_history_without_reprefill ... ok
+#38 0.824 test scheduler::preempt_tests::resume::buffered_disconnect_removes_spill_without_restoration ... ok
+#38 0.824 test scheduler::preempt_tests::resume::buffered_disconnect_keeps_failed_spill_cleanup_for_retry ... ok
+#38 0.824 
+#38 0.824 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2775 filtered out; finished in 0.00s
+#38 0.824 
+#38 0.824 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2775 filtered out; finished in 0.00s
+#38 DONE 0.8s
+
+#39 [checks 11/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64     cargo test --locked --release -j "10" -p spark-server --bin spark     tool_parser:: > /tmp/atlas-parser-check.log 2>&1 ||     { cat /tmp/atlas-parser-check.log; exit 1; };     cat /tmp/atlas-parser-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-parser-check.log
+#39 0.373 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#39 0.373 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#39 0.373 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#39 0.373 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#39 0.373     Finished `release` profile [optimized] target(s) in 0.12s
+#39 0.373      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#39 0.373 
+#39 0.373 running 178 tests
+#39 0.373 test tool_parser::poolside_v1::tests::blocking_parser_accepts_complete_zero_argument_call ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::rejects_duplicate_argument_keys ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::rejects_incomplete_argument_pair ... ok
+#39 0.373 test tool_parser::prompt_levers::tests::off_is_the_default_and_the_json_path ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::default_parse_drops_bare_identifier_instead_of_fabricating_a_call ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::parses_native_poolside_call ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::blocking_parser_does_not_salvage_incomplete_poolside_envelope ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::streaming_parser_does_not_emit_incomplete_poolside_envelope ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::preserves_unquoted_string_whitespace_exactly ... ok
+#39 0.373 test tool_parser::prompt_levers::tests::two_models_can_disagree_within_one_process ... ok
+#39 0.373 test tool_parser::tests::deepseek_v4_dsml::blocking_dsml_parser_preserves_typed_arguments ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::schema_types_values_and_string_parameters_keep_their_text ... ok
+#39 0.373 test tool_parser::poolside_v1::tests::streaming_detector_promotes_bare_names_only_when_opted_in ... ok
+#39 0.373 test tool_parser::tests::deepseek_v4_dsml::deepseek_v4_parser_is_registered ... ok
+#39 0.373 test tool_parser::tests::deepseek_v4_dsml::streaming_dsml_parser_handles_split_special_tokens ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_hermes_with_content_and_multiple ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_minimax_xml_drops_write_with_empty_filepath ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_hermes_single_call ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_minimax_xml_drops_write_with_whitespace_filepath ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_minimax_xml_keeps_bash_with_empty_path_field ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_minimax_xml_keeps_write_with_valid_filepath ... ok
+#39 0.373 test tool_parser::tests::group_a::parse_no_calls ... ok
+#39 0.373 test tool_parser::tests::group_a::streaming_detector_hermes ... ok
+#39 0.373 test tool_parser::tests::group_a::streaming_detector_minimax_envelope_bpe_broken ... ok
+#39 0.373 test tool_parser::tests::group_a::streaming_detector_minimax_bpe_broken_split_chunks ... ok
+#39 0.373 test tool_parser::tests::group_a::streaming_detector_minimax_envelope_bpe_broken_two_invokes ... ok
+#39 0.373 test tool_parser::tests::group_a::streaming_detector_minimax_envelope_canonical ... ok
+#39 0.373 test tool_parser::tests::group_a::validate_allows_read_with_empty_path ... ok
+#39 0.373 test tool_parser::tests::group_a::validate_rejects_write_with_empty_filepath ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::parse_minimax_xml_multiple_params ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::minimax_xml_format_tool_calls_roundtrip ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::parse_minimax_xml_single_param ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::parse_minimax_xml_with_content_prefix ... ok
+#39 0.373 test tool_parser::tests::group_b::hermes_parser_system_prompt_contains_json ... ok
+#39 0.373 test tool_parser::tests::group_b::into_parser_returns_correct_name ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::parse_qwen3_coder_empty_body_then_backfill ... ok
+#39 0.373 test tool_parser::tests::group_b::format_tool_response_default ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_name_with_trailing_garbage ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_two_consecutive_functions_no_field_bleed ... ok
+#39 0.373 test tool_parser::tests::group_a_formats::parse_qwen3_coder_single_param ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_bare_attribute_style_no_wrapper ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_bare_duplicated_name_equals ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_bare_mistral_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_unclosed_param_then_next_function_does_not_bleed ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_bare_tag_style_nested_params ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_bare_tag_style_simple ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_with_content ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_tag_style_inside_tool_call_wrapper ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_gemma4_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_duplicated_name_equals ... ok
+#39 0.373 test tool_parser::tests::group_b::streaming_bare_function_flush ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_minimax_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_multiple_params ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_json_args_grammar_mode ... ok
+#39 0.373 test tool_parser::tests::group_b::tool_call_format_from_str ... ok
+#39 0.373 test tool_parser::tests::group_b::streaming_detector_qwen3_coder ... ok
+#39 0.373 test tool_parser::tests::group_b::qwen3_coder_parser_system_prompt_contains_xml ... ok
+#39 0.373 test tool_parser::tests::group_b::qwen3_coder_template_owned_definitions_keep_choice_policy ... ok
+#39 0.373 test tool_parser::tests::group_b_mistral::parse_mistral_multiple_calls ... ok
+#39 0.373 test tool_parser::tests::group_b::tscg_is_decided_per_model_not_per_process ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_mistral_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_hermes_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_call_direct_two_funcs_returns_first_only_no_bleed ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_qwen3_coder_namespaced_function_name ... ok
+#39 0.373 test tool_parser::tests::group_b_mistral::parse_mistral_single_call ... ok
+#39 0.373 test tool_parser::tests::group_c::find_balanced_json_end_simple ... ok
+#39 0.373 test tool_parser::tests::group_b_mistral::parse_mistral_with_leading_content ... ok
+#39 0.373 test tool_parser::tests::group_b::parse_mike_screenshot_format ... ok
+#39 0.373 test tool_parser::tests::group_c::find_balanced_json_end_string_braces ... ok
+#39 0.373 test tool_parser::tests::group_c::fuzzy_repair_dash_vs_underscore ... ok
+#39 0.373 test tool_parser::tests::group_c::fuzzy_repair_case_insensitive ... ok
+#39 0.373 test tool_parser::tests::group_c::fuzzy_repair_mcp_double_underscore_added ... ok
+#39 0.373 test tool_parser::tests::group_c::fuzzy_repair_mcp_double_underscore_dropped ... ok
+#39 0.373 test tool_parser::tests::group_c::fuzzy_repair_no_false_positive_on_distinct_names ... ok
+#39 0.373 test tool_parser::tests::group_c::leak_markers_default_is_empty ... ok
+#39 0.373 test tool_parser::tests::group_c::leak_markers_minimax_has_invoke_open ... ok
+#39 0.373 test tool_parser::tests::group_c::leak_markers_qwen3_coder_has_parameter_open ... ok
+#39 0.373 test tool_parser::tests::group_c::mistral_native_parser_format_tool_calls ... ok
+#39 0.373 test tool_parser::tests::group_c::mistral_native_parser_name_and_dispatch ... ok
+#39 0.373 test tool_parser::tests::group_c::parse_mistral_nested_json_args ... ok
+#39 0.373 test tool_parser::tests::group_c::parse_mistral_truncated_args_recovered ... ok
+#39 0.373 test tool_parser::tests::group_c::parse_mistral_with_whitespace ... ok
+#39 0.373 test tool_parser::tests::group_c::qwen3_coder_f33_bash_description_has_retry_rule ... ok
+#39 0.373 test tool_parser::tests::group_c::qwen3_coder_prompt_has_antinarration_hardening ... ok
+#39 0.373 test tool_parser::tests::group_c::qwen3_missing_param_close_doesnt_swallow_next_param ... ok
+#39 0.373 test tool_parser::tests::group_c::qwen3_tool_call_close_inside_param_value_not_terminating ... ok
+#39 0.373 test tool_parser::tests::group_c::salvage_does_not_fire_when_legitimate_function_opener_present ... ok
+#39 0.373 test tool_parser::tests::group_c::salvage_rejects_non_identifier_name ... ok
+#39 0.373 test tool_parser::tests::group_c::salvage_requires_closing_function_tag ... ok
+#39 0.373 test tool_parser::tests::group_c::salvage_param_as_function_recovers_write_call ... ok
+#39 0.373 test tool_parser::tests::group_c::streaming_detector_mistral_single ... ok
+#39 0.373 test tool_parser::tests::group_c::streaming_detector_mistral_split_tokens ... ok
+#39 0.373 test tool_parser::tests::group_d::flush_after_incremental_start_does_not_double_emit ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_ignores_missing_tool ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_all_multi_call ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_array_string ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_boolean_true_capitalized ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_integer_string ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_boolean_lower ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_boolean_capitalized ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_boolean_false_lower ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_object_string ... ok
+#39 0.373 test tool_parser::tests::group_e::no_coerce_already_number ... ok
+#39 0.373 test tool_parser::tests::group_e::empty_arg_preserved ... ok
+#39 0.373 test tool_parser::tests::group_e::no_coerce_unparseable ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_coder_wants_typed ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_number_float ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_xml_has_grammar ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_invalid_arguments_json_is_noop ... ok
+#39 0.373 test tool_parser::tests::group_e::coerce_null_string ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_xml_wants_typed ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_xml_coerced_via_parse_and_coerce_all ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_xml_name ... ok
+#39 0.373 test tool_parser::tests::group_e::repair_empty_key_in_nested_array_item ... ok
+#39 0.373 test tool_parser::tests::group_e::repair_empty_key_skips_when_multiple_required_missing ... ok
+#39 0.373 test tool_parser::tests::group_e::repair_empty_key_in_stringified_nested_array ... ok
+#39 0.373 test tool_parser::tests::group_e::repair_empty_key_skips_when_value_not_in_enum ... ok
+#39 0.373 test tool_parser::tests::group_e::tool_call_format_from_str_qwen3_xml ... ok
+#39 0.373 test tool_parser::tests::group_f::backfill_fills_omitted_subagent_type_with_valid_agent ... ok
+#39 0.373 test tool_parser::tests::group_f::namespaced_bare_identifier_still_parses_as_tool ... ok
+#39 0.373 test tool_parser::tests::group_f::backfill_subagent_type_prefers_general_purpose_variant ... ok
+#39 0.373 test tool_parser::tests::group_f::phantom_json_colon_prose_is_not_a_tool_call ... ok
+#39 0.373 test tool_parser::tests::group_f::tool_call_colon_prefix_falls_through_to_embedded_json_name ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_hermes_three_calls_same_name_distinct_args ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_hermes_two_calls_all_returned_in_order ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_hermes_unterminated_tail_garbage_contained ... ok
+#39 0.373 test tool_parser::tests::group_e::qwen3_xml_system_prompt_contains_markers ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::grammar_shaped_hermes_two_calls_all_chunk_sizes ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_qwen3_coder_three_calls_with_content_around ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_qwen3_coder_unterminated_tail_garbage_contained ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_qwen3_coder_two_calls_all_returned ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_single_call_regression_unchanged ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::parse_qwen3_coder_unterminated_tail_keeps_closed_params ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_blocking_parity_on_unterminated_tail ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_hermes_two_calls_incrementing_index ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_qwen3_coder_three_calls_incrementing_index ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_single_call_close_streamed_regression ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_single_call_dangling_close_flush_regression ... ok
+#39 0.373 test tool_parser::tests::group_g_parallel::streaming_two_calls_with_interleaved_content ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::buffered_recovers_garbled_close_reopen ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::legit_close_prefix_content_not_split ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::buffered_salvage_does_not_clobber_populated_target ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::buffered_pipeline_recovers_live_shape_1 ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::buffered_pipeline_recovers_live_shape_2 ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::salvage_helper_never_rewrites_legit_schema_keys ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::salvage_helper_resplits_echoed_key ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::streaming_live_fragments_recover_echoed_key ... ok
+#39 0.373 test tool_parser::tests::group_i_poolside_safety::empty_content_remains_schema_valid ... ok
+#39 0.373 test tool_parser::tests::group_h_salvage::streaming_recovers_garbled_close_reopen ... ok
+#39 0.373 test tool_parser::tests::group_i_poolside_safety::empty_write_path_is_not_executable ... ok
+#39 0.373 test tool_parser::tests::group_i_poolside_safety::missing_write_path_is_not_executable_after_backfill ... ok
+#39 0.373 test tool_parser::tests::group_i_poolside_safety::poolside_parser_does_not_reinject_tool_prompt ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::malformed_native_header_never_uses_nested_name ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::other_format_headers_keep_existing_names ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::incomplete_native_envelope_is_not_completed_at_eos ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::partial_header_waits_for_complete_arg_key ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_live_coerces_integer_param ... ok
+#39 0.373 test tool_parser::tests::streaming_frag_env::kill_switch_buffers_full_args_no_fragments ... ignored, mutates process-global ATLAS_BUFFER_TOOL_ARGS; run serially with --ignored --test-threads=1
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_streaming_fragmented_at_xml_opener ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::native_header_precedes_nested_attachment_name ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_live_flush_path_emits_closing_brace ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_live_streams_multiple_fragments_before_end ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::closed_zero_argument_call_matches_every_split ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::scrub_tool_tags_preserves_non_tool_content ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::qwen3_coder_spurious_trailing_close_reaches_flush_not_leaked ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::qwen3_coder_doubled_tool_call_close_not_leaked ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::scrub_tool_tags_strips_runaway_markup_dump ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_streaming_same_name_tool_calls_no_collision ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_streaming_fragmented_at_path_boundary ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::qwen3_coder_spurious_trailing_close_underscore_call_not_leaked ... ok
+#39 0.373 test tool_parser::tests::streaming_frag::qwen3_coder_streaming_close_with_final_value_in_same_chunk ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::qwen3_coder_runaway_content_dump_not_leaked ... ok
+#39 0.373 test tool_parser::tests::streaming_frag_env::bare_function_streams_incrementally_and_emits_call_once ... ok
+#39 0.373 test tool_parser::validation::path_sanitizer_tests::malformed_quoted_comma_filepath_sanitized ... ok
+#39 0.373 test tool_parser::validation::path_sanitizer_tests::punctuation_drifted_workdir_is_repaired_to_cwd ... ok
+#39 0.373 test tool_parser::validation::path_sanitizer_tests::punctuation_drifted_cwd_inside_bash_command_is_repaired ... ok
+#39 0.373 test tool_parser::tests::streaming_leak::flush_content_sanitizer_drops_held_back_trailing_close ... ok
+#39 0.373 test tool_parser::tests::group_j_poolside_stream_name::native_arguments_match_blocking_parser_at_every_split ... ok
+#39 0.373 
+#39 0.373 test result: ok. 177 passed; 0 failed; 1 ignored; 0 measured; 2602 filtered out; finished in 0.01s
+#39 0.373 
+#39 0.374 test result: ok. 177 passed; 0 failed; 1 ignored; 0 measured; 2602 filtered out; finished in 0.01s
+#39 DONE 0.4s
+
+#40 [checks 12/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     set -eu; for check in dflash_seq_policy:2 verify_dflash_step::think_end:7; do       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64       cargo test --locked --release -j "10" -p spark-server --bin spark "${check%:*}"         > /tmp/atlas-verify-check.log 2>&1 || { cat /tmp/atlas-verify-check.log; exit 1; };       cat /tmp/atlas-verify-check.log;       grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log;     done
+#40 0.402 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#40 0.402 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#40 0.402 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#40 0.402 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#40 0.402     Finished `release` profile [optimized] target(s) in 0.12s
+#40 0.402      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#40 0.402 
+#40 0.402 running 2 tests
+#40 0.402 test scheduler::helpers::dflash_seq_policy::tests::per_sequence_gate_stays_raw_only_for_neutral_greedy ... ok
+#40 0.402 test scheduler::helpers::dflash_seq_policy::tests::argmax_only_verify_head_always_takes_the_raw_path ... ok
+#40 0.402 
+#40 0.402 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2778 filtered out; finished in 0.00s
+#40 0.402 
+#40 0.403 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2778 filtered out; finished in 0.00s
+#40 0.571 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#40 0.571 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#40 0.571 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#40 0.571 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#40 0.571     Finished `release` profile [optimized] target(s) in 0.10s
+#40 0.571      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#40 0.571 
+#40 0.571 running 7 tests
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::a_boundary_just_before_the_step_injects_at_position_zero ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::a_model_that_closes_thinking_itself_is_left_alone ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::a_code_fence_defers_the_boundary_but_not_the_ceiling ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::armed_row_closes_thinking_after_the_first_sentence_boundary ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::deferral_ceiling_forces_the_close_without_a_boundary ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::unarmed_rows_keep_the_plain_accept_prefix ... ok
+#40 0.571 test scheduler::verify_dflash_step::think_end::tests::deferring_positions_tick_the_counter ... ok
+#40 0.571 
+#40 0.571 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2773 filtered out; finished in 0.00s
+#40 0.571 
+#40 0.572 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2773 filtered out; finished in 0.00s
+#40 DONE 0.6s
+
+#41 [checks 13/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     set -eu; for filter in refusal api::chat_stream; do       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64       cargo test --locked --release -j "10" -p spark-server --bin spark "$filter"         > /tmp/atlas-refusal-check.log 2>&1 || { cat /tmp/atlas-refusal-check.log; exit 1; };       cat /tmp/atlas-refusal-check.log;       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-refusal-check.log;     done
+#41 0.417 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#41 0.417 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#41 0.417 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#41 0.417 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#41 0.417     Finished `release` profile [optimized] target(s) in 0.14s
+#41 0.417      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#41 0.417 
+#41 0.417 running 32 tests
+#41 0.417 test api::chat_stream::handle_done::finalization::tests::terminal_done_refusal_annotation_preserves_full_content ... ok
+#41 0.417 test api::chat_stream::handle_done::finalization::tests::terminal_done_semantic_guard_does_not_flush_lantern_or_refusal ... ok
+#41 0.417 test scheduler::preempt_tests::a_refusal_after_part_of_the_batch_ran_fails_it_without_a_retry ... ok
+#41 0.417 test scheduler::preempt_tests::chunk_retry::a_final_agreed_refusal_fails_this_request_without_a_victim ... ok
+#41 0.417 test scheduler::preempt_tests::chunk_retry::a_refusal_with_nothing_to_evict_fails_after_one_attempt ... ok
+#41 0.417 test scheduler::preempt_tests::chunk_retry::a_same_worded_error_that_is_not_the_agreed_refusal_is_not_retried ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::a_bootstrap_refusal_after_part_of_the_batch_ran_is_not_requeued ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::a_lone_sequence_that_outgrew_the_pool_finishes_with_the_error ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::a_refusal_whose_only_other_sequence_is_finished_fails_alone ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::a_refused_batch_preempts_the_least_progress_sequence_and_retries_the_rest ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::a_running_sequence_can_be_the_victim_of_another_ones_refusal ... ok
+#41 0.417 test scheduler::preempt_tests::kv_refusal::other_engine_errors_and_finished_sequences_are_left_alone ... ok
+#41 0.417 test api::refusal_content_tests::blocking_empty_text_has_no_content_and_no_refusal ... ok
+#41 0.417 test grammar::tests::misc::test_stop_token_exempt_from_grammar_refusal ... ok
+#41 0.417 test tui::bench_preflight::tests::every_refusal_reason_reads_differently ... ok
+#41 0.417 test api::refusal_content_tests::blocking_multi_sentence_refusal_keeps_full_content_and_refusal ... ok
+#41 0.417 test api::refusal_content_tests::blocking_ordinary_text_has_content_and_no_refusal ... ok
+#41 0.417 test api::refusal_content_tests::blocking_prefix_false_positive_keeps_full_answer ... ok
+#41 0.417 test api::refusal_content_tests::blocking_refusal_preserves_reasoning_trace ... ok
+#41 0.417 test api::refusal_content_tests::blocking_refusal_preserves_length_and_timeout_finish_reasons ... ok
+#41 0.417 test api::refusal_content_tests::blocking_sympathy_keeps_full_content_without_refusal ... ok
+#41 0.417 test scheduler::emit_step::tests::strict_grammar_tests::a_strict_refusal_ends_the_response_with_an_error ... ok
+#41 0.417 test scheduler::emit_step::tests::strict_grammar_tests::decode::a_strict_refusal_in_serial_decode_ends_the_response_with_an_error ... ok
+#41 0.417 test api::refusal_content_tests::blocking_valid_tool_call_keeps_call_and_finish_reason ... ok
+#41 0.417 test refusal::tests::kill_switch_returns_none ... ok
+#41 0.417 test refusal::tests::matches_with_leading_whitespace ... ok
+#41 0.417 test refusal::tests::matches_canonical_refusal ... ok
+#41 0.417 test refusal::tests::mixed_case_matches ... ok
+#41 0.417 test refusal::tests::non_refusal_returns_none ... ok
+#41 0.417 test refusal::tests::no_terminator_falls_back_to_line ... ok
+#41 0.417 test scheduler::emit_step::tests::strict_grammar_tests::a_lenient_refusal_still_disengages_and_continues ... ok
+#41 0.417 test scheduler::emit_step::tests::strict_grammar_tests::decode::a_first_token_refusal_fails_a_strict_grammar_only ... ok
+#41 0.417 
+#41 0.417 test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 2748 filtered out; finished in 0.01s
+#41 0.417 
+#41 0.418 test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 2748 filtered out; finished in 0.01s
+#41 0.606 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#41 0.606 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#41 0.606 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#41 0.606 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#41 0.606     Finished `release` profile [optimized] target(s) in 0.10s
+#41 0.606      Running unittests src/main.rs (target/release/deps/spark-59196ffa43045456)
+#41 0.606 
+#41 0.606 running 43 tests
+#41 0.606 test api::chat_stream::cancel_guard_tests::the_scan_would_notice_a_bare_store ... ok
+#41 0.606 test api::chat_stream::cancel_guard_tests::every_cancel_flag_store_names_its_guard ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_guard_during_flush_discards_all_generated_delta_kinds_and_ids ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_keeps_existing_finish_precedence_and_tool_history ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_normal_eos_and_explicit_stop_keep_safe_sanitizer_prefix ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_refusal_annotation_preserves_full_content ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_semantic_guard_does_not_flush_lantern_or_refusal ... ok
+#41 0.606 test api::chat_stream::handle_done::wire_finish_reason_tests::stream_guard_does_not_outrank_what_actually_happened ... ok
+#41 0.606 test api::chat_stream::handle_done::finalization::tests::terminal_done_tool_or_generic_guard_skips_buffered_fragments ... ok
+#41 0.606 test api::chat_stream::handle_done::wire_finish_reason_tests::stop_string_match_is_stop_not_length ... ok
+#41 0.606 test api::chat_stream::handle_done::wire_finish_reason_tests::stream_side_guard_cut_reports_length ... ok
+#41 0.606 test api::chat_stream::handle_done::wire_finish_reason_tests::timeout_and_tool_overrides_keep_their_rank ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::bare_role_literal_preserved_inside_tool_call ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::bare_role_literal_still_stripped_outside_tool_call ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::ordinary_content_untouched ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::dsml_split_opener_preserves_tool_fragment_and_streams_call ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::ordinary_name_streams_intact ... ok
+#41 0.606 test api::chat_stream::handle_token::stop_string_holdback_tests::no_stop_strings_is_zero_behavior_change ... ok
+#41 0.606 test api::chat_stream::handle_token::stop_string_holdback_tests::stop_string_spanning_chunk_boundary_does_not_leak ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::tool_describe_name_split_after_tool_streams_intact ... ok
+#41 0.606 test api::chat_stream::handle_token::terminal_token::tests::explicit_stop_preserves_same_event_prefix_but_not_following_tokens ... ok
+#41 0.606 test api::chat_stream::handle_token::terminal_token::tests::open_stream_preserves_normal_delivery ... ok
+#41 0.606 test api::chat_stream::state::stop_string_match_tests::note_stop_string_match_records_and_cancels ... ok
+#41 0.606 test api::chat_stream::handle_token::terminal_token::tests::terminal_guard_drops_late_content_reasoning_and_token_ids_before_body ... ok
+#41 0.606 test api::chat_stream::handle_token::stop_string_holdback_tests::utf8_boundary_safety_in_holdback ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::tool_search_name_split_after_tool_streams_intact ... ok
+#41 0.606 test api::chat_stream::strip::tests::inserts_space_between_glued_words ... ok
+#41 0.606 test api::chat_stream::strip::tests::empty_before_is_safe ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::reasoning_done_tests::reasoning_done_does_not_duplicate_a_closed_thinking_tail ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::reasoning_done_tests::sanitizer_prefix_first_content_token_reaches_neutral_delta_immediately ... ok
+#41 0.606 test api::chat_stream::strip::tests::no_double_space_when_already_separated ... ok
+#41 0.606 test api::chat_stream::strip::tests::no_space_when_after_starts_with_newline ... ok
+#41 0.606 test api::chat_stream::handle_token::role_literal_strip_tests::tool_call_name_split_after_tool_streams_intact ... ok
+#41 0.606 test api::chat_stream::token_ids::tests::take_ids_if_drains_only_when_on ... ok
+#41 0.606 test api::chat_stream::tool_handlers::name_run_cap_tests::three_call_parallel_fanout_stays_under_cap ... ok
+#41 0.606 test api::chat_stream::tool_handlers::name_run_cap_tests::different_name_resets_run ... ok
+#41 0.606 test api::chat_stream::tool_handlers::name_run_cap_tests::runaway_same_name_run_still_trips ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::glm_native_tool_boundary_blocking_preserves_validated_call ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::glm_native_tool_boundary_streaming_preserves_reasoning_then_tool ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::reasoning_done_tests::reasoning_done_preserves_rejected_output_and_leak_suppression ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::glm_native_tool_boundary_first_token_and_malformed_envelope ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::reasoning_done_tests::reasoning_done_matches_blocking_when_eos_has_no_think_close ... ok
+#41 0.606 test api::chat_stream::glm_tool_boundary_tests::glm_native_tool_boundary_keeps_request_model_and_name_guards ... ok
+#41 0.606 
+#41 0.606 test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 2737 filtered out; finished in 0.01s
+#41 0.606 
+#41 0.607 test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 2737 filtered out; finished in 0.01s
+#41 DONE 0.6s
+
+#42 [checks 14/14] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     set -eu; for check in spark-runtime:vision spark-model:vision_cache spark-model:vision_transport                           spark-model:vision_encoder spark-model:embed_chunk; do       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64       cargo test --locked --release -j "10" -p "${check%%:*}" --lib "${check#*:}"         > /tmp/atlas-vision-cache-check.log 2>&1 || { cat /tmp/atlas-vision-cache-check.log; exit 1; };       cat /tmp/atlas-vision-cache-check.log;       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-vision-cache-check.log;     done
+#42 84.39    Compiling spark-runtime v1.0.0-beta-preview (/build/crates/spark-runtime)
+#42 84.39 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#42 84.39 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#42 84.39 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#42 84.39 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#42 84.39     Finished `release` profile [optimized] target(s) in 1m 24s
+#42 84.39      Running unittests src/lib.rs (target/release/deps/spark_runtime-082adb2e4d4b110e)
+#42 84.39 
+#42 84.39 running 12 tests
+#42 84.39 test prefix_cache::vision_key::tests::placeholders_take_item_derived_ids_and_text_is_unchanged ... ok
+#42 84.39 test prefix_cache::vision_key::tests::split_runs_follow_the_item_count_not_contiguity ... ok
+#42 84.39 test radix_tree::tests::vision_key::raw_placeholder_streams_collide ... ok
+#42 84.39 test radix_tree::tests::vision_key::swapped_second_image_misses_from_its_first_block ... ok
+#42 84.39 test prefix_cache::vision_key::tests::mismatched_placeholder_counts_are_not_keyable ... ok
+#42 84.39 test radix_tree::tests::vision_key::same_image_resent_hits ... ok
+#42 84.39 test radix_tree::tests::vision_key::different_images_miss ... ok
+#42 84.39 test radix_tree::tests::vision_key::ranks_rebuilding_the_key_agree_on_the_match ... ok
+#42 84.39 test weights::expert_filter_tests::skip_vision_drops_only_the_vision_tower ... ok
+#42 84.39 test radix_tree::tests::vision_key::text_before_the_first_image_keys_like_text ... ok
+#42 84.39 test fast_weights::expert_filter_tests::skip_vision_drops_only_the_vision_tower ... ok
+#42 84.39 test weights::gguf::value_transform::tests::vision_patch_frame_parsing ... ok
+#42 84.39 
+#42 84.39 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 514 filtered out; finished in 0.00s
+#42 84.39 
+#42 84.39 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 514 filtered out; finished in 0.00s
+#42 84.54 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#42 84.54 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#42 84.54 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#42 84.54 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#42 84.54     Finished `release` profile [optimized] target(s) in 0.07s
+#42 84.54      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#42 84.54 
+#42 84.54 running 12 tests
+#42 84.54 test model::vision_cache::tests::only_items_wholly_before_the_computed_position_are_cached ... ok
+#42 84.54 test model::vision_cache::tests::a_straddling_item_is_re_encoded_at_every_chunk_it_spans ... ok
+#42 84.54 test model::vision_cache::tests::split_video_runs_count_by_item ... ok
+#42 84.54 test model::vision_cache::tests::an_item_without_pads_is_never_selected ... ok
+#42 84.54 test model::vision_cache::tests::a_video_run_split_by_timestamp_text_is_one_item ... ok
+#42 84.54 test model::vision_cache::tests::cached_leading_items_are_never_selected ... ok
+#42 84.54 test model::vision_cache::stream_tests::no_chunk_encodes_before_the_chunk_zero_lookup ... ok
+#42 84.54 test model::vision_cache::stream_tests::every_tower_keys_its_vision_prompts_for_the_prefix_cache ... ok
+#42 84.54 test model::vision_cache::stream_tests::the_pixels_are_released_once_the_last_prompt_chunk_succeeds ... ok
+#42 84.54 test model::vision_cache::stream_tests::a_chunk_encode_waits_for_the_prefill_stream_before_rewriting_buf_out ... ok
+#42 84.54 test model::vision_cache::stream_tests::a_glm_prefill_encodes_per_chunk_even_with_the_prefix_cache_off ... ok
+#42 84.54 test model::vision_cache::stream_tests::every_tower_encodes_per_chunk_not_at_admission ... ok
+#42 84.54 
+#42 84.54 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 1975 filtered out; finished in 0.01s
+#42 84.54 
+#42 84.54 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 1975 filtered out; finished in 0.01s
+#42 84.70 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#42 84.70 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#42 84.70 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#42 84.70 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#42 84.70     Finished `release` profile [optimized] target(s) in 0.07s
+#42 84.70      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#42 84.70 
+#42 84.70 running 4 tests
+#42 84.70 test model::vision_transport::tests::counts_image_and_video_rows_before_chunk ... ok
+#42 84.70 test model::vision_transport::tests::accepts_legacy_and_co_dispatched_ranges ... ok
+#42 84.70 test model::vision_transport::tests::rejects_unbounded_or_inconsistent_state ... ok
+#42 84.70 test model::vision_transport::tests::validates_grid_triples_and_payload_size ... ok
+#42 84.70 
+#42 84.70 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1983 filtered out; finished in 0.00s
+#42 84.70 
+#42 84.70 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1983 filtered out; finished in 0.00s
+#42 84.84 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#42 84.84 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#42 84.84 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#42 84.84 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#42 84.84     Finished `release` profile [optimized] target(s) in 0.06s
+#42 84.84      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#42 84.84 
+#42 84.84 running 20 tests
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::no_bound_keeps_the_historical_capacity ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::a_declared_bound_over_the_ceiling_is_clamped_and_reported ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::the_ceiling_is_never_exceeded_whatever_is_declared ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::capacity_tracks_patch_size ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::degenerate_inputs_do_not_produce_a_zero_allocation ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::a_low_operator_bound_shrinks_the_allocation ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::init::derive_tests::the_ceiling_matches_the_measured_affordable_rung ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::rejects_a_small_image_placed_past_the_end ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::rejects_narrower_patch_dim_instead_of_reading_past_the_buffer ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::rejects_a_consistent_buffer_with_too_many_patches ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::rejects_patch_count_that_overflows ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::accepts_the_geometry_the_encoder_was_built_for ... ok
+#42 84.84 test layers::vision_encoder::enc_impl::patch_embed::tests::rejects_wider_patch_dim ... ok
+#42 84.84 test layers::vision_encoder::glm::forward::tests::rope_table_tracks_h_and_w_in_merge_block_order ... ok
+#42 84.84 test layers::vision_encoder::glm_attention_gpu_tests::glm_vision_flash_attention_matches_fp32_reference ... ignored, requires a CUDA host
+#42 84.84 test layers::vision_encoder::glm_oracle_tests::glm5_vision_native_encoder_oracle_dump ... ignored, requires a prepared vision-only GLM checkpoint and a CUDA host
+#42 84.84 test layers::vision_encoder::receive_only_tests::only_a_glm_worker_skips_the_vision_weights ... ok
+#42 84.84 test layers::vision_encoder::glm::forward_tests::a_receive_only_tower_holds_just_the_row_buffer_and_never_encodes ... ok
+#42 84.84 test layers::vision_encoder::glm::forward_tests::every_launch_is_a_parallel_tile_and_attention_is_flash_tiled ... ok
+#42 84.84 test layers::vision_encoder::glm::forward_tests::over_capacity_request_fails_before_queuing_any_work ... ok
+#42 84.84 
+#42 84.84 test result: ok. 18 passed; 0 failed; 2 ignored; 0 measured; 1967 filtered out; finished in 0.00s
+#42 84.84 
+#42 84.84 test result: ok. 18 passed; 0 failed; 2 ignored; 0 measured; 1967 filtered out; finished in 0.00s
+#42 84.97 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 237 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (52 model-specific overrides)
+#42 84.97 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 237/237 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#42 84.97 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#42 84.97 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#42 84.97     Finished `release` profile [optimized] target(s) in 0.06s
+#42 84.97      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#42 84.97 
+#42 84.97 running 5 tests
+#42 84.97 test model::trait_impl::prefill_b::embed_chunk::tests::a_per_chunk_window_covers_exactly_its_own_splice_range ... ok
+#42 84.97 test model::trait_impl::prefill_b::embed_chunk::tests::cached_items_shift_rows_down_by_the_skipped_rows ... ok
+#42 84.97 test model::trait_impl::prefill_b::embed_chunk::tests::a_placeholder_past_the_encoded_rows_fails_only_its_request ... ok
+#42 84.97 test model::trait_impl::prefill_b::embed_chunk::tests::vision_rows_follow_the_full_prompt_across_chunks ... ok
+#42 84.97 test model::trait_impl::prefill_b::embed_chunk::tests::vision_rows_fail_closed_when_the_packed_slice_is_short ... ok
+#42 84.97 
+#42 84.97 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1982 filtered out; finished in 0.00s
+#42 84.97 
+#42 84.97 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 1982 filtered out; finished in 0.00s
+#42 DONE 85.0s
+
+#43 exporting to image
+#43 exporting layers
+#43 exporting layers 1.8s done
+#43 writing image sha256:b5f347a6f64aa296b2f752fb3ad1aecfb18e868188559af1ce3b3e752bee3dab done
+#43 DONE 1.8s
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 13.18kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 99B done
+#4 DONE 0.0s
+
+#5 [runtime  1/16] FROM docker.io/nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3
+#5 DONE 0.0s
+
+#6 [native  1/11] FROM docker.io/nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 411.05kB 0.1s done
+#7 DONE 0.1s
+
+#8 [builder  7/13] COPY engine/kernels/ kernels/
+#8 CACHED
+
+#9 [native  3/11] RUN git clone https://github.com/flashinfer-ai/flashinfer.git /opt/flashinfer &&     git -C /opt/flashinfer checkout --detach 8eccd0c1352165302840c0e19066bc42d36dbd7a
+#9 CACHED
+
+#10 [native  7/11] COPY install/flash_kda/ /product/install/flash_kda/
+#10 CACHED
+
+#11 [builder  4/13] WORKDIR /build
+#11 CACHED
+
+#12 [builder  6/13] COPY engine/crates/ crates/
+#12 CACHED
+
+#13 [builder  3/13] RUN git clone https://github.com/NVIDIA/cutlass.git /opt/cutlass &&     git -C /opt/cutlass checkout cf064d2e6bad2886238ac565b3b49007764f4939
+#13 CACHED
+
+#14 [builder 10/13] COPY engine/tests/fixtures/ tests/fixtures/
+#14 CACHED
+
+#15 [builder  2/13] RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |     sh -s -- -y --profile minimal --default-toolchain 1.93.1
+#15 CACHED
+
+#16 [builder 12/13] COPY install/rust-notices.py /product/install/rust-notices.py
+#16 CACHED
+
+#17 [builder 11/13] RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared     cargo build --locked --release -j "10" -p spark-server &&     install -D target/release/spark /build/dist/spark
+#17 CACHED
+
+#18 [native  5/11] COPY engine/research/flash-kda-prefill /engine/research/flash-kda-prefill
+#18 CACHED
+
+#19 [native  4/11] COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
+#19 CACHED
+
+#20 [native  8/11] COPY install/converter/ /product/install/converter/
+#20 CACHED
+
+#21 [builder  9/13] COPY engine/jinja-templates/ jinja-templates/
+#21 CACHED
+
+#22 [builder  5/13] COPY engine/Cargo.toml engine/Cargo.lock engine/rust-toolchain.toml engine/README.md ./
+#22 CACHED
+
+#23 [native  6/11] COPY install/build-native.sh /product/install/build-native.sh
+#23 CACHED
+
+#24 [native  9/11] RUN bash /product/install/build-native.sh /engine /opt/flashinfer /product /opt/atlas/native
+#24 CACHED
+
+#25 [builder  1/13] RUN apt-get update -qq && apt-get install -y -qq --allow-change-held-packages     curl pkg-config cmake libclang-dev libibverbs-dev librdmacm-dev     libnccl2=2.31.2-1+cuda13.3 libnccl-dev=2.31.2-1+cuda13.3 && rm -rf /var/lib/apt/lists/*
+#25 CACHED
+
+#26 [builder  8/13] COPY engine/vendor/ vendor/
+#26 CACHED
+
+#27 [native 11/11] RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS     -shared -Xcompiler=-fPIC wrapper.cu -o libatlas_mtp_quantize.so &&     PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -v
+#27 CACHED
+
+#28 [native  2/11] RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends     git ca-certificates build-essential python3 && rm -rf /var/lib/apt/lists/*
+#28 CACHED
+
+#29 [native 10/11] WORKDIR /product/install/converter
+#29 CACHED
+
+#30 [builder 13/13] RUN python3 /product/install/rust-notices.py /build /build/dist/notices-rust
+#30 CACHED
+
+#31 [runtime  2/16] RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow-change-held-packages     python3 ca-certificates ffmpeg libnccl2=2.31.2-1+cuda13.3 libibverbs1 librdmacm1     ibverbs-providers libnl-3-200 libnl-route-3-200 && rm -rf /var/lib/apt/lists/*
+#31 CACHED
+
+#27 [native 11/11] RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS     -shared -Xcompiler=-fPIC wrapper.cu -o libatlas_mtp_quantize.so &&     PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s . -v
+#27 CACHED
+
+#32 [runtime  3/16] COPY --from=builder /build/dist/spark /usr/local/bin/spark
+#32 DONE 0.1s
+
+#33 [runtime  4/16] COPY --from=builder /build/jinja-templates/ /jinja-templates/
+#33 DONE 0.1s
+
+#34 [runtime  5/16] COPY --from=native /opt/atlas/native/*.so /opt/atlas/native/
+#34 DONE 0.1s
+
+#35 [runtime  6/16] COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
+#35 DONE 0.1s
+
+#36 [runtime  7/16] COPY --from=native /opt/atlas/native/notices/ /opt/atlas/notices/
+#36 DONE 0.1s
+
+#37 [runtime  8/16] COPY --from=builder /opt/cutlass/LICENSE.txt /opt/atlas/notices/CUTLASS-LICENSE.txt
+#37 DONE 0.1s
+
+#38 [runtime  9/16] COPY --from=builder /build/dist/notices-rust/ /opt/atlas/notices/rust/
+#38 DONE 0.2s
+
+#39 [runtime 10/16] COPY --from=native /tmp/FlashKDA-atlas/cutlass/LICENSE.txt /opt/atlas/notices/FlashKDA-CUTLASS-LICENSE.txt
+#39 DONE 0.1s
+
+#40 [runtime 11/16] COPY --from=native /product/install/converter/ /opt/atlas/converter/
+#40 DONE 0.1s
+
+#41 [runtime 12/16] COPY install/serve.py /opt/atlas/
+#41 DONE 0.1s
+
+#42 [runtime 13/16] COPY install/profiles/ /opt/atlas/profiles/
+#42 DONE 0.1s
+
+#43 [runtime 14/16] COPY install/atlas-source.json /opt/atlas/source-manifest.json
+#43 DONE 0.1s
+
+#44 [runtime 15/16] COPY engine/LICENSE /LICENSE
+#44 DONE 0.1s
+
+#45 [runtime 16/16] RUN test -n "c8ced64316bf0b9b2b116d6a0bcdfca52064545b"
+#45 DONE 0.2s
+
+#46 exporting to image
+#46 exporting layers
+#46 exporting layers 0.4s done
+#46 writing image sha256:29beb60fb7d29b0623db0e73ffd7066bcda4a0d27b405ecda642274abfe57057 done
+#46 naming to ghcr.io/enntity/atlas-sparkglm:c8ced64316bf done
+#46 DONE 0.5s
+ghcr.io/enntity/atlas-sparkglm:c8ced64316bf

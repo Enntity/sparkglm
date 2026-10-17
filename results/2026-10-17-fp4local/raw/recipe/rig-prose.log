@@ -1,0 +1,81 @@
+decode/code: 2 runs
+  1: 68.5 tok/s, TTFT 0.783s, 1891 tokens
+  2: 66.8 tok/s, TTFT 0.791s, 1909 tokens
+decode/prose: 2 runs
+  1: 37.5 tok/s, TTFT 0.701s, 951 tokens
+  2: 36.6 tok/s, TTFT 0.702s, 1006 tokens
+decode/structured: 2 runs
+  1: 90.8 tok/s, TTFT 0.703s, 441 tokens
+  2: 91.2 tok/s, TTFT 0.698s, 441 tokens
+concurrency/1: 2 rounds of prose
+  1: aggregate 35.5 tok/s, median stream 39.1 tok/s
+  2: aggregate 33.7 tok/s, median stream 37.1 tok/s
+concurrency/2: 2 rounds of prose
+  1: aggregate 46.6 tok/s, median stream 26.5 tok/s
+  2: aggregate 46.3 tok/s, median stream 25.9 tok/s
+concurrency/3: 2 rounds of prose
+  1: aggregate 55.3 tok/s, median stream 20.6 tok/s
+  2: aggregate 54.8 tok/s, median stream 20.8 tok/s
+concurrency/4: 2 rounds of prose
+  1: aggregate 58.2 tok/s, median stream 16.3 tok/s
+  2: aggregate 58.8 tok/s, median stream 16.8 tok/s
+concurrency/5: 2 rounds of prose
+  1: aggregate 60.8 tok/s, median stream 14.1 tok/s
+  2: aggregate 60.9 tok/s, median stream 13.7 tok/s
+concurrency/6: 2 rounds of prose
+  1: aggregate 64.4 tok/s, median stream 12.1 tok/s
+  2: aggregate 63.9 tok/s, median stream 12.3 tok/s
+concurrency/8: 2 rounds of prose
+  1: aggregate 72.1 tok/s, median stream 10.3 tok/s
+  2: aggregate 72.1 tok/s, median stream 10.5 tok/s
+staggered/2: 2 rounds, 1 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.075s (1.02x solo), incumbent stall 2.955s (whole-stream p95 gap 0.067s)
+  1: prefill-first short TTFT median 2.639s (3.73x solo), long TTFT 12.711s (1.07x solo)
+  2: decode-first newcomer TTFT 12.145s (1.02x solo), incumbent stall 2.953s (whole-stream p95 gap 0.065s)
+  2: prefill-first short TTFT median 2.632s (3.75x solo), long TTFT 12.723s (1.07x solo)
+staggered/4: 2 rounds, 3 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.257s (1.03x solo), incumbent stall 2.988s (whole-stream p95 gap 0.126s)
+  1: prefill-first short TTFT median 3.370s (4.81x solo), long TTFT 14.128s (1.19x solo)
+  2: decode-first newcomer TTFT 12.200s (1.03x solo), incumbent stall 3.017s (whole-stream p95 gap 0.124s)
+  2: prefill-first short TTFT median 3.358s (4.57x solo), long TTFT 14.128s (1.19x solo)
+staggered/6: 2 rounds, 5 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.377s (1.04x solo), incumbent stall 3.045s (whole-stream p95 gap 0.183s)
+  1: prefill-first short TTFT median 4.071s (5.77x solo), long TTFT 15.696s (1.32x solo)
+  2: decode-first newcomer TTFT 12.381s (1.04x solo), incumbent stall 3.081s (whole-stream p95 gap 0.180s)
+  2: prefill-first short TTFT median 4.081s (5.82x solo), long TTFT 15.596s (1.32x solo)
+staggered/8: 2 rounds, 7 incumbents + 1 arrival, 32,768-token long request
+  1: decode-first newcomer TTFT 12.608s (1.06x solo), incumbent stall 3.176s (whole-stream p95 gap 0.201s)
+  1: prefill-first short TTFT median 4.732s (6.86x solo), long TTFT 17.009s (1.43x solo)
+  2: decode-first newcomer TTFT 15.401s (1.30x solo), incumbent stall 3.925s (whole-stream p95 gap 0.203s)
+  2: prefill-first short TTFT median 4.764s (6.72x solo), long TTFT 17.095s (1.44x solo)
+result: ~/rel17/out/rig-prose.json
+card: ~/rel17/out/rig-prose.card.txt
+
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  6/6 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      glm-5.3-flash-atlas                                                          │
+│  APPLIANCE  2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:40fabcaf6e96  •  dirty  •  worktree:7c17a097cc0d                         │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              67.7 tok/s      28.9s last     66.8–68.5     ✓ 2/2                    │
+│  PROSE             37.1 tok/s      27.1s last     36.6–37.5     ✓ 2/2                    │
+│  STRUCTURED*       91.0 tok/s       5.5s last     90.8–91.2     ✓ 2/2                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ CAPPED CONCURRENT GENERATION ───────────────────────────────────────────────────────────┤
+│  SHORT PROSE • END-TO-END • 256-TOKEN CAP PER AGENT                                      │
+│  AGGREGATE   C1 34.6  •  C2 46.4  •  C3 55.0  •  C4 58.5  •  C5 60.9  •  C6 64.1  •  C8 …│
+│  C8 OUTPUT STATE   normal stop 0/16  •  visible 16/16  •  reasoning may be included      │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  S8 • 7 RUNNING + 1 ARRIVING • 32,768-TOKEN LONG REQUEST • 1024/256-TOKEN CAPS           │
+│  DECODE-FIRST   long TTFT 14.00s (1.18x solo)  •  incumbent stall 3.55s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 4.75s (6.79x solo)  •  long TTFT 1.44x solo  •  2/2 valid     │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:d996548e5c7d4a1f…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
