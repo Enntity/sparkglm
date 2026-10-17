@@ -5,7 +5,7 @@ Run one workload at a time, with nothing else using the pair. They need only
 Python 3; the comparison videos also need Pillow and ffmpeg.
 
 The current release's numbers and raw receipts are in
-[`results/2026-10-09-rc2/`](../results/2026-10-09-rc2/RESULT.md); earlier
+[`results/2026-10-17-fp4local/`](../results/2026-10-17-fp4local/RESULT.md); earlier
 releases' are in the other folders under [`results/`](../results/).
 
 ## Default profile (4 × 1M)
@@ -29,6 +29,31 @@ Set `PROFILE=8x128k` in `.env` and rerun `./start.sh`. We measured the
 8-stream aggregate and RigMark on this profile. Run
 [RigMark](https://github.com/othexmr/rigmark) with the cell set in
 [`bench/RIGMARK.md`](../bench/RIGMARK.md).
+
+## FP4-Local release (2026-10-17)
+
+ToolEvalBench ([tool-eval-bench](https://github.com/SeraphimSerapis/tool-eval-bench)
+at `471c252`, default profile):
+
+```sh
+tool-eval-bench run --base-url http://127.0.0.1:8893 --model glm-5.3-flash-atlas \
+  --seed 42 --trials 3 --parallel 4
+```
+
+Kindling's decode benchmark and cold prefill, from a checkout of
+[kindlingai/glm-5.3-flash-gx10](https://github.com/kindlingai/glm-5.3-flash-gx10)
+(its published figures we compare against are at `0d1f4620`; its code is not included here). `bench.py` ran on
+`PROFILE=8x128k`, `prefill.py` on `4x512k`:
+
+```sh
+GATE_URL=http://127.0.0.1:8893 GATE_MODEL=glm-5.3-flash-atlas \
+  python3 gate/bench/bench.py run --label mine --out kb-mine.json
+python3 gate/prefill.py --base http://127.0.0.1:8893/v1 --model glm-5.3-flash-atlas \
+  --sizes 32k,128k --skip-thinking --out-tokens 32 --seed 11
+```
+
+The harness that ran every arm is in
+[`results/2026-10-17-fp4local/raw/harness/`](../results/2026-10-17-fp4local/raw/harness/).
 
 ## Comparison video
 

@@ -35,6 +35,17 @@ Some receipts under results/ were measured with scripts that followed the
 benchmark method of mmastrac/glm-5.3-flash-4x-gx10 (dev/repro); that
 repository has no license, and the text quoted from it has been removed.
 
-Model weights are not distributed in this repository. They remain under their
-publishers' licenses; the DFlash2 drafter is CC BY-NC-ND 4.0 (non-commercial).
-See docs/LICENSING.md.
+The engine's csf_32x2_v1 scale decoder follows the format documented in the
+Local Inference Lab FlashInfer fork (Apache-2.0); its other NVFP4-CSF decoder
+and its MXFP8 activation quantization follow the formats published in vLLM
+(Apache-2.0), FlashInfer's b12x (Apache-2.0) and NVIDIA Model Optimizer
+(Apache-2.0). See the engine's source for the attributions.
+
+results/2026-10-17-fp4local/ holds output of kindlingai/glm-5.3-flash-gx10's
+prefill.py and gate/bench/bench.py. That repository has no license; none of
+its code is included.
+
+Model weights are not distributed in this repository. The checkpoints
+nvidia/GLM-5.3-Flash-FP4-Local (the default, NVIDIA Open Model Agreement) and
+nvidia/GLM-5.3-Flash-NVFP4 (MIT) remain under their publisher's licenses; the
+DFlash2 drafter is CC BY-NC-ND 4.0 (non-commercial). See docs/LICENSING.md.

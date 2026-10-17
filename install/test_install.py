@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -62,6 +63,27 @@ class LaunchContract(unittest.TestCase):
         self.assertFalse(any('${' in a for a in argv))
         with self.assertRaises(ValueError):
             serve.launch(dict(self.environment, DRAFTER_PATH='drafter'), self.profile)
+
+    def test_mtp_layer_comes_quantized_or_through_the_overlay(self):
+        # FP4-Local ships its MTP experts (layer 45) as W4A16 NVFP4 and is served
+        # as published; the NVFP4 release's BF16 ones need convert.sh's receipt.
+        experts = 'model.language_model.layers.{}.mlp.experts'
+        fp4l = {'text_config': {'num_hidden_layers': 45},
+                'quantization_config': {'quant_method': 'modelopt', 'quantized_layers': {
+                    experts.format(44): {'quant_algo': 'NVFP4', 'weight_scale_encoding': 'csf_32x2_v1'},
+                    experts.format(45): {'quant_algo': 'W4A16_NVFP4', 'group_size': 16}}}}
+        no_mtp = {'text_config': {'num_hidden_layers': 45},
+                  'quantization_config': {'quantized_layers': {experts.format(44): {'quant_algo': 'NVFP4'}}}}
+        nvfp4 = {'text_config': {'num_hidden_layers': 45},
+                 'quantization_config': {'quant_method': 'compressed-tensors', 'config_groups': {}}}
+        for config, receipt, ready in ((fp4l, None, True), (no_mtp, None, False), (nvfp4, None, False),
+                                       ({}, None, False), (nvfp4, 864, True), (nvfp4, 863, False)):
+            with tempfile.TemporaryDirectory() as tmp, self.subTest(config=config, receipt=receipt):
+                model = Path(tmp)
+                (model/'config.json').write_text(json.dumps(config))
+                if receipt is not None:
+                    (model/'conversion.complete.json').write_text(json.dumps({'converted_matrices': receipt}))
+                self.assertIs(serve.mtp_ready(model), ready)
 
     def test_profile_carries_no_diagnostics(self):
         argv, env = serve.launch(self.environment, self.profile)
@@ -183,7 +205,10 @@ class LaunchContract(unittest.TestCase):
                  'ATLAS_GLM_MOE_DECODE_STREAM', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_DECODE_FUSE',
                  'ATLAS_GLM_DECODE_GEMV_BATCH', 'ATLAS_GLM_MOE_DECODE_L2PF', 'ATLAS_GLM_MOE_STREAM_NOSYNC',
                  'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_RDMA_ONESHOT', 'ATLAS_RDMA_PAIR_CHAIN',
-                 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_DFLASH_CTX_ASYNC_POS', 'ATLAS_GLM_STRICT_SPEC')
+                 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_DFLASH_CTX_ASYNC_POS', 'ATLAS_GLM_STRICT_SPEC',
+                 # 2026-10-17: same prompt logprobs and greedy text with each on.
+                 'ATLAS_GLM_KDA_SIDE_PROJ_LT', 'ATLAS_GLM_KDA_CONV_PLANES', 'ATLAS_GLM_HC_PREFILL_FUSE2',
+                 'ATLAS_GLM_SP_GATHER_OVERLAP')
         # Lossless but not bit-for-bit against the option off: the prefill queue
         # order, a verify width taken from the drafter's confidence (verify
         # numerics already depend on the width), and copy (prompt-lookup) drafts,
@@ -197,7 +222,11 @@ class LaunchContract(unittest.TestCase):
                      'ATLAS_GLM_PC_FINISH_LEAF', 'ATLAS_GLM_VERIFY_GRAPH', 'ATLAS_GLM_STEP_FUSE',
                      'ATLAS_GLM_LAYER_FORK', 'ATLAS_GLM_L2_AHEAD',
                      'ATLAS_KV_NVME_DIR', 'ATLAS_GLM_KDA_PREFILL_LT_FP8_SPLITK1',
-                     'ATLAS_GLM_TAIL_CUT_DEEP', 'ATLAS_GLM_ZERO_ROWS')
+                     'ATLAS_GLM_TAIL_CUT_DEEP', 'ATLAS_GLM_ZERO_ROWS',
+                     # Opt-in (docs/ENGINE.md): checkpoint-format serving is slower,
+                     # packed prefill is not yet exact, the rest are untuned or diagnostics.
+                     'ATLAS_GLM_FP4L_NATIVE', 'ATLAS_GLM_PACKED_PREFILL', 'ATLAS_DFLASH_WARM_CTX',
+                     'ATLAS_TAIL_SPLIT_MIN_TOKENS', 'ATLAS_PREFILL_BURST', 'ATLAS_TTFT_TRACE')
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)
@@ -269,38 +298,75 @@ class LaunchContract(unittest.TestCase):
             with self.subTest(gb=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB=bad), self.profile)
 
+    @staticmethod
+    def fake_node(root):
+        """Model root, RDMA sysfs and recording docker/stat/df for start-node.sh."""
+        models, bin_dir = root/'models', root/'bin'
+        for path in ('nvidia--GLM-5.3-Flash-FP4-Local/config.json', 'incoai--GLM-5.3-Flash-DFlash2/config.json'):
+            (models/path).parent.mkdir(parents=True)
+            (models/path).touch()
+        bin_dir.mkdir()
+        sysfs = root/'sysfs'
+        (sysfs/'rocep1s0f0/device/net/enp1s0f0np0').mkdir(parents=True)
+        (sysfs/'rocep1s0f0/ports/1').mkdir(parents=True)
+        (sysfs/'rocep1s0f0/ports/1/state').write_text('4: ACTIVE')
+        # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
+        for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
+                           ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
+                           ('df', 'echo "Filesystem 1024-blocks Used Available Capacity Mounted"\n'
+                                  'echo "disk 0 0 ${FREE_KB:-104857600} 0 /"')):
+            (bin_dir/name).write_text(f'#!/bin/sh\n{body}\n')
+            (bin_dir/name).chmod(0o755)
+
+        def start(rank, *extra, **fake):
+            (root/'docker.log').unlink(missing_ok=True)
+            run = subprocess.run(
+                ['bash', str(HERE/'start-node.sh'), '--rank', rank, '--leader-address', '192.0.2.1',
+                 '--model-root', str(models), '--image', 'img', '--fabric-interface', 'enp1s0f0np0',
+                 '--cuda-cache', str(root/'cuda'), *extra],
+                capture_output=True, text=True,
+                env=dict(os.environ, PATH=f'{bin_dir}:{os.environ["PATH"]}', FABRIC_SYSFS=str(sysfs), **fake))
+            log = (root/'docker.log').read_text() if (root/'docker.log').exists() else ''
+            return run, [line for line in log.splitlines() if line.startswith('run ')]
+        return models, start
+
+    def test_start_node_serves_the_pinned_checkpoint_as_published(self):
+        pin = re.search(r'^CHECKPOINT=([^@\s]+)@', (HERE.parent/'start.sh').read_text(), re.M).group(1)
+        self.assertIn(f'checkpoint_name={pin.replace("/", "--")}\n', (HERE/'start-node.sh').read_text())
+        with tempfile.TemporaryDirectory() as root:
+            models, start = self.fake_node(Path(root))
+            fp4l = (models/'nvidia--GLM-5.3-Flash-FP4-Local').resolve()
+            run, docker_run = start('0')
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn(f'--mount type=bind,src={fp4l},dst={fp4l},readonly ', docker_run[0])
+            self.assertIn(f'-e MODEL_PATH={fp4l} ', docker_run[0])
+            self.assertNotIn('atlas-overlay', docker_run[0])
+            # The NVFP4 release is served through its verified MTP overlay.
+            nvfp4 = models/'nvidia--GLM-5.3-Flash-NVFP4'
+            nvfp4.mkdir()
+            (nvfp4/'config.json').touch()
+            run, docker_run = start('1', '--checkpoint', nvfp4.name)
+            self.assertNotEqual(run.returncode, 0)
+            self.assertIn('sparkglm-verified.json', run.stderr)
+            self.assertEqual(docker_run, [])
+            (models/'atlas-overlay').mkdir()
+            (models/'atlas-overlay/sparkglm-verified.json').touch()
+            run, docker_run = start('1', '--checkpoint', nvfp4.name)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            overlay = (models/'atlas-overlay').resolve()
+            self.assertIn(f'--mount type=bind,src={nvfp4.resolve()},dst={nvfp4.resolve()},readonly ', docker_run[0])
+            self.assertIn(f'--mount type=bind,src={overlay},dst={overlay},readonly ', docker_run[0])
+            self.assertIn(f'-e MODEL_PATH={overlay} ', docker_run[0])
+            for bad in ('../models', 'a/b', '', '.hidden', 'missing'):
+                run, docker_run = start('0', '--checkpoint', bad)
+                with self.subTest(checkpoint=bad):
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(docker_run, [])
+
     def test_start_node_mounts_the_disk_prefix_cache(self):
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
-            models, bin_dir = root/'models', root/'bin'
-            for path in ('nvidia--GLM-5.3-Flash-NVFP4/config.json', 'incoai--GLM-5.3-Flash-DFlash2/config.json',
-                         'atlas-overlay/sparkglm-verified.json'):
-                (models/path).parent.mkdir(parents=True)
-                (models/path).touch()
-            bin_dir.mkdir()
-            sysfs = root/'sysfs'
-            (sysfs/'rocep1s0f0/device/net/enp1s0f0np0').mkdir(parents=True)
-            (sysfs/'rocep1s0f0/ports/1').mkdir(parents=True)
-            (sysfs/'rocep1s0f0/ports/1/state').write_text('4: ACTIVE')
-            # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
-            for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
-                               ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
-                               ('df', 'echo "Filesystem 1024-blocks Used Available Capacity Mounted"\n'
-                                      'echo "disk 0 0 ${FREE_KB:-104857600} 0 /"')):
-                (bin_dir/name).write_text(f'#!/bin/sh\n{body}\n')
-                (bin_dir/name).chmod(0o755)
-
-            def start(rank, *extra, **fake):
-                (root/'docker.log').unlink(missing_ok=True)
-                run = subprocess.run(
-                    ['bash', str(HERE/'start-node.sh'), '--rank', rank, '--leader-address', '192.0.2.1',
-                     '--model-root', str(models), '--image', 'img', '--fabric-interface', 'enp1s0f0np0',
-                     '--cuda-cache', str(root/'cuda'), *extra],
-                    capture_output=True, text=True,
-                    env=dict(os.environ, PATH=f'{bin_dir}:{os.environ["PATH"]}', FABRIC_SYSFS=str(sysfs), **fake))
-                log = (root/'docker.log').read_text() if (root/'docker.log').exists() else ''
-                return run, [line for line in log.splitlines() if line.startswith('run ')]
-
+            models, start = self.fake_node(root)
             run, docker_run = start('0')
             self.assertEqual(run.returncode, 0, run.stderr)
             self.assertNotIn('prefix-cache', docker_run[0].lower())

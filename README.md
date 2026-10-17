@@ -6,7 +6,7 @@
 
 GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
 [Atlas](https://github.com/Enntity/atlas) inference engine: tensor and expert
-parallelism across both boxes over one ConnectX-7 cable, NVIDIA's NVFP4
+parallelism across both boxes over one ConnectX-7 cable, NVIDIA's FP4-Local
 checkpoint, DFlash2 speculative decoding, prefix caching, up to four
 concurrent requests with a per-request limit of the model's full 1M context, and an
 OpenAI-compatible API. Decoding is concurrency-invariant: a request's greedy
@@ -26,9 +26,13 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 ## What it does
 
-Measured on two DGX Sparks joined by one 200G cable, with images built from
-a fresh clone. Receipts and caveats:
-[this release: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
+Measured on two DGX Sparks joined by one 200G cable. Rows marked † are this
+release, FP4-Local: RigMark and ToolEvalBench on the release image
+`c8ced64316bf`, the other † rows on dev binaries of the same engine. The
+unmarked rows ran images built from a fresh clone with the NVFP4 checkpoint. Receipts and caveats:
+[this release: FP4-Local, ToolEvalBench, kindling's benchmarks](results/2026-10-17-fp4local/RESULT.md),
+[the shared engine](results/2026-10-15-shared-engine/RESULT.md),
+[RC4: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
 [RC2: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
 [the display carveout's KV placement](results/2026-10-05-carveout-placement/RESULT.md),
 [a faster verify step and cheaper warm turns](results/2026-09-30-decode-step/RESULT.md),
@@ -44,28 +48,37 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Workload | SparkGLM (Atlas) | Reference, same pair |
 |---|---|---|
 | Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.67 s** | 17.6 s with caching off |
-| Four concurrent ~204K-token sessions, cached follow-up turns | 12/12 exact answers | |
-| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) | **2.36M tokens**, up to 1M per request | 1.38M, up to 512K, on 2026-10-05 |
-| Same greedy output at 1 and 4 concurrent requests | **4/4 prompts** | 0/4 on 2026-10-09 morning |
-| Replaying a 35K-token prompt | **0.80 s** (14.4 s cold) | |
+| Four concurrent ~204K-token sessions, cached follow-up turns † | 12/12 numbers retrieved (two cut to 3 digits by the probe's token cap) | |
+| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.66M tokens** (2.90M on the release image's start), up to 1M per request | 2.34M with the NVFP4 checkpoint, same engine |
+| Same greedy output at 1 and 4 concurrent requests † | **8/8 prompts** | 0/4 on 2026-10-09 morning |
+| Replaying a 35K-token prompt † | **0.38 s** (13.4 s cold) | |
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
 | Idle session resuming after another session's 17 turns (median) | **2.5 s** | 49.6 s with the cache policy off |
-| Cold 61K / 125K prompt: time to first token | **25.0 / 49.1 s** | 29.2 / 62.5 s two engines ago |
+| Cold prefill, 32K / 128K random words (kindling's `prefill.py`) † | **2,645 / 2,733 tok/s** (2,886 / 3,002 with 16K chunks) | [kindling](https://github.com/kindlingai/glm-5.3-flash-gx10) vLLM TP=2 (published) 2,931 / 2,871 |
 | Matrix: C1/C2 at 16K and 32K, C4 at 16K, 400 tokens each, cold (sum of walls) | **132.1 s** | vLLM SparkGLM 206.6 s · Mia TensorFold v1.10 166.9 s |
 | Staggered C4: four ~16K requests arriving 1 s apart, cold (median of 5) | **49.5 s** | vLLM SparkGLM 70.5 s · Mia TensorFold v1.10 60.2 s · Mia EXL3 113.2 s |
 | Staggered C4: four ~32K requests arriving 1 s apart, cold (median of 3) | **76.3 s** | Mia TensorFold v1.10 100.1 s |
-| Single-stream decode, 12 prose / 12 code prompts × 256 tokens | **45.6 / 64.9 tok/s** | 42.8 / 61.4 with RC2 (2026-10-09), same output bits ([release notes](results/2026-10-12-rc4/RESULT.md)) |
-| RigMark decode, code / prose / structured (thinking on, low effort) | **72.3 / 38.3 / 91.7 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 |
-| RigMark cold prefill 8K / 32K / 64K: time to first token | **3.29 / 12.47 / 23.91 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s |
-| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 | **2.80 / 3.54 s** | RiNGSiDE 4.70 / 5.15 s |
-| RigMark short code, 1 / 4 streams, aggregate | **47.0 / 70.9 tok/s** | RiNGSiDE 44.0 at 1 stream; 97.3 at 6 streams (our 4 × 1M profile serves 4 at a time) |
+| Single-stream decode, kindling's `bench.py`, code / prose / structured / counting (thinking off, 16 prompts each) † | **72.8 / 44.4 / 99.5 / 112.2 tok/s** | kindling vLLM TP=2 (published) 66.2 / 42.6 / 94.7 / 97.2 |
+| Mixed streams, kindling's `bench.py`, 4 / 8 at once, aggregate † | **82.6 / 100.6 tok/s** | kindling TP=2 (published) 82.6 / 109.6; 89 / 116 remeasured |
+| RigMark decode, code / prose / structured (thinking on, low effort) † | **67.9 / 37.0 / 90.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 · NVFP4 checkpoint (RC4) 72.3 / 38.3 / 91.7 |
+| RigMark cold prefill 8K / 32K / 64K: time to first token † | **3.21 / 11.89 / 22.67 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s · RC4 3.29 / 12.47 / 23.91 s |
+| RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 † | **2.64 / 3.36 s** | RiNGSiDE 4.70 / 5.15 s · RC4 2.80 / 3.54 s |
+| RigMark short code, 1 / 4 / 6 streams, aggregate † | **47.8 / 72.2 / 81.4 tok/s** | RiNGSiDE 44.0 at 1 stream, 97.3 at 6 · RC4 47.0 / 70.9 at 1 / 4 |
 | Returning to a ~209K-token conversation evicted to disk (prefix cache on disk, 48 GB) | **1.2–1.5 s** | about 82 s without it |
 | Strict JSON (`response_format` json_schema), ~2,000-token structured answer | **30–50 s**, schema-valid | 135–155 s with masked serial decode |
 | Strict JSON object with 96 required keys, temperature 0 | **39 s**, 59 tok/s, valid | engine killed (out of memory) two releases ago |
-| Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12; 491/500 · 24/24 on the 500-item set | every engine configuration we ran scored 484–495/500 |
+| ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
+| Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
 These are measurements on our pair, not a guarantee for yours. Rows not re-run
-for this release keep the receipts linked above. Known gaps and open questions
+for this release keep the receipts linked above. Against RC4 on the NVFP4
+checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
+the QAD weights change how often the drafter's proposals are accepted, so
+decode speed is not an engine-only comparison
+([details](results/2026-10-17-fp4local/RESULT.md#speed)). Kindling's figures are for
+their vLLM recipe with the NVFP4 checkpoint; ours ran their benchmark scripts
+against FP4-Local ([details](results/2026-10-17-fp4local/RESULT.md#speed)). Our
+profiles prefill in 8K chunks: 16K chunks are faster but halve the KV pool. Known gaps and open questions
 are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Requirements
@@ -75,9 +88,10 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
   finds the GID itself and uses both PCIe halves of the port).
 - Docker with the NVIDIA runtime on both, and passwordless `ssh` from the
   Spark you run `./start.sh` on to the other one, whose user can run `docker`.
-- About 230 GB free on each Spark: the checkpoint takes 204 GB, the drafter
-  2 GB and the converted overlay 16 GB. The 207 GB download is made once and
-  copied to the other Spark over the cable (about a minute).
+- About 190 GB free on each Spark: the checkpoint takes 177.5 GB (165.3 GiB)
+  and the drafter 2 GB. The download is made once and copied to the other
+  Spark over the cable. Nothing is converted. (The earlier NVFP4 checkpoint,
+  which `.env` can still select, takes 204 GB plus a 16 GB overlay.)
 - Nothing else using the GPUs' memory. GB10 memory is shared with the host,
   and the engine uses most of it.
 
@@ -93,13 +107,15 @@ already done, so rerunning it just restarts the engine.
    commit pinned in [`install/atlas-source.json`](install/atlas-source.json),
    FlashKDA and FlashInfer's sparse-MLA prefill; 30–60 minutes cold). It then
    pulls or copies the image to the other Spark.
-2. **Weights.** Downloads [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4)
+2. **Weights.** Downloads [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local)
    and the [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2)
    drafter at pinned revisions, and copies them to the other Spark. It uses
    `hf` when installed and a throwaway container otherwise.
-3. **Overlay.** On each Spark, converts the 864 MTP matrices Atlas needs to
-   NVFP4 in an overlay that links back to the original checkpoint, then
-   verifies every payload (about a minute; [`install/convert.sh`](install/convert.sh)).
+3. **Overlay, NVFP4 checkpoint only.** FP4-Local is served as published. If
+   `.env` selects the NVFP4 checkpoint ([below](#the-checkpoint)), this step
+   converts the 864 BF16 MTP matrices Atlas needs to NVFP4 in an overlay on
+   each Spark and verifies every payload (about a minute;
+   [`install/convert.sh`](install/convert.sh)).
 4. **Serve.** Starts rank 1 over ssh, then rank 0, and waits for health
    (about 2.5 minutes), then answers one smoke-test question.
 
@@ -135,7 +151,7 @@ action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
   short work.
 
 The context limit applies to each request; it does not reserve that much KV
-for every concurrent slot. At the measured 2.36M-token pool size, four full
+for every concurrent slot. At the measured 2.66M-token pool size, four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
@@ -143,12 +159,40 @@ The KV cache is split between the two Sparks (`KV_SHARD`, on by default): each
 stores the latents of half the blocks, so the pool holds about 1.8x the tokens,
 and the output is bit-identical to the unsplit pool's. On Sparks that run
 nothing else, at `GPU_MEMORY_UTILIZATION=0.91` with the display carveout and
-the disk prefix cache (both below), the pool is about 2.36M tokens. Four
-concurrent 204K-token sessions left rank 0 at 4.8 GB free at worst. Above
+the disk prefix cache (both below), the pool is about 2.66M tokens with
+FP4-Local (2.5–2.7M across starts). Four concurrent 204K-token sessions left
+rank 0 at 3.3 GB free at worst. Above
 0.91, real traffic took our rank 0 below 1 GiB free
 ([docs/LIMITATIONS.md](docs/LIMITATIONS.md)). Requests that don't fit wait for
 room. Prefix caching keeps the 16 most recent conversations' recurrent state
 warm.
+
+## The checkpoint
+
+[`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local)
+@ `76348ddb` is NVIDIA's quantization-aware distilled release: routed experts
+in NVFP4 with losslessly compressed block scales, the KDA projections, dense
+MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
+128x128 block scales, and the MTP layer and vision tower already quantized. It
+is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
+about 13%, and it needs no overlay.
+
+The engine serves those projections through the same kernels and formats it
+used for the NVFP4 checkpoint, from exact or nearest BF16 copies of the
+checkpoint's bytes. `ATLAS_GLM_FP4L_NATIVE=1` serves every group in the
+checkpoint's own format instead: 10–16% slower decode, the same ToolEvalBench
+score ([docs/ENGINE.md](docs/ENGINE.md)). ToolEvalBench scores 91.0 on our
+pair; NVIDIA's card gives 92.4 for FP4-Local and 91.9 for BF16 on an earlier
+version of the suite ([receipts](results/2026-10-17-fp4local/RESULT.md#toolevalbench)).
+
+The NVFP4 checkpoint still runs on the same image, with production's prompt
+logprobs bit for bit. To use it, add both lines to `.env` and rerun
+`./start.sh`; it downloads the checkpoint and converts its overlay:
+
+```sh
+CHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4
+CHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93
+```
 
 ## Prefix cache on disk (optional)
 
@@ -256,8 +300,9 @@ comparison videos.
 ## The engine
 
 Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) release tag
-`sparkglm/atlas-20261015-vision` at `16315004` (tree `e356f199`, pinned in
-[`install/atlas-source.json`](install/atlas-source.json)). The fork keeps one
+`sparkglm/atlas-20261017-fp4local` at `b3b016ab` (tree `14316380`, pinned in
+[`install/atlas-source.json`](install/atlas-source.json)); what it adds and its
+opt-in switches are in [docs/ENGINE.md](docs/ENGINE.md). The fork keeps one
 branch per layer: `spark-shared`, which SparkQwen builds on too, and `sparkglm`
 on top of it ([branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md)).
 The engine is built from three layers:
@@ -279,8 +324,12 @@ The engine is built from three layers:
    layout fails only its request, MRoPE positions come from the whole
    prompt, and vision markup typed in message text encodes as text.
 3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
-   which rely on libraries built outside the Atlas tree, and the GB10
-   display carveout (including where the split KV pools are placed in it).
+   which rely on libraries built outside the Atlas tree, the GB10 display
+   carveout (including where the split KV pools are placed in it), and the
+   FP4-Local series: the compressed-scale decoder and loader, four exact
+   prefill options the profiles turn on, the tools + `response_format` union
+   grammar and the opt-in checkpoint-format path. Its model-independent
+   commits (`shared:`) are candidates for the shared layer.
 
 The profiles set `ATLAS_MOE_INPLACE_TRANSPOSE=0`: the shared engine's default
 in-place MoE transpose keeps every expert's allocation, which on GB10 costs
@@ -336,7 +385,10 @@ code is ours unless [docs/LICENSING.md](docs/LICENSING.md) says otherwise.
 Measurement: [RigMark](https://github.com/alexellis/rigmark) by Alex Ellis
 (run from othexmr's fork with the staggered-arrival suite), the published
 [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE)
-figures, [mmastrac](https://github.com/mmastrac/glm-5.3-flash-4x-gx10)'s
+figures, [kindlingai/glm-5.3-flash-gx10](https://github.com/kindlingai/glm-5.3-flash-gx10)'s
+`bench.py` and `prefill.py` and its published figures,
+[tool-eval-bench](https://github.com/SeraphimSerapis/tool-eval-bench) by
+SeraphimSerapis, [mmastrac](https://github.com/mmastrac/glm-5.3-flash-4x-gx10)'s
 published figures and benchmark method (for earlier receipts), and MiaAI-Lab's
 decode prompts.
 
@@ -344,5 +396,6 @@ decode prompts.
 
 AGPL-3.0-only ([LICENSE](LICENSE)); third-party components keep their own
 licenses ([NOTICE](NOTICE), [docs/LICENSING.md](docs/LICENSING.md)). The model
-weights are not distributed here. **The DFlash2 drafter is licensed CC BY-NC-ND
-4.0 (non-commercial).** Check both checkpoints' terms before downloading.
+weights are not distributed here. FP4-Local is under the NVIDIA Open Model
+Agreement. **The DFlash2 drafter is licensed CC BY-NC-ND 4.0
+(non-commercial).** Check both checkpoints' terms before downloading.

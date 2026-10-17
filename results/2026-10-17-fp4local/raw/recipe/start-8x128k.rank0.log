@@ -1,0 +1,650 @@
+{"event": "atlas-recipe-start", "rank": "0", "profile": "8x128k", "source": "https://github.com/Enntity/atlas.git@b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13"}
+2026-10-17T19:41:13.693108Z  INFO spark::display_carveout: display carveout: driver 580.173.02, 2042 of 2046 MiB of DISPLAY_FRM free (the display holds the rest)
+2026-10-17T19:41:13.693137Z  INFO spark::display_carveout: display carveout: 2042 MiB exported as fd 12, lock /run/lock/sparkglm/display-carveout.lock
+2026-10-17T19:41:13.745784Z  INFO spark::main_modules::serve: Atlas Spark starting...
+2026-10-17T19:41:13.745816Z  INFO spark::main_modules::serve: Licensed under AGPL-3.0-only — see /LICENSE in this container
+2026-10-17T19:41:13.746308Z  INFO spark::main_modules::serve_flags: kernel flags: ssm_h_dtype=f32 gdn_fused_norm=false ssm_batched_recurrent=false exact_verify=false ssm_tail_midchunk=true mtp_gate=force ssm_rollback_mode=Records prefill_varlen_batch=false
+2026-10-17T19:41:13.746421Z  INFO spark::model_resolver: Model path: ~/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local (local directory)
+2026-10-17T19:41:13.746426Z  INFO spark::main_modules::serve_load: Port: 8893
+2026-10-17T19:41:13.746428Z  INFO spark::main_modules::serve_load: SSM decode h-state dtype: f32 (full precision) (--ssm-h-dtype)
+2026-10-17T19:41:13.748126Z  INFO spark::main_modules::serve_load: Vision pixel budget: none declared — falling back to the 1280px long-side clamp
+2026-10-17T19:41:13.748136Z  WARN spark::main_modules::serve_load: Remote image fetching ENABLED (--vision-allow-remote-images): this server will issue outbound HTTP to URLs supplied in chat requests. Cap 20 MiB, timeout 10 s, private/loopback/link-local destinations refused.
+2026-10-17T19:41:13.863665Z  INFO spark::main_modules::serve_load: Video decoding ENABLED via ffmpeg (ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers); sampling at 2 fps, max 32 frames
+2026-10-17T19:41:13.863682Z  INFO spark::main_modules::serve_load: Quantization config: method="modelopt", algo="MIXED_PRECISION", format="", 0 module(s) in ignore list
+2026-10-17T19:41:13.863685Z  INFO spark::main_modules::serve_load: Model config: 45 layers, 11 attention, 34 SSM, 288 experts, rope_theta=10000000, head_dim=256, rotary_dim=0
+2026-10-17T19:41:13.863745Z  INFO spark::main_modules::serve_load: Selected kernel target: (sm_121, glm-5.3-flash, nvfp4) (237 modules) — quant compat: kernel=nvfp4 model=nvfp4 OK
+2026-10-17T19:41:13.863803Z  INFO spark::main_modules::serve_phases::config: DFlash γ=8 (source: cli)
+2026-10-17T19:41:13.863805Z  INFO spark::main_modules::serve_phases::config: num_drafts: using default 7 (K=8) — pass --num-drafts to override
+2026-10-17T19:41:13.863828Z  INFO spark::main_modules::serve_phases::topology: TP-local head counts: num_attention_heads=32, num_key_value_heads=32, linear_num_key_heads=32, linear_num_value_heads=32
+2026-10-17T19:41:13.863830Z  INFO spark::main_modules::serve_phases::topology: Parallelism: global rank 0/2 (tp_rank=0/2, ep_rank=0/2), local experts [0, 288), expert TP true
+2026-10-17T19:41:14.580793Z  INFO spark_runtime::cuda_backend: AtlasCudaBackend initialized on GPU 0 with 237 PTX modules
+2026-10-17T19:41:14.597643Z  INFO spark::main_modules::serve_phases::preflight::gpu_init: BF16 GEMM fallback installed (gemv<=8 / pipelined WMMA / scalar) for backends without cuBLASLt
+2026-10-17T19:41:14.597698Z  INFO spark::main_modules::serve_phases::preflight::gpu_init: GPU 0: 121.7 GB total, 116.0 GB free
+2026-10-17T19:41:14.597737Z  INFO spark::main_modules::serve_phases::kv_cache: Prefill config: ssm_prefill_chunk=8192, args.max_prefill_tokens=8192, prefill_budget=8192, max_batch_tokens=8200
+2026-10-17T19:41:14.597744Z  INFO spark::main_modules::serve_phases::preflight: Preflight reserve: inference=834 MB, buffer_arena=3791 MB (pre-load free: 116.0 GB)
+2026-10-17T19:41:14.597762Z  INFO spark::main_modules::serve_load: OOM watchdog started (threshold: 2 GB, interval: 2s)
+2026-10-17T19:41:14.597767Z  INFO spark::main_modules::serve_load: OOM guard reserve: 4096 MB
+2026-10-17T19:41:14.598085Z  INFO spark::main_modules::serve_phases::weights: Using fast weight loader (O_DIRECT + pipelined read/copy)
+2026-10-17T19:41:15.576189Z  INFO spark_runtime::fast_weights: Fast-load pre-flight: 9.87 GB on-disk, 1.1x overhead = 10.36 GB peak, 115.90 GB free, 4.0 GB reserve (FP8: true)
+2026-10-17T19:41:15.663163Z  INFO spark_runtime::fast_weights: Fast-loading shard 1/42: model-00001-of-00040.safetensors (2990 tensors)
+2026-10-17T19:41:15.916412Z  INFO spark_runtime::fast_weights:   Shard 1/42 done — GPU memory: 0.45 GB used, 115.46 GB free
+2026-10-17T19:41:15.916652Z  INFO spark_runtime::fast_weights: Fast-loading shard 2/42: model-00002-of-00040.safetensors (185 tensors)
+2026-10-17T19:41:15.917082Z  INFO spark_runtime::fast_weights:   Shard 2/42 done — GPU memory: 0.45 GB used, 115.46 GB free
+2026-10-17T19:41:15.917105Z  INFO spark_runtime::fast_weights: Fast-loading shard 3/42: model-00003-of-00040.safetensors (370 tensors)
+2026-10-17T19:41:17.353571Z  INFO spark_runtime::fast_weights:   Shard 3/42 done — GPU memory: 4.49 GB used, 111.42 GB free
+2026-10-17T19:41:17.353630Z  INFO spark_runtime::fast_weights: Fast-loading shard 4/42: model-00004-of-00040.safetensors (759 tensors)
+2026-10-17T19:41:18.468666Z  INFO spark_runtime::fast_weights:   Shard 4/42 done — GPU memory: 8.39 GB used, 107.51 GB free
+2026-10-17T19:41:18.468742Z  INFO spark_runtime::fast_weights: Fast-loading shard 5/42: model-00005-of-00040.safetensors (219 tensors)
+2026-10-17T19:41:18.777909Z  INFO spark_runtime::fast_weights:   Shard 5/42 done — GPU memory: 9.56 GB used, 106.34 GB free
+2026-10-17T19:41:18.777958Z  INFO spark_runtime::fast_weights: Fast-loading shard 6/42: model-00006-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:18.788950Z  INFO spark_runtime::fast_weights::shard: Deferred 4536 tensor(s) in ~/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local/model-00006-of-00040.safetensors — served from disk, not uploaded
+... 33 more per-shard "Deferred" lines omitted ...
+2026-10-17T19:41:19.012064Z  INFO spark_runtime::fast_weights:   Shard 6/42 done — GPU memory: 9.58 GB used, 106.33 GB free
+2026-10-17T19:41:19.012451Z  INFO spark_runtime::fast_weights: Fast-loading shard 7/42: model-00007-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:19.192968Z  INFO spark_runtime::fast_weights:   Shard 7/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:19.193594Z  INFO spark_runtime::fast_weights: Fast-loading shard 8/42: model-00008-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:19.516999Z  INFO spark_runtime::fast_weights:   Shard 8/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:19.517607Z  INFO spark_runtime::fast_weights: Fast-loading shard 9/42: model-00009-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:19.843491Z  INFO spark_runtime::fast_weights:   Shard 9/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:19.844117Z  INFO spark_runtime::fast_weights: Fast-loading shard 10/42: model-00010-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:20.088005Z  INFO spark_runtime::fast_weights:   Shard 10/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:20.088712Z  INFO spark_runtime::fast_weights: Fast-loading shard 11/42: model-00011-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:20.367464Z  INFO spark_runtime::fast_weights:   Shard 11/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:20.368100Z  INFO spark_runtime::fast_weights: Fast-loading shard 12/42: model-00012-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:20.686701Z  INFO spark_runtime::fast_weights:   Shard 12/42 done — GPU memory: 9.58 GB used, 106.32 GB free
+2026-10-17T19:41:20.687363Z  INFO spark_runtime::fast_weights: Fast-loading shard 13/42: model-00013-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:20.856594Z  INFO spark_runtime::fast_weights:   Shard 13/42 done — GPU memory: 9.57 GB used, 106.33 GB free
+2026-10-17T19:41:20.857215Z  INFO spark_runtime::fast_weights: Fast-loading shard 14/42: model-00014-of-00040.safetensors (5292 tensors)
+2026-10-17T19:41:21.108967Z  INFO spark_runtime::fast_weights:   Shard 14/42 done — GPU memory: 9.59 GB used, 106.31 GB free
+2026-10-17T19:41:21.109683Z  INFO spark_runtime::fast_weights: Fast-loading shard 15/42: model-00015-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:21.489920Z  INFO spark_runtime::fast_weights:   Shard 15/42 done — GPU memory: 9.61 GB used, 106.29 GB free
+2026-10-17T19:41:21.490515Z  INFO spark_runtime::fast_weights: Fast-loading shard 16/42: model-00016-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:21.825699Z  INFO spark_runtime::fast_weights:   Shard 16/42 done — GPU memory: 9.62 GB used, 106.28 GB free
+2026-10-17T19:41:21.826370Z  INFO spark_runtime::fast_weights: Fast-loading shard 17/42: model-00017-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:22.117608Z  INFO spark_runtime::fast_weights:   Shard 17/42 done — GPU memory: 9.61 GB used, 106.30 GB free
+2026-10-17T19:41:22.118683Z  INFO spark_runtime::fast_weights: Fast-loading shard 18/42: model-00018-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:22.505832Z  INFO spark_runtime::fast_weights:   Shard 18/42 done — GPU memory: 9.61 GB used, 106.30 GB free
+2026-10-17T19:41:22.506833Z  INFO spark_runtime::fast_weights: Fast-loading shard 19/42: model-00019-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:22.801565Z  INFO spark_runtime::fast_weights:   Shard 19/42 done — GPU memory: 9.61 GB used, 106.30 GB free
+2026-10-17T19:41:22.802511Z  INFO spark_runtime::fast_weights: Fast-loading shard 20/42: model-00020-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:23.140992Z  INFO spark_runtime::fast_weights:   Shard 20/42 done — GPU memory: 9.61 GB used, 106.29 GB free
+2026-10-17T19:41:23.142071Z  INFO spark_runtime::fast_weights: Fast-loading shard 21/42: model-00021-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:23.425291Z  INFO spark_runtime::fast_weights:   Shard 21/42 done — GPU memory: 9.63 GB used, 106.27 GB free
+2026-10-17T19:41:23.425883Z  INFO spark_runtime::fast_weights: Fast-loading shard 22/42: model-00022-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:23.691602Z  INFO spark_runtime::fast_weights:   Shard 22/42 done — GPU memory: 9.63 GB used, 106.28 GB free
+2026-10-17T19:41:23.692193Z  INFO spark_runtime::fast_weights: Fast-loading shard 23/42: model-00023-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:23.943535Z  INFO spark_runtime::fast_weights:   Shard 23/42 done — GPU memory: 9.63 GB used, 106.27 GB free
+2026-10-17T19:41:23.944081Z  INFO spark_runtime::fast_weights: Fast-loading shard 24/42: model-00024-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:24.195901Z  INFO spark_runtime::fast_weights:   Shard 24/42 done — GPU memory: 9.63 GB used, 106.28 GB free
+2026-10-17T19:41:24.197022Z  INFO spark_runtime::fast_weights: Fast-loading shard 25/42: model-00025-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:24.574390Z  INFO spark_runtime::fast_weights:   Shard 25/42 done — GPU memory: 9.65 GB used, 106.25 GB free
+2026-10-17T19:41:24.575066Z  INFO spark_runtime::fast_weights: Fast-loading shard 26/42: model-00026-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:24.944163Z  INFO spark_runtime::fast_weights:   Shard 26/42 done — GPU memory: 9.65 GB used, 106.25 GB free
+2026-10-17T19:41:24.944769Z  INFO spark_runtime::fast_weights: Fast-loading shard 27/42: model-00027-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:25.234111Z  INFO spark_runtime::fast_weights:   Shard 27/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:25.234790Z  INFO spark_runtime::fast_weights: Fast-loading shard 28/42: model-00028-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:25.513713Z  INFO spark_runtime::fast_weights:   Shard 28/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:25.514372Z  INFO spark_runtime::fast_weights: Fast-loading shard 29/42: model-00029-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:25.792529Z  INFO spark_runtime::fast_weights:   Shard 29/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:25.793469Z  INFO spark_runtime::fast_weights: Fast-loading shard 30/42: model-00030-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:26.158336Z  INFO spark_runtime::fast_weights:   Shard 30/42 done — GPU memory: 9.65 GB used, 106.26 GB free
+2026-10-17T19:41:26.159292Z  INFO spark_runtime::fast_weights: Fast-loading shard 31/42: model-00031-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:26.580031Z  INFO spark_runtime::fast_weights:   Shard 31/42 done — GPU memory: 9.65 GB used, 106.25 GB free
+2026-10-17T19:41:26.580984Z  INFO spark_runtime::fast_weights: Fast-loading shard 32/42: model-00032-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:26.980735Z  INFO spark_runtime::fast_weights:   Shard 32/42 done — GPU memory: 9.65 GB used, 106.25 GB free
+2026-10-17T19:41:26.981692Z  INFO spark_runtime::fast_weights: Fast-loading shard 33/42: model-00033-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:27.305134Z  INFO spark_runtime::fast_weights:   Shard 33/42 done — GPU memory: 9.64 GB used, 106.26 GB free
+2026-10-17T19:41:27.306021Z  INFO spark_runtime::fast_weights: Fast-loading shard 34/42: model-00034-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:27.704531Z  INFO spark_runtime::fast_weights:   Shard 34/42 done — GPU memory: 9.64 GB used, 106.26 GB free
+2026-10-17T19:41:27.705084Z  INFO spark_runtime::fast_weights: Fast-loading shard 35/42: model-00035-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:28.085725Z  INFO spark_runtime::fast_weights:   Shard 35/42 done — GPU memory: 9.64 GB used, 106.26 GB free
+2026-10-17T19:41:28.086271Z  INFO spark_runtime::fast_weights: Fast-loading shard 36/42: model-00036-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:28.539914Z  INFO spark_runtime::fast_weights:   Shard 36/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:28.540548Z  INFO spark_runtime::fast_weights: Fast-loading shard 37/42: model-00037-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:28.800784Z  INFO spark_runtime::fast_weights:   Shard 37/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:28.801368Z  INFO spark_runtime::fast_weights: Fast-loading shard 38/42: model-00038-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:29.154809Z  INFO spark_runtime::fast_weights:   Shard 38/42 done — GPU memory: 9.65 GB used, 106.25 GB free
+2026-10-17T19:41:29.155373Z  INFO spark_runtime::fast_weights: Fast-loading shard 39/42: model-00039-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:29.638902Z  INFO spark_runtime::fast_weights:   Shard 39/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:29.639529Z  INFO spark_runtime::fast_weights: Fast-loading shard 40/42: model-00040-of-00040.safetensors (7938 tensors)
+2026-10-17T19:41:29.657326Z  INFO spark_runtime::fast_weights::shard: Deferred 6804 tensor(s) in ~/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local/model-00040-of-00040.safetensors — served from disk, not uploaded
+2026-10-17T19:41:30.042406Z  INFO spark_runtime::fast_weights:   Shard 40/42 done — GPU memory: 9.66 GB used, 106.25 GB free
+2026-10-17T19:41:30.043024Z  INFO spark_runtime::fast_weights: Fast-loading shard 41/42: model-inputscales.safetensors (36288 tensors)
+2026-10-17T19:41:30.103165Z  INFO spark_runtime::fast_weights::shard:   Shard has 36288 tensors (> 5000 cap) — using buffered+pipelined path
+2026-10-17T19:41:30.477526Z  INFO spark_runtime::fast_weights:   Shard 41/42 done — GPU memory: 9.72 GB used, 106.18 GB free
+2026-10-17T19:41:30.479600Z  INFO spark_runtime::fast_weights: Fast-loading shard 42/42: native-QB.safetensors (214 tensors)
+2026-10-17T19:41:30.630636Z  INFO spark_runtime::fast_weights:   Shard 42/42 done — GPU memory: 10.47 GB used, 105.44 GB free
+2026-10-17T19:41:30.643464Z  INFO spark_runtime::weights::nvfp4_csf::assembler: Deferred 36288 CSF NVFP4 scale(s) to be decoded per expert-TP slice
+2026-10-17T19:41:30.647248Z  INFO spark_runtime::fast_weights: Fast-loaded 74685 weight tensors
+2026-10-17T19:41:30.750849Z  INFO spark::main_modules::serve_phases::weights: Loaded 74685 weight tensors
+2026-10-17T19:41:30.750860Z  INFO spark_runtime::weights::prefix_detect: Weight prefix: model.language_model
+2026-10-17T19:41:30.840716Z  INFO spark_model::preflight: Pre-flight checks passed
+2026-10-17T19:41:30.840729Z  INFO spark_model::quant_format: QuantFormat: modelopt (algo="MIXED_PRECISION"), 0 ignored module(s)
+2026-10-17T19:41:30.840743Z  INFO spark::main_modules::serve_load: Quantization format: modelopt (base variant Standard), ignored globs = 0
+2026-10-17T19:41:31.102227Z  INFO spark_runtime::cublaslt: cuBLASLt BF16 GEMM live (first matmul status 0 — real library answered; on HIP targets this is the hipBLASLt shim)
+2026-10-17T19:41:31.102272Z  INFO spark_runtime::cublaslt: cuBLASLt pre-warmed (handle + workspace + kernel images)
+2026-10-17T19:41:31.102894Z  INFO spark::main_modules::serve_phases::preflight::gpu_init: GDN chunked prefill reserve: 322 MB (chunk_size=8200, max_seq_len=131072)
+2026-10-17T19:41:31.102898Z  INFO spark::main_modules::serve_phases::preflight::gpu_init: Weights: 9.87 GB, estimated free: 106.1 GB, actual free: 105.3 GB (reserve: 834 MB)
+2026-10-17T19:41:31.102907Z  WARN spark::main_modules::serve_load: dflash: --enable-prefix-caching has a community-reported correctness regression on SM12.x with DFlash; outputs may be wrong on multi-turn cache hits. Run a greedy diff-test against a non-DFlash baseline before relying on outputs.
+2026-10-17T19:41:31.102909Z  INFO spark::main_modules::serve_phases::build: Prefix caching: ENABLED (radix tree)
+2026-10-17T19:41:31.102925Z  INFO spark::main_modules::serve_phases::topology: Initializing NCCL: rank 0/2, master RANK0_HOST:29510, recv_buffer 64 MiB (max_batch_tokens=8200 × hidden_size=4096 × 2 B)
+2026-10-17T19:41:31.102937Z  INFO spark_comm::nccl_backend: NCCL env: NCCL_IB_TIMEOUT=22
+2026-10-17T19:41:31.102942Z  INFO spark_comm::nccl_backend: NCCL env: NCCL_IB_RETRY_CNT=7
+2026-10-17T19:41:31.102943Z  INFO spark_comm::nccl_backend: NCCL env: NCCL_SOCKET_IFNAME=enp1s0f0np0
+2026-10-17T19:41:31.102944Z  INFO spark_comm::nccl_backend: NCCL env: NCCL_DEBUG=WARN
+2026-10-17T19:41:31.103494Z  INFO spark_comm::nccl_backend: Rank 0: waiting for 1 worker(s) on 0.0.0.0:29510
+2026-10-17T19:41:31.677826Z  INFO spark_comm::nccl_backend: Rank 0: sent unique ID to worker 1 (RANK1_HOST:41520)
+2026-10-17T19:41:32.118045Z  INFO spark_comm::nccl_backend: Registered recv_buffer (65600 KB) with NCCL
+2026-10-17T19:41:32.274777Z  INFO spark_comm::nccl_backend::rdma_pair::bootstrap: RDMA pair: rank 0 listening on RANK0_HOST:29512, admitting RANK1_HOST
+2026-10-17T19:41:32.787537Z  INFO spark_comm::nccl_backend::rdma_pair: RDMA pair all-reduce ready: rank 0, rails ["rocep1s0f0", "roceP2p1s0f0"], capacity 64 MB, one-shot Some(Config { max: 1048576, stripe_min: 1048576, timeout_ns: 30000000000, stage_fence: false, sm_stage: 1, pdl: true })
+2026-10-17T19:41:32.787552Z  INFO spark_comm::nccl_backend::rdma_pair: ATLAS_GLM_CMD_RDMA: command words ride the RDMA pair (ring of 1024 words)
+2026-10-17T19:41:32.787563Z  INFO spark::main_modules::serve_phases::topology: NCCL initialized: rank 0
+2026-10-17T19:41:32.787664Z  INFO spark::ep_peer_lifeline: EP peer lifeline armed
+2026-10-17T19:41:33.243696Z  INFO spark::main_modules::serve_phases::config: Capping vocab_size from 154880 to 154856 (tokenizer)
+2026-10-17T19:41:33.266551Z  WARN spark::main_modules::serve_phases::kv_cache: KV cache dtype: fp8_g128 (user override). MODEL.toml recommends 'bf16' for this model — mismatched KV dtype is a known cause of decode-path corruption (e.g. gemma `<unused>` collapse, mistral character-token loops on NVFP4 KV). Pass --kv-cache-dtype bf16 to use the recommended value.
+2026-10-17T19:41:33.266568Z  WARN spark::main_modules::serve_phases::kv_cache: ⚠ --kv-high-precision-layers is 0: all KV cache layers use fp8_g128 precision. NVFP4 models may hallucinate or lose coherence at long context. Consider --kv-high-precision-layers max (or 2-5) for better quality.
+2026-10-17T19:41:33.268994Z  INFO spark::main_modules::serve_phases::weights: DFlash: resolving drafter '~/.lloom/models/incoai--GLM-5.3-Flash-DFlash2'
+2026-10-17T19:41:33.269022Z  INFO spark::model_resolver: Model path: ~/.lloom/models/incoai--GLM-5.3-Flash-DFlash2 (local directory)
+2026-10-17T19:41:33.280225Z  INFO spark_runtime::weights::loader: Pre-flight estimate: 2.18 GB on-disk weights, 1.3x overhead = 2.84 GB peak, 104.04 GB free, 0.0 GB reserve (FP8: false)
+2026-10-17T19:41:40.232973Z  INFO spark_model::weight_map::loaders_fp8: quantize_to_nvfp4: n=4096 k=4096 total=16777216 global_max=0.570312 scale2=0.00021217 grid1=1024
+2026-10-17T19:41:40.233904Z  INFO spark_model::weight_map::loaders_fp8: quantize_to_nvfp4: n=4096 k=4096 total=16777216 global_max=1.281250 scale2=0.00047666 grid1=1024
+2026-10-17T19:41:40.235190Z  INFO spark_model::weight_map::loaders_fp8: quantize_to_nvfp4: n=12288 k=4096 total=50331648 global_max=1.757812 scale2=0.00065395 grid1=1024
+2026-10-17T19:41:40.237767Z  INFO spark_model::weight_map::loaders_fp8: quantize_to_nvfp4: n=12288 k=4096 total=50331648 global_max=1.507812 scale2=0.00056094 grid1=1024
+2026-10-17T19:41:40.240106Z  INFO spark_model::weight_map::loaders_fp8: quantize_to_nvfp4: n=4096 k=12288 total=50331648 global_max=2.578125 scale2=0.00095912 grid1=1024
+2026-10-17T19:41:40.300504Z  INFO spark_model::weight_loader::dflash_preshrink: DFlash preshrink: 5 layers x 5 projections now NVFP4-only (1.72 GiB BF16 freed before KV sizing)
+2026-10-17T19:41:40.300521Z  INFO spark::main_modules::serve_phases::weights: DFlash drafter store: 56 tensors, 496667136 bytes
+2026-10-17T19:41:40.300788Z  INFO spark_model::factory::glm_sparse_decode: GLM sparse decode TC initialized before KV sizing; repaired K3 rows1, BF16 identical K/V
+2026-10-17T19:41:40.300830Z  INFO spark_model::factory::glm_sparse_decode: GLM sparse decode split initialized before KV sizing; fixed S8, repaired K3 rows1
+2026-10-17T19:41:40.300835Z  WARN spark_model::layers::ops::glm_sparse_native: GLM native sparse prefill is qualified through the native context limit; longer rows use the Atlas sparse/plain fallback max_seq_len=131072 native_context_limit=32768
+2026-10-17T19:41:40.303974Z  INFO spark_model::layers::ops::glm_sparse_native::loader: GLM native sparse prefill initialized before KV sizing; rows2048..4100, continuation only library="/opt/atlas/native/libatlas_glm_sparse_native.so" abi=1
+2026-10-17T19:41:40.304027Z  INFO spark_model::layers::ops::glm_sparse_prefill_tc: ATLAS_GLM_SPARSE_PREFILL_PIPE=1: pipelined fp8_g128 sparse prefill warmed before KV sizing
+2026-10-17T19:41:40.304077Z  INFO spark_model::layers::ops::glm_sparse_canonical: GLM few-row MLA attention takes the canonical (KV-shard-exact) form; ATLAS_GLM_KV_CANONICAL=0 restores the earlier kernels
+2026-10-17T19:41:40.304116Z  INFO spark_model::layers::ops::glm_mla_fuse: ATLAS_GLM_MLA_FUSE: GLM MLA front in two launches
+2026-10-17T19:41:40.304120Z  INFO spark_model::factory::build: DFlash: target layer capture indices = [5, 14, 24, 33, 42] (drafter target_layer_ids, used directly)
+2026-10-17T19:41:40.304191Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 factory reserve passed before_layers=true required=4850112800 free=110705049600 arena=3975270688 inference_reserve=874842112 cache=0
+2026-10-17T19:41:40.399097Z  INFO spark_model::layers::ops::glm_decode_fuse: ATLAS_GLM_DECODE_FUSE: fused decode groups 0x1f
+2026-10-17T19:41:40.400369Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:40.404486Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..1 — 103.2 GiB free
+2026-10-17T19:41:40.500212Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:40.504323Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..2 — 103.3 GiB free
+2026-10-17T19:41:40.600510Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:40.604678Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..3 — 103.5 GiB free
+2026-10-17T19:41:43.424894Z  INFO spark_model::layers::moe::init_optional: ATLAS_GLM_MOE_PREFILL_PERSIST: persistent K128W prefill, 96 CTAs from 65536 sorted rows
+2026-10-17T19:41:43.426497Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_STREAM_NOSYNC: no expert-offset read for the stream twins' batches
+2026-10-17T19:41:43.426507Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_M16: M16 routed gate/up+SiLU and down for verify decode (zero-row skip: true)
+2026-10-17T19:41:43.426510Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_STREAM: stream-loaded M16 twins for every routed FFN of up to 32 rows
+2026-10-17T19:41:43.426512Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_L2PF: stream twins with the L2 row prefetch (gate/up, downs: true)
+2026-10-17T19:41:43.426514Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_PERSIST: persistent prefetching twins over 48 CTAs
+2026-10-17T19:41:43.426547Z  INFO spark_model::layers::moe::route_fuse: ATLAS_GLM_MOE_ROUTE_FUSE: routing chain in two launches
+2026-10-17T19:41:43.426635Z  INFO spark_model::layers::moe::ep_prefill: ATLAS_GLM_MOE_UNPERMUTE_VEC: 16-byte EP unpermute-reduce
+2026-10-17T19:41:43.635157Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:41:43.655945Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..4 — 101.5 GiB free
+2026-10-17T19:41:46.244572Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:46.247008Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..5 — 99.6 GiB free
+2026-10-17T19:41:48.842305Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:51.350044Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:53.866581Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:41:56.377189Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:58.806123Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:41:58.808539Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..10 — 90.2 GiB free
+2026-10-17T19:42:01.297185Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:04.125389Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:42:07.445662Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:10.287608Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:12.938293Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:15.715491Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:42:18.305433Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:20.845169Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:23.838066Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:26.778850Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:42:26.796998Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..20 — 71.1 GiB free
+2026-10-17T19:42:29.423159Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:32.230837Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:35.204713Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:37.919320Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:42:40.711601Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:43.611764Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:46.465688Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:49.297578Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:42:51.781109Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:54.261037Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:42:54.263476Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..30 — 52.2 GiB free
+2026-10-17T19:42:57.498095Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:00.348503Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:43:03.307629Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:06.230699Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:09.156305Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:11.799821Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:43:14.543784Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:17.163947Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:19.806357Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:22.288665Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:43:22.305864Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 loaded layers 0..40 — 33.0 GiB free
+2026-10-17T19:43:25.283079Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:28.440262Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:30.954604Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:33.461126Z  INFO spark_model::layers::qwen3_attention::glm_k3_mla_o: GLM K3 MLA O batchm initialized: local BF16 [4096,8192], causal serial attention
+2026-10-17T19:43:36.066177Z  INFO spark_model::layers::glm5_kda::flash_prefill: FlashKDA prefill enabled for >=2048 rows (2048..=4100 per call); decode and verification unchanged library="/opt/atlas/native/libatlas_mango_flash.so"
+2026-10-17T19:43:36.068526Z  INFO spark_model::weight_loader::glm5::layers: GLM-5 FP4-Local: released 6.83 GiB of MXFP8/FP8-block sources after expansion
+2026-10-17T19:43:36.068612Z  INFO spark_model::factory::build: Layer construction: 85.51 GB consumed (110.71 GB free -> 25.19 GB free) across 45 layers, 1900.2 MB/layer average
+2026-10-17T19:43:36.344553Z  INFO spark_model::weight_loader::glm5::vision: GLM vision: released 353894704 bytes of MXFP8/NVFP4 sources
+2026-10-17T19:43:36.344575Z  INFO spark_model::factory::lm_head_setup: LM head kept as BF16 (skip NVFP4 quantization per model config)
+2026-10-17T19:43:36.344715Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22426775552 remaining=1056964608 protected=4850112800 required=5907077408
+2026-10-17T19:43:36.344719Z  INFO spark_model::factory::glm_shared_cache: GLM deferred shared FP8 pass admitted after target/MTP/head loading free=22426775552 total=1056964608
+2026-10-17T19:43:36.344935Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22426775552 remaining=1056964608 protected=4850112800 required=5907077408
+2026-10-17T19:43:36.346444Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=3 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.346515Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22401425408 remaining=1031798784 protected=4850112800 required=5881911584
+2026-10-17T19:43:36.347839Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=4 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.347892Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22375669760 remaining=1006632960 protected=4850112800 required=5856745760
+2026-10-17T19:43:36.349239Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=5 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.349288Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22349950976 remaining=981467136 protected=4850112800 required=5831579936
+2026-10-17T19:43:36.350612Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=6 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.350660Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22324195328 remaining=956301312 protected=4850112800 required=5806414112
+2026-10-17T19:43:36.351994Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=7 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.352042Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22298898432 remaining=931135488 protected=4850112800 required=5781248288
+2026-10-17T19:43:36.353379Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=8 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.353425Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22272688128 remaining=905969664 protected=4850112800 required=5756082464
+2026-10-17T19:43:36.354774Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=9 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.354820Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22247424000 remaining=880803840 protected=4850112800 required=5730916640
+2026-10-17T19:43:36.356153Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=10 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.356200Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22221213696 remaining=855638016 protected=4850112800 required=5705750816
+2026-10-17T19:43:36.357506Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=11 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.357553Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22195916800 remaining=830472192 protected=4850112800 required=5680584992
+2026-10-17T19:43:36.358874Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=12 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.358924Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22170161152 remaining=805306368 protected=4850112800 required=5655419168
+2026-10-17T19:43:36.360261Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=13 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.360307Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22144409600 remaining=780140544 protected=4850112800 required=5630253344
+2026-10-17T19:43:36.361645Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=14 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.361692Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22118653952 remaining=754974720 protected=4850112800 required=5605087520
+2026-10-17T19:43:36.363035Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=15 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.363083Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22092902400 remaining=729808896 protected=4850112800 required=5579921696
+2026-10-17T19:43:36.364386Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=16 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.364434Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22067146752 remaining=704643072 protected=4850112800 required=5554755872
+2026-10-17T19:43:36.365620Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=17 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.365669Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22041849856 remaining=679477248 protected=4850112800 required=5529590048
+2026-10-17T19:43:36.366852Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=18 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.366898Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=22015639552 remaining=654311424 protected=4850112800 required=5504424224
+2026-10-17T19:43:36.368096Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=19 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.368142Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21990342656 remaining=629145600 protected=4850112800 required=5479258400
+2026-10-17T19:43:36.369330Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=20 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.369377Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21964132352 remaining=603979776 protected=4850112800 required=5454092576
+2026-10-17T19:43:36.370566Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=21 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.370614Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21938835456 remaining=578813952 protected=4850112800 required=5428926752
+2026-10-17T19:43:36.371800Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=22 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.371842Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21912625152 remaining=553648128 protected=4850112800 required=5403760928
+2026-10-17T19:43:36.373035Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=23 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.373080Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21887361024 remaining=528482304 protected=4850112800 required=5378595104
+2026-10-17T19:43:36.374269Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=24 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.374311Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21861605376 remaining=503316480 protected=4850112800 required=5353429280
+2026-10-17T19:43:36.375514Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=25 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.375559Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21835853824 remaining=478150656 protected=4850112800 required=5328263456
+2026-10-17T19:43:36.376741Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=26 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.376788Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21810098176 remaining=452984832 protected=4850112800 required=5303097632
+2026-10-17T19:43:36.377967Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=27 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.378011Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21784342528 remaining=427819008 protected=4850112800 required=5277931808
+2026-10-17T19:43:36.379197Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=28 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.379242Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21758590976 remaining=402653184 protected=4850112800 required=5252765984
+2026-10-17T19:43:36.380427Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=29 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.380472Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21733294080 remaining=377487360 protected=4850112800 required=5227600160
+2026-10-17T19:43:36.381667Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=30 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.381711Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21707083776 remaining=352321536 protected=4850112800 required=5202434336
+2026-10-17T19:43:36.382909Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=31 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.382957Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21681786880 remaining=327155712 protected=4850112800 required=5177268512
+2026-10-17T19:43:36.384260Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=32 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.384304Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21655576576 remaining=301989888 protected=4850112800 required=5152102688
+2026-10-17T19:43:36.385508Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=33 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.385555Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21630279680 remaining=276824064 protected=4850112800 required=5126936864
+2026-10-17T19:43:36.386744Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=34 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.386791Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21604069376 remaining=251658240 protected=4850112800 required=5101771040
+2026-10-17T19:43:36.388002Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=35 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.388049Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21578772480 remaining=226492416 protected=4850112800 required=5076605216
+2026-10-17T19:43:36.389294Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=36 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.389337Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21553016832 remaining=201326592 protected=4850112800 required=5051439392
+2026-10-17T19:43:36.390569Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=37 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.390615Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21527298048 remaining=176160768 protected=4850112800 required=5026273568
+2026-10-17T19:43:36.391823Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=38 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.391870Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21501542400 remaining=150994944 protected=4850112800 required=5001107744
+2026-10-17T19:43:36.393072Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=39 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.393117Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21475790848 remaining=125829120 protected=4850112800 required=4975941920
+2026-10-17T19:43:36.394312Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=40 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.394357Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21450035200 remaining=100663296 protected=4850112800 required=4950776096
+2026-10-17T19:43:36.395553Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=41 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.395596Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21424279552 remaining=75497472 protected=4850112800 required=4925610272
+2026-10-17T19:43:36.396782Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=42 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.396825Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21398528000 remaining=50331648 protected=4850112800 required=4900444448
+2026-10-17T19:43:36.398196Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=43 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.398240Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21373231104 remaining=25165824 protected=4850112800 required=4875278624
+2026-10-17T19:43:36.399433Z  INFO spark_model::layers::moe::shared_fp8_cache_load: GLM target shared FP8 cache installed layer=44 bytes=25165824 total_bytes=1056964608 derived_bf16_weights=3 verify=false
+2026-10-17T19:43:36.399475Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 deferred reserve checked before allocation free=21347020800 remaining=0 protected=4850112800 required=4850112800
+2026-10-17T19:43:36.399482Z  INFO spark_model::factory::glm_dense_cache: GLM dense BF16 prefill: transient per-call dequant (no persistent cache)
+2026-10-17T19:43:36.399502Z  INFO spark_model::layers::moe::shared_fp8_cache: GLM shared FP8 factory reserve passed before_layers=false required=4850112800 free=21347020800 arena=3975270688 inference_reserve=874842112 cache=0
+2026-10-17T19:43:36.522999Z  INFO spark_runtime::buffers: Buffer arena: 8200 tokens × 3791.1 MB total (attn_out=256.2MB, ssm_deint=256.2MB, kv_lora_rank=512)
+2026-10-17T19:43:36.694002Z  INFO spark_model::factory::glm_hc_prewarm: HC TF32 prewarm completed before KV accounting rank=0 rows=[8200, 4100, 4096, 3515] n=24 k=16384 elapsed_ms=169.73133900000002 free_before=17266507776 free_after=17265782784
+2026-10-17T19:43:36.711013Z  INFO spark_model::model::glm_vocab_split: GLM split verify head: MXFP8 shard ready rank=0 shard=77428 checkpoint_bytes=true
+2026-10-17T19:43:36.719444Z  INFO spark_model::factory::build::glm: KV latent shard merge form: compact (always) overlap=false check=false
+2026-10-17T19:43:36.719457Z  INFO spark_model::model::drafter_context: MTP drafter context: prefill=ON carry=ON (default). Disable both with ATLAS_NO_MTP_DRAFTER_CONTEXT=1.
+2026-10-17T19:43:36.719470Z  INFO spark_model::layers::ops::model_levers: GDN deferred commit on (default; ATLAS_GDN_DEFERRED_COMMIT=0 opts out):                  wyN verify stores nothing; accepted prefix replayed from H0
+2026-10-17T19:43:36.801431Z  INFO spark_model::model::ssm_pool: SSM MTP pools (8 intermediates + checkpoints): 1243 MB
+2026-10-17T19:43:36.801443Z  INFO spark_model::model::ssm_pool: SSM state pool: 8 slots × 34 layers = 595 MB
+2026-10-17T19:43:36.801453Z  INFO spark_model::model::ssm_pools: SSM decode-rollback ring: SKIPPED (speculative decode active) — the ring's save/rollback path only runs on plain decode with watchdogs enabled. Saves 5.0 GB (8 seqs x 8 slots x full SSM blob). If plain-decode loop re-steer is ever reached it fail-opens to decline; ATLAS_SSM_DECODE_RING=1 force-restores the ring.
+2026-10-17T19:43:36.838569Z  INFO spark_model::model::ssm_snapshot: SSM snapshot pool: Marconi 16 slots (1190 MB), decode-rollback 0 slots × 8 seqs (0 MB), 34 layers
+2026-10-17T19:43:36.838689Z  INFO spark_model::model::ssm_tier::fingerprint: SSM tier model fingerprint = 0xf4ed6a6e1f4ad3d6 (model_type=glm5_next, blob_bytes=77987840, ATLAS_MODEL_ID=""); pin with ATLAS_SSM_SWAP_NS / ATLAS_SSM_DECODE_NS
+2026-10-17T19:43:36.838834Z  INFO spark_model::model::ssm_tier::unified: unified SSM tier (marconi-host): O_DIRECT swap file in /prefix-cache/ssm
+2026-10-17T19:43:36.861084Z  INFO spark_model::model::ssm_tier::unified: SSM spill tier = UNIFIED residency in host RAM (2 hot slots × 77987840 B); disk cap ATLAS_SSM_TIER_DISK_GB → 329 records × 77987840 B = 23.90 GiB steady, 23.97 GiB worst case (one extra record is live during a fault-in); bounding: O_DIRECT swap file; disk writes begin at spill #3 of distinct keys (until then the swap file is 0 bytes BY DESIGN)
+2026-10-17T19:43:36.878522Z  INFO spark_model::factory::build::kv_nvme: NVMe spill tiers: reserving 502.5 MiB of host memory out of the KV budget (staging + on-disk index at a full ATLAS_KV_NVME_GB + 223.1 MiB SSM tier arena/staging)
+2026-10-17T19:43:36.879250Z  INFO spark_model::factory::build::kv_budget: KV budget self-relative (auto): baseline-free 116.0 GB − free-now 13.1 GB = Atlas-own 102.9 GB; co-tenants 5.7 GB excluded (set ATLAS_KV_EXTERNAL_RESERVE_GB to override)
+2026-10-17T19:43:36.879256Z  INFO spark_model::factory::build::kv_budget: KV own-footprint cross-check: free-memory measure 102.87 GB, tracked 101.19 GB (device 99.67 GB by driver accounting + host 1.52 GB) → 102.87 GB pre-KV
+2026-10-17T19:43:36.879269Z  INFO spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.9 GB pre-KV + 1.3 GB reserve → 6.6 GB for KV → 112755 blocks × 16 tok/block = 1804080 max KV tokens
+2026-10-17T19:43:36.884780Z  INFO spark_model::factory::build::kv_carveout: KV cache: display carveout 2042 MiB holds 3 buffers (1746 MiB) → 144464 blocks (+31709, +28.1%) for the same system memory
+2026-10-17T19:43:36.909928Z  INFO spark_runtime::cuda_backend::display_carveout: Display carveout: 2042 MiB mapped at 0x21c0000000 for KV pools
+2026-10-17T19:43:37.054629Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 144464 blocks × 11 layers = 6.3 GB total (V aliases K)
+2026-10-17T19:43:37.054647Z  INFO spark_runtime::kv_cache::latent_shard: KV latent shard: rank 0 of 2 stores 72232 of 144464 blocks' latents; 112.8 MiB exchange scratch
+2026-10-17T19:43:37.118791Z  INFO spark_runtime::kv_cache::sparse_index_impl: Sparse index cache: 144464 blocks × 11 layers × 1024 bytes/block + 4653 tails (slot-mapped) = 1951.7 MiB
+2026-10-17T19:43:37.149163Z  INFO spark_model::factory::build::kv_nvme: prefix cache NVMe spill tier ON (rank 0): /prefix-cache/kv (ATLAS_KV_NVME_DIR, O_DIRECT, unlinked), latent shard: 106496 B/block record for this rank's blocks (latent + pooled index), 12288 B for the peer's (pooled index only), 216946 slots each (3712 B/token), budget 24.0 GiB = 433892 blocks = 6942272 tokens; fast I/O (ATLAS_GLM_NVME_FAST), restored records released (ATLAS_GLM_NVME_KEEP), 14.5 MiB pinned staging, up to 264.8 MiB host index
+2026-10-17T19:43:37.149341Z  INFO spark_model::model::drafter_context: MTP drafter context: prefill=ON carry=ON (default). Disable both with ATLAS_NO_MTP_DRAFTER_CONTEXT=1.
+2026-10-17T19:43:37.149355Z  INFO spark_model::layers::ops::model_levers: GDN deferred commit on (default; ATLAS_GDN_DEFERRED_COMMIT=0 opts out):                  wyN verify stores nothing; accepted prefix replayed from H0
+2026-10-17T19:43:37.149358Z  INFO spark_model::model::impl_a1: TransformerModel: 45 layers, vocab=154856, hidden=4096
+2026-10-17T19:43:37.150393Z  INFO spark_model::model::impl_a1: Registered moe_output (67174400 B) with NCCL
+2026-10-17T19:43:37.150402Z  INFO spark_model::model::impl_a1: Registered norm_output (67174400 B) with NCCL
+2026-10-17T19:43:37.150430Z  INFO spark_comm::nccl_backend::comm_impl: NCCL backend: bf16_add_inplace kernel set (2-rank send/recv enabled)
+2026-10-17T19:43:37.150444Z  INFO spark_comm::nccl_backend::pair_ops: RDMA one-shot kernel set (graph-capturable collectives enabled)
+2026-10-17T19:43:37.153220Z  INFO spark_model::model::impl_a1: Pinned metadata staging: 4131 KB
+2026-10-17T19:43:37.163858Z  INFO spark_model::model::impl_a1_init: GDN prefill buffers: 322 MB for 8200 tokens (chunked SSM prefill)
+2026-10-17T19:43:37.163983Z  INFO spark_model::weight_loader::dflash_loader: DFlash2 candidate selector loaded: rank=256, top_k=16
+2026-10-17T19:43:37.163986Z  INFO spark_model::weight_loader::dflash_loader: DFlash/DSpark drafter loaded: 5 layers, hidden=4096, vocab=154880, γ=8, markov_rank=0, own_embed=false, causal=None, swa=None/None, sinks=0/5, candidate_selector=true, target_layers=[5, 14, 24, 33, 42]
+2026-10-17T19:43:37.164011Z  INFO spark_model::layers::dflash_head::first_append: DFlash first context append: None (ATLAS_DFLASH_FIRST_APPEND=legacy|none|own|zero)
+2026-10-17T19:43:37.164014Z  INFO spark_model::layers::dflash_head::warm_ctx: DFlash warm context: Legacy (ATLAS_DFLASH_WARM_CTX=legacy|exact|seed|restore)
+2026-10-17T19:43:37.164018Z  INFO spark_model::layers::dflash_head::from_weights: DFlash KV pool: 1032 blocks (129 per seq × batch 8)
+2026-10-17T19:43:37.175310Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 1032 blocks × 5 layers = 0.3 GB total
+2026-10-17T19:43:37.175359Z  INFO spark_model::layers::dflash_head::draft_conf: DFlash2 selector: edge-weight twin glm_dflash2_selector_conf_e06
+2026-10-17T19:43:37.175394Z  INFO spark_model::layers::dflash_head::small_m_gemm: DFlash drafter small-M GEMM arm: batched GEMV (tensor-core tiers up to 64 rows when present)
+2026-10-17T19:43:37.175545Z  INFO spark_model::layers::dflash_head::from_weights: DFlash ctx_window = 4096 (set ATLAS_DFLASH_CTX_WINDOW to override; drafter trained on full captured prefix — larger is better, scratch grows linearly)
+2026-10-17T19:43:37.197867Z  INFO spark_model::layers::dflash_head::from_weights: DFlash propose lanes: 1 (extra scratch + streams)
+2026-10-17T19:43:37.197963Z  INFO spark_model::layers::dflash_head::from_weights: DFlash RoPE = plain (no rope_scaling in drafter config), theta=10000, 64 pairs
+2026-10-17T19:43:37.201524Z  INFO spark_model::layers::dflash_head::from_weights: DFlash fused_kv_weight: 83886080 bytes (5 layers × 2 × kv_dim × h × bf16), layout [K0,V0,K1,V1,…] to match vLLM precompute_and_store_context_kv
+2026-10-17T19:43:37.333450Z  INFO spark_model::layers::dflash_head::from_weights: BlockDiffusionDraftHead loaded: 5 layers, hidden=4096, intermediate=12288, GQA 32/8, head_dim=128, γ=8, vocab=154856, mask_token_id=154856, causal=false, window=Some(2048), sinks=0, target_layers=[5, 14, 24, 33, 42]
+2026-10-17T19:43:37.333464Z  INFO spark_model::layers::dflash_head::from_weights: DFlash batched propose: authoritative Bxgamma for generic DFlash (default on; rollback ATLAS_DFLASH_BATCHED_PROPOSE=0; min 2, max 8)
+2026-10-17T19:43:37.333485Z  INFO spark_model::layers::dflash_head::nvfp4: DFlash NVFP4: quantizing 5 layers × 7 GEMMs for w4a16_gemv_batch4
+2026-10-17T19:43:37.336239Z  INFO spark_model::layers::dflash_head::nvfp4: DFlash NVFP4: ready (quant = Nvfp4Weights)
+2026-10-17T19:43:37.368780Z  INFO spark_model::layers::dflash_head::twins: DFlash twins: NVFP4 tensor-core layers true, MXFP8 layers 0, head NVFP4 true / MXFP8 false, context NVFP4 true, conv Some(Nvfp4) x 10, async context positions true, async uploads true
+2026-10-17T19:43:37.370167Z  INFO spark_model::layers::dflash_head::rank_split::exec: DFlash rank split: Parts { mlp: true, head: true }, 17 swaps per propose, largest 98304 bytes; up to 64 rows (largest swap 9911296 bytes); context appends split; selector swaps candidate lists
+2026-10-17T19:43:37.370180Z  INFO spark_model::factory::build: DFlash drafter installed as the active proposer
+2026-10-17T19:43:37.411098Z  INFO spark::main_modules::serve_phases::kernel_gate: 
+┌─ Kernel load audit ─ 237 kernels embedded · set-hash 6263df2e4ed9 ─
+│ MODULE (operation)                 PTX-HASH       RESOLUTION           SHADOWED
+│ ────────────────────────────────────────────────────────────────────────────────────
+│ argmax                             fab036316950   used                 N
+│ bf16_add                           9ccfff111c1c   used                 N
+│ causal_conv1d                      26fbe4a32ee3   used                 N
+│ csa_compress                       409141466855   -                    N
+│ dense_gemv_bf16_batch2             8e42d4734916   used                 N
+│ dense_gemv_bf16_batchm             e0190194f53a   used                 N
+│ dense_gemv_fp8w_batch2             345343265bf0   used                 N
+│ dense_gemv_fp8w_batchm             613837fe1f2f   -                    N
+│ dequant_fp8_blockscaled_bf16       112ae266baa4   used                 N
+│ dequant_gguf_bf16                  f8d7ed4a7232   used                 N
+│ dequant_nvfp4_bf16                 34cc9dce8f28   used                 N
+│ dflash2_candidate_selector         9908027a8379   used                 N
+│ dflash2_conv                       9d10aed91526   used                 N
+│ dflash_batch_anchor_add            6a6c6d5fa4cf   used                 N
+│ dflash_batch_markov                7abeae68eb04   used                 N
+│ e2m1                               a9f7db7882e8   -                    N
+│ embed_from_argmax                  12b1faa5bef5   used                 N
+│ fp8_e4m3_to_bf16                   7695b2e07e25   -                    N
+│ fp8_gemm_t_blockscaled             ccd83dc3175b   used                 N
+│ fused_k_norm_rope_cache            40945835fbe7   used                 N
+│ gated_delta_rule                   e69f490672bb   -                    N
+│ gated_delta_rule_fla               491fa2074e30   -                    N
+│ gated_delta_rule_persistent        119c888ceaa1   -                    N
+│ gated_delta_rule_regresident       f1d7ac7ec2b9   -                    N
+│ gated_delta_rule_wy                2944fa406929   -                    N
+│ gated_delta_rule_wy2_resident      13434e14525a   -                    N
+│ gated_delta_rule_wy2_resident_f16  de9282606c87   -                    N
+│ gated_delta_rule_wy3               f39dfc5fc64c   -                    N
+│ gated_delta_rule_wy3_f16           6f86c5cdca50   -                    N
+│ gated_delta_rule_wy3_resident      2d735fa17437   -                    N
+│ gated_delta_rule_wy3_resident_f16  ca7279841d78   -                    N
+│ gated_delta_rule_wy4               696eacd7fc6f   -                    N
+│ gated_delta_rule_wy4_f16           6117982cee6e   -                    N
+│ gated_delta_rule_wy64_prefill      295277d38edf   -                    N
+│ gated_delta_rule_wy_f16            4e8093d34899   -                    N
+│ gated_delta_rule_wyn               6ff125d1bd34   -                    N
+│ gdn_verify_fused_conv_kn           6d34c1967f19   -                    N
+│ gdn_verify_fused_k2                364133e92759   -                    N
+│ gemm                               0982fd92d6a5   used                 N
+│ gemm_splitk                        c3196ada403c   used                 N
+│ gemm_tc                            867449b3a6f2   used                 N
+│ gemv                               8a393e2aee68   used                 N
+│ gemv_fp8w                          cfe758bf0e7d   used                 N
+│ glm_dflash2_selector_conf          be176e042057   -                    N
+│ glm_dflash2_selector_conf_e06      21793f56cb95   used                 N
+│ glm_dflash2_selector_conf_e08      26a4652afcf1   -                    N
+│ glm_hc_prefill_vec                 e99fdcc4521c   -                    N
+│ glm_indexer                        1d3316fafbd1   used                 N
+│ glm_indexer_wmma                   0a4e87f49c04   used                 N
+│ glm_kv_shard                       63830244b3b6   used                 N
+│ glm_mla_fuse                       528ae3215836   used                 N
+│ glm_moe_btile_decode               f3cdabfde954   -                    N
+│ glm_moe_btile_native_repack        147994137b67   -                    N
+│ glm_moe_route                      299a72ee3093   used                 N
+│ glm_mtp_eh_norm                    9390b083cfbf   -                    N
+│ glm_rms_norm_regs                  3602025d5b97   used                 N
+│ glm_router_bn4                     4ee01509af10   used                 N
+│ glm_sparse_decode_split            f6226d954927   used                 N
+│ glm_sparse_decode_split_merge      c4af6fc4dfc8   used                 N
+│ glm_sparse_prefill_kv_reuse        d985312ed429   used                 N
+│ glm_sparse_prefill_tc              5406017dc4e0   -                    N
+│ glm_vision_encoder                 b6e775ce714a   used                 N
+│ grammar_bitmask                    18765c10e57f   used                 N
+│ grouped_gemm_mla                   bde4082da8cf   used                 N
+│ hyper_connection                   a70fb1727201   used                 N
+│ inferspark_decode                  af261262bfbf   -                    N
+│ inferspark_prefill                 727ac255e7b6   used                 N
+│ inferspark_prefill_512             508667e6df5c   used                 N
+│ inferspark_prefill_h128            848531341467   used                 N
+│ inferspark_prefill_paged_512       ff92b190377a   used                 N
+│ inferspark_prefill_paged_batched   d90bcc613ba0   used                 N
+│ inferspark_prefill_paged_batched_sink 181a9ded386f   -                    N
+│ inferspark_prefill_paged_batched_sink_h128 a7d74763391c   used                 N
+│ inferspark_prefill_paged_fp8_batched 7aa2ada93545   used                 N
+│ inferspark_prefill_paged_nvfp4_batched 8d6a91f11252   used                 N
+│ inferspark_prefill_v47             30c1870d6711   -                    N
+│ kda                                77fbba4944f7   used                 N
+│ kv_cache                           671ff8649e90   -                    N
+│ lora_bgmv                          4c745ed771b5   -                    N
+│ mamba2_ssd_chunk                   f0dbc0b4b3d0   -                    N
+│ mamba2_ssm                         26f1ce59a559   -                    N
+│ marlin_align                       c8912ab9c527   -                    N
+│ marlin_moe_nvfp4                   3db67bc8707a   -                    N
+│ marlin_nvfp4_gemm                  a4df867f66fe   -                    N
+│ marlin_pack_rows                   7899dad7530b   -                    N
+│ marlin_pack_slots                  71d8218c2315   -                    N
+│ marlin_repack                      a508acc54114   -                    N
+│ marlin_row_repeat                  02f547be5f66   -                    N
+│ marlin_scatter_slots               02a0b126a1cf   -                    N
+│ metadata_fill                      4cd48e0860e2   used                 N
+│ mla_absorbed                       2468f48e0c5b   used                 N
+│ mla_cache_assemble_fp8             146e0a6d0d24   -                    N
+│ mla_fused_prefill                  80500015edf7   used                 N
+│ mla_paged_decode                   7ae218628f4f   used                 N
+│ mla_paged_decode_fp8               c4530b863461   used                 N
+│ mla_prefill_attn                   3fdd5bcbfe76   used                 N
+│ moe                                ab09747df7ca   used                 N
+│ moe_bf16_grouped_gemm              b595ccb1a5b5   used                 N
+│ moe_decode_atomic_c4               6c6f857639b5   used                 N
+│ moe_expert_gemv                    4f92cfbebeb4   used                 N
+│ moe_expert_gemv_fused              7b91573b2a01   -                    N
+│ moe_expert_gemv_wide               0173a8c36628   -                    N
+│ moe_expert_gemv_wide_grouped       eee38ad35ec8   -                    N
+│ moe_expert_relu2_down_wide         5046c2f1283e   -                    N
+│ moe_fp8_grouped_gemm               182621af1065   used                 N
+│ moe_fused_batch2                   f3a3774dc1b1   used                 N
+│ moe_fused_batch3                   716fca88de04   used                 N
+│ moe_gate_topk                      05f3ddb5d210   used                 N
+│ moe_hash_route                     b236e1cd8b24   used                 N
+│ moe_lora_gather_bgmv               6ccfd9e689ee   -                    N
+│ moe_lora_grouped_down              fcdd26c27755   -                    N
+│ moe_nvfp4_mmq                      f057bac7d179   used                 N
+│ moe_prefill                        4c4540c33547   used                 N
+│ moe_relu2_fused                    f5b158ec76dc   -                    N
+│ moe_shared_expert_fused            2c5c62a33fb6   used                 N
+│ moe_shared_expert_fused_batch2_t   78ce432df9f5   used                 N
+│ moe_shared_expert_fused_batch3_t   7467a2b88c92   used                 N
+│ moe_shared_expert_fused_bf16       2c42d2c21279   used                 N
+│ moe_shared_expert_fused_bf16_batch2 511eaa0bcb51   used                 N
+│ moe_shared_expert_fused_fp8        45f5a488ad9f   used                 N
+│ moe_shared_expert_fused_fp8_batch2 3b964642816b   used                 N
+│ moe_shared_expert_fused_fp8_batch2_t cac7dc7940d5   used                 N
+│ moe_shared_expert_fused_fp8_batch3 2c01e7fabd07   used                 N
+│ moe_shared_expert_fused_fp8_batch3_t 39e92ce0bd1b   used                 N
+│ moe_shared_expert_fused_fp8_t      4cd0bf5221b4   used                 N
+│ moe_shared_expert_fused_mmq        24c21886a25f   used                 N
+│ moe_shared_expert_fused_t          a90aae6c52aa   used                 N
+│ moe_silu_mul                       cacd560f2157   used                 Y (1 dropped)
+│ moe_sorted                         30a15fee04f9   used                 N
+│ moe_topk                           1f7c99a781c4   used                 N
+│ moe_topk_sig                       448d0514759d   used                 N
+│ moe_topk_softmax_bias              e74c9eeebd56   used                 N
+│ moe_topk_sqrt                      946575af8c5f   used                 N
+│ moe_transpose_batched              5e6fa7328d64   used                 N
+│ moe_w4a16                          ab6162f0035d   used                 Y (1 dropped)
+│ moe_w8a8_grouped_gemm              672c54f91493   used                 N
+│ mxfp8_act_quant                    b3e05b776733   used                 N
+│ mxfp8_gemv                         07e2d5881f60   used                 N
+│ nemotron_moe_prefill               8603de61b1b2   -                    N
+│ nllb_encoder                       4e0cefdcb886   -                    N
+│ norm                               86e11f5450d1   used                 N
+│ paged_decode                       832219e40f91   used                 N
+│ paged_decode_attn_512              bdaaf4c16dad   used                 N
+│ paged_decode_attn_turbo2_128       a54257f08198   -                    N
+│ paged_decode_bf16k_turbo2v         9c490bf07a08   -                    N
+│ paged_decode_bf16k_turbo2v_128     7c83934696fc   -                    N
+│ paged_decode_bf16k_turbo3v         0ca112aafdfd   -                    N
+│ paged_decode_bf16k_turbo3v_128     a85c761cad47   -                    N
+│ paged_decode_bf16k_turbo4v         0d462549a3bf   -                    N
+│ paged_decode_bf16k_turbo4v_128     99ef0985ddd2   -                    N
+│ paged_decode_fp8                   f6abd82dcf50   used                 N
+│ paged_decode_fp8_mla               877011e9ce7d   -                    N
+│ paged_decode_fp8k_turbo2v          4fa993bd5301   -                    N
+│ paged_decode_fp8k_turbo2v_128      f59a4282349b   -                    N
+│ paged_decode_fp8k_turbo3v          1e9ec94e5e3c   -                    N
+│ paged_decode_fp8k_turbo3v_128      f638c88697b2   -                    N
+│ paged_decode_fp8k_turbo4v          0e5bf825245c   -                    N
+│ paged_decode_fp8k_turbo4v_128      4f1ef311e532   -                    N
+│ paged_decode_mla                   ad4622561394   -                    N
+│ paged_decode_nvfp4                 42ba504feebb   -                    N
+│ paged_decode_turbo2                af366bd1d1aa   -                    N
+│ paged_decode_turbo3                329f86692c5e   -                    N
+│ paged_decode_turbo3_128            b1e6e11fe0d8   -                    N
+│ paged_decode_turbo3k_turbo8v       7353069dec11   -                    N
+│ paged_decode_turbo3k_turbo8v_128   eaee50b401ea   -                    N
+│ paged_decode_turbo4                f52b327a09d9   -                    N
+│ paged_decode_turbo4_128            effd4f08eec2   -                    N
+│ paged_decode_turbo4_512            50334f364bcf   -                    N
+│ paged_decode_turbo4k_turbo3v       5bbeafb8d914   -                    N
+│ paged_decode_turbo4k_turbo3v_128   4419902b39e0   -                    N
+│ paged_decode_turbo4k_turbo8v       3ea0755dd1a8   -                    N
+│ paged_decode_turbo4k_turbo8v_128   72c4e6036610   -                    N
+│ paged_decode_turbo8                e6c66e47e11a   -                    N
+│ paged_decode_turbo8_128            8d806a75bd1c   -                    N
+│ paged_decode_turbo8_512            141c9ebe7930   -                    N
+│ per_token_group_quant_fp8          e7a71245a549   used                 N
+│ prefill_attn_compressed            e6781366f28a   -                    N
+│ prefill_fp8kv                      da115b003142   -                    N
+│ prefill_paged                      03cd88106502   used                 N
+│ prefill_paged_bf16k_turbo2v        005ea0f5d4a9   used                 N
+│ prefill_paged_bf16k_turbo3v        9c8b11a5983c   used                 N
+│ prefill_paged_bf16k_turbo4v        9181b79e1b49   used                 N
+│ prefill_paged_fp8                  f8d23757aae2   used                 N
+│ prefill_paged_fp8k_turbo2v         8b5e98f87711   used                 N
+│ prefill_paged_fp8k_turbo3v         8be64ac7b696   used                 N
+│ prefill_paged_fp8k_turbo4v         2417946f8951   used                 N
+│ prefill_paged_indirect             7b4a7b86f6b9   -                    N
+│ prefill_paged_indirect_sink        57c3f16ed7c2   -                    N
+│ prefill_paged_indirect_sink_h128   577188858259   used                 N
+│ prefill_paged_nvfp4                4005cf4bfcba   used                 N
+│ prefill_paged_sink                 e0484eaf4df6   -                    N
+│ prefill_paged_sink_h128            7cba4c7e3164   used                 N
+│ prefill_paged_turbo2               69feee696405   used                 N
+│ prefill_paged_turbo3               c2105f6e8bd5   used                 N
+│ prefill_paged_turbo3k_turbo8v      c3911dcbf1c1   used                 N
+│ prefill_paged_turbo4               ed3c1e59e1af   used                 N
+│ prefill_paged_turbo4k_turbo3v      c210060cacf5   used                 N
+│ prefill_paged_turbo4k_turbo8v      007a153a8499   used                 N
+│ prefill_paged_turbo8               c9ff115c3363   used                 N
+│ q2_0_gemv                          5d98978700ab   -                    N
+│ q2_0_gemv_vec                      85aa154a6585   used                 N
+│ quant_rowwise_fp8                  498cf54228f3   -                    N
+│ quantize_bf16_to_fp8_blockscaled   ba34cdbc80ef   -                    N
+│ quantize_nvfp4                     cc5186db26e6   used                 N
+│ qwen4exp_attn                      20475966c1c8   -                    N
+│ qwen4exp_hc                        d4220d100ec3   -                    N
+│ qwen4exp_ple                       ae0676f5ba1a   -                    N
+│ rdma_oneshot                       a9d6c780f08d   used                 N
+│ relu2                              0494c7397566   -                    N
+│ reshape_and_cache                  b4d76344e651   used                 N
+│ reshape_and_cache_turbo            510485da9044   -                    N
+│ residual_add                       a8397796497f   used                 N
+│ rms_norm_vanilla                   02523febe64b   used                 N
+│ rope                               d62f5ca3c030   used                 N
+│ rope_mrope_interleaved             08cb16a14d18   used                 N
+│ silu_mul_plain                     7ed3559ac2bf   used                 N
+│ ssm_h_dtype                        1857b474be8c   used                 N
+│ ssm_preprocess                     6057e33ef202   used                 N
+│ ssm_state_norm                     2e6aa48dbc8b   used                 N
+│ token_overlay                      98e387417c45   used                 N
+│ tq_plus_innerq_apply               28e95d86aea0   used                 N
+│ transpose_u8                       8aa091f067b1   used                 N
+│ vector_add                         aaeea326e703   -                    N
+│ w4a16                              e8abc1c85a7f   used                 Y (1 dropped)
+│ w4a16_fp8_ldmab                    ef00062efb9a   -                    N
+│ w4a16_gemv                         e2d326ac2fa2   used                 Y (1 dropped)
+│ w4a16_gemv_fused                   806c83e1c387   used                 N
+│ w4a4                               992675bc3e81   used                 N
+│ w8a16_gemm                         099b32ffb0e8   used                 N
+│ w8a16_gemm_pipelined               6877c736e13c   used                 N
+│ w8a16_gemm_t                       2d77c473cf82   used                 N
+│ w8a16_gemm_t_m128                  02ac98f727f2   used                 N
+│ w8a16_gemv                         3d89c168b3f9   used                 N
+│ w8a16_gemv_batch4                  340977e6688b   used                 N
+│ w8a16_gemv_fused                   bd3342f79a99   used                 N
+│ wht_bf16                           e6a015d83736   used                 N
+│ widen_block_scale_f32              79165f4d8859   -                    N
+└─
+
+36 kernel(s) declared expected-absent in this target's MODEL.toml [expected_absent] (no action):
+    inferspark_prefill_512tc::inferspark_prefill_512tc, moe_persist_marker::moe_w4a16_k64_strides_m_tiles, moe_silu_mul::silu_mul_quant_fp8, moe_w4a16::moe_w4a16_down_t_k64_fp4, moe_w4a16::moe_w4a16_fused_gate_up_t_k64_fp4, moe_w4a16::moe_w4a16_fused_gate_up_t_k64_m128, nvfp4_mmq::atlas_nvfp4_mmq128_nc, nvfp4_mmq::atlas_nvfp4_mmq128_wc, nvfp4_mmq::atlas_nvfp4_mmq16_nc, nvfp4_mmq::atlas_nvfp4_mmq16_wc, nvfp4_mmq::atlas_nvfp4_mmq32_nc, nvfp4_mmq::atlas_nvfp4_mmq32_wc, nvfp4_mmq::atlas_nvfp4_mmq64_nc, nvfp4_mmq::atlas_nvfp4_mmq64_wc, nvfp4_mmq::atlas_nvfp4_quantize_bf16, nvfp4_mmq::atlas_nvfp4_repack, nvfp4_mmq::atlas_nvfp4_scale_bf16, nvfp4_mmq::atlas_nvfp4_silu_mul_quant, nvfp4_mmq::atlas_nvfp4_silu_mul_scaled, q4k_mmq::atlas_q4k_mmq128_nc, q4k_mmq::atlas_q4k_mmq128_wc, q4k_mmq::atlas_q8_1_quantize_ds4_bf16, q4k_quantize::q4k_quantize, w4a16::fp8_gemm_t_row_scaled, w4a16::fp8_gemm_t_row_scaled_m16, w4a16::int8_gemm_faith2, w4a16::int8_gemm_i32acc, w4a16::requant_a_bf16_int8, w4a16::requant_w_nvfp4_int8, w4a16::w4a16_gemm_t_k64_n64_p3, w4a16::w4a16_gemm_t_k64_p3, w4a16::w4a16_gemm_t_m128_bf16, w4a16::w4a16_gemm_t_m128_bf16_v2, w4a16::w4a16_gemm_t_m128_k16, w4a16::w4a16_gemm_t_p3, w4a4::w4a4_gemm
+
+2026-10-17T19:43:37.411383Z  INFO spark::main_modules::serve_phases::runtime: EOS tokens (from generation_config.json): [154820, 154827, 154829]
+2026-10-17T19:43:37.411394Z  INFO spark::main_modules::serve_phases::runtime: Default sampling: temperature=1, top_k=20, top_p=0.95, top_n_sigma=1, min_p=0.08
+2026-10-17T19:43:37.778666Z  INFO spark::tokenizer::jinja_helpers: Loaded standalone chat_template.jinja (10921 chars)
+2026-10-17T19:43:37.779146Z  INFO spark::tokenizer::chat_impl: Loaded OpenAI-variant Jinja template for glm5_next
+2026-10-17T19:43:37.779388Z  INFO spark::tokenizer::chat_impl: Loaded tokenizer from ~/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local/tokenizer.json
+2026-10-17T19:43:37.800768Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Reasoning parser: qwen (default for thinking-capable model)
+2026-10-17T19:43:37.800877Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Code-fence token: 73022 (``` — F2 fence guard active)
+2026-10-17T19:43:37.870675Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Numeric-token mask: 541/154856 ids classified as digit-runs (digit-normalized content-loop path active)
+2026-10-17T19:43:37.941454Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Punctuation-token mask: 5853/154856 ids classified as punctuation/whitespace (numeric-list loop exemption active)
+2026-10-17T19:43:38.012238Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Boundary-token mask: 2559/154856 ids end in a newline / sentence boundary (Phase-C rollback-to-boundary active)
+2026-10-17T19:43:38.084228Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Mid-word token mask: 145401/154856 ids end in alphanumeric (mid-word </think> defer active during thinking)
+2026-10-17T19:43:38.084240Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Thinking end token: 154842 (</think>)
+2026-10-17T19:43:38.084242Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Thinking start token: 154841 (<think>)
+2026-10-17T19:43:38.084282Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Tool-response hard stop: <tool_response> (id 154845) registered
+2026-10-17T19:43:38.084285Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Tool call start token: 154843 (<tool_call>)
+2026-10-17T19:43:38.084288Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Tool call end token: 154844 (</tool_call>)
+2026-10-17T19:43:38.084293Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Tool value markers: 154849 (<arg_value>), 154850 (</arg_value>)
+2026-10-17T19:43:38.320871Z  INFO spark::grammar::engine: Grammar: detected tokenizer vocab_type=byte_level, add_prefix_space=false
+2026-10-17T19:43:38.419940Z  INFO spark::main_modules::serve_phases::tokenizer_runtime: Grammar engine initialized (vocab_size=154856, vocab_type=auto-detected from tokenizer)
+2026-10-17T19:43:38.420611Z  INFO spark::main_modules::serve_load: EP v2 active: honoring max_batch_size=8
+2026-10-17T19:43:38.420618Z  INFO spark::main_modules::serve_load: mHC highway model: concurrency 8 via the per-seq highway decode loop (batched highway kernels are the perf follow-up)
+2026-10-17T19:43:38.420630Z  INFO spark::main_modules::serve_load: DFlash speculative decoding: ENABLED (γ=8, window=2048, drafter installed)
+2026-10-17T19:43:38.420632Z  INFO spark::main_modules::serve_load: Scheduling policy: FIFO
+2026-10-17T19:43:38.421020Z  INFO spark::main_modules::serve_phases::runtime: Tool call parser: poolside_v1 (user-specified)
+2026-10-17T19:43:38.421026Z  INFO spark::main_modules::serve_phases::runtime: Tool call parser: 'poolside_v1' has registered XGrammar grammar — constrained decoding ENABLED for tool requests
+2026-10-17T19:43:38.421028Z  INFO spark::main_modules::serve_phases::runtime: Response store: max_entries=10000, ttl=86400s, persist=memory-only
+2026-10-17T19:43:38.421065Z  INFO spark::main_modules::serve_phases::runtime: Model behavior: thinking disabled when tools active (MODEL.toml)
+2026-10-17T19:43:38.421067Z  INFO spark::main_modules::serve_phases::runtime: Model behavior: max_thinking_budget=256, thinking_default=false
+2026-10-17T19:43:38.421069Z  INFO spark::main_modules::serve_phases::runtime: Model behavior: watchdog rollback+re-steer ENABLED (cap 2 per sequence)
+2026-10-17T19:43:38.421142Z  WARN spark::scheduler: --mtp-gate force: MTP throughput gate DISARMED (diagnostic; verify runs even where the gate would measure it net-negative)
+2026-10-17T19:43:38.421162Z  INFO spark::scheduler: Scheduler started (batched mode, max_batch=8, mtp=true, ngram=false, num_drafts=7, policy=fifo, chunked_prefill=true, max_prefill_tokens=8192)
+2026-10-17T19:43:38.421537Z  INFO spark::main_modules::serve_router: API reachable only from this machine (loopback). To expose on the LAN pass --bind 0.0.0.0; combine with --require-auth and --auth-tokens-file for non-trusted networks.
+2026-10-17T19:43:38.421584Z  INFO spark::main_modules::serve_router: Server live and ready at 127.0.0.1:8893 running glm-5.3-flash-atlas

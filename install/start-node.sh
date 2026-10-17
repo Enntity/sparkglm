@@ -12,11 +12,16 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
-                     [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--cuda-cache DIR] [--name NAME]
+                     [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
+                     [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
-  --model-root       directory holding nvidia--GLM-5.3-Flash-NVFP4,
-                     incoai--GLM-5.3-Flash-DFlash2 and atlas-overlay (convert.sh)
+  --model-root       directory holding the checkpoint and
+                     incoai--GLM-5.3-Flash-DFlash2
+  --checkpoint       the checkpoint's directory under --model-root (default:
+                     the pinned nvidia--GLM-5.3-Flash-FP4-Local, served as
+                     published); nvidia--GLM-5.3-Flash-NVFP4 is served through
+                     the atlas-overlay convert.sh writes beside it
   --image            the image tag, install/build.sh --tag
   --fabric-interface the fabric's network interface on THIS node (default: the
                      interface of the first --fabric-hca; otherwise required)
@@ -41,6 +46,7 @@ EOF
 }
 rank="" leader="" iface="" model_root="" image="" hca=""
 cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
+checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rank) rank=$2; shift 2 ;;
@@ -50,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --model-root) model_root=$2; shift 2 ;;
     --image) image=$2; shift 2 ;;
     --cuda-cache) cache=$2; shift 2 ;;
+    --checkpoint) checkpoint_name=$2; shift 2 ;;
     --name) name=$2; shift 2 ;;
     --profile) profile=$2; shift 2 ;;
     --gpu-memory-utilization) util=$2; shift 2 ;;
@@ -91,11 +98,23 @@ for rail in "${rails[@]}"; do
   grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
     { echo "RDMA device $rail is missing or down" >&2; exit 2; }
 done
+[[ $checkpoint_name =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] ||
+  { echo "--checkpoint must be one directory name under --model-root" >&2; exit 2; }
 model_root=$(realpath "$model_root")
-overlay="$model_root/atlas-overlay"
-checkpoint="$model_root/nvidia--GLM-5.3-Flash-NVFP4"
+checkpoint="$model_root/$checkpoint_name"
 drafter="$model_root/incoai--GLM-5.3-Flash-DFlash2"
-for path in "$checkpoint/config.json" "$drafter/config.json" "$overlay/sparkglm-verified.json"; do
+model=$checkpoint
+model_mounts=(--mount "type=bind,src=$checkpoint,dst=$checkpoint,readonly")
+required=("$checkpoint/config.json" "$drafter/config.json")
+# NVIDIA's NVFP4 release ships its MTP layer in BF16; Atlas serves it through
+# the overlay convert.sh writes. The overlay links into the original
+# checkpoint, so both are mounted at the same absolute paths.
+if [[ $checkpoint_name == nvidia--GLM-5.3-Flash-NVFP4 ]]; then
+  model="$model_root/atlas-overlay"
+  model_mounts+=(--mount "type=bind,src=$model,dst=$model,readonly")
+  required+=("$model/sparkglm-verified.json")
+fi
+for path in "${required[@]}"; do
   [[ -f $path ]] || { echo "missing $path" >&2; exit 2; }
 done
 mkdir -p "$cache"
@@ -137,21 +156,18 @@ if [[ -n $carveout ]]; then
   carveout_args=(--mount "type=bind,src=$lock_dir,dst=$lock_dir"
     -e SPARKGLM_DISPLAY_CARVEOUT=1)
 fi
-# The overlay links into the original checkpoint, so it is mounted at the same
-# absolute path inside the container.
 docker rm -f "$name" >/dev/null 2>&1 || true
 docker run -d --name "$name" --restart no --network host --ipc host \
   --shm-size 32g --memory 114g --gpus all --device /dev/infiniband:/dev/infiniband \
   --cap-add IPC_LOCK --cap-add SYS_NICE --ulimit memlock=-1:-1 \
   --security-opt no-new-privileges=true --stop-timeout 60 \
-  --mount "type=bind,src=$checkpoint,dst=$checkpoint,readonly" \
-  --mount "type=bind,src=$overlay,dst=$overlay,readonly" \
+  "${model_mounts[@]}" \
   --mount "type=bind,src=$drafter,dst=$drafter,readonly" \
   --mount "type=bind,src=$cache,dst=/atlas-cuda-cache" ${profile_mount[@]+"${profile_mount[@]}"} ${pc_args[@]+"${pc_args[@]}"} \
   ${carveout_args[@]+"${carveout_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
-  -e MODEL_PATH="$overlay" -e DRAFTER_PATH="$drafter" \
+  -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE=2 -e ATLAS_TP_SIZE=2 -e ATLAS_EP_SIZE=2 -e ATLAS_CONTEXT_WINDOW=524288 \

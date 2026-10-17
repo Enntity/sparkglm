@@ -176,17 +176,32 @@ def profile_path(environ, here):
     return here/'profiles'/f'{name}.json'
 
 
+def mtp_ready(model):
+    """Whether the checkpoint at `model` carries the quantized MTP layer the
+    engine serves. FP4-Local ships its MTP experts quantized (W4A16 NVFP4)
+    and is served as published; NVIDIA's earlier NVFP4 release ships them in
+    BF16 and is served through the overlay install/convert.sh writes, whose
+    receipt counts the 864 matrices it quantized."""
+    receipt = model/'conversion.complete.json'
+    if receipt.is_file():
+        return json.loads(receipt.read_text()).get('converted_matrices') == 864
+    config = json.loads((model/'config.json').read_text())
+    mtp = (config.get('text_config') or config).get('num_hidden_layers')
+    quantized = (config.get('quantization_config') or {}).get('quantized_layers') or {}
+    return f'model.language_model.layers.{mtp}.mlp.experts' in quantized
+
+
 def main():
     here = Path(__file__).resolve().parent
     profile = profile_path(os.environ, here)
     argv, env = launch(os.environ, json.loads(profile.read_text()))
     model = Path(env.get('MODEL_PATH', '/models/atlas-overlay'))
-    receipt = json.loads((model/'conversion.complete.json').read_text())
-    if receipt.get('converted_matrices') != 864:
-        raise ValueError('The NVIDIA MTP overlay has not completed conversion')
-    # Full tensor verification is a separate installation step, before serving.
     if not (model/'config.json').is_file() or not (model/'model.safetensors.index.json').is_file():
-        raise ValueError('Incomplete model overlay')
+        raise ValueError('Incomplete checkpoint')
+    # Full tensor verification of an overlay is a separate installation step, before serving.
+    if not mtp_ready(model):
+        raise ValueError('The NVIDIA NVFP4 checkpoint needs the MTP overlay (install/convert.sh), '
+                         'which has not completed conversion')
     drafter = Path(env.get('DRAFTER_PATH', '/models/drafter'))
     if not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file():
         raise ValueError('Incomplete DFlash drafter')

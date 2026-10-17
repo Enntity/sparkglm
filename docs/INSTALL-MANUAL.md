@@ -1,12 +1,12 @@
 # Install by hand
 
 These are the same steps [`./start.sh`](../start.sh) runs, one command at a
-time. Run steps 1–4 on **both** Sparks with the same `MODEL_ROOT`.
+time. Run steps 1–3 on **both** Sparks with the same `MODEL_ROOT`.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) `sparkglm/atlas-20261014-vpc` @ `8180ae56` ([`install/atlas-source.json`](../install/atlas-source.json)) |
-| Model | [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4) @ `423acf37583782c51c142d145aef733d72943d93` (MIT) |
+| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) release tag `sparkglm/atlas-20261017-fp4local` @ `b3b016ab` ([`install/atlas-source.json`](../install/atlas-source.json)) |
+| Model | [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) @ `76348ddb2be2e35e39ecfc00e75dc07703f4f3d5` (165.3 GiB, NVIDIA Open Model Agreement; base model MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
 | Profiles | [`install/profiles/`](../install/profiles/): `4x1m` (what `./start.sh` runs), `4x512k` (the `start-node.sh` default) and `8x128k` |
@@ -46,8 +46,8 @@ it builds.
 
 ```sh
 export MODEL_ROOT=$HOME/models/sparkglm     # the same absolute path on both Sparks
-hf download nvidia/GLM-5.3-Flash-NVFP4 --revision 423acf37583782c51c142d145aef733d72943d93 \
-  --local-dir "$MODEL_ROOT/nvidia--GLM-5.3-Flash-NVFP4"
+hf download nvidia/GLM-5.3-Flash-FP4-Local --revision 76348ddb2be2e35e39ecfc00e75dc07703f4f3d5 \
+  --local-dir "$MODEL_ROOT/nvidia--GLM-5.3-Flash-FP4-Local"
 hf download incoai/GLM-5.3-Flash-DFlash2 --revision 7d74cdd881ed7e32c31175984a67823127b66cfe \
   --local-dir "$MODEL_ROOT/incoai--GLM-5.3-Flash-DFlash2"
 ```
@@ -55,21 +55,27 @@ hf download incoai/GLM-5.3-Flash-DFlash2 --revision 7d74cdd881ed7e32c31175984a67
 Instead of downloading twice, you can copy both directories to the other
 Spark with `rsync -a` over the direct cable.
 
-## 4. Convert the checkpoint overlay
+FP4-Local is served as published; there is nothing to convert.
 
-Run this once per Spark. It takes about a minute and needs the GPU.
+**The earlier NVFP4 checkpoint** ([`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4)
+@ `423acf37583782c51c142d145aef733d72943d93`, MIT, 190.4 GiB) still runs on
+the same image. Download it to `$MODEL_ROOT/nvidia--GLM-5.3-Flash-NVFP4`, then
+convert its overlay once per Spark (about a minute, needs the GPU):
 
 ```sh
 install/convert.sh "$MODEL_ROOT" "$IMAGE"
 ```
 
-Atlas serves the NVIDIA checkpoint through `$MODEL_ROOT/atlas-overlay`. The
-overlay quantizes the 864 MTP matrices Atlas needs to NVFP4 and links
-everything else back to the original files. The script verifies every payload
-and records the converter it used. It skips the work when the overlay already
-matches that converter; otherwise it moves any older overlay aside.
+Atlas serves that checkpoint through `$MODEL_ROOT/atlas-overlay`, which
+quantizes the 864 BF16 MTP matrices Atlas needs to NVFP4 and links everything
+else back to the original files. The script verifies every payload and records
+the converter it used. It skips the work when the overlay already matches that
+converter; otherwise it moves any older overlay aside. Pass
+`--checkpoint nvidia--GLM-5.3-Flash-NVFP4` to `start-node.sh` on both ranks
+below (`./start.sh` does both when `.env` sets `CHECKPOINT_REPO` and
+`CHECKPOINT_REVISION`).
 
-## 5. Start the pair, worker first
+## 4. Start the pair, worker first
 
 Start rank **1** (the worker) first, then rank **0** (the leader). The
 `--leader-address` is rank 0's IPv4 address on the direct cable. Each rank
@@ -96,25 +102,25 @@ each shape; later starts reuse it. Run one warmup pass before measuring.
 `--profile 8x128k` selects the third shipped profile. A path to a JSON file
 runs your own profile. Use the same profile on both ranks.
 
-**Memory share.** `--gpu-memory-utilization 0.91` on both ranks gives an
-unsplit KV pool of about 1.13M tokens on Sparks that run nothing else; without
-it the profile's 0.88 gives about 600K. We run 0.91: above it, real traffic
-took our rank 0 below 1 GiB free.
+**Memory share.** `--gpu-memory-utilization 0.91` on both ranks gives the KV
+pool much more room on Sparks that run nothing else (with the NVFP4 checkpoint,
+about 1.13M tokens unsplit against 600K at the profile's 0.88). We run 0.91:
+above it, real traffic took our rank 0 below 1 GiB free.
 
 **KV shard.** `--kv-shard` on both ranks splits the KV cache between the two
 Sparks: each stores the latents of half the blocks, so the pool holds about
 1.8x the tokens, and the output is bit-identical to the unsplit pool's.
 `./start.sh` turns it on by default; `start-node.sh` leaves it off unless you
-pass the flag. At 0.91 with the display carveout the pool is about 2.61M
-tokens, or 2.36M with the disk prefix cache.
+pass the flag. At 0.91 with the display carveout and the disk prefix cache the
+pool is about 2.66M tokens with FP4-Local (2.34M with the NVFP4 checkpoint).
 
 **Prefix cache on disk.** `--prefix-cache-dir DIR` (and optionally
 `--prefix-cache-gb 48`) on both ranks keeps evicted prefix-cache entries on
 each node's disk; see the README for what it costs.
 
 **Display memory as KV cache.** `--display-carveout` on both ranks lends each
-Spark's 2 GiB display carveout to the KV cache (about 1.38M tokens at 0.91
-unsplit, 2.61M with `--kv-shard`).
+Spark's 2 GiB display carveout to the KV cache (about 28% more blocks with
+`--kv-shard` at 0.91).
 The containers share the lock directory `/run/lock/sparkglm`. It needs an
 NVIDIA driver that lends the display memory (580.76.05 or later) and a
 headless Spark; see the README.
@@ -138,8 +144,9 @@ headless Spark; see the README.
   host. Keep builds, other models and large processes off the pair while
   serving. The default profile leaves about 8–9 GB free at full KV.
 - **A rank exits during loading:** `docker logs atlas-sparkglm-rank0`, or
-  `./start.sh logs worker`. The launcher refuses to start without a verified
-  overlay and a complete drafter.
+  `./start.sh logs worker`. The launcher refuses to start without a complete
+  checkpoint and drafter, and refuses the NVFP4 checkpoint without its
+  verified overlay.
 
 ## Per-node fabric selection
 
