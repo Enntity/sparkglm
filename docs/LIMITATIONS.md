@@ -194,3 +194,8 @@ chunks, which halve our KV pool).
   at our clients' settings (temperature 0.1-0.25, bounded or keyed objects)
   were not affected.
 - Every `json_schema` is enforced as strict, including `"strict": false`.
+
+## Installer notes (FP4-Local release)
+
+- The legacy NVFP4 override reuses an existing MTP overlay when the converter is unchanged; `install/convert.sh` does not record the source checkpoint's revision. If you point `CHECKPOINT_REVISION` at a different NVFP4 commit, delete `atlas-overlay` first.
+- `serve.py`'s MTP-readiness check reads `quantization_config.quantized_layers` as a mapping; a malformed config makes startup refuse (fail closed), and the engine validates the checkpoint again at load.

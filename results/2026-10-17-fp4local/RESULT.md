@@ -100,8 +100,8 @@ Same binary, same settings (`4x1m`, 0.91, carveout, shard, disk prefix cache), b
 | Rank 0 before the KV pool (free-memory measure) | 101.94 GB | 102.45 GB |
 | KV pool | **166,044 blocks, 2.66M tokens** | 146,512 blocks, 2.34M tokens |
 
-The pool comes from a free-memory measurement that moves between starts: FP4-Local's production-mode starts in these
-receipts gave 157,655–167,874 blocks at 0.91 (the release candidate's: 157,950), and the release image's `4x1m` start
+The pool comes from a free-memory measurement that moves between starts: FP4-Local's production-mode starts with the shipped switches in these
+receipts gave 157,655–167,874 blocks at 0.91 (a start without the switches, `raw/prefill/p2-base`, gave 173,028) (the release candidate's: 157,950), and the release image's `4x1m` start
 181,120 (2.90M tokens; its carveout took two buffers). Prefill in 16K chunks costs about
 4.1 GB more before the KV pool and halves it (77,348 blocks, `raw/prefill/ov-on16k/serve.rank0.log`).
 
@@ -195,10 +195,10 @@ step (KDA +1.07 GB). `4x512k`, kindling bench, 6 runs a workload (`raw/native/`)
 | Arm | code / prose / structured (tok/s) | KV pool (blocks) |
 |---|---:|---:|
 | Production formats (`n-prod`) | 82.8 / 47.2 / 104.7 | 161,844 |
-| MLA on its FP8 bytes (`n-mlaw16`) | 78.0 / 45.0 / 103.7 | 166,554 |
-| MLA and shared experts on their FP8 bytes (`n-mlashw16`) | 80.7 / 45.3 / 101.2 | 174,644 |
+| MLA on its FP8 bytes (`n-mlaw16`) | 78.0 / 45.0 / 103.7 | 174,644 |
+| MLA and shared experts on their FP8 bytes (`n-mlashw16`) | 80.7 / 45.3 / 101.2 | 199,132 |
 | Every group native (`n-natw16`) | 72.6 / 39.7 / 94.6 | 204,170 |
-| Every group native, tiled KDA twin (`n-natw16tile`) | 72.1 / 39.5 / 93.9 | 199,132 |
+| Every group native, tiled KDA twin (`n-natw16tile`) | 72.1 / 39.5 / 93.9 | 166,554 |
 
 Fully native decode is 10–16% slower and scores the same on ToolEvalBench (91). It holds about 2.6 GB less per rank
 before the KV pool (99.54 against 102.12 GB), so the pool grows by 26%. Greedy C1 and C4 agree 8/8 in every arm. The slowdown is the bytes, not the kernels: the fused tiled
