@@ -1,0 +1,300 @@
+{
+ "tag": "rc2",
+ "model": "glm-5.3-flash-atlas",
+ "summary": {
+  "single": "3/3",
+  "typed": "3/3",
+  "parallel": "3/3",
+  "followup": "3/3",
+  "no_tool": "3/3",
+  "choice_none": "3/3",
+  "stream": "3/3"
+ },
+ "rows": [
+  {
+   "case": "single",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "single",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "single",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "typed",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "add",
+     {
+      "a": 17,
+      "b": 25
+     }
+    ]
+   ]
+  },
+  {
+   "case": "typed",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "add",
+     {
+      "a": 17,
+      "b": 25
+     }
+    ]
+   ]
+  },
+  {
+   "case": "typed",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "add",
+     {
+      "a": 17,
+      "b": 25
+     }
+    ]
+   ]
+  },
+  {
+   "case": "parallel",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ],
+    [
+     "get_weather",
+     {
+      "city": "Lima",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "parallel",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ],
+    [
+     "get_weather",
+     {
+      "city": "Lima",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "parallel",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ],
+    [
+     "get_weather",
+     {
+      "city": "Lima",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "followup",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "stop",
+   "detail": "The current weather in Oslo is **7\u00b0C** with **light rain**. You might want to bring an umbrella if you're heading out! \ud83c\udf27\ufe0f"
+  },
+  {
+   "case": "followup",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "The current weather in Oslo is **7\u00b0C** with **light rain**. You might want to bring an umbrella if you're heading out! \ud83c\udf27\ufe0f"
+  },
+  {
+   "case": "followup",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "Right now in Oslo, it's **7\u00b0C** with light rain. You might want to bring an umbrella if you're heading out! \ud83c\udf27\ufe0f"
+  },
+  {
+   "case": "no_tool",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "stop",
+   "detail": "4"
+  },
+  {
+   "case": "no_tool",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "4"
+  },
+  {
+   "case": "no_tool",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "4"
+  },
+  {
+   "case": "choice_none",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "stop",
+   "detail": "mer highs around 20\u201325\u00b0C and winter temperatures often between -5\u00b0C and 0\u00b0C. Is there anything else I can help you with?"
+  },
+  {
+   "case": "choice_none",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "mer highs around 20\u201325\u00b0C and winter temperatures often between -5\u00b0C and 0\u00b0C. Is there anything else I can help you with?"
+  },
+  {
+   "case": "choice_none",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "stop",
+   "detail": "mer highs around 20\u201325\u00b0C and winter temperatures often between -5\u00b0C and 0\u00b0C. Is there anything else I can help you with?"
+  },
+  {
+   "case": "stream",
+   "run": 0,
+   "greedy": true,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "stream",
+   "run": 1,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  },
+  {
+   "case": "stream",
+   "run": 2,
+   "greedy": false,
+   "ok": true,
+   "finish": "tool_calls",
+   "detail": [
+    [
+     "get_weather",
+     {
+      "city": "Oslo",
+      "unit": "celsius"
+     }
+    ]
+   ]
+  }
+ ]
+}
