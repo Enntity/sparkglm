@@ -21,7 +21,11 @@ each receipt. Where they quoted prompt or filler text from mmastrac's
 unlicensed repository, that text has been replaced by a marker naming its
 source (2026-09-30); the measurements were taken with the original text. The
 RigMark receipts in `results/` are output of RigMark (MIT, Alex Ellis /
-OpenFaaS Ltd).
+OpenFaaS Ltd). `results/2026-10-17-fp4local/` also holds output of
+[tool-eval-bench](https://github.com/SeraphimSerapis/tool-eval-bench) and of
+[kindlingai/glm-5.3-flash-gx10](https://github.com/kindlingai/glm-5.3-flash-gx10)'s
+`prefill.py` and `gate/bench/bench.py`. The kindling repository has no license,
+so none of its code is included; its harness calls it from a local checkout.
 
 ## Fetched while building the image
 
@@ -67,12 +71,17 @@ requires you to offer them your modified source.
 No weights are distributed here. `./start.sh` downloads them from their
 publishers:
 
-- [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4): MIT.
+- [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local)
+  (the default): the NVIDIA Open Model Agreement; the GLM-5.3-Flash base model
+  is MIT.
+- [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4),
+  the default until 2026-10-17, which `.env` can still select: MIT.
 - [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2):
   **CC BY-NC-ND 4.0, non-commercial.** Both shipped profiles use this drafter.
 
-Read each model card before use. The converted overlay is a local derivative
-of the NVIDIA checkpoint and stays on your machines.
+Read each model card before use, and before redistributing anything derived
+from it. The overlay `convert.sh` writes for the NVFP4 checkpoint is a local
+derivative of it and stays on your machines.
 
 ## Earlier versions
 

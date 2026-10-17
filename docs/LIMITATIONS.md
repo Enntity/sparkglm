@@ -17,6 +17,11 @@ What to know before relying on SparkGLM.
   Atlas release, but the 500-item arithmetic (491/500) and two-hop 24K needle
   (24/24) sets were re-run on RC2.
 - A cold image build has not been timed. Our builds reused BuildKit caches.
+- The 2026-10-17 FP4-Local rows (marked in the README) were measured on dev
+  binaries of the pinned engine on the previous image; the release image built
+  from this recipe has not been measured yet. RigMark ran two runs a cell, an
+  earlier build of the series and without the four prefill switches (they do
+  not change decode).
 
 ## Not yet measured
 
@@ -33,11 +38,13 @@ What to know before relying on SparkGLM.
 
 ## Capacity and prefix caching
 
-- All requests share one KV pool, which also holds the prefix cache. Unsplit,
-  it is about 600K tokens at the default 0.88 memory utilization and about
-  1.13M at 0.91 on dedicated Sparks. With the KV shard (`./start.sh`'s default)
-  it holds about 1.8x that: 2.61M tokens at 0.91 with the display carveout, or
-  2.36M with the disk prefix cache. A request needs pool room for its whole
+- All requests share one KV pool, which also holds the prefix cache. With the
+  NVFP4 checkpoint, unsplit, it is about 600K tokens at the default 0.88 memory
+  utilization and about 1.13M at 0.91 on dedicated Sparks. With the KV shard
+  (`./start.sh`'s default) it holds about 1.8x that: 2.61M tokens at 0.91 with
+  the display carveout, or 2.36M with the disk prefix cache. FP4-Local leaves
+  more room: 2.66M tokens with the carveout and the disk prefix cache on the
+  same binary that gave the NVFP4 checkpoint 2.34M (2.5–2.7M across starts). A request needs pool room for its whole
   context, so four full 1M requests do not fit at once; later requests wait
   for room.
 - At 0.93 on dedicated Sparks the pool is about 1.63M tokens, and rank 0 went
@@ -51,8 +58,10 @@ What to know before relying on SparkGLM.
   `DISPLAY_CARVEOUT=1`, which adds KV without using system memory. On the
   2026-10-09 RC2 release, with the KV shard, the carveout and the disk prefix
   cache, the pool is about 2.36M tokens and a four-session 204K fill left
-  rank 0 at 4.8 GB free at worst. Only the latent KV pools go to the
-  carveout; they already fill it.
+  rank 0 at 4.8 GB free at worst. With FP4-Local (2026-10-17) the same fill
+  left 3.29 GB at worst: the larger pool takes the memory the smaller
+  checkpoint frees. Only the latent KV pools go to the carveout; they already
+  fill it.
 - `DISPLAY_CARVEOUT=1` needs an NVIDIA driver that lends the display memory
   (open kernel modules 580.76.05 or later) and a headless Spark. It has been
   measured on our two pairs only.
@@ -82,6 +91,25 @@ What to know before relying on SparkGLM.
 - The first start after installing or updating compiles CUDA kernels. On our
   pair this briefly used about 2 GB more host memory than steady state.
 
+## FP4-Local
+
+- By default FP4-Local's MXFP8 and FP8-block projections are served in
+  production's formats (KDA, shared experts and dense MLP in NVFP4, MLA in
+  MXFP8), requantized from an exact or nearest BF16 copy of the checkpoint's
+  bytes, not in the checkpoint's own formats. `ATLAS_GLM_FP4L_NATIVE=1` serves
+  them exactly as published; it decodes 10–16% slower and scored the same on
+  ToolEvalBench (91, one trial) ([docs/ENGINE.md](ENGINE.md)).
+- Image prompts on FP4-Local's MXFP8/NVFP4 vision tower have been checked only
+  as far as loading; the race, conversation and caching gates have not run.
+- RigMark staggered arrivals, the Matrix, the field guide and the 925K-token
+  needle have not been re-run on FP4-Local; those README rows are from the
+  NVFP4 checkpoint.
+- Serving the NVFP4 checkpoint through `CHECKPOINT_REPO`/`CHECKPOINT_REVISION`
+  has not been run end to end through `./start.sh`; the same engine served it
+  through `start-node.sh` with production's prompt logprobs.
+- A fresh download of the 165.3 GiB checkpoint through `./start.sh`,
+  including its subdirectory shard, has not been run; the pair had a copy.
+
 ## Performance gaps
 
 These come from two different kinds of comparison and should not be read as
@@ -105,6 +133,13 @@ at a time, so these are different concurrency settings.
 The 8 x 128K profile, which serves eight, has not been measured with RigMark.
 Older comparisons, including the mmastrac vLLM TP2 figures, remain in their
 dated result bundles.
+
+Against kindlingai's published TP=2 vLLM figures (NVFP4 checkpoint, their
+`bench.py` and `prefill.py`, run by us on FP4-Local), SparkGLM is ahead on
+single-stream decode and level at four mixed streams, but behind at eight
+mixed streams (100.6 against their 109.6, remeasured at 116) and on cold 32K
+prefill with the shipped 8K chunks (2,690 against 2,931 tok/s; 2,886 with 16K
+chunks, which halve our KV pool).
 
 ## Behaviour
 

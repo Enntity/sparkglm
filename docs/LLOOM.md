@@ -13,7 +13,8 @@ engine. Setup does four things on each Spark:
 
 1. Downloads the pinned checkpoints.
 2. Gets the image for the pinned `install/` tree, pulling it or building it.
-3. Converts and verifies the overlay.
+3. Converts and verifies the MTP overlay, for recipes that pin the NVFP4
+   checkpoint (FP4-Local, this repository's default since 2026-10-17, needs none).
 4. Registers the worker and leader runtimes.
 
 Starting launches rank 1, then rank 0, and routes the gateway model
