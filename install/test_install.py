@@ -17,9 +17,9 @@ spec.loader.exec_module(serve)
 DISK_TIER = ('ATLAS_KV_NVME', 'ATLAS_SSM_TIER', 'ATLAS_GLM_NVME')
 # The engine's refusals at world > 2 (serve_phases/preflight/glm_chain.rs).
 REFUSED_BEYOND_TWO_RANKS = (
-    'ATLAS_GLM_SPARSE_NATIVE', 'ATLAS_KDA_FLASH_PREFILL', 'ATLAS_GLM_TARGET_SHARED_FP8', 'ATLAS_GLM_PREFILL_2048',
-    'ATLAS_GLM_PREFILL_4096', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_KV_SHARD', 'ATLAS_GLM_C4_DECODE',
-    'ATLAS_GLM_C4_SPARSE', 'ATLAS_GLM_INDEPENDENT_DECODE', 'ATLAS_GLM_MTP_REPAIR', 'ATLAS_GLM_MTP_DISTRIBUTED')
+    'ATLAS_GLM_SPARSE_NATIVE', 'ATLAS_GLM_K3_MLA_QUERY_COMPARE', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_KV_SHARD',
+    'ATLAS_GLM_C4_DECODE', 'ATLAS_GLM_C4_SPARSE', 'ATLAS_GLM_C4_GROUPED_MOE', 'ATLAS_GLM_INDEPENDENT_DECODE',
+    'ATLAS_GLM_MTP_REPAIR', 'ATLAS_GLM_MTP_DISTRIBUTED')
 
 
 class LaunchContract(unittest.TestCase):
@@ -441,10 +441,12 @@ class LaunchContract(unittest.TestCase):
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
         full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
         expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
-        # Checkpoint-format weight slices: per-rank NVFP4 re-quantization of a
-        # quarter matrix degrades DFlash verify at four ranks.
+        # Checkpoint-format weight slices (per-rank NVFP4 re-quantization of a
+        # quarter matrix degrades DFlash verify at four ranks), the chain's
+        # proxies spinning through the vocab head's gap, and the piecewise
+        # DFlash verify graphs, which capture the chain's all-reduces.
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
-                        ATLAS_GLM_FP4L_NATIVE='1')
+                        ATLAS_GLM_FP4L_NATIVE='1', ATLAS_RDMA_PAIR_SPIN_US='30000', ATLAS_GLM_VERIFY_GRAPH='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
                 '--max-batch-size=4': '--max-batch-size=1',
