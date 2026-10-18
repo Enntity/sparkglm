@@ -452,14 +452,16 @@ class LaunchContract(unittest.TestCase):
         # its routed NVFP4 rows (3.5x fewer bytes over the chain, same bits);
         # the MoE output's reduce-scatter overlapped with the next attention
         # gather, its unpermute on 32 blocks so the chain kernels keep SMs; and
-        # the KDA conv writing FlashKDA's q/k/v planes (no pack copy, same bits).
+        # the KDA conv writing FlashKDA's q/k/v planes (no pack copy, same bits);
+        # and dead verify rows, so an owner batch skips the experts of drafts
+        # not worth verifying (same greedy outputs).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
                         ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head,attn',
                         ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
                         ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
-                        ATLAS_GLM_KDA_FLASH_PLANES='1')
+                        ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
