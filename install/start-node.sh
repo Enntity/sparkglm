@@ -8,8 +8,9 @@
 set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
-usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
+usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
+                     [--world-size 2|4 [--left-hca DEVICE[,...]] [--right-hca DEVICE[,...]]]
                      [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
@@ -27,6 +28,14 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      interface of the first --fabric-hca; otherwise required)
   --no-fabric-siblings  compatibility option; explicit HCA lists are always
                      passed without adding another device
+  --world-size       Sparks serving together (default 2). With 4, wired as a
+                     daisy chain rank 0-1-2-3, start ranks 3, 2, 1, then 0;
+                     --rank goes up to 3, --fabric-interface is this node's
+                     interface for NCCL's startup traffic (every Spark must
+                     reach the others' addresses on it; --leader-address is
+                     rank 0's address there) and replaces --fabric-hca
+  --left-hca         with --world-size 4: the RDMA devices cabled to rank - 1
+  --right-hca        with --world-size 4: the RDMA devices cabled to rank + 1
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:
@@ -44,7 +53,7 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
 EOF
   exit 2
 }
-rank="" leader="" iface="" model_root="" image="" hca=""
+rank="" leader="" iface="" model_root="" image="" hca="" world=2 left_hca="" right_hca=""
 cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
@@ -53,6 +62,9 @@ while [[ $# -gt 0 ]]; do
     --leader-address) leader=$2; shift 2 ;;
     --fabric-interface) iface=$2; shift 2 ;;
     --fabric-hca) hca=$2; shift 2 ;;
+    --world-size) world=$2; shift 2 ;;
+    --left-hca) left_hca=$2; shift 2 ;;
+    --right-hca) right_hca=$2; shift 2 ;;
     --model-root) model_root=$2; shift 2 ;;
     --image) image=$2; shift 2 ;;
     --cuda-cache) cache=$2; shift 2 ;;
@@ -68,36 +80,52 @@ while [[ $# -gt 0 ]]; do
     *) usage ;;
   esac
 done
-[[ $rank == 0 || $rank == 1 ]] && [[ -n $leader && -n $model_root && -n $image ]] || usage
+[[ $world == 2 || $world == 4 ]] && [[ $rank =~ ^[0-9]$ ]] && (( rank < world )) &&
+  [[ -n $leader && -n $model_root && -n $image ]] || usage
 sysfs=${FABRIC_SYSFS:-/sys/class/infiniband}
-if [[ -z $hca ]]; then
-  [[ -n $iface ]] || { echo "pass --fabric-hca or --fabric-interface; no port is assumed" >&2; exit 2; }
-  matches=()
-  for dev in "$sysfs"/*; do
-    [[ -e $dev/device/net/$iface ]] && matches+=("${dev##*/}")
+# check_rails LIST: every device named once, up and well formed.
+check_rails() {
+  [[ $1 =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*$ ]] ||
+    { echo "invalid RDMA device list $1" >&2; exit 2; }
+  local rail seen=,
+  IFS=',' read -r -a rails <<< "$1"
+  for rail in "${rails[@]}"; do
+    [[ $seen != *,"$rail",* ]] || { echo "duplicate RDMA device $rail" >&2; exit 2; }
+    seen+="$rail,"
+    grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
+      { echo "RDMA device $rail is missing or down" >&2; exit 2; }
   done
-  [[ ${#matches[@]} == 1 ]] || { echo "ambiguous or missing RDMA device for $iface; pass --fabric-hca" >&2; exit 2; }
-  hca=${matches[0]}
+}
+if (( world > 2 )); then
+  [[ -z $hca ]] || { echo "a chain takes --left-hca and --right-hca, not --fabric-hca" >&2; exit 2; }
+  [[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] || { echo "a chain needs --fabric-interface" >&2; exit 2; }
+  if (( rank > 0 )); then [[ -n $left_hca ]] || { echo "rank $rank needs --left-hca" >&2; exit 2; }
+  else [[ -z $left_hca ]] || { echo "rank 0 has no left neighbour" >&2; exit 2; }; fi
+  if (( rank < world - 1 )); then [[ -n $right_hca ]] || { echo "rank $rank needs --right-hca" >&2; exit 2; }
+  else [[ -z $right_hca ]] || { echo "rank $rank has no right neighbour" >&2; exit 2; }; fi
+  for list in "$left_hca" "$right_hca"; do [[ -z $list ]] || check_rails "$list"; done
+else
+  [[ -z $left_hca && -z $right_hca ]] || { echo "--left-hca and --right-hca need --world-size 4" >&2; exit 2; }
+  if [[ -z $hca ]]; then
+    [[ -n $iface ]] || { echo "pass --fabric-hca or --fabric-interface; no port is assumed" >&2; exit 2; }
+    matches=()
+    for dev in "$sysfs"/*; do
+      [[ -e $dev/device/net/$iface ]] && matches+=("${dev##*/}")
+    done
+    [[ ${#matches[@]} == 1 ]] || { echo "ambiguous or missing RDMA device for $iface; pass --fabric-hca" >&2; exit 2; }
+    hca=${matches[0]}
+  fi
+  check_rails "$hca"
+  if [[ -z $iface ]]; then
+    primary=${hca%%,*}
+    matches=("$sysfs/$primary"/device/net/*)
+    [[ ${#matches[@]} == 1 && -e ${matches[0]} ]] ||
+      { echo "ambiguous or missing network interface for $primary; pass --fabric-interface" >&2; exit 2; }
+    iface=${matches[0]##*/}
+  fi
+  [[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ && -e $sysfs/${hca%%,*}/device/net/$iface ]] ||
+    { echo "--fabric-interface must belong to the first --fabric-hca device" >&2; exit 2; }
 fi
-[[ $hca =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*$ ]] ||
-  { echo "invalid --fabric-hca device list" >&2; exit 2; }
-if [[ -z $iface ]]; then
-  primary=${hca%%,*}
-  matches=("$sysfs/$primary"/device/net/*)
-  [[ ${#matches[@]} == 1 && -e ${matches[0]} ]] ||
-    { echo "ambiguous or missing network interface for $primary; pass --fabric-interface" >&2; exit 2; }
-  iface=${matches[0]##*/}
-fi
-[[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ && -e $sysfs/${hca%%,*}/device/net/$iface ]] ||
-  { echo "--fabric-interface must belong to the first --fabric-hca device" >&2; exit 2; }
-IFS=',' read -r -a rails <<< "$hca"
-seen=,
-for rail in "${rails[@]}"; do
-  [[ $seen != *,"$rail",* ]] || { echo "duplicate RDMA device $rail" >&2; exit 2; }
-  seen+="$rail,"
-  grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
-    { echo "RDMA device $rail is missing or down" >&2; exit 2; }
-done
 [[ $checkpoint_name =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] ||
   { echo "--checkpoint must be one directory name under --model-root" >&2; exit 2; }
 model_root=$(realpath "$model_root")
@@ -167,10 +195,11 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   ${carveout_args[@]+"${carveout_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
+  -e FABRIC_LEFT_HCA="$left_hca" -e FABRIC_RIGHT_HCA="$right_hca" \
   -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
-  -e ATLAS_WORLD_SIZE=2 -e ATLAS_TP_SIZE=2 -e ATLAS_EP_SIZE=2 -e ATLAS_CONTEXT_WINDOW=524288 \
+  -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \
   -e NCCL_SOCKET_IFNAME="$iface" -e GLOO_SOCKET_IFNAME="$iface" -e NCCL_IB_HCA="$hca" \
   -e NCCL_IB_ADDR_FAMILY=AF_INET -e NCCL_IB_ROCE_VERSION_NUM=2 -e NCCL_CROSS_NIC=0 \
   -e NCCL_NET=IB -e NCCL_IB_DISABLE=0 -e NCCL_IB_RETRY_CNT=7 -e NCCL_IB_TIMEOUT=22 \

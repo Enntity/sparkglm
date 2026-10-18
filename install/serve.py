@@ -88,6 +88,47 @@ def disk_prefix_cache(gb):
             'ATLAS_SSM_TIER_SLOTS': '2'}
 
 
+# Profile options that split work exactly two ways (prefill rows, the drafter,
+# the shared expert, dense layers, the vocabulary, the indexer, two-rank
+# expert TP and the pair all-reduce chain). A longer chain runs without them.
+TWO_RANK_LANES = ('ATLAS_GLM_PREFILL_SP', 'ATLAS_GLM_SP_GATHER_OVERLAP', 'ATLAS_GLM_DRAFT_TP',
+                  'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_GLM_DRAFT_TP_TOPK',
+                  'ATLAS_GLM_SHARED_TP_SPLIT', 'ATLAS_GLM_DENSE_TP_SPLIT', 'ATLAS_GLM_VERIFY_VOCAB_SPLIT',
+                  'ATLAS_GLM_INDEX_SPLIT', 'ATLAS_GLM_EXPERT_TP', 'ATLAS_RDMA_PAIR_CHAIN')
+
+
+def world_size(profile):
+    """The number of Sparks a profile serves on (its --world-size)."""
+    sizes = [str(a).split('=', 1)[1] for a in profile['server_argv'] if str(a).startswith('--world-size=')]
+    if len(sizes) != 1 or sizes[0] not in ('2', '4'):
+        raise ValueError('A profile must serve on 2 or 4 Sparks')
+    return int(sizes[0])
+
+
+def fabric_rails(environ, rank, world, siblings):
+    """RDMA devices per link. Two Sparks share one cable, which NCCL and the
+    engine's all-reduce both use (FABRIC_HCA). Four Sparks in a daisy chain
+    link each rank only to its neighbours: FABRIC_LEFT_HCA toward rank - 1 and
+    FABRIC_RIGHT_HCA toward rank + 1. NCCL cannot reach a Spark that is not
+    cabled to it, so the engine carries that traffic itself."""
+    chain = ('FABRIC_LEFT_HCA', 'FABRIC_RIGHT_HCA')
+    if world == 2:
+        if any(environ.get(key) for key in chain):
+            raise ValueError('FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA are only for a four-Spark chain')
+        hcas = ','.join(fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings))
+        return {'NCCL_IB_HCA': hcas, 'ATLAS_RDMA_RAILS': hcas}
+    if environ.get('FABRIC_HCA'):
+        raise ValueError('A four-Spark chain takes FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA, not FABRIC_HCA')
+    rails = {}
+    for key, side, linked in zip(chain, ('LEFT', 'RIGHT'), (rank > 0, rank < world - 1)):
+        value = environ.get(key, '')
+        if bool(value) != linked:
+            raise ValueError(f'Rank {rank} of {world} {"needs" if linked else "has no neighbour for"} {key}')
+        if value:
+            rails[f'ATLAS_RDMA_{side}_RAILS'] = ','.join(fabric_hcas(value, siblings=siblings))
+    return rails
+
+
 def kv_shard(environ):
     """Engine settings that split GLM's MLA latent KV between the two ranks,
     when SPARKGLM_KV_SHARD=1: each rank stores the latents of half the blocks,
@@ -103,9 +144,10 @@ def kv_shard(environ):
 
 
 def launch(environ, profile):
+    world = world_size(profile)
     rank = environ.get('NODE_RANK', '')
-    if rank not in ('0', '1'):
-        raise ValueError('NODE_RANK must be 0 or 1')
+    if rank not in [str(r) for r in range(world)]:
+        raise ValueError(f'NODE_RANK must be 0 to {world - 1}')
     master = str(ipaddress.ip_address(environ['MASTER_ADDR']))
     port = int(environ.get('MASTER_PORT', '29510'))
     if not 1 <= port <= 65535:
@@ -116,7 +158,7 @@ def launch(environ, profile):
     siblings = environ.get('FABRIC_SIBLINGS', '0')
     if siblings not in ('0', '1'):
         raise ValueError('FABRIC_SIBLINGS must be 0 or 1')
-    hcas = fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings == '1')
+    rails = fabric_rails(environ, int(rank), world, siblings == '1')
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
     drafter = environ.get('DRAFTER_PATH', '/models/drafter')
     for label, path in (('MODEL_PATH', model), ('DRAFTER_PATH', drafter)):
@@ -127,9 +169,7 @@ def launch(environ, profile):
     env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
     env.update(profile['environment'])
     env['NCCL_SOCKET_IFNAME'] = interface
-    env['NCCL_IB_HCA'] = ','.join(hcas)
-    # The engine's direct RDMA all-reduce stripes over the same devices.
-    env['ATLAS_RDMA_RAILS'] = env['NCCL_IB_HCA']
+    env.update(rails)
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
     # A dedicated pair can give the KV pool (and so the prefix cache) more of

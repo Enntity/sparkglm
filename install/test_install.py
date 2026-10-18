@@ -310,6 +310,9 @@ class LaunchContract(unittest.TestCase):
         (sysfs/'rocep1s0f0/device/net/enp1s0f0np0').mkdir(parents=True)
         (sysfs/'rocep1s0f0/ports/1').mkdir(parents=True)
         (sysfs/'rocep1s0f0/ports/1/state').write_text('4: ACTIVE')
+        for dev in ('roceP2p1s0f0', 'rocep1s0f1', 'roceP2p1s0f1'):
+            (sysfs/dev/'ports/1').mkdir(parents=True)
+            (sysfs/dev/'ports/1/state').write_text('4: ACTIVE')
         # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
         for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
                            ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
@@ -423,6 +426,77 @@ class LaunchContract(unittest.TestCase):
         for bad in ('../x', '', 'a/b', '.hidden'):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 serve.profile_path({'SPARKGLM_PROFILE': bad}, HERE)
+
+    def test_tp4_profile_is_4x1m_on_four_ranks_without_two_rank_lanes(self):
+        # Four Sparks in a daisy chain: the 4x1m engine options, minus the
+        # lanes that split work exactly two ways, with NCCL left to startup
+        # traffic over sockets (it cannot reach a Spark that is not cabled to it).
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
+        expected = {k: v for k, v in full['environment'].items() if k not in serve.TWO_RANK_LANES}
+        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1')
+        self.assertEqual(tp4['environment'], expected)
+        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
+        self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
+        for key in serve.TWO_RANK_LANES:
+            self.assertIn(key, full['environment'], f'{key} is not a 4x1m option')
+
+    def test_chain_ranks_take_rails_toward_each_neighbour(self):
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        left, right = 'rocep1s0f0,roceP2p1s0f0', 'rocep1s0f1,roceP2p1s0f1'
+        chain = dict(self.environment, FABRIC_HCA='', FABRIC_INTERFACE='enP2p1s0f0np0')
+        sides = {'0': {'FABRIC_RIGHT_HCA': right}, '1': {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right},
+                 '2': {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}, '3': {'FABRIC_LEFT_HCA': left}}
+        for rank, rails in sides.items():
+            with self.subTest(rank=rank):
+                argv, env = serve.launch(dict(chain, NODE_RANK=rank, **rails), tp4)
+                self.assertIn('--world-size=4', argv)
+                self.assertIn(f'--rank={rank}', argv)
+                self.assertEqual(env.get('ATLAS_RDMA_LEFT_RAILS'), rails.get('FABRIC_LEFT_HCA'))
+                self.assertEqual(env.get('ATLAS_RDMA_RIGHT_RAILS'), rails.get('FABRIC_RIGHT_HCA'))
+                self.assertNotIn('ATLAS_RDMA_RAILS', env)
+                self.assertNotIn('NCCL_IB_HCA', env)
+                self.assertEqual(env['NCCL_SOCKET_IFNAME'], 'enP2p1s0f0np0')
+                self.assertEqual(env['NCCL_NET'], 'Socket')
+        bad = [('0', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}),  # nothing left of rank 0
+               ('3', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}),  # nothing right of rank 3
+               ('1', {'FABRIC_RIGHT_HCA': right}), ('2', {'FABRIC_LEFT_HCA': left}),
+               ('4', {'FABRIC_LEFT_HCA': left}), ('1', {'FABRIC_LEFT_HCA': 'a0,a0', 'FABRIC_RIGHT_HCA': right}),
+               ('1', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right, 'FABRIC_HCA': left})]
+        for rank, rails in bad:
+            with self.subTest(rank=rank, rails=rails), self.assertRaises(ValueError):
+                serve.launch(dict(chain, NODE_RANK=rank, **rails), tp4)
+        # A two-rank profile takes no chain rails.
+        with self.assertRaises(ValueError):
+            serve.launch(dict(self.environment, FABRIC_RIGHT_HCA=right), self.profile)
+
+    def test_start_node_launches_a_chain_rank(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            _, start = self.fake_node(root)
+            left, right = 'rocep1s0f0,roceP2p1s0f0', 'rocep1s0f1,roceP2p1s0f1'
+            run, docker_run = start('2', '--world-size', '4', '--left-hca', left, '--right-hca', right)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e NODE_RANK=2 ', docker_run[0])
+            self.assertIn(f'-e FABRIC_LEFT_HCA={left} ', docker_run[0])
+            self.assertIn(f'-e FABRIC_RIGHT_HCA={right} ', docker_run[0])
+            self.assertIn('-e FABRIC_HCA= ', docker_run[0])
+            run, docker_run = start('3', '--world-size', '4', '--left-hca', right)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e FABRIC_RIGHT_HCA= ', docker_run[0])
+            for rank, extra in (('4', ['--world-size', '4', '--left-hca', left]),
+                                ('1', ['--world-size', '3', '--left-hca', left, '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--left-hca', 'rocep1s0f9', '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--fabric-hca', left, '--left-hca', left,
+                                       '--right-hca', right])):
+                run, docker_run = start(rank, *extra)
+                with self.subTest(rank=rank, extra=extra):
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(docker_run, [])
+            # Two ranks take no chain rails.
+            run, docker_run = start('1', '--right-hca', right)
+            self.assertNotEqual(run.returncode, 0)
 
     def test_invalid_cluster_configuration_fails_before_process_launch(self):
         for key, value in [('NODE_RANK', '2'), ('MASTER_ADDR', 'not-an-address'),
