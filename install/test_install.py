@@ -15,6 +15,14 @@ spec = importlib.util.spec_from_file_location('atlas_serve', HERE/'serve.py')
 serve = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(serve)
 DISK_TIER = ('ATLAS_KV_NVME', 'ATLAS_SSM_TIER', 'ATLAS_GLM_NVME')
+# The engine's refusals at world > 2 (serve_phases/preflight/glm_chain.rs).
+REFUSED_BEYOND_TWO_RANKS = (
+    'ATLAS_GLM_MTP_LONG_CONTEXT', 'ATLAS_GLM_SPARSE_DECODE_TC', 'ATLAS_GLM_SPARSE_DECODE_SPLIT',
+    'ATLAS_GLM_SPARSE_PREFILL_TC', 'ATLAS_GLM_SPARSE_PREFILL_KV_REUSE', 'ATLAS_GLM_SPARSE_NATIVE',
+    'ATLAS_GLM_K3_MLA_O_BATCHM', 'ATLAS_GLM_K3_MLA_QUERY_BATCHM', 'ATLAS_KDA_FLASH_PREFILL',
+    'ATLAS_GLM_MULTI_SEQ_SPARSE', 'ATLAS_GLM_TARGET_SHARED_FP8', 'ATLAS_GLM_PREFILL_2048',
+    'ATLAS_GLM_PREFILL_4096', 'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_KV_SHARD', 'ATLAS_GLM_C4_DECODE',
+    'ATLAS_GLM_C4_SPARSE', 'ATLAS_GLM_INDEPENDENT_DECODE', 'ATLAS_GLM_MTP_REPAIR', 'ATLAS_GLM_MTP_DISTRIBUTED')
 
 
 class LaunchContract(unittest.TestCase):
@@ -427,19 +435,25 @@ class LaunchContract(unittest.TestCase):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 serve.profile_path({'SPARKGLM_PROFILE': bad}, HERE)
 
-    def test_tp4_profile_is_4x1m_on_four_ranks_without_two_rank_lanes(self):
-        # Four Sparks in a daisy chain: the 4x1m engine options, minus the
-        # lanes that split work exactly two ways, with NCCL left to startup
-        # traffic over sockets (it cannot reach a Spark that is not cabled to it).
+    def test_tp4_profile_is_4x1m_on_four_ranks(self):
+        # Four Sparks in a daisy chain: 4x1m with the options the engine
+        # refuses beyond two ranks switched off (its table in
+        # serve_phases/preflight/glm_chain.rs; most are built for TP2's 32
+        # local heads), one sequence at a time over a BF16 KV cache (the
+        # 16-head sparse kernels have no FP8 latent or batched lane yet), and
+        # NCCL left to startup traffic over sockets, since it cannot reach a
+        # Spark that is not cabled to it.
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
         full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
-        expected = {k: v for k, v in full['environment'].items() if k not in serve.TWO_RANK_LANES}
-        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1')
+        expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
+        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384')
         self.assertEqual(tp4['environment'], expected)
-        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
+        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
+                '--kv-cache-dtype=fp8_g128': '--kv-cache-dtype=bf16', '--max-batch-size=4': '--max-batch-size=1',
+                '--max-num-seqs=4': '--max-num-seqs=1'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
-        for key in serve.TWO_RANK_LANES:
-            self.assertIn(key, full['environment'], f'{key} is not a 4x1m option')
+        for arg in four:
+            self.assertIn(arg, full['server_argv'])
 
     def test_chain_ranks_take_rails_toward_each_neighbour(self):
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())

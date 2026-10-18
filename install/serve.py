@@ -88,15 +88,6 @@ def disk_prefix_cache(gb):
             'ATLAS_SSM_TIER_SLOTS': '2'}
 
 
-# Profile options that split work exactly two ways (prefill rows, the drafter,
-# the shared expert, dense layers, the vocabulary, the indexer, two-rank
-# expert TP and the pair all-reduce chain). A longer chain runs without them.
-TWO_RANK_LANES = ('ATLAS_GLM_PREFILL_SP', 'ATLAS_GLM_SP_GATHER_OVERLAP', 'ATLAS_GLM_DRAFT_TP',
-                  'ATLAS_GLM_DRAFT_TP_BATCH', 'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_GLM_DRAFT_TP_TOPK',
-                  'ATLAS_GLM_SHARED_TP_SPLIT', 'ATLAS_GLM_DENSE_TP_SPLIT', 'ATLAS_GLM_VERIFY_VOCAB_SPLIT',
-                  'ATLAS_GLM_INDEX_SPLIT', 'ATLAS_GLM_EXPERT_TP', 'ATLAS_RDMA_PAIR_CHAIN')
-
-
 def world_size(profile):
     """The number of Sparks a profile serves on (its --world-size)."""
     sizes = [str(a).split('=', 1)[1] for a in profile['server_argv'] if str(a).startswith('--world-size=')]
