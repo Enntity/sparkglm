@@ -435,24 +435,23 @@ class LaunchContract(unittest.TestCase):
     def test_tp4_profile_is_4x1m_on_four_ranks(self):
         # Four Sparks in a daisy chain: 4x1m with the options the engine
         # refuses beyond two ranks switched off (its table in
-        # serve_phases/preflight/glm_chain.rs), one sequence at a time, and
-        # NCCL left to startup traffic over sockets, since it cannot reach a
+        # serve_phases/preflight/glm_chain.rs), and NCCL left to startup traffic over sockets, since it cannot reach a
         # Spark that is not cabled to it.
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
         full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
         expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
-        # Checkpoint-format weight slices except KDA, which keeps production's
-        # NVFP4 bytes under the TP2 shard's scale (an own-shard re-quantization
-        # of a quarter matrix degrades DFlash verify at four ranks), the chain's
+        # Checkpoint-format weight slices except KDA decode, which keeps
+        # production's NVFP4 bytes under the TP2 shard's scale (an own-shard
+        # re-quantization of a quarter matrix degrades DFlash verify at four
+        # ranks); 8 MiB chain one-shots for the prefill seams; the chain's
         # proxies spinning through the vocab head's gap, and the piecewise
         # DFlash verify graphs, which capture the chain's all-reduces.
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
-                        ATLAS_GLM_FP4L_KDA_W8A8_PREFILL='0', ATLAS_RDMA_PAIR_SPIN_US='30000', ATLAS_GLM_VERIFY_GRAPH='1')
+                        ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
+                        ATLAS_GLM_VERIFY_GRAPH='1')
         self.assertEqual(tp4['environment'], expected)
-        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
-                '--max-batch-size=4': '--max-batch-size=1',
-                '--max-num-seqs=4': '--max-num-seqs=1'}
+        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
         for arg in four:
             self.assertIn(arg, full['server_argv'])
