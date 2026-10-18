@@ -446,11 +446,14 @@ class LaunchContract(unittest.TestCase):
         # ranks); 8 MiB chain one-shots for the prefill seams; the chain's
         # proxies spinning through the vocab head's gap, and the piecewise
         # DFlash verify graphs, which capture the chain's all-reduces; the
-        # drafter's attention projections split across the ranks with its MLP.
+        # drafter's attention projections split across the ranks with its MLP; and
+        # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs (cuBLASLt
+        # has no 128-block FP8 kernel for SM121).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
-                        ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head,attn')
+                        ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head,attn',
+                        ATLAS_GLM_FP8B_CUTLASS='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
