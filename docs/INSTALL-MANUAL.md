@@ -140,6 +140,13 @@ headless Spark; see the README.
   but no cable to the other Spark, use an exact `FABRIC_HCA` list in `.env` (or pass
   `--no-fabric-siblings` to `install/start-node.sh` on both ranks). The fabric
   then runs on the one cabled device: one RDMA rail instead of two.
+- **A Spark powers off under load:** the unit is off, not frozen, and no log
+  shows anything. Sustained full GPU load (a long cold prefill) trips the
+  Spark's own protection. Cap the GPU clock on both Sparks with
+  `sudo bash gpu-clock-cap.sh` (or `./start.sh clock-cap`), which installs
+  `gpu-clock-cap.service` to apply `nvidia-smi -lgc 300,2200` at every boot.
+  If a Spark still powers off, lower the cap (`gpu-clock-cap.sh 2100`) and
+  check its airflow ([results](../results/2026-10-13-clock-cap/RESULT.md)).
 - **The host stops responding under load:** GB10 memory is shared with the
   host. Keep builds, other models and large processes off the pair while
   serving. The default profile leaves about 8–9 GB free at full KV.

@@ -5,6 +5,7 @@
 #
 #   ./start.sh              prepare whatever is missing, then serve
 #   ./start.sh fabric       inspect the selected ports without changing anything
+#   ./start.sh clock-cap    cap the GPU clock on both Sparks (sudo; once per Spark)
 #   ./start.sh stop         stop both ranks
 #   ./start.sh status       container state and health
 #   ./start.sh logs [worker]
@@ -59,6 +60,29 @@ pick_fabric() {
     "${LEADER_ADDRESS:-}") || return 2
   read -r hca0 iface0 ip0 hca1 iface1 ip1 <<< "$choice"
   say "fabric: $hca0 ($iface0, $ip0) here; $hca1 ($iface1, $ip1) on $WORKER"
+}
+
+# Sustained full GPU load can power an uncapped Spark off, with no log.
+clock_cap() {
+  local max=${GPU_CLOCK_MAX_MHZ:-2200}
+  # It reaches a root shell on the worker unquoted, so it must be a plain number.
+  [[ $max =~ ^[0-9]+$ ]] || { echo "GPU_CLOCK_MAX_MHZ must be a number of MHz" >&2; exit 2; }
+  say "GPU clock cap 300,$max MHz here (sudo)"
+  sudo bash gpu-clock-cap.sh "$max"
+  say "GPU clock cap 300,$max MHz on $WORKER (sudo)"
+  ssh -t "$WORKER" "sudo bash -c $(printf '%q' "$(cat gpu-clock-cap.sh)") gpu-clock-cap $max"
+}
+
+check_clock_cap() {
+  [[ ${CLOCK_CAP:-1} == 0 ]] && return
+  local host
+  for host in here "$WORKER"; do
+    if [[ $host == here ]]; then systemctl is-active --quiet gpu-clock-cap.service && continue
+    else on_worker systemctl is-active --quiet gpu-clock-cap.service && continue; fi
+    echo "GPU clocks are not capped on $host: long prefills can power the Spark off." >&2
+    echo "Run ./start.sh clock-cap once (sudo on both Sparks), or set CLOCK_CAP=0 to skip this check." >&2
+    exit 2
+  done
 }
 
 build() {
@@ -163,7 +187,8 @@ serve() {
 }
 
 if [[ ${1:-up} == fabric ]]; then pick_fabric; exit; fi
-if [[ ${1:-up} == up ]]; then pick_fabric; fi
+if [[ ${1:-up} == clock-cap ]]; then clock_cap; exit; fi
+if [[ ${1:-up} == up ]]; then pick_fabric; check_clock_cap; fi
 IMAGE=${IMAGE:-$(install/build.sh --tag)}
 mkdir -p "$MODEL_ROOT"; MODEL_ROOT=$(realpath "$MODEL_ROOT")
 case ${1:-up} in
@@ -174,5 +199,5 @@ case ${1:-up} in
     echo "rank 0 $(state)"; echo "rank 1 $(worker_state) ($WORKER)"
     curl -sf "$API/health" >/dev/null && echo "health ok ($API)" || echo 'health: not serving' ;;
   logs) if [[ ${2:-} == worker ]]; then on_worker docker logs -f --tail 100 "${NAME}1"; else docker logs -f --tail 100 "${NAME}0"; fi ;;
-  *) sed -n '5,11p' "$0" >&2; exit 2 ;;
+  *) sed -n '5,12p' "$0" >&2; exit 2 ;;
 esac

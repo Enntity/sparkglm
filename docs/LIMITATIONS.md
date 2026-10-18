@@ -174,6 +174,10 @@ chunks, which halve our KV pool).
 - The API has no authentication and listens only on rank 0's loopback.
 - GB10 memory is shared with the host. Running other large workloads on
   either Spark while serving can hang the host.
+- An uncapped Spark can power off during long cold prefills. SparkGLM
+  requires the GPU clock cap (`./start.sh clock-cap`). Its cost on SparkGLM
+  decode and prefill has not been measured yet; on raw bf16 matmul it is
+  about 3%.
 - Both shipped profiles need the DFlash2 drafter, which is licensed for
   non-commercial use only. No profile without it is shipped yet.
 - The image is built for arm64 and SM121 (GB10) only.
