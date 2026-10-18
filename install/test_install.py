@@ -447,7 +447,10 @@ class LaunchContract(unittest.TestCase):
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
         full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
         expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
-        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384')
+        # Checkpoint-format weight slices: per-rank NVFP4 re-quantization of a
+        # quarter matrix degrades DFlash verify at four ranks.
+        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
+                        ATLAS_GLM_FP4L_NATIVE='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
                 '--kv-cache-dtype=fp8_g128': '--kv-cache-dtype=bf16', '--max-batch-size=4': '--max-batch-size=1',
