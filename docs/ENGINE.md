@@ -10,7 +10,7 @@ refuses any other tree.
 The 2026-10-19 qualification candidate adds the four-rank RDMA chain,
 checkpoint-format defaults, checkpoint chat and sampling behavior, FP32
 router logits, and sampled speculative verification. This description was
-checked against engine source `423466ab0`; the install manifest selects the
+checked against engine source `5665d5802`; the install manifest selects the
 exact source used by a build. Source support alone does not qualify an image.
 Final TP2 and TP4 performance and quality claims require that image's receipts.
 
@@ -24,6 +24,10 @@ The candidate also fixes speculative returned scores under logit bias and
 history penalties. Requested scores use the serial processed distribution;
 unsupported speculative scoring paths use a supported verification or serial
 path. First-prefill-token logit-bias support remains an inherited limitation.
+
+Accepted prediction usage counts only draft tokens retained in the response,
+including token-limit, stop and rollback cases. Internal verification and
+draft-depth statistics retain their existing meaning.
 
 ## Candidate behavior
 
