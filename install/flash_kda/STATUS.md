@@ -41,5 +41,26 @@ state are bit-identical to the unpatched library at T 2048/2051/4096/4100 and
 H 16/32, and the TP-4 model's exact-prompt digest is unchanged. One 4096-token,
 16-head call goes from 1.58 to 0.93 ms (recurrence 1.06 to 0.41 ms) on GB10.
 
+A third patch, `flash_kda_fp32_recurrence.patch`, applied after the swizzle
+patch, makes the chunked recurrence compute what the FP32 token recurrence
+(Atlas decode and short prefill) computes. Upstream kept the recurrent state as
+BF16 inside the kernel, rounded it every 16 tokens, used a tanh-approximated
+sigmoid and an FP16 Neumann inverse, and rounded every operand to BF16, so the
+same tokens prefilled to different hidden states depending on prompt length.
+Now the state stays in FP32 registers for the whole call and is loaded and
+stored as FP32; every MMA runs on split BF16 hi/lo operands with FP32
+accumulation; the gate and beta logistic is exact; the inverse is an FP32
+forward substitution; and v - k@S and the output sum are FP32. Kernel 2 owns
+64 value columns per CTA while the grid fits one wave (TP-4's 16 heads), else
+128 with eight math warps, and rebuilds the decayed operands from q, k and g
+in prep warps. Kernel 1 now writes only INV, Mqk and the row normalizers, 2.2
+instead of 13.5 KB a tile. Against an FP64 token recurrence on GB10 (H 16/32,
+T 2048 to 16384, chunked calls handing the state over), the final state is
+within 5.7e-6 relative (old library 6.7e-3, the FP32 recurrence 1.5e-6), and
+99.4% of outputs equal the FP32 recurrence's BF16 output (old library 23%).
+One call costs 1.06 instead of 0.92 ms at 4096 rows x 16 heads and 1.57
+instead of 1.83 ms at 4100 x 32. Keeping the state FP32 between tiles follows
+vllm-project/FlashKDA#13.
+
 This closes the KDA compute path. Atlas still owns projections, scheduler state
 lifecycle, layer assembly, and the model-level DSA/MLA integration.
