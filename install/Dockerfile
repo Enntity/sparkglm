@@ -145,11 +145,14 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # including whole-row fallback and seeded serial/speculative equivalence.
 # Explicit thinking caps still close reasoning; a zero server ceiling stays
 # uncapped on spontaneous entry and re-entry. Completions expose original
-# generated token IDs only when requested. Each filter must execute tests.
+# generated token IDs only when requested. Request-level disable_mtp must
+# reach both handlers and override speculative dispatch. Each filter executes tests.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     set -eu; for filter in dflash_seq_policy verify_dflash_step::think_end \
                           verify_pipeline_helper::split_rows spontaneous_thinking_ \
-                          glm_prompt_parity_tests completion_token_ids_; do \
+                          glm_prompt_parity_tests completion_token_ids_ \
+                          completion_disable_mtp_reaches_scheduler \
+                          request_disable_mtp_overrides_all_spec_dispatch_modes; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
       cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "$filter" \
         > /tmp/atlas-verify-check.log 2>&1 || { cat /tmp/atlas-verify-check.log; exit 1; }; \
