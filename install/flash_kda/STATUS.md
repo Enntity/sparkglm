@@ -30,5 +30,16 @@ streams, raw-beta transpose, and strict-FP32 gated RMSNorm. A separate GB10
 probe passed with exact BF16 outputs and exact fragmented conv history. The AOT
 binary, bridge, and slot patch are pinned in `PINS.sha256`.
 
+A second patch, `flash_kda_tma_swizzle.patch`, applied after the slot patch,
+moves the recurrence kernel's per-tile operands (V, the decayed and restored
+keys and queries, and the 16x16 inverse and Mqk matrices) from interleaved to
+128- and 32-byte swizzled shared-memory layouts. Each is then one or two TMA
+boxes instead of dozens: the kernel's single load thread spent ~8.9K cycles a
+16-token tile issuing them, and that bounded the recurrence. The values and
+the MMAs are unchanged, only shared-memory addresses move: output and FP32
+state are bit-identical to the unpatched library at T 2048/2051/4096/4100 and
+H 16/32, and the TP-4 model's exact-prompt digest is unchanged. One 4096-token,
+16-head call goes from 1.58 to 0.93 ms (recurrence 1.06 to 0.41 ms) on GB10.
+
 This closes the KDA compute path. Atlas still owns projections, scheduler state
 lifecycle, layer assembly, and the model-level DSA/MLA integration.

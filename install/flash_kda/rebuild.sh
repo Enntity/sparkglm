@@ -22,11 +22,17 @@ actual_cutlass=$("${git_cutlass[@]}" rev-parse HEAD)
 [[ "$actual_flash" == "$flash_kda_commit" ]]
 [[ "$actual_cutlass" == "$cutlass_commit" ]]
 
+# The slot patch, then the TMA swizzle patch on top of it.
 slot_patch="$script_dir/flash_kda_sm121_slots.patch"
-if "${git_source[@]}" apply --reverse --check "$slot_patch" 2>/dev/null; then
-  :
-elif "${git_source[@]}" diff --quiet; then
+swizzle_patch="$script_dir/flash_kda_tma_swizzle.patch"
+applied() { "${git_source[@]}" apply --reverse --check "$1" 2>/dev/null; }
+if "${git_source[@]}" diff --quiet; then
   "${git_source[@]}" apply "$slot_patch"
+  "${git_source[@]}" apply "$swizzle_patch"
+elif applied "$swizzle_patch"; then
+  :
+elif applied "$slot_patch"; then
+  "${git_source[@]}" apply "$swizzle_patch"
 else
   echo "FlashKDA source has unrelated changes; refusing to patch" >&2
   exit 2

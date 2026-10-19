@@ -1,0 +1,100 @@
+# Atlas patch to MoonshotAI/FlashKDA 1ce47ea3 (MIT), applied after flash_kda_sm121_slots.patch:
+# Kernel 2 (recurrence) reads its per-tile operands through 128-/32-byte swizzled shared layouts
+# so each is one or two TMA boxes. Output and FP32 state bit-identical to the unpatched library.
+
+diff --git a/csrc/smxx/fwd_kernel2.cuh b/csrc/smxx/fwd_kernel2.cuh
+index ca7eea5..037dc9e 100644
+--- a/csrc/smxx/fwd_kernel2.cuh
++++ b/csrc/smxx/fwd_kernel2.cuh
+@@ -6,15 +6,20 @@
+ 
+ #include "utils.cuh"
+ 
++// Atlas: the per-tile [CHUNK, D] operands and the [CHUNK, CHUNK] matrices
++// use 128- and 32-byte swizzled atoms instead of the interleaved ones, so
++// each is one or two TMA boxes rather than dozens: the single load thread's
++// TMA issue (~8.9K cycles a 16-token tile) bounded the recurrence. Same
++// values, same MMAs; only the shared-memory addresses move.
+ template <int D, int CHUNK = 16>
+ struct K2Layouts {
+     using MMALayout = decltype(tile_to_shape(
+-        GMMA::Layout_K_INTER_Atom<cute::bfloat16_t>{},
++        GMMA::Layout_K_SW128_Atom<cute::bfloat16_t>{},
+         make_shape(Int<CHUNK>{}, Int<D>{}),
+         LayoutLeft{}
+     ));
+     using TransposedMMALayout = decltype(tile_to_shape(
+-        GMMA::Layout_MN_INTER_Atom<cute::bfloat16_t>{},
++        GMMA::Layout_MN_SW128_Atom<cute::bfloat16_t>{},
+         make_shape(Int<D>{}, Int<CHUNK>{}),
+         LayoutRight{}
+     ));
+@@ -33,7 +38,7 @@ struct K2Layouts {
+     ));
+     using GTotalLayout = Layout<Shape<Int<D>>, Stride<Int<1>>>;
+     using LMLayout = decltype(tile_to_shape(
+-        GMMA::Layout_K_INTER_Atom<cute::bfloat16_t>{},
++        GMMA::Layout_K_SW32_Atom<cute::bfloat16_t>{},
+         make_shape(Int<CHUNK>{}, Int<CHUNK>{}),
+         LayoutLeft{}
+     ));
+@@ -81,19 +86,21 @@ struct SharedStorageK2 {
+ 
+     alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<StateSmemLayout>> state_acc;
+ 
++    // Atlas: swizzled tiles first, 1024-byte (128B swizzle) and 256-byte
++    // (32B swizzle) aligned.
+     struct InputStorage {
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<VOLayout>> v;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<BetaSmemLayout>> beta;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> k_decayed;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> q_decayed;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> k_restored;
++        alignas(1024) cute::ArrayEngine<BF16, cute::cosize_v<VOLayout>> v;
++        alignas(1024) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> k_decayed;
++        alignas(1024) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> q_decayed;
++        alignas(1024) cute::ArrayEngine<BF16, cute::cosize_v<MMALayout>> k_restored;
++        alignas(256) cute::ArrayEngine<BF16, cute::cosize_v<LMLayout>> INV;
++        alignas(256) cute::ArrayEngine<BF16, cute::cosize_v<LMLayout>> Mqk;
+         alignas(128) cute::ArrayEngine<float, cute::cosize_v<GTotalLayout>> g_total;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<LMLayout>> INV;
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<LMLayout>> Mqk;
++        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<BetaSmemLayout>> beta;
+     };
+ 
+     struct OutputStorage {
+-        alignas(128) cute::ArrayEngine<BF16, cute::cosize_v<VOLayout>> out;
++        alignas(1024) cute::ArrayEngine<BF16, cute::cosize_v<VOLayout>> out;
+     };
+ 
+     // Anonymous union: pipeline buffers share space with fp32 state conversion buffer.
+diff --git a/csrc/smxx/fwd_launch.cu b/csrc/smxx/fwd_launch.cu
+index 15a1b81..e3d0541 100644
+--- a/csrc/smxx/fwd_launch.cu
++++ b/csrc/smxx/fwd_launch.cu
+@@ -105,17 +105,18 @@ void launch_fwd(
+     auto tma_store_ws_mqk = make_tma_copy(SM90_TMA_STORE{}, m_ws_mqk, TMALMLayout{});
+ 
+     // --- TMA descriptors for Kernel 2 (loads: v,beta,workspace; load/store: state,out)
+-    auto tma_load_v     = make_tma_copy(SM90_TMA_LOAD{}, m_v, TMAVOLayout{});
++    // Atlas: on Kernel 2's own (swizzled) shared layouts.
++    auto tma_load_v     = make_tma_copy(SM90_TMA_LOAD{}, m_v, typename K2L::TMAVOLayout{});
+     auto tma_load_beta2 = make_tma_copy(SM90_TMA_LOAD{}, m_beta, TMABetaSmemLayout{});
+ 
+-    auto tma_load_ws_kd  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_kd, TMAVOLayout{});
+-    auto tma_load_ws_qd  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_qd, TMAVOLayout{});
+-    auto tma_load_ws_kr  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_kr, TMAVOLayout{});
++    auto tma_load_ws_kd  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_kd, typename K2L::TMAVOLayout{});
++    auto tma_load_ws_qd  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_qd, typename K2L::TMAVOLayout{});
++    auto tma_load_ws_kr  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_kr, typename K2L::TMAVOLayout{});
+     auto tma_load_ws_gt  = make_tma_copy(SM90_TMA_LOAD{}, m_ws_gt, TMAGTotalSmemLayout{});
+-    auto tma_load_ws_inv = make_tma_copy(SM90_TMA_LOAD{}, m_ws_inv, TMALMLayout{});
+-    auto tma_load_ws_mqk = make_tma_copy(SM90_TMA_LOAD{}, m_ws_mqk, TMALMLayout{});
++    auto tma_load_ws_inv = make_tma_copy(SM90_TMA_LOAD{}, m_ws_inv, typename K2L::TMALMLayout{});
++    auto tma_load_ws_mqk = make_tma_copy(SM90_TMA_LOAD{}, m_ws_mqk, typename K2L::TMALMLayout{});
+ 
+-    auto tma_store_out = make_tma_copy(SM90_TMA_STORE{}, m_out, TMAVOLayout{});
++    auto tma_store_out = make_tma_copy(SM90_TMA_STORE{}, m_out, typename K2L::TMAVOLayout{});
+ 
+     // --- State TMA descriptors (conditional on HasStateIn/HasStateOut and StateFP32)
+     auto make_state_tma = [&]() {

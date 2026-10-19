@@ -2,8 +2,11 @@
 #
 # Source: MoonshotAI/FlashKDA 1ce47ea3bb22c84eb9cc665028399cf35e8ffb0b
 # CUTLASS: 5c149f52a436782210263fb2f19b354443a61c6a
-# Toolchain: nvcr.io/nvidia/pytorch:26.02-py3, aarch64, sm_121f
+# Toolchain: nvcr.io/nvidia/pytorch:26.02-py3, aarch64, sm_121f (the swizzled
+# library below: CUDA 13.0.88 on a GB10 host, SASS identical to rebuild.sh's;
+# nvcc does not reproduce the .so bytes run to run)
 # Rebuild recipe: ./rebuild.sh
-7fe3fa22f7fcf2159848bf47189f7caa1adb7286d99e4a334376a410047dc092  libatlas_glm53_flash_kda.so
+3be7b0ae8fe61e1e6202a482567a00f1406f0d9211f00796acb1065f88913e25  libatlas_glm53_flash_kda.so
 5c453a58b9152c89e1c8e9ebf2f514d664bff007f72636a406c68906aa278d13  flash_kda_sm121_slots.patch
+efdc05c9f3ad62528b57e804369e2281271b6cb45a5b557e251e9f2fa03ca542  flash_kda_tma_swizzle.patch
 6989340b5d6d27c504ab68265b0f1b0ea517dba9903412fb7d2e441389157411  atlas_flash_kda_bridge.cu
