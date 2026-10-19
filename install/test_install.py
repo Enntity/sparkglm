@@ -463,17 +463,14 @@ class LaunchContract(unittest.TestCase):
         # gather, its unpermute on 32 blocks so the chain kernels keep SMs; and
         # the KDA conv writing FlashKDA's q/k/v planes (no pack copy, same bits);
         # and dead verify rows, so an owner batch skips the experts of drafts
-        # not worth verifying (same greedy outputs); and the KDA o_proj on
-        # this rank's rows after an MXFP8 all-to-all instead of a reduce-
-        # scatter (one FP32 sum over all heads; prompt NLL unchanged); and the KDA attention
+        # not worth verifying (same greedy outputs); and the KDA attention
         # input gathered as its MXFP8 cast plus side planes (same bits); and the MoE unpermute writing its rows
         # straight into one fused chain reduce-scatter in 16 MiB segments
-        # (~80-96 MiB pinned per rank, same sums in the same order); and the
-        # routed prefill MoE's down rows stored as E4M3 with per-64 scales
-        # (lossy: prompt NLL and the 60-item needle gate indistinguishable);
-        # the 16-head sparse MLA prefill as two warpgroups merging split keys
-        # (lossy, ~1 BF16 ulp; all lossy lanes together: paired prompt NLL
-        # z=-0.34); the seam gathers one block per exchange; and the chain
+        # (~80-96 MiB pinned per rank, same sums in the same order). No lossy
+        # prefill lanes: the o_proj all-to-all, E4M3 MoE down rows and the
+        # two-warpgroup sparse MLA together cost long-context retrieval (two
+        # 60-item needle draws, 52 vs 62 of 120). The seam gathers one block
+        # per exchange; and the chain
         # reduce-scatter on 24 blocks, which leaves the shared expert SMs
         # beside the fused unpermute (its GEMMs start at once, not at the end);
         # and the MLA input gathered as its FP8-block cast per seam block, its
@@ -486,11 +483,9 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
                         ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
                         ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
-                        ATLAS_GLM_SP_KDA_OPROJ_A2A='1',
                         ATLAS_GLM_SP_KDA_QUANT_GATHER='1',
                         ATLAS_RDMA_RS_FUSED_SEG='16777216',
-                        ATLAS_GLM_MOE_DOWN_E4M3='1',
-                        ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
+                        ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
                         ATLAS_RDMA_RS_BLOCKS='24',
                         ATLAS_GLM_SP_MLA_QUANT_GATHER='1', ATLAS_GLM_SP_MLA_OPROJ_AHEAD='1',
                         ATLAS_GLM_INDEX_SPLIT_BESIDE='1', ATLAS_GLM_INDEX_SPLIT_COMPACT='1')
