@@ -456,12 +456,8 @@ class LaunchContract(unittest.TestCase):
         # and dead verify rows, so an owner batch skips the experts of drafts
         # not worth verifying (same greedy outputs); and the KDA o_proj on
         # this rank's rows after an MXFP8 all-to-all instead of a reduce-
-        # scatter (one FP32 sum over all heads; prompt NLL unchanged); and the
-        # MoE routed before the shared expert, so the router's weight prefetch
-        # overlaps the mHC and norm kernels (same bits); and the KDA attention
-        # input gathered as its MXFP8 cast plus side planes (same bits); and the
-        # mHC decode finalize writing the next block's input norm (one launch
-        # fewer per site, same words); and the MoE unpermute writing its rows
+        # scatter (one FP32 sum over all heads; prompt NLL unchanged); and the KDA attention
+        # input gathered as its MXFP8 cast plus side planes (same bits); and the MoE unpermute writing its rows
         # straight into one fused chain reduce-scatter in 16 MiB segments
         # (~80-96 MiB pinned per rank, same sums in the same order); and the
         # routed prefill MoE's down rows stored as E4M3 with per-64 scales
@@ -476,8 +472,8 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
                         ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
                         ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
-                        ATLAS_GLM_SP_KDA_OPROJ_A2A='1', ATLAS_GLM_MOE_ROUTE_FIRST='1',
-                        ATLAS_GLM_SP_KDA_QUANT_GATHER='1', ATLAS_GLM_HC_DECODE_NORM='1',
+                        ATLAS_GLM_SP_KDA_OPROJ_A2A='1',
+                        ATLAS_GLM_SP_KDA_QUANT_GATHER='1',
                         ATLAS_RDMA_RS_FUSED_SEG='16777216',
                         ATLAS_GLM_MOE_DOWN_E4M3='1',
                         ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1')
