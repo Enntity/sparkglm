@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <p align="center">
   <img src="docs/assets/banner.png" alt="SparkGLM: GLM-5.3-Flash on two DGX Sparks" width="100%">
 </p>
@@ -9,13 +10,13 @@ GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
 parallelism across both boxes over one ConnectX-7 cable, NVIDIA's FP4-Local
 checkpoint, DFlash2 speculative decoding, prefix caching, up to four
 concurrent requests with a per-request limit of the model's full 1M context, and an
-OpenAI-compatible API. Decoding is concurrency-invariant: a request's greedy
-output does not depend on what else is running or on how the drafter proposes.
-Prefill is not yet row-invariant, so a prompt long enough to prefill in
-several chunks (over 8K tokens) can still differ when the engine is busy.
-Multi-turn agents get a cached conversation back: a turn of a 45K-token
-conversation starts in under a second instead of re-reading the whole
-transcript.
+OpenAI-compatible API. A four-Spark TP4 chain is also available as a
+qualification candidate through LLooM. The 2026-10-19 candidate enables
+native checkpoint formats and sampled speculative verification at both
+sizes; its performance and quality still require official-image receipts.
+Earlier greedy C1/C4 and cached-conversation measurements are recorded below.
+They do not prove invariance for every workload: chunked prefill can still
+change results when request scheduling changes.
 
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
@@ -26,11 +27,11 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 
 ## What it does
 
-Measured on two DGX Sparks joined by one 200G cable. Rows marked † are this
-release, FP4-Local: RigMark and ToolEvalBench on the release image
+Historical measurements on two DGX Sparks joined by one 200G cable. Rows
+marked † are the 2026-10-17 FP4-Local release: RigMark and ToolEvalBench on its image
 `c8ced64316bf`, the other † rows on dev binaries of the same engine. The
 unmarked rows ran images built from a fresh clone with the NVFP4 checkpoint. Receipts and caveats:
-[this release: FP4-Local, ToolEvalBench, kindling's benchmarks](results/2026-10-17-fp4local/RESULT.md),
+[2026-10-17: FP4-Local, ToolEvalBench, kindling's benchmarks](results/2026-10-17-fp4local/RESULT.md),
 [the shared engine](results/2026-10-15-shared-engine/RESULT.md),
 [RC4: faster single-stream decode, bit-exact with RC2](results/2026-10-12-rc4/RESULT.md),
 [RC2: KV shard, deterministic verify, faster MoE decode](results/2026-10-09-rc2/RESULT.md),
@@ -70,8 +71,8 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
 | Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
-These are measurements on our pair, not a guarantee for yours. Rows not re-run
-for this release keep the receipts linked above. Against RC4 on the NVFP4
+These dated measurements do not describe the 2026-10-19 candidate. Rows
+not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
 decode speed is not an engine-only comparison
@@ -134,13 +135,23 @@ proxy in front of it before exposing it.
 
 ```sh
 curl -s http://127.0.0.1:8893/v1/chat/completions -H 'Content-Type: application/json' -d '{
-  "model": "glm-5.3-flash-atlas", "max_tokens": 256,
+  "model": "glm-5.3-flash-atlas", "max_tokens": 2048,
   "messages": [{"role": "user", "content": "Write a haiku about two small computers."}]}'
 ```
 
-Streaming, tool calls, JSON and structured output, reasoning controls
-(`chat_template_kwargs.enable_thinking`, `reasoning_effort`), images and short
-videos are supported.
+Streaming, tool calls, JSON and structured output, images and short videos
+are supported. GLM's checkpoint template opens reasoning even with
+`chat_template_kwargs.enable_thinking: false`; its default is Max effort,
+with low/high selected through `reasoning_effort`. The candidate no longer
+adds a short reasoning cap. `max_tokens` includes reasoning and can end a
+request before the answer appears; an explicit thinking-token budget can
+cap the reasoning section. See [behavior limits](docs/LIMITATIONS.md#behaviour).
+
+For serial/speculative comparisons, `/v1/completions` accepts
+`disable_mtp: true`. Blocking completions can request `return_token_ids: true`
+for exact generated IDs in `choices[].token_ids`; streaming with this option
+is rejected. Both default to false. [Engine details](docs/ENGINE.md#candidate-behavior)
+explain their limits.
 
 When an agent repeats the same tool call and gets the same result, the engine
 adds a repeat notice to that result and lets the model think harder on that
@@ -154,13 +165,19 @@ action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
 - `4x512k`: up to four requests with up to 512K each.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
+- `4x1m-tp4`: the four-Spark candidate, selected by four-rank orchestration
+  rather than `PROFILE` in `start.sh`; four sequences, up to 1M tokens per
+  request, with memory utilization 0.72. See the
+  [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4-candidate).
 
 The context limit applies to each request; it does not reserve that much KV
-for every concurrent slot. At the measured 2.66M-token pool size, four full
+for every concurrent slot. At the historical TP2 2.66M-token pool size, four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
-The KV cache is split between the two Sparks (`KV_SHARD`, on by default): each
+The figures in this section are historical TP2 measurements; candidate
+capacity must be read from its own startup and load-test receipts.
+For the TP2 launcher, the KV cache is split between the two Sparks (`KV_SHARD`, on by default): each
 stores the latents of half the blocks, so the pool holds about 1.8x the tokens,
 and the output is bit-identical to the unsplit pool's. On Sparks that run
 nothing else, at `GPU_MEMORY_UTILIZATION=0.91` with the display carveout and
@@ -182,15 +199,19 @@ MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
 is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
-The engine serves every group in the checkpoint's own format
-(`ATLAS_GLM_FP4L_NATIVE=1`): requantizing FP4-Local's QAD-trained MXFP8 and
-FP8 weights to NVFP4, as the 2026-10-17 release did, lost long-context
-retrieval ([docs/LIMITATIONS.md](docs/LIMITATIONS.md)). ToolEvalBench scores 91.0 on our
-pair; NVIDIA's card gives 92.4 for FP4-Local and 91.9 for BF16 on an earlier
-version of the suite ([receipts](results/2026-10-17-fp4local/RESULT.md#toolevalbench)).
+The candidate profiles enable the checkpoint's native projection formats
+(`ATLAS_GLM_FP4L_NATIVE=1`), calibrated routed-expert prompt input scales,
+and BF16 activations for routed decode/verify rows. The 2026-10-17 default
+requantized MXFP8/FP8 projections to NVFP4; its numbers do not measure this
+configuration. Earlier retrieval comparisons and remaining fidelity limits
+are described in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). The historical
+2026-10-17 ToolEvalBench score was 91.0; NVIDIA's card gave 92.4 for
+FP4-Local and 91.9 for BF16 on an earlier version of the suite
+([receipts](results/2026-10-17-fp4local/RESULT.md#toolevalbench)).
 
-The NVFP4 checkpoint still runs on the same image, with production's prompt
-logprobs bit for bit. To use it, add both lines to `.env` and rerun
+The loader also supports the earlier NVFP4 checkpoint. Its prior
+prompt-logprob comparisons are historical; they do not qualify this candidate.
+To select it, add both lines to `.env` and rerun
 `./start.sh`; it downloads the checkpoint and converts its overlay:
 
 ```sh
@@ -303,10 +324,12 @@ comparison videos.
 
 ## The engine
 
-Atlas here is [`Enntity/atlas`](https://github.com/Enntity/atlas) release tag
-`sparkglm/atlas-20261017-fp4local` at `b3b016ab` (tree `14316380`, pinned in
-[`install/atlas-source.json`](install/atlas-source.json)); what it adds and its
-opt-in switches are in [docs/ENGINE.md](docs/ENGINE.md). The fork keeps one
+Atlas here is built from [`Enntity/atlas`](https://github.com/Enntity/atlas)
+at the commit and tree in
+[`install/atlas-source.json`](install/atlas-source.json). The 2026-10-19
+candidate adds TP4, checkpoint behavior fixes and sampled verification to
+the earlier `sparkglm/atlas-20261017-fp4local` foundation at `b3b016ab`.
+Its behavior and switches are described in [docs/ENGINE.md](docs/ENGINE.md). The fork keeps one
 branch per layer: `spark-shared`, which SparkQwen builds on too, and `sparkglm`
 on top of it ([branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md)).
 The engine is built from three layers:
@@ -332,14 +355,17 @@ The engine is built from three layers:
    carveout (including where the split KV pools are placed in it), and the
    FP4-Local series: the compressed-scale decoder and loader, four exact
    prefill options the profiles turn on, the tools + `response_format` union
-   grammar and the opt-in checkpoint-format path. Its model-independent
+   grammar and the checkpoint-format path, now enabled by product profiles.
+   The candidate adds calibrated routed input scales, A16 routed decode/verify,
+   FP32 router logits, checkpoint prompt/reasoning behavior, sampled verify
+   and the TP4 chain. Its model-independent
    commits (`shared:`) are candidates for the shared layer.
 
 The profiles set `ATLAS_MOE_INPLACE_TRANSPOSE=0`: the shared engine's default
 in-place MoE transpose keeps every expert's allocation, which on GB10 costs
 about 1.5 GB of kernel memory per Spark that the KV pool would otherwise get.
-Against the previous engine, text prompts score the same prompt logprobs and
-the prefix-cache, fill, tool-call and vision checks pass
+In the 2026-10-15 comparison against its predecessor, text prompts scored
+the same prompt logprobs and the prefix-cache, fill, tool-call and vision checks passed
 ([results/2026-10-15-shared-engine](results/2026-10-15-shared-engine/RESULT.md)).
 
 **Image prompts use the prefix cache.** Every image used to be the same run
@@ -351,11 +377,12 @@ different image never shares KV and the same image hits; text before the first
 image keys as before. Only images a prefill actually computes go through the
 vision encoder, the second Spark no longer loads the vision tower (rank 0
 encodes and sends the rows), and concurrent image prompts keep their vision
-state per request. Text prompts run exactly as before (prompt-logprob hash
-unchanged). Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
+state per request. In that 2026-10-14 comparison, text prompt-logprob hashes
+were unchanged. Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
 
-These are published Enntity release snapshots, separate from current
-Atlas-Inf `main`; the manifest's `layers` entries record the layering.
+The manifest's `layers` entries distinguish the published historical
+foundations from the qualification candidate. A source pin and passing
+source tests do not establish image publication or hardware qualification.
 
 ## History
 
@@ -384,7 +411,7 @@ code is ours unless [docs/LICENSING.md](docs/LICENSING.md) says otherwise.
 | `ATLAS_GLM_PC_BRANCH` | Marconi's branch-point admission (Pan et al., MLSys 2025, [arXiv:2411.19379](https://arxiv.org/abs/2411.19379)) |
 | `ATLAS_GLM_STRICT_SPEC` | vLLM's speculative decoding with structured outputs ([#14702](https://github.com/vllm-project/vllm/pull/14702)) and its reasoning-boundary fix ([#44297](https://github.com/vllm-project/vllm/pull/44297)): per-position grammar masks over the draft window, the bonus row included, with the matcher rolled back after rejected drafts. We added per-rank masking for the vocab-split verify head. |
 | `ATLAS_GLM_CANONICAL_VERIFY` | Batch-invariant kernels, from Thinking Machines Lab's "Defeating Nondeterminism in LLM Inference" (Horace He, 2025): a row's result must not depend on the rows computed beside it. We apply it to every op a DFlash verify row touches, at every verify width. |
-| `ATLAS_KDA_FLASH_PREFILL` (FlashKDA's FP32 recurrence) | vLLM's FlashKDA fork keeping the recurrent state in FP32 fragments between tiles, narrowed to BF16 only for the MMA operand ([vllm-project/FlashKDA#13](https://github.com/vllm-project/FlashKDA/pull/13), Matt Mastracci). We also keep the state FP32 across calls, split every MMA operand into BF16 hi/lo pairs and compute the gate, beta, inverse and sums in FP32, so the result matches the FP32 token recurrence. |
+| `ATLAS_KDA_FLASH_PREFILL` (FlashKDA's FP32 recurrence) | vLLM's FlashKDA fork keeping the recurrent state in FP32 fragments between tiles, narrowed to BF16 only for the MMA operand ([vllm-project/FlashKDA#13](https://github.com/vllm-project/FlashKDA/pull/13), Matt Mastracci). We also keep the state FP32 across calls, split every MMA operand into BF16 hi/lo pairs and compute the gate, beta, inverse and sums in FP32, to reduce deviation from the FP32 token recurrence; the exact native library and model-level behavior require their own qualification. |
 | `DISPLAY_CARVEOUT` | kindling-spark-os's `dispram` ([kindlingai/kindling-spark-os](https://github.com/kindlingai/kindling-spark-os), by mmastrac, coffee-the-dev and adapt-ai-systems; they credit an earlier NVIDIA developer forum post by emihuang). Our implementation was re-derived from the open GPU kernel modules and needs no daemon. |
 
 Measurement: [RigMark](https://github.com/alexellis/rigmark) by Alex Ellis

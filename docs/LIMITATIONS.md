@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 # Limitations
 
 What to know before relying on SparkGLM.
@@ -8,9 +9,12 @@ What to know before relying on SparkGLM.
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
-- Each README row comes from the release its receipt names. RigMark decode,
+- Each README row comes from the dated release its receipt names. The
+  2026-10-19 integrated candidate needs its own official-image receipts;
+  earlier component, development-binary and release measurements do not
+  establish its performance or quality at TP2 or TP4. RigMark decode,
   cold prefill, staggered arrivals, the staggered C4 field guide, the Matrix
-  and the four-session 204K fill were re-measured on the current release,
+  and the four-session 204K fill were re-measured on the historical release,
   2026-10-09 RC2. RigMark short-code concurrency was also re-measured on RC2
   (47.7 tok/s at one stream, 69.5 at four); the earlier 2026-09-30 receipt is
   kept for history. The quality probe's first recorded run is from the first
@@ -39,6 +43,11 @@ What to know before relying on SparkGLM.
   and multimodal work at full context are not measured.
 
 ## Capacity and prefix caching
+
+The pool sizes and memory margins below are historical TP2 measurements.
+The current candidate enables native checkpoint formats, calibrated routed
+input scales and A16 routed decode/verify; read its actual pool allocation
+and host-memory receipts before planning capacity.
 
 - All requests share one KV pool, which also holds the prefix cache. With the
   NVFP4 checkpoint, unsplit, it is about 600K tokens at the default 0.88 memory
@@ -97,12 +106,18 @@ What to know before relying on SparkGLM.
 
 - FP4-Local's MXFP8 and FP8-block projections are served in the checkpoint's
   own formats (`ATLAS_GLM_FP4L_NATIVE=1`, in every profile since 2026-10-19).
-  The earlier default requantized the QAD-trained KDA, shared, dense and MLA
-  weights to NVFP4, which lost long-context retrieval: 21 of 60 on the
-  two-hop needle gate against 32 native (vLLM on the same checkpoint: 37).
-  Native decode is slower ([docs/ENGINE.md](ENGINE.md)).
-- Image prompts on FP4-Local's MXFP8/NVFP4 vision tower have been checked only
-  as far as loading; the race, conversation and caching gates have not run.
+  The earlier default requantized KDA, shared-expert and dense weights to
+  NVFP4, and MLA weights to MXFP8. The dated native-format timing comparison
+  is in
+  [docs/ENGINE.md](ENGINE.md).
+- The candidate profiles also enable calibrated routed-expert prompt input
+  scales and BF16 activations for routed decode/verify rows. Keeping the
+  checkpoint's weight formats does not remove activation quantization,
+  floating-point rounding, chunk effects or the need for matched model-level
+  quality and sampling tests.
+- The published 2026-10-17 FP4-Local evidence checked its MXFP8/NVFP4 vision
+  tower only as far as loading. The candidate's vision changes need their
+  own image, conversation and caching receipts.
 - The Matrix, the field guide and the 925K-token needle have not been re-run
   on FP4-Local; those README rows are from the NVFP4 checkpoint.
 - Serving the NVFP4 checkpoint through `CHECKPOINT_REPO`/`CHECKPOINT_REVISION`
@@ -116,7 +131,7 @@ What to know before relying on SparkGLM.
 These come from two different kinds of comparison and should not be read as
 one table.
 
-**Same-pair.** Mia's TensorFold v1.10 was run on our pair for the current release
+**Same-pair, 2026-10-09.** Mia's TensorFold v1.10 was run on our pair for RC2
 ([receipts](../results/2026-10-09-rc2/RESULT.md)). On that probe Atlas is
 ahead on staggered C4 (~16K: 49.9 s vs 60.2; ~32K: 77.3 s vs 100.1) and on
 the Matrix (136.3 s vs 166.9), while TensorFold is faster at single-stream
@@ -143,9 +158,13 @@ chunks, which halve our KV pool).
 
 ## Behaviour
 
-- Requests with thinking disabled still get a short, low-effort reasoning
-  block, returned in `reasoning_content`. The reasoning budget is enforced, so
-  structured answers are not trapped inside reasoning.
+- The pinned checkpoint template opens reasoning even when a client sends
+  `enable_thinking: false`. The candidate follows its default Max effort or
+  the template's low/high effort selection. It has no automatic short
+  thinking budget. An explicit thinking-token budget can cap reasoning;
+  otherwise `max_tokens` can end the request while it is still reasoning,
+  before answer content or a tool call appears. Reasoning is returned in
+  `reasoning_content`. Budgeting must include both reasoning and the answer.
 - RC2 scored 491/500 on the larger arithmetic set and 24/24 on two-hop 24K
   needles. Arithmetic scores across the tested engine configurations ranged
   from 484 to 495; single runs do not establish a quality ranking. Earlier
@@ -174,9 +193,32 @@ chunks, which halve our KV pool).
 - The API has no authentication and listens only on rank 0's loopback.
 - GB10 memory is shared with the host. Running other large workloads on
   either Spark while serving can hang the host.
-- Both shipped profiles need the DFlash2 drafter, which is licensed for
+- All supplied profiles need the DFlash2 drafter, which is licensed for
   non-commercial use only. No profile without it is shipped yet.
 - The image is built for arm64 and SM121 (GB10) only.
+
+## Four-Spark TP4 candidate
+
+- `start.sh` manages two Sparks. TP4 requires four-rank orchestration and
+  left/right RDMA rails for the chain, with world size, TP and EP all set to
+  four. `4x1m-tp4` selects four sequences, a 1,048,576-token request limit,
+  8K prefill chunks and memory utilization 0.72. The profile name does not
+  prove that four full 1M contexts fit or have been tested together.
+- The LLooM TP4 recipe leaves the two-rank KV-shard option, disk prefix
+  cache and display carveout off. The TP2 pool and restore measurements
+  above do not apply to that recipe.
+- Some pair-specific optimizations are refused at startup, including the
+  native sparse path, independent decode and non-speculative C4 decode.
+  Some others remain off through their own guards. The engine logs these
+  decisions; TP2 settings cannot be copied wholesale to the chain.
+- Sampled verification requires the candidate exchange kernels and protocol
+  on all ranks. Unsupported sampling/logprob requests fail before verify
+  dispatch. A failed exchange after dispatch can terminate the ranks and
+  interrupt other requests. Peer lifelines must remain enabled for peer
+  shutdown after a rank exits.
+- TP4 throughput, scaling, long-context quality and memory margins need
+  receipts from the exact official image. No TP4 result is implied by the
+  historical TP2 table.
 
 ## Structured output
 
@@ -184,10 +226,14 @@ chunks, which halve our KV pool).
   with a grammar, including during speculative decoding. A strict schema the
   engine cannot enforce is refused with HTTP 400 (an error event when
   streaming). It never silently falls back to free text.
-- With speculative decoding (`ATLAS_GLM_STRICT_SPEC=1`, on in both profiles),
-  the tokens chosen at verify positions are greedy, as for every other
-  speculative request on this engine: temperature, top_p and repetition
-  penalties apply only to the tokens decoded serially.
+- The candidate's sampled speculative verification applies temperature,
+  sampling filters, penalties and grammar masks at verify positions on TP2
+  and TP4. Greedy sampling remains greedy. Grammar or non-neutral penalties
+  use full vocabulary rows; requested logprobs also gather complete rows
+  before the worker verdict. This corrects the earlier greedy-only split-head
+  behavior, but source support does not establish distribution parity or
+  quality for every grammar and sampling setting. Final qualification must
+  compare uninterrupted serial and speculative requests on the same image.
 - A very long strict list at temperature 0 can fall into repetition. Asked for
   60 items, the model produced 121 and degraded into nonsense until
   `max_tokens`. The JSON stays valid, but the content is not usable. Requests
