@@ -450,10 +450,9 @@ class LaunchContract(unittest.TestCase):
         tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
         full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
         expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
-        # Checkpoint-format weight slices except KDA decode, which keeps
-        # production's NVFP4 bytes under the TP2 shard's scale (an own-shard
-        # re-quantization of a quarter matrix degrades DFlash verify at four
-        # ranks); 8 MiB chain one-shots for the prefill seams; the chain's
+        # Checkpoint-format weight slices everywhere, KDA decode included: the
+        # QAD-trained MXFP8 KDA q/k/v/o served as NVFP4 lose long-context
+        # retrieval (60-item needle gate, 204K fill 10/12 -> 12/12); 8 MiB chain one-shots for the prefill seams; the chain's
         # proxies spinning through the vocab head's gap, and the piecewise
         # DFlash verify graphs, which capture the chain's all-reduces; the
         # drafter's MLP and head split across the ranks (its attention stays whole); and
@@ -481,7 +480,7 @@ class LaunchContract(unittest.TestCase):
         # o_proj reduce-scattered block by block (same bits); and the index
         # split's selection rows gathered packed beside q_b (same words).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
-                        ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
+                        ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
                         ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head',
                         ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
