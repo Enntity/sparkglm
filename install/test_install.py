@@ -458,7 +458,8 @@ class LaunchContract(unittest.TestCase):
         # this rank's rows after an MXFP8 all-to-all instead of a reduce-
         # scatter (one FP32 sum over all heads; prompt NLL unchanged); and the
         # MoE routed before the shared expert, so the router's weight prefetch
-        # overlaps the mHC and norm kernels (same bits).
+        # overlaps the mHC and norm kernels (same bits); and the KDA attention
+        # input gathered as its MXFP8 cast plus side planes (same bits).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
@@ -466,7 +467,8 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
                         ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
                         ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
-                        ATLAS_GLM_SP_KDA_OPROJ_A2A='1', ATLAS_GLM_MOE_ROUTE_FIRST='1')
+                        ATLAS_GLM_SP_KDA_OPROJ_A2A='1', ATLAS_GLM_MOE_ROUTE_FIRST='1',
+                        ATLAS_GLM_SP_KDA_QUANT_GATHER='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
