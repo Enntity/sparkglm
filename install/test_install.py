@@ -476,7 +476,9 @@ class LaunchContract(unittest.TestCase):
         # (lossy, ~1 BF16 ulp; all lossy lanes together: paired prompt NLL
         # z=-0.34); the seam gathers one block per exchange; and the chain
         # reduce-scatter on 24 blocks, which leaves the shared expert SMs
-        # beside the fused unpermute (its GEMMs start at once, not at the end).
+        # beside the fused unpermute (its GEMMs start at once, not at the end);
+        # and the MLA input gathered as its FP8-block cast per seam block, its
+        # o_proj reduce-scattered block by block (same bits).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
@@ -489,7 +491,8 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_RDMA_RS_FUSED_SEG='16777216',
                         ATLAS_GLM_MOE_DOWN_E4M3='1',
                         ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
-                        ATLAS_RDMA_RS_BLOCKS='24')
+                        ATLAS_RDMA_RS_BLOCKS='24',
+                        ATLAS_GLM_SP_MLA_QUANT_GATHER='1', ATLAS_GLM_SP_MLA_OPROJ_AHEAD='1')
         self.assertEqual(tp4['environment'], expected)
         # A quarter of the weights a rank leaves room: 0.72 still holds 4x1m's
         # ~4.2M KV tokens and frees ~20 GB of each host.
