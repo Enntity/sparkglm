@@ -464,7 +464,9 @@ class LaunchContract(unittest.TestCase):
         # (lossy: prompt NLL and the 60-item needle gate indistinguishable);
         # the 16-head sparse MLA prefill as two warpgroups merging split keys
         # (lossy, ~1 BF16 ulp; all lossy lanes together: paired prompt NLL
-        # z=-0.34); and the seam gathers one block per exchange.
+        # z=-0.34); the seam gathers one block per exchange; and the chain
+        # reduce-scatter on 24 blocks, which leaves the shared expert SMs
+        # beside the fused unpermute (its GEMMs start at once, not at the end).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
@@ -476,7 +478,8 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_SP_KDA_QUANT_GATHER='1',
                         ATLAS_RDMA_RS_FUSED_SEG='16777216',
                         ATLAS_GLM_MOE_DOWN_E4M3='1',
-                        ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1')
+                        ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
+                        ATLAS_RDMA_RS_BLOCKS='24')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
