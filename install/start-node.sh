@@ -11,7 +11,7 @@ usage() {
 usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
                      [--world-size 2|4 [--left-hca DEVICE[,...]] [--right-hca DEVICE[,...]]]
-                     [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
+                     [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
                      [--cuda-cache DIR] [--name NAME]
@@ -39,7 +39,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:
-                     the profile's 0.88); raise it on dedicated hosts for a
+                     the profile's: 0.88, or 0.72 on four Sparks); raise it on dedicated hosts for a
                      larger KV pool and prefix cache
   --prefix-cache-dir keep evicted prefix-cache entries in this directory on
                      the node's own disk (ext4/xfs) instead of dropping them

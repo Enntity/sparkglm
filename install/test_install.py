@@ -246,9 +246,19 @@ class LaunchContract(unittest.TestCase):
         argv, _ = serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION='0.93'), self.profile)
         self.assertIn('--gpu-memory-utilization=0.93', argv)
         self.assertEqual(sum(a.startswith('--gpu-memory-utilization=') for a in argv), 1)
-        for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x'):
+        for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x', '0.65'):
             with self.subTest(util=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), self.profile)
+
+    def test_a_chain_may_leave_its_hosts_more_memory(self):
+        # A quarter of the weights a rank: four Sparks may go down to 0.60.
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        chain = dict(self.environment, FABRIC_HCA='', NODE_RANK='3', FABRIC_LEFT_HCA='rocep1s0f1,roceP2p1s0f1')
+        argv, _ = serve.launch(dict(chain, SPARKGLM_GPU_MEMORY_UTILIZATION='0.65'), tp4)
+        self.assertIn('--gpu-memory-utilization=0.65', argv)
+        for bad in ('0.59', '0.5', '0.96'):
+            with self.subTest(util=bad), self.assertRaises(ValueError):
+                serve.launch(dict(chain, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), tp4)
 
     def test_display_carveout_is_off_unless_switched_on(self):
         plain, _ = serve.launch(self.environment, self.profile)
@@ -481,7 +491,10 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_SPARSE_PIPE_WG2='1', ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
                         ATLAS_RDMA_RS_BLOCKS='24')
         self.assertEqual(tp4['environment'], expected)
-        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
+        # A quarter of the weights a rank leaves room: 0.72 still holds 4x1m's
+        # ~4.2M KV tokens and frees ~20 GB of each host.
+        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
+                '--gpu-memory-utilization=0.88': '--gpu-memory-utilization=0.72'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
         for arg in four:
             self.assertIn(arg, full['server_argv'])

@@ -164,11 +164,13 @@ def launch(environ, profile):
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
-    # the unified memory than the shipped default leaves free.
+    # the unified memory than the shipped default leaves free. Four Sparks hold
+    # a quarter of the weights each, so a chain may also leave the host more.
     util = environ.get('SPARKGLM_GPU_MEMORY_UTILIZATION')
     if util:
-        if not re.fullmatch(r'0\.(8[0-9]|9[0-5])', util):
-            raise ValueError('SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.80 to 0.95')
+        low = '6' if world == 4 else '8'
+        if not re.fullmatch(rf'0\.([{low}-8][0-9]|9[0-5])', util):
+            raise ValueError(f'SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.{low}0 to 0.95')
         args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
                 for a in args]
     env.update(disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', '')))
