@@ -149,6 +149,7 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # reach both handlers and override speculative dispatch. Each filter executes tests.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     set -eu; for filter in dflash_seq_policy verify_dflash_step::think_end \
+                          verify_dflash_step::split_head \
                           verify_pipeline_helper::split_rows spontaneous_thinking_ \
                           glm_prompt_parity_tests completion_token_ids_ \
                           completion_disable_mtp_reaches_scheduler \
