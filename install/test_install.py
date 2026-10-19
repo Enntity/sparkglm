@@ -463,7 +463,9 @@ class LaunchContract(unittest.TestCase):
         # mHC decode finalize writing the next block's input norm (one launch
         # fewer per site, same words); and the MoE unpermute writing its rows
         # straight into one fused chain reduce-scatter in 16 MiB segments
-        # (~80-96 MiB pinned per rank, same sums in the same order).
+        # (~80-96 MiB pinned per rank, same sums in the same order); and the
+        # routed prefill MoE's down rows stored as E4M3 with per-64 scales
+        # (lossy: prompt NLL and the 60-item needle gate indistinguishable).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='0',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
@@ -473,7 +475,8 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
                         ATLAS_GLM_SP_KDA_OPROJ_A2A='1', ATLAS_GLM_MOE_ROUTE_FIRST='1',
                         ATLAS_GLM_SP_KDA_QUANT_GATHER='1', ATLAS_GLM_HC_DECODE_NORM='1',
-                        ATLAS_RDMA_RS_FUSED_SEG='16777216')
+                        ATLAS_RDMA_RS_FUSED_SEG='16777216',
+                        ATLAS_GLM_MOE_DOWN_E4M3='1')
         self.assertEqual(tp4['environment'], expected)
         four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4'}
         self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
