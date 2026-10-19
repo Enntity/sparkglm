@@ -235,7 +235,10 @@ class LaunchContract(unittest.TestCase):
         # FP4-Local is served in its checkpoint formats: its QAD-trained MXFP8/FP8
         # KDA, dense, shared and MLA weights requantized to NVFP4 lose long-context
         # retrieval (60-item needle 21 vs 32 of 60; the vLLM reference 37).
-        native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1'}
+        # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs: cuBLASLt has
+        # no 128-block FP8 kernel for SM121, so the in-tree fallback would serve them.
+        native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1',
+                  'ATLAS_GLM_FP8B_CUTLASS': '1'}
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)
@@ -486,7 +489,7 @@ class LaunchContract(unittest.TestCase):
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
                         ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head',
-                        ATLAS_GLM_FP8B_CUTLASS='1', ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
+                        ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
                         ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
                         ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
                         ATLAS_GLM_SP_KDA_QUANT_GATHER='1',
