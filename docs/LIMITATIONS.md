@@ -95,12 +95,12 @@ What to know before relying on SparkGLM.
 
 ## FP4-Local
 
-- By default FP4-Local's MXFP8 and FP8-block projections are served in
-  production's formats (KDA, shared experts and dense MLP in NVFP4, MLA in
-  MXFP8), requantized from an exact or nearest BF16 copy of the checkpoint's
-  bytes, not in the checkpoint's own formats. `ATLAS_GLM_FP4L_NATIVE=1` serves
-  them exactly as published; it decodes 10–16% slower and scored the same on
-  ToolEvalBench (91, one trial) ([docs/ENGINE.md](ENGINE.md)).
+- FP4-Local's MXFP8 and FP8-block projections are served in the checkpoint's
+  own formats (`ATLAS_GLM_FP4L_NATIVE=1`, in every profile since 2026-10-19).
+  The earlier default requantized the QAD-trained KDA, shared, dense and MLA
+  weights to NVFP4, which lost long-context retrieval: 21 of 60 on the
+  two-hop needle gate against 32 native (vLLM on the same checkpoint: 37).
+  Native decode is slower ([docs/ENGINE.md](ENGINE.md)).
 - Image prompts on FP4-Local's MXFP8/NVFP4 vision tower have been checked only
   as far as loading; the race, conversation and caching gates have not run.
 - The Matrix, the field guide and the 925K-token needle have not been re-run

@@ -228,13 +228,19 @@ class LaunchContract(unittest.TestCase):
                      'ATLAS_GLM_LAYER_FORK', 'ATLAS_GLM_L2_AHEAD',
                      'ATLAS_KV_NVME_DIR', 'ATLAS_GLM_KDA_PREFILL_LT_FP8_SPLITK1',
                      'ATLAS_GLM_TAIL_CUT_DEEP', 'ATLAS_GLM_ZERO_ROWS',
-                     # Opt-in (docs/ENGINE.md): checkpoint-format serving is slower,
-                     # packed prefill is not yet exact, the rest are untuned or diagnostics.
-                     'ATLAS_GLM_FP4L_NATIVE', 'ATLAS_GLM_PACKED_PREFILL', 'ATLAS_DFLASH_WARM_CTX',
+                     # Opt-in (docs/ENGINE.md): packed prefill is not yet exact, the
+                     # rest are untuned or diagnostics.
+                     'ATLAS_GLM_PACKED_PREFILL', 'ATLAS_DFLASH_WARM_CTX',
                      'ATLAS_TAIL_SPLIT_MIN_TOKENS', 'ATLAS_PREFILL_BURST', 'ATLAS_TTFT_TRACE')
+        # FP4-Local is served in its checkpoint formats: its QAD-trained MXFP8/FP8
+        # KDA, dense, shared and MLA weights requantized to NVFP4 lose long-context
+        # retrieval (60-item needle 21 vs 32 of 60; the vLLM reference 37).
+        native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1'}
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)
+            for key, value in native.items():
+                self.assertEqual(env.get(key), value, key)
             # A mask: 3 = both bit-exact mHC seam twins (partial and finalize).
             self.assertEqual(env.get('ATLAS_GLM_HC_SEAM_ILP'), '3')
             for key, value in policy.items():

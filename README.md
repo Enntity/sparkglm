@@ -177,11 +177,10 @@ MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
 is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
-The engine serves those projections through the same kernels and formats it
-used for the NVFP4 checkpoint, from exact or nearest BF16 copies of the
-checkpoint's bytes. `ATLAS_GLM_FP4L_NATIVE=1` serves every group in the
-checkpoint's own format instead: 10–16% slower decode, the same ToolEvalBench
-score ([docs/ENGINE.md](docs/ENGINE.md)). ToolEvalBench scores 91.0 on our
+The engine serves every group in the checkpoint's own format
+(`ATLAS_GLM_FP4L_NATIVE=1`): requantizing FP4-Local's QAD-trained MXFP8 and
+FP8 weights to NVFP4, as the 2026-10-17 release did, lost long-context
+retrieval ([docs/LIMITATIONS.md](docs/LIMITATIONS.md)). ToolEvalBench scores 91.0 on our
 pair; NVIDIA's card gives 92.4 for FP4-Local and 91.9 for BF16 on an earlier
 version of the suite ([receipts](results/2026-10-17-fp4local/RESULT.md#toolevalbench)).
 
