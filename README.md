@@ -100,6 +100,11 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 Run it on the Spark that will serve the API (rank 0). Each step is skipped when
 already done, so rerunning it just restarts the engine.
 
+`start.sh` manages a TP2 pair. Four-Spark TP4 uses [LLooM](https://github.com/Enntity/lloom)
+with the `linux-nvidia-dgx-spark-4x-glm53-atlas-tp4` recipe, which configures
+the chain and starts all four ranks. The `4x1m-tp4` profile requires that
+four-rank orchestration.
+
 1. **Image.** Pulls `ghcr.io/enntity/atlas-sparkglm:<tag>`, whose tag is the
    git tree of [`install/`](install/), so the image always matches your
    checkout. If it isn't published or `BUILD=1` is set, it builds the image

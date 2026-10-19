@@ -238,8 +238,12 @@ class LaunchContract(unittest.TestCase):
         # retrieval (60-item needle 21 vs 32 of 60; the vLLM reference 37).
         # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs: cuBLASLt has
         # no 128-block FP8 kernel for SM121, so the in-tree fallback would serve them.
+        # The reference uses calibrated checkpoint input scales for A4 prompt
+        # rows and BF16 activations (A16) for decode/verify rows, including
+        # verify passengers sharing a prompt batch.
         native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1',
-                  'ATLAS_GLM_FP8B_CUTLASS': '1'}
+                  'ATLAS_GLM_FP8B_CUTLASS': '1', 'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
+                  'ATLAS_GLM_FP4L_DECODE_A16': '1'}
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)

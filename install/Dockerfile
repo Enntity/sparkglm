@@ -141,15 +141,28 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     { cat /tmp/atlas-parser-check.log; exit 1; }; \
     cat /tmp/atlas-parser-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-parser-check.log
 
-# DFlash verify: the argmax-only (TP2 vocab-split) head keeps every pick on the
-# raw argmax, and an exhausted thinking budget still closes `</think>`.
+# DFlash split-head verification must preserve the requested distribution,
+# including whole-row fallback and seeded serial/speculative equivalence.
+# Explicit thinking caps still close reasoning; a zero server ceiling stays
+# uncapped on spontaneous entry and re-entry. Completions expose original
+# generated token IDs only when requested. Each filter must execute tests.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
-    set -eu; for check in dflash_seq_policy:2 verify_dflash_step::think_end:7; do \
+    set -eu; for filter in dflash_seq_policy verify_dflash_step::think_end \
+                          verify_pipeline_helper::split_rows spontaneous_thinking_ \
+                          glm_prompt_parity_tests completion_token_ids_; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
-      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "${check%:*}" \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "$filter" \
         > /tmp/atlas-verify-check.log 2>&1 || { cat /tmp/atlas-verify-check.log; exit 1; }; \
       cat /tmp/atlas-verify-check.log; \
-      grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-verify-check.log; \
+    done
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for check in spark-runtime:sampler::tests spark-model:glm_verify_sample; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p "${check%%:*}" --lib "${check#*:}" \
+        > /tmp/atlas-sample-check.log 2>&1 || { cat /tmp/atlas-sample-check.log; exit 1; }; \
+      cat /tmp/atlas-sample-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-sample-check.log; \
     done
 
 # Refusal content: keep the full blocking response body alongside refusal
