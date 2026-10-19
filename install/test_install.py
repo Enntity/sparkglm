@@ -59,7 +59,8 @@ class LaunchContract(unittest.TestCase):
         self.assertNotIn('ATLAS_KV_OVERCOMMIT', env)
         self.assertEqual(env['ATLAS_GLM_KV_CAP_TO_CONTEXTS'], '0')
         self.assertIn('--oom-guard-mb=4096', argv)
-        self.assertIn('--video-max-frames=32', argv)
+        # Video frames follow the checkpoint's processor config (engine default), not a cap.
+        self.assertFalse(any(a.startswith('--video-max-frames') for a in argv))
 
     def test_dflash_drafter_path_is_substituted_and_validated(self):
         argv, _ = serve.launch(self.environment, self.profile)
