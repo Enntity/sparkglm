@@ -10,7 +10,7 @@ refuses any other tree.
 The 2026-10-19 qualification candidate adds the four-rank RDMA chain,
 checkpoint-format defaults, checkpoint chat and sampling behavior, FP32
 router logits, and sampled speculative verification. This description was
-checked against engine source `b6186540c`; the install manifest selects the
+checked against engine source `423466ab0`; the install manifest selects the
 exact source used by a build. Source support alone does not qualify an image.
 Final TP2 and TP4 performance and quality claims require that image's receipts.
 
@@ -19,6 +19,11 @@ The earlier release was `sparkglm/atlas-20261017-fp4local` at `b3b016ab`
 ([2026-10-15 results](../results/2026-10-15-shared-engine/RESULT.md)).
 Its [2026-10-17 results](../results/2026-10-17-fp4local/RESULT.md) remain
 historical measurements. The README describes the [engine layers](../README.md#the-engine).
+
+The candidate also fixes speculative returned scores under logit bias and
+history penalties. Requested scores use the serial processed distribution;
+unsupported speculative scoring paths use a supported verification or serial
+path. First-prefill-token logit-bias support remains an inherited limitation.
 
 ## Candidate behavior
 
