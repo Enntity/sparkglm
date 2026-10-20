@@ -37,7 +37,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --left-hca         with --world-size 4: the RDMA devices cabled to rank - 1
   --right-hca        with --world-size 4: the RDMA devices cabled to rank + 1
   --mode             strict (default) or spark; TP2 only, same on both ranks
-  --strict-mtp       experimental native MTP in strict mode; C1, context 8192
+  --strict-mtp       native MTP in strict mode; retains profile capacity and prefix cache
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:

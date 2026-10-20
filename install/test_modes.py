@@ -82,21 +82,24 @@ class ServingModes(unittest.TestCase):
                     self.launch('strict')
                 self.profile['server_argv'].pop()
 
-    def test_native_mtp_is_explicit_strict_c1_and_keeps_target_precision(self):
+    def test_native_mtp_keeps_normal_capacity_cache_and_target_precision(self):
         self.env["SPARKGLM_STRICT_MTP"] = "1"
         args, env = self.launch("strict")
         self.assertIn("--speculative", args)
         self.assertNotIn("--dflash", args)
         self.assertFalse(any(a.startswith("--draft-model") for a in args))
-        self.assertIn("--max-batch-size=1", args)
-        self.assertIn("--max-num-seqs=1", args)
-        self.assertIn("--max-seq-len=8192", args)
+        self.assertIn("--max-batch-size=4", args)
+        self.assertIn("--max-num-seqs=4", args)
+        self.assertIn("--max-seq-len=1048576", args)
+        self.assertIn("--enable-prefix-caching", args)
+        self.assertIn("--max-prefill-tokens=8192", args)
+        self.assertEqual(env["ATLAS_GLM_MTP_LONG_CONTEXT"], "1")
         self.assertEqual(env["ATLAS_GLM_STRICT_NATIVE_MTP"], "1")
-        self.assertEqual(env["ATLAS_GLM_SPARSE_NATIVE"], "0")
-        self.assertEqual(env["ATLAS_GLM_K3_MLA_QUERY_BATCHM"], "0")
-        self.assertEqual(env["ATLAS_GLM_K3_MLA_O_BATCHM"], "0")
-        self.assertEqual(env["ATLAS_GLM_SPARSE_DECODE_TC"], "0")
-        self.assertEqual(env["ATLAS_GLM_SPARSE_DECODE_SPLIT"], "0")
+        self.assertEqual(env["ATLAS_GLM_SPARSE_NATIVE"], self.profile["environment"]["ATLAS_GLM_SPARSE_NATIVE"])
+        self.assertEqual(env["ATLAS_GLM_K3_MLA_QUERY_BATCHM"], self.profile["environment"]["ATLAS_GLM_K3_MLA_QUERY_BATCHM"])
+        self.assertEqual(env["ATLAS_GLM_K3_MLA_O_BATCHM"], self.profile["environment"]["ATLAS_GLM_K3_MLA_O_BATCHM"])
+        self.assertEqual(env["ATLAS_GLM_SPARSE_DECODE_TC"], self.profile["environment"]["ATLAS_GLM_SPARSE_DECODE_TC"])
+        self.assertEqual(env["ATLAS_GLM_SPARSE_DECODE_SPLIT"], self.profile["environment"]["ATLAS_GLM_SPARSE_DECODE_SPLIT"])
         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "1")
         self.assertEqual(env["ATLAS_GLM_FP4L_DECODE_A16"], "1")
         with self.assertRaises(ValueError):

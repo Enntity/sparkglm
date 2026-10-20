@@ -217,19 +217,14 @@ def launch(environ, profile):
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
     if native_mtp == '1':
-        # Bounded candidate: one request, no prefix reuse; serial comparison uses
-        # disable_mtp on this same native target and loaded predictor.
+        # Native prediction retains the selected serving capacity and prefix
+        # cache. disable_mtp compares serial on this same loaded target.
         drop = ('--dflash', '--draft-model', '--dflash-gamma', '--dflash-window-size',
-                '--enable-prefix-caching', '--num-drafts', '--mtp-quantization', '--mtp-vocab',
-                '--max-batch-size', '--max-num-seqs', '--max-seq-len', '--max-prefill-tokens')
+                '--num-drafts', '--mtp-quantization', '--mtp-vocab')
         args = [a for a in args if a.split('=', 1)[0] not in drop]
-        args += ['--speculative', '--num-drafts=6', '--mtp-quantization=bf16', '--mtp-vocab=0',
-                 '--max-batch-size=1', '--max-num-seqs=1', '--max-seq-len=8192', '--max-prefill-tokens=8192']
+        args += ['--speculative', '--num-drafts=6', '--mtp-quantization=bf16', '--mtp-vocab=0']
         env.update(ATLAS_GLM_STRICT_NATIVE_MTP='1', ATLAS_GLM_DFLASH='0',
-                   ATLAS_GLM_SPARSE_DECODE_TC='0', ATLAS_GLM_SPARSE_DECODE_SPLIT='0',
-                   ATLAS_GLM_SPARSE_NATIVE='0', ATLAS_GLM_K3_MLA_QUERY_BATCHM='0',
-                   ATLAS_GLM_K3_MLA_O_BATCHM='0',
-                   ATLAS_GLM_MTP_LONG_CONTEXT='0', ATLAS_GLM_NATIVE_MTP_HEAD='bf16',
+                   ATLAS_GLM_MTP_LONG_CONTEXT='1', ATLAS_GLM_NATIVE_MTP_HEAD='bf16',
                    ATLAS_GLM_MTP_BF16_DRAFTS='1', ATLAS_GLM_NATIVE_MTP_REPAIR_BATCH='0',
                    ATLAS_GLM_NATIVE_MTP_STOP_PROB='0.95', ATLAS_MTP_SPEC_THINK='1',
                    ATLAS_NO_MTP_K_LADDER='1', ATLAS_MTP_TIMING='1')
