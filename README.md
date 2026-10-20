@@ -37,8 +37,8 @@ prefill activation quantization are part of the supplied DGX recipe. Strict does
 not promise bit-identical floating-point results across different engines.
 
 Spark retains the optimized serving profile, calibrated A4 routed decode and
-DFlash, and adds round-to-nearest-even FP4 KDA decode weights. Native KDA prefill,
-MLA, shared experts, dense projections and the vocabulary head stay in their
+DFlash, and uses round-to-nearest-even FP4 KDA decode, shared-expert weights.
+KDA prefill, MLA, the vocabulary head, dense projections stay in their
 checkpoint formats. Drafter weight conversions also use corrected rounding.
 Unsupported weight formats fail loading instead of silently converting them.
 Disk prefix caches are separated by mode. These mode presets currently cover TP2.

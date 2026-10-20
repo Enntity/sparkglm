@@ -146,13 +146,19 @@ def serving_mode(environ, profile, world):
     required = {
         'ATLAS_GLM_FP4L_NATIVE': '1',
         'ATLAS_GLM_FP4L_MLA_FP8': '1',
-        'ATLAS_GLM_FP4L_SHARED_FP8': '1',
-        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1',
+        'ATLAS_GLM_FP4L_SHARED_FP8': '1' if mode == 'strict' else '0',
+        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1' if mode == 'strict' else '1',
         'ATLAS_GLM_FP4L_KDA_W8A8_PREFILL': '1',
         'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
         'ATLAS_GLM_FP4L_FP8_PREFILL': 'w8a8',
         'ATLAS_GLM_LM_HEAD_MXFP8': '1',
     }
+    if mode == 'spark':
+        for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
+            value = profile['environment'].get(flag, required[flag])
+            if value not in ('0', '1'):
+                raise ValueError(f'{flag} must be 0 or 1')
+            required[flag] = value
     for flag, value in required.items():
         if flag in profile['environment'] and profile['environment'][flag] != value:
             raise ValueError(f'{mode} mode requires {flag}={value}')

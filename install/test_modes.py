@@ -34,22 +34,47 @@ class ServingModes(unittest.TestCase):
         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "1")
         self.assertEqual(env["ATLAS_GLM_FP4L_DECODE_A16"], "1")
         self.assertEqual(env["ATLAS_GLM_FP4L_INPUT_SCALES"], "1")
+        self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "1")
+        self.assertEqual(env["ATLAS_GLM_FP4L_DENSE_MXFP8"], "1")
         self.assertEqual(env["ATLAS_NO_DFLASH_DRAFTER_NVFP4"], "1")
         for flag in ("ATLAS_DFLASH_NVFP4_TC", "ATLAS_DFLASH_NVFP4_HEAD",
                      "ATLAS_DFLASH_MXFP8", "ATLAS_DFLASH_MXFP8_HEAD",
                      "ATLAS_DFLASH_DROP_BF16", "ATLAS_DFLASH_CTX_NVFP4"):
             self.assertEqual(env[flag], "0", flag)
 
-    def test_spark_allows_only_the_measured_kda_target_conversion(self):
+    def test_spark_uses_qualified_target_conversions(self):
         _, env = self.launch("spark")
         self.assertEqual(env["ATLAS_GLM_SERVING_MODE"], "spark")
         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "0")
-        for group in ("MLA_FP8", "SHARED_FP8", "DENSE_MXFP8", "KDA_W8A8_PREFILL"):
+        for group in ("MLA_FP8", "KDA_W8A8_PREFILL"):
             self.assertEqual(env["ATLAS_GLM_FP4L_" + group], "1")
+        self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "0")
+        self.assertEqual(env["ATLAS_GLM_FP4L_DENSE_MXFP8"], "1")
         self.assertEqual(env["ATLAS_GLM_FP4L_DECODE_A16"], "0")
         self.assertEqual(env["ATLAS_DFLASH_NVFP4_TC"], "1")
         self.assertEqual(env["ATLAS_GLM_DECODE_FUSE"], "1")
         self.assertNotIn("ATLAS_NO_DFLASH_DRAFTER_NVFP4", env)
+
+    def test_shared_and_dense_overrides_are_spark_only(self):
+        for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
+            for value in ('0', '1'):
+                self.profile['environment'][flag] = value
+                _, env = self.launch('spark')
+                self.assertEqual(env[flag], value)
+                if value == '0':
+                    with self.assertRaises(ValueError):
+                        self.launch('strict')
+            self.profile['environment'][flag] = 'invalid'
+            with self.assertRaises(ValueError):
+                self.launch('spark')
+            del self.profile['environment'][flag]
+
+    def test_unqualified_group_stays_native_in_spark(self):
+        for flag in ('ATLAS_GLM_FP4L_DENSE_MXFP8',):
+            self.profile['environment'][flag] = '0'
+            with self.assertRaises(ValueError):
+                self.launch('spark')
+            del self.profile['environment'][flag]
 
     def test_modes_are_explicit_and_do_not_mutate_the_capacity_profile(self):
         before = json.dumps(self.profile, sort_keys=True)
