@@ -45,9 +45,12 @@ What to know before relying on SparkGLM.
 ## Capacity and prefix caching
 
 The pool sizes and memory margins below are historical TP2 measurements.
-The current candidate enables native checkpoint formats, calibrated routed
-input scales and A16 routed decode/verify; read its actual pool allocation
-and host-memory receipts before planning capacity.
+The current candidate enables native checkpoint formats and calibrated routed
+input scales. A16 routed decode/verify is disabled in all profiles after a
+bounded TP2 test found concurrency-dependent speculative output. The calibrated
+A4 fallback differs from the reference decode activation policy; four prompts
+do not qualify full quality or TP4 behavior. Read the candidate's actual pool
+allocation and host-memory receipts before planning capacity.
 
 - All requests share one KV pool, which also holds the prefix cache. With the
   NVFP4 checkpoint, unsplit, it is about 600K tokens at the default 0.88 memory

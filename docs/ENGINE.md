@@ -35,11 +35,15 @@ Every TP2 and TP4 product profile enables `ATLAS_GLM_FP4L_NATIVE=1`.
 KDA projections and the dense MLP use the checkpoint's MXFP8 weights;
 MLA and shared experts use its FP8 block weights. This avoids the earlier
 NVFP4 requantization of those projections. The profiles also enable
-`ATLAS_GLM_FP4L_INPUT_SCALES=1` for calibrated routed-expert prompt
-activations and `ATLAS_GLM_FP4L_DECODE_A16=1` for BF16 activations in routed
-decode and verify rows. Native weight formats still have their prescribed
-activation quantization and floating-point rounding; they do not establish
-bitwise agreement with another engine.
+`ATLAS_GLM_FP4L_INPUT_SCALES=1` for calibrated routed-expert activation
+scales. Routed decode and verify use calibrated A4 activations;
+`ATLAS_GLM_FP4L_DECODE_A16=0` in every production profile. A16 remains
+experimental: a bounded TP2 diagnostic found speculative outputs changed
+between C1 and C4 with A16 enabled, while disabling it restored exact
+concurrency agreement on those four prompts. This fallback differs from the
+reference's BF16 decode activation policy. It does not establish reference
+fidelity, full-suite quality or TP4 correctness. Native weight formats still
+have their prescribed activation quantization and floating-point rounding.
 
 The checkpoint chat template opens a reasoning block, including when a
 client sends `enable_thinking: false`. Its default is `Reasoning Effort: Max`;

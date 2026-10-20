@@ -200,8 +200,9 @@ is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
 The candidate profiles enable the checkpoint's native projection formats
-(`ATLAS_GLM_FP4L_NATIVE=1`), calibrated routed-expert prompt input scales,
-and BF16 activations for routed decode/verify rows. The 2026-10-17 default
+(`ATLAS_GLM_FP4L_NATIVE=1`) and calibrated routed-expert input scales.
+Routed decode/verify uses the calibrated A4 fallback; A16 is disabled pending
+investigation of concurrency-dependent speculative output. The 2026-10-17 default
 requantized MXFP8/FP8 projections to NVFP4; its numbers do not measure this
 configuration. Earlier retrieval comparisons and remaining fidelity limits
 are described in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). The historical
@@ -356,8 +357,8 @@ The engine is built from three layers:
    FP4-Local series: the compressed-scale decoder and loader, four exact
    prefill options the profiles turn on, the tools + `response_format` union
    grammar and the checkpoint-format path, now enabled by product profiles.
-   The candidate adds calibrated routed input scales, A16 routed decode/verify,
-   FP32 router logits, checkpoint prompt/reasoning behavior, sampled verify
+   The candidate adds calibrated routed input scales, experimental A16 routed
+   decode/verify (disabled in product profiles), FP32 router logits, checkpoint prompt/reasoning behavior, sampled verify
    and the TP4 chain. Its model-independent
    commits (`shared:`) are candidates for the shared layer.
 

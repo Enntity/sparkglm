@@ -29,6 +29,20 @@ class LaunchContract(unittest.TestCase):
                             'FABRIC_INTERFACE': 'enp1s0f0np0', 'FABRIC_HCA': 'rocep1s0f0', 'MODEL_PATH': '/models/overlay',
                             'DRAFTER_PATH': '/models/drafter'}
 
+    def test_profiles_hold_a16_off_in_actual_launch_environment(self):
+        # A16-enabled speculative outputs changed with concurrency. Keep it
+        # off in every production profile, even if the caller exports it on.
+        for path in sorted((HERE/'profiles').glob('*.json')):
+            profile = json.loads(path.read_text())
+            environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1')
+            if serve.world_size(profile) == 4:
+                environment.update(FABRIC_HCA='', FABRIC_RIGHT_HCA='rocep1s0f1')
+            with self.subTest(profile=path.name):
+                _, actual = serve.launch(environment, profile)
+                self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'], '0')
+                self.assertEqual(actual['ATLAS_GLM_FP4L_NATIVE'], '1')
+                self.assertEqual(actual['ATLAS_GLM_FP4L_INPUT_SCALES'], '1')
+
     def test_two_rank_contract_and_private_ports(self):
         for rank in ('0', '1'):
             argv, env = serve.launch(dict(self.environment, NODE_RANK=rank), self.profile)
@@ -238,12 +252,12 @@ class LaunchContract(unittest.TestCase):
         # retrieval (60-item needle 21 vs 32 of 60; the vLLM reference 37).
         # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs: cuBLASLt has
         # no 128-block FP8 kernel for SM121, so the in-tree fallback would serve them.
-        # The reference uses calibrated checkpoint input scales for A4 prompt
-        # rows and BF16 activations (A16) for decode/verify rows, including
-        # verify passengers sharing a prompt batch.
+        # Keep calibrated input scales, but hold A16 routed decode/verify off:
+        # its speculative outputs changed with concurrency in TP2 diagnostics.
+        # This A4 fallback differs from the reference decode activation policy.
         native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1',
                   'ATLAS_GLM_FP8B_CUTLASS': '1', 'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
-                  'ATLAS_GLM_FP4L_DECODE_A16': '1'}
+                  'ATLAS_GLM_FP4L_DECODE_A16': '0'}
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)
