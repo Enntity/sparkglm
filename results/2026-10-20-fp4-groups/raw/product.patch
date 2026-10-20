@@ -1,0 +1,119 @@
+commit 75b63a8a02986022c2a078f6eb06be58becf5c1d
+Author:     Jason McCartney <jmac@theroot.org>
+AuthorDate: Tue Oct 20 16:29:36 2026 -0700
+Commit:     Jason McCartney <jmac@theroot.org>
+CommitDate: Tue Oct 20 16:29:36 2026 -0700
+
+    sparkglm: enable qualified corrected FP4 groups in Spark mode
+
+diff --git a/README.md b/README.md
+index 82388d6..a17313b 100644
+--- a/README.md
++++ b/README.md
+@@ -37,8 +37,8 @@ prefill activation quantization are part of the supplied DGX recipe. Strict does
+ not promise bit-identical floating-point results across different engines.
+ 
+ Spark retains the optimized serving profile, calibrated A4 routed decode and
+-DFlash, and adds round-to-nearest-even FP4 KDA decode weights. Native KDA prefill,
+-MLA, shared experts, dense projections and the vocabulary head stay in their
++DFlash, and uses round-to-nearest-even FP4 KDA decode, shared-expert weights.
++KDA prefill, MLA, the vocabulary head, dense projections stay in their
+ checkpoint formats. Drafter weight conversions also use corrected rounding.
+ Unsupported weight formats fail loading instead of silently converting them.
+ Disk prefix caches are separated by mode. These mode presets currently cover TP2.
+diff --git a/install/atlas-source.json b/install/atlas-source.json
+index 6daa521..45d2a70 100644
+--- a/install/atlas-source.json
++++ b/install/atlas-source.json
+@@ -3,8 +3,8 @@
+   "note": "Local unpublished TP2 RC retaining strict native MTP support and restoring the MLA front fusion on native FP8 block weights. The existing MLA switch selects exact CTA arithmetic with bounded native scale prefetch; TP4 and packed prefill retain their previous paths. Focused validation recorded separately.",
+   "repository": "https://github.com/Enntity/atlas.git",
+   "branch": "sparkglm/strict-native-mtp-20261020",
+-  "commit": "1b186c435a8fd2e2b9da7c41c8c0375a7d90834f",
+-  "tree": "48df2e78c4cbe884aa24c18ba1e88f7f6452107a",
++  "commit": "e1ee623547ee8ca85abb4e17091907cb267175fe",
++  "tree": "66a29243bfe1c5eca7ce33e55569c068d57ad340",
+   "layers": {
+     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
+     "shared_engine": {
+diff --git a/install/serve.py b/install/serve.py
+index 256c440..7e371aa 100644
+--- a/install/serve.py
++++ b/install/serve.py
+@@ -146,13 +146,19 @@ def serving_mode(environ, profile, world):
+     required = {
+         'ATLAS_GLM_FP4L_NATIVE': '1',
+         'ATLAS_GLM_FP4L_MLA_FP8': '1',
+-        'ATLAS_GLM_FP4L_SHARED_FP8': '1',
+-        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1',
++        'ATLAS_GLM_FP4L_SHARED_FP8': '1' if mode == 'strict' else '0',
++        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1' if mode == 'strict' else '1',
+         'ATLAS_GLM_FP4L_KDA_W8A8_PREFILL': '1',
+         'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
+         'ATLAS_GLM_FP4L_FP8_PREFILL': 'w8a8',
+         'ATLAS_GLM_LM_HEAD_MXFP8': '1',
+     }
++    if mode == 'spark':
++        for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
++            value = profile['environment'].get(flag, required[flag])
++            if value not in ('0', '1'):
++                raise ValueError(f'{flag} must be 0 or 1')
++            required[flag] = value
+     for flag, value in required.items():
+         if flag in profile['environment'] and profile['environment'][flag] != value:
+             raise ValueError(f'{mode} mode requires {flag}={value}')
+diff --git a/install/test_modes.py b/install/test_modes.py
+index d2c950f..c2a242c 100644
+--- a/install/test_modes.py
++++ b/install/test_modes.py
+@@ -34,23 +34,48 @@ class ServingModes(unittest.TestCase):
+         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "1")
+         self.assertEqual(env["ATLAS_GLM_FP4L_DECODE_A16"], "1")
+         self.assertEqual(env["ATLAS_GLM_FP4L_INPUT_SCALES"], "1")
++        self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "1")
++        self.assertEqual(env["ATLAS_GLM_FP4L_DENSE_MXFP8"], "1")
+         self.assertEqual(env["ATLAS_NO_DFLASH_DRAFTER_NVFP4"], "1")
+         for flag in ("ATLAS_DFLASH_NVFP4_TC", "ATLAS_DFLASH_NVFP4_HEAD",
+                      "ATLAS_DFLASH_MXFP8", "ATLAS_DFLASH_MXFP8_HEAD",
+                      "ATLAS_DFLASH_DROP_BF16", "ATLAS_DFLASH_CTX_NVFP4"):
+             self.assertEqual(env[flag], "0", flag)
+ 
+-    def test_spark_allows_only_the_measured_kda_target_conversion(self):
++    def test_spark_uses_qualified_target_conversions(self):
+         _, env = self.launch("spark")
+         self.assertEqual(env["ATLAS_GLM_SERVING_MODE"], "spark")
+         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "0")
+-        for group in ("MLA_FP8", "SHARED_FP8", "DENSE_MXFP8", "KDA_W8A8_PREFILL"):
++        for group in ("MLA_FP8", "KDA_W8A8_PREFILL"):
+             self.assertEqual(env["ATLAS_GLM_FP4L_" + group], "1")
++        self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "0")
++        self.assertEqual(env["ATLAS_GLM_FP4L_DENSE_MXFP8"], "1")
+         self.assertEqual(env["ATLAS_GLM_FP4L_DECODE_A16"], "0")
+         self.assertEqual(env["ATLAS_DFLASH_NVFP4_TC"], "1")
+         self.assertEqual(env["ATLAS_GLM_DECODE_FUSE"], "1")
+         self.assertNotIn("ATLAS_NO_DFLASH_DRAFTER_NVFP4", env)
+ 
++    def test_shared_and_dense_overrides_are_spark_only(self):
++        for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
++            for value in ('0', '1'):
++                self.profile['environment'][flag] = value
++                _, env = self.launch('spark')
++                self.assertEqual(env[flag], value)
++                if value == '0':
++                    with self.assertRaises(ValueError):
++                        self.launch('strict')
++            self.profile['environment'][flag] = 'invalid'
++            with self.assertRaises(ValueError):
++                self.launch('spark')
++            del self.profile['environment'][flag]
++
++    def test_unqualified_group_stays_native_in_spark(self):
++        for flag in ('ATLAS_GLM_FP4L_DENSE_MXFP8',):
++            self.profile['environment'][flag] = '0'
++            with self.assertRaises(ValueError):
++                self.launch('spark')
++            del self.profile['environment'][flag]
++
+     def test_modes_are_explicit_and_do_not_mutate_the_capacity_profile(self):
+         before = json.dumps(self.profile, sort_keys=True)
+         for bad in ("", "fast", "STRICT", "../spark"):

@@ -1,0 +1,65 @@
+{
+  "binary_sha256": "28e19acec1b26afcfbb11428b587d56e80a57504cd77e9cd32669e98e00e4c79",
+  "source": {
+    "schema": "sparkglm.atlas-engine-source/v2",
+    "note": "Local unpublished TP2 RC retaining strict native MTP support and restoring the MLA front fusion on native FP8 block weights. The existing MLA switch selects exact CTA arithmetic with bounded native scale prefetch; TP4 and packed prefill retain their previous paths. Focused validation recorded separately.",
+    "repository": "https://github.com/Enntity/atlas.git",
+    "branch": "sparkglm/strict-native-mtp-20261020",
+    "commit": "e1ee623547ee8ca85abb4e17091907cb267175fe",
+    "tree": "66a29243bfe1c5eca7ce33e55569c068d57ad340",
+    "layers": {
+      "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
+      "shared_engine": {
+        "branch": "upstream/atlas-shared-20261015-vision",
+        "commit": "a94648109f3c9a9a739e6cdf3d9630acaf45bac8",
+        "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the shared vision fixes (every tower encodes per chunk into per-sequence state, vision layout errors fail only their request, MRoPE positions from the whole prompt, vision markup in message text encodes as text) and the vision prefix cache for every tower, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
+      },
+      "sparkglm_only": {
+        "branch": "sparkglm/atlas-20261017-fp4local",
+        "commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+        "note": "Historical SparkGLM foundation below the qualification candidate. The SparkGLM layer (sparkglm/atlas-20261015-vision, 16315004: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement and sharded latent pools in the carveout) plus the FP4-Local series: the lossless NVFP4-CSF (csf_32x2_v1) block-scale decoder, decoded per slice under expert TP; FP4-Local's MXFP8 and FP8_PB_WO projections loaded through production's arms on exact (MXFP8) or nearest (FP8 block) BF16 copies, its quantized MTP experts and ViT, and every quantized source released after expansion; four exact prefill options the profiles set (ATLAS_GLM_KDA_SIDE_PROJ_LT, ATLAS_GLM_KDA_CONV_PLANES, ATLAS_GLM_HC_PREFILL_FUSE2, ATLAS_GLM_SP_GATHER_OVERLAP); tools + response_format under tool_choice auto compiled as one tool-call-or-JSON union grammar; and default-off options: every group in the checkpoint's own format (ATLAS_GLM_FP4L_NATIVE and per-group switches), the drafter's prompt window on warm turns (ATLAS_DFLASH_WARM_CTX), packed multi-prompt prefill (ATLAS_GLM_PACKED_PREFILL), ATLAS_TAIL_SPLIT_MIN_TOKENS and the per-request TTFT trace (ATLAS_TTFT_TRACE). Commits marked `shared:` are model-independent and are candidates for the shared layer; they sit in this layer until it moves. Fork-only."
+      },
+      "qualification_candidate": {
+        "branch": "sparkglm/fidelity-rc-20261019",
+        "commit": "6b8a35ed42de2265cbbbe4e813df860b64ff05a7",
+        "note": "Integration prepared on 2026-10-19 of the TP4 chain through 73e4dd6ef, GLM checkpoint prompt/generation/vision parity and FP32 router through f6e251cfe, reference input scales and W4A16 decode/verify MoE lanes, sampled split-head verification, zero-ceiling thinking re-entry, and completion token-ID and request speculation controls. Includes regression fixes that reject unsupported sampled split-head verification before worker dispatch and preserve the full-vocabulary route for requested logprobs. Product profiles enable input scales but disable A16 routed decode/verify after TP2 diagnostics found concurrency-dependent speculative outputs with A16 enabled. The calibrated A4 fallback differs from the reference decode activation policy and still requires full quality qualification. Hardware qualification and publication are recorded separately in release receipts. No default max_tokens expansion is included. The final source also splits oversized candidate modules without changing their algorithms. Speculative returned logprobs now use the same processed distribution as serial decode, including logit bias and history; unsupported score-reporting paths use supported verification or serial execution. This change does not add first-prefill-token logit-bias support. Accepted prediction usage counts only retained output draft tokens, including token-limit, stop and rollback handling; internal verification statistics are unchanged. Profiles enable per-row masked verification. Split/scored verify spans retain their processed thinking-boundary decisions instead of replaying the raw forced-end helper against pre-span state. This repair does not change the generic LegacyFallback path or establish final image quality/performance."
+      },
+      "tp2_modes": {
+        "commit": "b4bf5336b2a8dec746c15077a2a8ca7f6c07556e",
+        "base_commit": "8cd6e0487a50a124ee9cc8274179847711731f12",
+        "note": "Explicit mode enforcement, missing-format/calibration rejection, separate caches, strict serial target requests, and corrected drafter weight RNE. No activation quantizer change."
+      }
+    },
+    "kernel_target": "glm-5.3-flash",
+    "license": "AGPL-3.0-only"
+  },
+  "image_id": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+  "tag": "localhost/atlas-sparkglm:fp4-groups-70a134b18137",
+  "install_tree": "70a134b1813706203486f67017f04efaa7ff5cf9",
+  "product_commit": "75b63a8a02986022c2a078f6eb06be58becf5c1d",
+  "selected": {
+    "arm": "shared",
+    "flags": {
+      "ATLAS_GLM_FP4L_SHARED_FP8": "0",
+      "ATLAS_GLM_FP4L_DENSE_MXFP8": "1"
+    }
+  },
+  "verified": [
+    {
+      "host": "ennspark01",
+      "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+      "hashes": {
+        "/usr/local/bin/spark": "28e19acec1b26afcfbb11428b587d56e80a57504cd77e9cd32669e98e00e4c79",
+        "/opt/atlas/serve.py": "48c80187cf48c4eedaaff843c38f9e2d7f5f316b480546320a908a4fc5e551f2"
+      }
+    },
+    {
+      "host": "ennspark02",
+      "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+      "hashes": {
+        "/usr/local/bin/spark": "28e19acec1b26afcfbb11428b587d56e80a57504cd77e9cd32669e98e00e4c79",
+        "/opt/atlas/serve.py": "48c80187cf48c4eedaaff843c38f9e2d7f5f316b480546320a908a4fc5e551f2"
+      }
+    }
+  ]
+}

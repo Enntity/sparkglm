@@ -1,0 +1,95 @@
+{
+  "id": "r-6e8ecef8",
+  "resource": "pair",
+  "hosts": [
+    "ennspark01",
+    "ennspark02"
+  ],
+  "owner": "codex-glm-fp4-groups",
+  "purpose": "Focused corrected FP4 shared and dense comparisons; no broad campaign",
+  "session": null,
+  "state": "stuck",
+  "ttlMs": 1800000,
+  "createdAt": 1792538049035,
+  "updatedAt": 1792539021578,
+  "startedAt": 1792538059411,
+  "expiresAt": 1792540544901,
+  "endedAt": null,
+  "endReason": "released",
+  "warnedAt": null,
+  "error": "restore failed: suspend glm-5.3-flash-atlas: Runtime glm53-flash-atlas-cluster cannot fit within the per-node cluster memory budgets; protected runtime(s): none",
+  "steps": [
+    {
+      "kind": "route",
+      "alias": "chat-capable",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "chat-classifier",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "chat-fast",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "cloud/openrouter/chat-capable",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "cloud/openrouter/chat-classifier",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "cloud/openrouter/chat-fast",
+      "profile": "fleet-singleton-7d963f65d1ede1bd9416a5f55575efe0d202e0a00519ef04e47dae20c3180445",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "enntity-presence",
+      "profile": "deepseek-direct",
+      "node": null,
+      "previous": "sparkqwen-pair",
+      "status": "done"
+    },
+    {
+      "kind": "route",
+      "alias": "tessera",
+      "profile": "deepseek",
+      "node": null,
+      "previous": "sparkglm-pair",
+      "status": "done"
+    },
+    {
+      "kind": "suspend",
+      "model": "glm-5.3-flash-atlas",
+      "node": "ennspark01",
+      "wasSuspended": false,
+      "status": "done",
+      "error": "Runtime glm53-flash-atlas-cluster cannot fit within the per-node cluster memory budgets; protected runtime(s): none"
+    }
+  ]
+}

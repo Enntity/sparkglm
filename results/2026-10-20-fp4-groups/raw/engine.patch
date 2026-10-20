@@ -1,0 +1,63 @@
+commit e1ee623547ee8ca85abb4e17091907cb267175fe
+Author:     Jason McCartney <jmac@theroot.org>
+AuthorDate: Tue Oct 20 16:14:44 2026 -0700
+Commit:     Jason McCartney <jmac@theroot.org>
+CommitDate: Tue Oct 20 16:14:44 2026 -0700
+
+    glm: permit independent shared and dense FP4 in Spark mode
+
+diff --git a/crates/spark-model/src/layers/glm_native/mode.rs b/crates/spark-model/src/layers/glm_native/mode.rs
+index a1d6f4143..5f43c57e1 100644
+--- a/crates/spark-model/src/layers/glm_native/mode.rs
++++ b/crates/spark-model/src/layers/glm_native/mode.rs
+@@ -27,13 +27,15 @@ impl ServingMode {
+         input_scales: bool,
+         decode_a16: bool,
+     ) -> Result<()> {
+-        let expected = match self {
+-            Self::Strict => 0b11111,
+-            Self::Spark => 0b10111,
++        // Spark permits the separately qualified shared/dense FP4 paths. MLA
++        // and KDA prefill remain native; KDA decode remains corrected FP4.
++        let (mask, expected) = match self {
++            Self::Strict => (0b11111, 0b11111),
++            Self::Spark => (0b11001, 0b10001),
+         };
+         ensure!(
+-            policy.bits() == expected,
+-            "{self:?} mode rejects native group policy {:05b}; expected {expected:05b}",
++            policy.bits() & mask == expected,
++            "{self:?} mode rejects native group policy {:05b}; expected {expected:05b} under mask {mask:05b}",
+             policy.bits()
+         );
+         ensure!(
+@@ -128,6 +130,29 @@ mod tests {
+         assert!(ServingMode::Spark.validate(spark, true, false).is_err());
+     }
+ 
++    #[test]
++    fn spark_shared_and_dense_are_independent_but_strict_requires_native() {
++        for shared_fp8 in [false, true] {
++            for dense_mxfp8 in [false, true] {
++                let mut policy = native();
++                policy.kda_decode = false;
++                policy.shared_fp8 = shared_fp8;
++                policy.dense_mxfp8 = dense_mxfp8;
++                assert!(ServingMode::Spark.validate(policy, true, false).is_ok());
++                assert!(ServingMode::Strict.validate(policy, true, true).is_err());
++                policy.kda_decode = true;
++                assert!(ServingMode::Spark.validate(policy, true, false).is_err());
++                assert_eq!(
++                    ServingMode::Strict.validate(policy, true, true).is_ok(),
++                    shared_fp8 && dense_mxfp8
++                );
++                policy.kda_decode = false;
++                policy.kda_w8a8 = false;
++                assert!(ServingMode::Spark.validate(policy, true, false).is_err());
++            }
++        }
++    }
++
+     #[test]
+     fn missing_local_scales_cannot_masquerade_as_remote_experts() {
+         assert!(validate_calibration(true, [true; 3], [true; 3]).is_ok());
