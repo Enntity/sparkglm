@@ -30,8 +30,7 @@ class LaunchContract(unittest.TestCase):
                             'DRAFTER_PATH': '/models/drafter'}
 
     def test_profiles_hold_verified_decode_policy_in_actual_launch_environment(self):
-        # A16-enabled speculative outputs changed with concurrency. Keep it
-        # off and per-row verify masking on, even with conflicting caller values.
+        # Spark uses A4 speculative decode; strict uses serial A16 decode.
         for path in sorted((HERE/'profiles').glob('*.json')):
             profile = json.loads(path.read_text())
             environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1',
@@ -40,7 +39,8 @@ class LaunchContract(unittest.TestCase):
                 environment.update(FABRIC_HCA='', FABRIC_RIGHT_HCA='rocep1s0f1')
             with self.subTest(profile=path.name):
                 _, actual = serve.launch(environment, profile)
-                self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'], '0')
+                self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'],
+                                 '1' if serve.world_size(profile) == 2 else '0')
                 self.assertEqual(actual['ATLAS_DFLASH_MASKED_VERIFY'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_NATIVE'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_INPUT_SCALES'], '1')
@@ -333,9 +333,9 @@ class LaunchContract(unittest.TestCase):
             _, env = serve.launch(dict(self.environment, NODE_RANK=rank, SPARKGLM_PREFIX_CACHE_GB='48'),
                                   self.profile)
             self.assertEqual({k: v for k, v in env.items() if k.startswith(DISK_TIER)}, {
-                'ATLAS_KV_NVME_DIR': '/prefix-cache/kv', 'ATLAS_KV_NVME_GB': '24',
+                'ATLAS_KV_NVME_DIR': '/prefix-cache/strict/kv', 'ATLAS_KV_NVME_GB': '24',
                 'ATLAS_GLM_NVME_FAST': '1', 'ATLAS_SSM_TIER': '1', 'ATLAS_SSM_TIER_UNIFIED': '1',
-                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
+                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/strict/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
                 'ATLAS_SSM_TIER_SLOTS': '2'})
         _, env = serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB='17'), self.profile)
         self.assertEqual((env['ATLAS_KV_NVME_GB'], env['ATLAS_SSM_TIER_DISK_GB']), ('8', '9'))
@@ -410,6 +410,19 @@ class LaunchContract(unittest.TestCase):
                 with self.subTest(checkpoint=bad):
                     self.assertNotEqual(run.returncode, 0)
                     self.assertEqual(docker_run, [])
+
+    def test_start_node_passes_validated_mode_on_both_ranks(self):
+        with tempfile.TemporaryDirectory() as root:
+            _, start = self.fake_node(Path(root))
+            for rank in ('0', '1'):
+                for mode in ('strict', 'spark'):
+                    run, launched = start(rank, '--mode', mode)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertIn(f'-e SPARKGLM_MODE={mode} ', launched[0])
+            for mode in ('', 'fast', 'STRICT'):
+                run, launched = start('0', '--mode', mode)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertEqual(launched, [])
 
     def test_start_node_mounts_the_disk_prefix_cache(self):
         with tempfile.TemporaryDirectory() as root:

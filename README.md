@@ -25,6 +25,26 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 ./start.sh
 ```
 
+## TP2 serving modes (local RC)
+
+Select `MODE=strict` (default) or `MODE=spark` in `.env`, or run
+`./start.sh --mode spark`. Low-level launches accept `--mode strict|spark`;
+managed containers use `SPARKGLM_MODE`. Both ranks must select the same mode.
+
+Strict preserves the checkpoint's native weight formats and calibrated input
+scales, with A16 routed decode and serial target execution. FP8 KV and dynamic
+prefill activation quantization are part of the supplied DGX recipe. Strict does
+not promise bit-identical floating-point results across different engines.
+
+Spark retains the optimized serving profile, calibrated A4 routed decode and
+DFlash, and adds round-to-nearest-even FP4 KDA decode weights. Native KDA prefill,
+MLA, shared experts, dense projections and the vocabulary head stay in their
+checkpoint formats. Drafter weight conversions also use corrected rounding.
+Unsupported weight formats fail loading instead of silently converting them.
+Disk prefix caches are separated by mode. These mode presets currently cover TP2.
+
+This is an unpublished RC; focused validation receipts identify the tested image.
+
 ## What it does
 
 Historical measurements on two DGX Sparks joined by one 200G cable. Rows

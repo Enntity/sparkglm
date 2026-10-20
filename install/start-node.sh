@@ -11,7 +11,7 @@ usage() {
 usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
                      [--world-size 2|4 [--left-hca DEVICE[,...]] [--right-hca DEVICE[,...]]]
-                     [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
+                     [--mode strict|spark] [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
                      [--cuda-cache DIR] [--name NAME]
@@ -36,6 +36,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      rank 0's address there) and replaces --fabric-hca
   --left-hca         with --world-size 4: the RDMA devices cabled to rank - 1
   --right-hca        with --world-size 4: the RDMA devices cabled to rank + 1
+  --mode             strict (default) or spark; TP2 only, same on both ranks
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:
@@ -55,6 +56,8 @@ EOF
 }
 rank="" leader="" iface="" model_root="" image="" hca="" world=2 left_hca="" right_hca=""
 cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
+mode=""
+mode_given=0
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --checkpoint) checkpoint_name=$2; shift 2 ;;
     --name) name=$2; shift 2 ;;
     --profile) profile=$2; shift 2 ;;
+    --mode) mode=$2; mode_given=1; shift 2 ;;
     --gpu-memory-utilization) util=$2; shift 2 ;;
     --prefix-cache-dir) pc_dir=$2; shift 2 ;;
     --prefix-cache-gb) pc_gb=$2; shift 2 ;;
@@ -82,6 +86,12 @@ while [[ $# -gt 0 ]]; do
 done
 [[ $world == 2 || $world == 4 ]] && [[ $rank =~ ^[0-9]$ ]] && (( rank < world )) &&
   [[ -n $leader && -n $model_root && -n $image ]] || usage
+if [[ $world == 2 ]]; then
+  if [[ $mode_given == 0 ]]; then mode=strict; fi
+  [[ $mode == strict || $mode == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
+else
+  [[ -z $mode ]] || { echo "strict/spark modes require TP2" >&2; exit 2; }
+fi
 sysfs=${FABRIC_SYSFS:-/sys/class/infiniband}
 # check_rails LIST: every device named once, up and well formed.
 check_rails() {
@@ -197,7 +207,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
   -e FABRIC_LEFT_HCA="$left_hca" -e FABRIC_RIGHT_HCA="$right_hca" \
   -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
-  -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
+  -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" ${mode:+-e SPARKGLM_MODE="$mode"} \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \
   -e NCCL_SOCKET_IFNAME="$iface" -e GLOO_SOCKET_IFNAME="$iface" -e NCCL_IB_HCA="$hca" \

@@ -1,10 +1,10 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Prepared on 2026-10-19 as a local qualification candidate from the Enntity/atlas fork. At preparation, a standalone Git mirror supplied the unpublished pinned source. build.sh verifies both commit and tree. Publication and hardware qualification are recorded separately in release receipts.",
+  "note": "Local unpublished TP2 strict/Spark RC. Source and install trees are pinned; focused image qualification is recorded separately. Strict preserves native target formats and reference A16 serial decode. Spark uses corrected RNE KDA and drafter weight conversion with the optimized profile.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sparkglm/fidelity-rc-20261019",
-  "commit": "6b8a35ed42de2265cbbbe4e813df860b64ff05a7",
-  "tree": "7a2d0d8053d7d3998597e80fd54a7f3639f50ba2",
+  "branch": "codex/glm-tp2-modes-20261020",
+  "commit": "c0074edb7125210c62a1103204c70d9a3358a118",
+  "tree": "ecb1cbeec0bdd0c0052df1dd52a49ed7eefec71c",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {
@@ -21,6 +21,11 @@
       "branch": "sparkglm/fidelity-rc-20261019",
       "commit": "6b8a35ed42de2265cbbbe4e813df860b64ff05a7",
       "note": "Integration prepared on 2026-10-19 of the TP4 chain through 73e4dd6ef, GLM checkpoint prompt/generation/vision parity and FP32 router through f6e251cfe, reference input scales and W4A16 decode/verify MoE lanes, sampled split-head verification, zero-ceiling thinking re-entry, and completion token-ID and request speculation controls. Includes regression fixes that reject unsupported sampled split-head verification before worker dispatch and preserve the full-vocabulary route for requested logprobs. Product profiles enable input scales but disable A16 routed decode/verify after TP2 diagnostics found concurrency-dependent speculative outputs with A16 enabled. The calibrated A4 fallback differs from the reference decode activation policy and still requires full quality qualification. Hardware qualification and publication are recorded separately in release receipts. No default max_tokens expansion is included. The final source also splits oversized candidate modules without changing their algorithms. Speculative returned logprobs now use the same processed distribution as serial decode, including logit bias and history; unsupported score-reporting paths use supported verification or serial execution. This change does not add first-prefill-token logit-bias support. Accepted prediction usage counts only retained output draft tokens, including token-limit, stop and rollback handling; internal verification statistics are unchanged. Profiles enable per-row masked verification. Split/scored verify spans retain their processed thinking-boundary decisions instead of replaying the raw forced-end helper against pre-span state. This repair does not change the generic LegacyFallback path or establish final image quality/performance."
+    },
+    "tp2_modes": {
+      "commit": "c0074edb7125210c62a1103204c70d9a3358a118",
+      "base_commit": "8cd6e0487a50a124ee9cc8274179847711731f12",
+      "note": "Explicit mode enforcement, missing-format/calibration rejection, separate caches, strict serial target requests, and corrected drafter weight RNE. No activation quantizer change."
     }
   },
   "kernel_target": "glm-5.3-flash",

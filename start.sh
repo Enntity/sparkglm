@@ -15,6 +15,9 @@ if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
 : "${WORKER:?set WORKER in .env to the ssh destination of the other Spark (see .env.example)}"
 MODEL_ROOT=${MODEL_ROOT:-$HOME/models/sparkglm}
 PROFILE=${PROFILE:-4x1m}
+MODE=${MODE:-strict}
+if [[ ${1:-} == --mode ]]; then MODE=${2:-}; shift 2; fi
+[[ $MODE == strict || $MODE == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
 IMAGE=${IMAGE:-}
 CHECKPOINT=nvidia/GLM-5.3-Flash-FP4-Local@76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
 # .env may name another checkpoint (both values or neither); the image stays the same.
@@ -129,7 +132,7 @@ serve() {
   local common address repo=${CHECKPOINT%@*}
   address=$ip0
   common=(--leader-address "$address" --model-root "$MODEL_ROOT" --checkpoint "${repo/\//--}" --image "$IMAGE"
-          --profile "$PROFILE"
+          --profile "$PROFILE" --mode "$MODE"
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
           ${PREFIX_CACHE_DIR:+--prefix-cache-dir "$PREFIX_CACHE_DIR"} ${PREFIX_CACHE_GB:+--prefix-cache-gb "$PREFIX_CACHE_GB"})
   case ${DISPLAY_CARVEOUT:-0} in
@@ -142,7 +145,7 @@ serve() {
     1) common+=(--kv-shard) ;;
     *) echo "KV_SHARD must be 0 or 1" >&2; exit 2 ;;
   esac
-  say "start rank 1 on $WORKER, then rank 0 here (leader $address, profile $PROFILE)"
+  say "start rank 1 on $WORKER, then rank 0 here (leader $address, profile $PROFILE, mode $MODE)"
   stop
   script_on_worker install/start-node.sh --rank 1 --fabric-hca "$hca1" --fabric-interface "$iface1" --no-fabric-siblings "${common[@]}"
   install/start-node.sh --rank 0 --fabric-hca "$hca0" --fabric-interface "$iface0" --no-fabric-siblings "${common[@]}"

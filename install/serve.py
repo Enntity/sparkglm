@@ -134,8 +134,57 @@ def kv_shard(environ):
     return {'ATLAS_GLM_KV_SHARD': '1', 'ATLAS_GLM_KV_SHARD_COMPACT': '1'}
 
 
+def serving_mode(environ, profile, world):
+    """Resolve TP2 precision independently of the capacity profile."""
+    if world != 2:
+        if 'SPARKGLM_MODE' in environ:
+            raise ValueError('strict/spark modes are qualified for TP2 only')
+        return None, {}
+    mode = environ.get('SPARKGLM_MODE', 'strict')
+    if mode not in ('strict', 'spark'):
+        raise ValueError('SPARKGLM_MODE must be strict or spark')
+    required = {
+        'ATLAS_GLM_FP4L_NATIVE': '1',
+        'ATLAS_GLM_FP4L_MLA_FP8': '1',
+        'ATLAS_GLM_FP4L_SHARED_FP8': '1',
+        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1',
+        'ATLAS_GLM_FP4L_KDA_W8A8_PREFILL': '1',
+        'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
+        'ATLAS_GLM_FP4L_FP8_PREFILL': 'w8a8',
+        'ATLAS_GLM_LM_HEAD_MXFP8': '1',
+    }
+    for flag, value in required.items():
+        if flag in profile['environment'] and profile['environment'][flag] != value:
+            raise ValueError(f'{mode} mode requires {flag}={value}')
+    flags = dict(required, ATLAS_GLM_SERVING_MODE=mode,
+                 ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1' if mode == 'strict' else '0',
+                 ATLAS_GLM_FP4L_DECODE_A16='1' if mode == 'strict' else '0',
+                 ATLAS_GLM_FP4L_KDA_TILED_TWIN='0')
+    if mode == 'strict':
+        forbidden = ('--ngram-speculative', '--self-speculative')
+        if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):
+            raise ValueError('strict mode requires serial target decoding')
+        # Keep the canonical one-row target path. The engine disables speculative
+        # dispatch for every request in strict mode; the unused drafter stays BF16.
+        flags.update(ATLAS_NO_DFLASH_DRAFTER_NVFP4='1', ATLAS_HC_PERSEQ_DECODE='1',
+                     ATLAS_GLM_CANONICAL_VERIFY='1', ATLAS_GLM_DFLASH='1')
+        for flag in (
+            'ATLAS_DFLASH_DRAFTER_FP8', 'ATLAS_DFLASH_NVFP4_TC',
+            'ATLAS_DFLASH_NVFP4_HEAD', 'ATLAS_DFLASH_MXFP8',
+            'ATLAS_DFLASH_MXFP8_HEAD', 'ATLAS_DFLASH_DROP_BF16',
+            'ATLAS_DFLASH_CTX_NVFP4', 'ATLAS_DFLASH_CONV_TWIN',
+            'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_DRAFT_TP_BATCH',
+            'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_GLM_DRAFT_TP_TOPK',
+        ):
+            flags[flag] = '0'
+    elif 'ATLAS_NO_DFLASH_DRAFTER_NVFP4' in profile['environment']:
+        raise ValueError('spark mode requires its reviewed NVFP4 drafter policy')
+    return mode, flags
+
+
 def launch(environ, profile):
     world = world_size(profile)
+    mode, precision = serving_mode(environ, profile, world)
     rank = environ.get('NODE_RANK', '')
     if rank not in [str(r) for r in range(world)]:
         raise ValueError(f'NODE_RANK must be 0 to {world - 1}')
@@ -159,6 +208,7 @@ def launch(environ, profile):
     # changes require a new reviewed image/profile instead of accidental tuning.
     env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
     env.update(profile['environment'])
+    env.update(precision)
     env['NCCL_SOCKET_IFNAME'] = interface
     env.update(rails)
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
@@ -174,6 +224,11 @@ def launch(environ, profile):
         args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
                 for a in args]
     env.update(disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', '')))
+    if mode:
+        env['SPARKGLM_MODE'] = mode
+        for flag in ('ATLAS_KV_NVME_DIR', 'ATLAS_SSM_TIER_SWAP_DIR'):
+            if flag in env:
+                env[flag] = env[flag].replace('/prefix-cache/', f'/prefix-cache/{mode}/', 1)
     env.update(kv_shard(environ))
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
@@ -240,6 +295,8 @@ def main():
         raise ValueError('Incomplete DFlash drafter')
     source = json.loads((here/'source-manifest.json').read_text())
     print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'], 'profile': profile.stem,
+                      'mode': env.get('SPARKGLM_MODE', 'legacy-tp4'),
+                      'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE') == 'spark' else 'native',
                       'source': f"{source['repository']}@{source['commit']}"}), flush=True)
     os.execve(argv[0], argv, env)
 
