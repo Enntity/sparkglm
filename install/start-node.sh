@@ -37,6 +37,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --left-hca         with --world-size 4: the RDMA devices cabled to rank - 1
   --right-hca        with --world-size 4: the RDMA devices cabled to rank + 1
   --mode             strict (default) or spark; TP2 only, same on both ranks
+  --strict-mtp       experimental native MTP in strict mode; C1, context 8192
   --profile          a profile shipped in the image (default 4x512k) or a JSON
                      file of your own; use the same one on both ranks
   --gpu-memory-utilization  share of unified memory for the engine (default:
@@ -58,6 +59,7 @@ rank="" leader="" iface="" model_root="" image="" hca="" world=2 left_hca="" rig
 cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
 mode=""
 mode_given=0
+strict_mtp=0
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -75,6 +77,7 @@ while [[ $# -gt 0 ]]; do
     --name) name=$2; shift 2 ;;
     --profile) profile=$2; shift 2 ;;
     --mode) mode=$2; mode_given=1; shift 2 ;;
+    --strict-mtp) strict_mtp=1; shift ;;
     --gpu-memory-utilization) util=$2; shift 2 ;;
     --prefix-cache-dir) pc_dir=$2; shift 2 ;;
     --prefix-cache-gb) pc_gb=$2; shift 2 ;;
@@ -207,6 +210,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
   -e FABRIC_LEFT_HCA="$left_hca" -e FABRIC_RIGHT_HCA="$right_hca" \
   -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
+  -e SPARKGLM_STRICT_MTP="$strict_mtp" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" ${mode:+-e SPARKGLM_MODE="$mode"} \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \
