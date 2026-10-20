@@ -29,17 +29,19 @@ class LaunchContract(unittest.TestCase):
                             'FABRIC_INTERFACE': 'enp1s0f0np0', 'FABRIC_HCA': 'rocep1s0f0', 'MODEL_PATH': '/models/overlay',
                             'DRAFTER_PATH': '/models/drafter'}
 
-    def test_profiles_hold_a16_off_in_actual_launch_environment(self):
+    def test_profiles_hold_verified_decode_policy_in_actual_launch_environment(self):
         # A16-enabled speculative outputs changed with concurrency. Keep it
-        # off in every production profile, even if the caller exports it on.
+        # off and per-row verify masking on, even with conflicting caller values.
         for path in sorted((HERE/'profiles').glob('*.json')):
             profile = json.loads(path.read_text())
-            environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1')
+            environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1',
+                               ATLAS_DFLASH_MASKED_VERIFY='0')
             if serve.world_size(profile) == 4:
                 environment.update(FABRIC_HCA='', FABRIC_RIGHT_HCA='rocep1s0f1')
             with self.subTest(profile=path.name):
                 _, actual = serve.launch(environment, profile)
                 self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'], '0')
+                self.assertEqual(actual['ATLAS_DFLASH_MASKED_VERIFY'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_NATIVE'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_INPUT_SCALES'], '1')
 

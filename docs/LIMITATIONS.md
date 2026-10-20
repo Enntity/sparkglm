@@ -231,7 +231,10 @@ chunks, which halve our KV pool).
   streaming). It never silently falls back to free text.
 - The candidate's sampled speculative verification applies temperature,
   sampling filters, penalties and grammar masks at verify positions on TP2
-  and TP4. Greedy sampling remains greedy. Grammar or non-neutral penalties
+  and TP4. Profiles also enable masked verification for greedy requests,
+  including thinking-boundary masks applied per row. Greedy selection remains
+  argmax after processing, and currently gathers full rows on the split head.
+  The throughput effect still requires measurement. Grammar or non-neutral penalties
   use full vocabulary rows; requested logprobs also gather complete rows
   before the worker verdict. This corrects the earlier greedy-only split-head
   behavior, but source support does not establish distribution parity or

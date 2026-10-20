@@ -10,7 +10,7 @@ refuses any other tree.
 The 2026-10-19 qualification candidate adds the four-rank RDMA chain,
 checkpoint-format defaults, checkpoint chat and sampling behavior, FP32
 router logits, and sampled speculative verification. This description was
-checked against engine source `5665d5802`; the install manifest selects the
+checked against engine source `6b8a35ed4`; the install manifest selects the
 exact source used by a build. Source support alone does not qualify an image.
 Final TP2 and TP4 performance and quality claims require that image's receipts.
 
@@ -61,7 +61,17 @@ and grammar masks. A sampled target token accepts its draft only while the
 tokens match; the first mismatch ends that accepted prefix. The split
 vocabulary head first exchanges candidates when they suffice. Grammar,
 non-neutral penalties, undecided candidate sets and requested logprobs use
-full vocabulary rows. Greedy requests retain the greedy fast path.
+full vocabulary rows. Every profile enables `ATLAS_DFLASH_MASKED_VERIFY=1`.
+On the split head, unstructured greedy verification currently gathers full
+vocabulary rows and applies the same per-row thinking-boundary masks as the
+serial pipeline. Greedy selection uses the processed row's argmax. This may
+cost throughput; performance claims require matched measurements.
+
+Split and scored verify spans preserve their per-row boundary decisions when
+committing an accepted prefix. They do not replay the raw forced-end helper
+against the span's earlier fence state. The generic legacy fallback path is
+unchanged; the source fix does not establish equivalence for every model or
+configuration.
 
 A split-head request needing sampling or logprobs is rejected before verify
 dispatch if the required exchange protocol is unavailable. An exchange

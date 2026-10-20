@@ -202,7 +202,9 @@ about 13%, and it needs no overlay.
 The candidate profiles enable the checkpoint's native projection formats
 (`ATLAS_GLM_FP4L_NATIVE=1`) and calibrated routed-expert input scales.
 Routed decode/verify uses the calibrated A4 fallback; A16 is disabled pending
-investigation of concurrency-dependent speculative output. The 2026-10-17 default
+investigation of concurrency-dependent speculative output. Masked verification
+is enabled to apply thinking-boundary policy per verified row. Final image
+quality and throughput qualification remain pending. The 2026-10-17 default
 requantized MXFP8/FP8 projections to NVFP4; its numbers do not measure this
 configuration. Earlier retrieval comparisons and remaining fidelity limits
 are described in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). The historical
