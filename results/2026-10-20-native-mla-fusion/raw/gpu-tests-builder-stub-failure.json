@@ -1,0 +1,1 @@
+{"returncode": 101, "pdl": "1", "command": ["ssh", "-o", "BatchMode=yes", "ennspark01", "docker run --rm --gpus all --network none --memory 8g -e ATLAS_PDL=1 --entrypoint /bin/bash localhost/atlas-mla-fuse-builder:20261020 -lc 'cd /build && cargo test --locked --release -j 4 -p spark-model --lib glm_mla_fuse -- --ignored --nocapture --test-threads=1'"]}

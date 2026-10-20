@@ -1,0 +1,69 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 868B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for localhost/atlas-native-mtp-builder-v5:20261020
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [builder 1/5] FROM localhost/atlas-native-mtp-builder-v5:20261020
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 743.70kB done
+#5 DONE 0.0s
+
+#6 [builder 2/5] WORKDIR /build
+#6 CACHED
+
+#7 [builder 3/5] COPY patch/ /build/
+#7 DONE 0.2s
+
+#8 [builder 4/5] COPY source-hashes.json verify_source.py /tmp/
+#8 DONE 0.1s
+
+#9 [builder 5/5] RUN python3 /tmp/verify_source.py && cargo test --locked --release -j 4 -p spark-model --lib glm_mla_fuse && cargo build --locked --release -j 4 -p spark-server
+#9 1.617 Verified 3960 build source hashes
+#9 2.211    Compiling atlas-kernels v1.0.0-beta-preview (/build/crates/atlas-kernels)
+#9 19.09 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 239 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (54 model-specific overrides)
+#9 19.09 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 239/239 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#9 19.09 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#9 19.09 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#9 20.00    Compiling spark-runtime v1.0.0-beta-preview (/build/crates/spark-runtime)
+#9 21.86    Compiling spark-storage v1.0.0-beta-preview (/build/crates/spark-storage)
+#9 25.64    Compiling spark-model v1.0.0-beta-preview (/build/crates/spark-model)
+#9 75.81     Finished `release` profile [optimized] target(s) in 1m 14s
+#9 75.83      Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+#9 76.10 
+#9 76.10 running 5 tests
+#9 76.10 test layers::ops::glm_mla_fuse::gpu_tests::fused_front_matches_the_twelve_launches ... ignored, needs a GB10 and the glm-5.3-flash kernels
+#9 76.10 test layers::ops::glm_mla_fuse::gpu_tests::native::native_fp8_fused_front_is_byte_exact ... ignored, needs a GB10 and the glm-5.3-flash kernels
+#9 76.10 test layers::ops::glm_mla_fuse::gpu_tests::native::native_fp8_raw_projections_are_byte_exact_with_and_without_touch ... ignored, needs a GB10 and the glm-5.3-flash kernels
+#9 76.10 test layers::ops::glm_mla_fuse::tests::touch_fills_the_budget_from_the_front ... ok
+#9 76.10 test layers::ops::glm_mla_fuse::tests::the_switch_is_explicit ... ok
+#9 76.10 
+#9 76.10 test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 2071 filtered out; finished in 0.00s
+#9 76.10 
+#9 76.53 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 239 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (54 model-specific overrides)
+#9 76.53 warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 239/239 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+#9 76.53 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+#9 76.53 warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+#9 76.53    Compiling atlas-kernels v1.0.0-beta-preview (/build/crates/atlas-kernels)
+#9 77.00    Compiling spark-runtime v1.0.0-beta-preview (/build/crates/spark-runtime)
+#9 78.93    Compiling spark-storage v1.0.0-beta-preview (/build/crates/spark-storage)
+#9 79.89    Compiling spark-model v1.0.0-beta-preview (/build/crates/spark-model)
+#9 94.32    Compiling spark-server v1.0.0-beta-preview (/build/crates/spark-server)
+#9 143.9     Finished `release` profile [optimized] target(s) in 1m 07s
+#9 DONE 144.0s
+
+#10 exporting to image
+#10 exporting layers
+#10 exporting layers 1.3s done
+#10 writing image sha256:0460957d4a5ea47294ab76d89a41738a4eefd057aa119ac02c6d9aea50043e8f done
+#10 naming to localhost/atlas-mla-fuse-builder:20261020 done
+#10 DONE 1.3s
