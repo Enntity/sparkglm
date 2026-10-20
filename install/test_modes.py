@@ -95,6 +95,7 @@ class ServingModes(unittest.TestCase):
         self.assertIn("--max-prefill-tokens=8192", args)
         self.assertEqual(env["ATLAS_GLM_MTP_LONG_CONTEXT"], "1")
         self.assertEqual(env["ATLAS_GLM_STRICT_NATIVE_MTP"], "1")
+        self.assertEqual(env["ATLAS_GLM_LONG_BATCH_VERIFY"], "0")
         self.assertEqual(env["ATLAS_GLM_SPARSE_NATIVE"], self.profile["environment"]["ATLAS_GLM_SPARSE_NATIVE"])
         self.assertEqual(env["ATLAS_GLM_K3_MLA_QUERY_BATCHM"], self.profile["environment"]["ATLAS_GLM_K3_MLA_QUERY_BATCHM"])
         self.assertEqual(env["ATLAS_GLM_K3_MLA_O_BATCHM"], self.profile["environment"]["ATLAS_GLM_K3_MLA_O_BATCHM"])

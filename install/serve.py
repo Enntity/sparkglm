@@ -227,7 +227,10 @@ def launch(environ, profile):
                    ATLAS_GLM_MTP_LONG_CONTEXT='1', ATLAS_GLM_NATIVE_MTP_HEAD='bf16',
                    ATLAS_GLM_MTP_BF16_DRAFTS='1', ATLAS_GLM_NATIVE_MTP_REPAIR_BATCH='0',
                    ATLAS_GLM_NATIVE_MTP_STOP_PROB='0.95', ATLAS_MTP_SPEC_THINK='1',
-                   ATLAS_NO_MTP_K_LADDER='1', ATLAS_MTP_TIMING='1')
+                   ATLAS_NO_MTP_K_LADDER='1', ATLAS_MTP_TIMING='1',
+                   # The grouped multi-owner FFN changes target arithmetic.
+                   # Keep C4 admission but verify owners individually in strict.
+                   ATLAS_GLM_LONG_BATCH_VERIFY='0')
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
     # the unified memory than the shipped default leaves free. Four Sparks hold
     # a quarter of the weights each, so a chain may also leave the host more.
