@@ -226,6 +226,7 @@ def launch(environ, profile):
         args += ['--speculative', '--num-drafts=6', '--mtp-quantization=bf16', '--mtp-vocab=0',
                  '--max-batch-size=1', '--max-num-seqs=1', '--max-seq-len=8192', '--max-prefill-tokens=8192']
         env.update(ATLAS_GLM_STRICT_NATIVE_MTP='1', ATLAS_GLM_DFLASH='0',
+                   ATLAS_GLM_SPARSE_DECODE_TC='0', ATLAS_GLM_SPARSE_DECODE_SPLIT='0',
                    ATLAS_GLM_MTP_LONG_CONTEXT='0', ATLAS_GLM_NATIVE_MTP_HEAD='bf16',
                    ATLAS_GLM_MTP_BF16_DRAFTS='1', ATLAS_GLM_NATIVE_MTP_REPAIR_BATCH='0',
                    ATLAS_GLM_NATIVE_MTP_STOP_PROB='0.95', ATLAS_MTP_SPEC_THINK='1',
