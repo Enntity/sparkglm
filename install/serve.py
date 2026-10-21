@@ -166,6 +166,11 @@ def serving_mode(environ, profile, world):
                  ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1' if mode == 'strict' else '0',
                  ATLAS_GLM_FP4L_DECODE_A16='1' if mode == 'strict' else '0',
                  ATLAS_GLM_FP4L_KDA_TILED_TWIN='0')
+    if mode == 'spark':
+        # Splitting the shared expert rounds each partial BF16 output before
+        # routed/shared blending and all-reduce. The matched C4 arithmetic
+        # regression passes only with the full shared output blended afterward.
+        flags['ATLAS_GLM_SHARED_TP_SPLIT'] = '0'
     if mode == 'strict':
         forbidden = ('--ngram-speculative', '--self-speculative')
         if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):
@@ -237,6 +242,11 @@ def launch(environ, profile):
                    # The grouped multi-owner FFN changes target arithmetic.
                    # Keep C4 admission but verify owners individually in strict.
                    ATLAS_GLM_LONG_BATCH_VERIFY='0')
+        if '--max-seq-len=1048576' in args and '--max-num-seqs=4' in args:
+            # Keep the shared 1M prefix plus 7,424 tokens of aggregate COW and
+            # continuation space. Native MTP has a second private KV pool;
+            # allocating all remaining memory leaves too little host headroom.
+            env['ATLAS_KV_MAX_BLOCKS'] = '66000'
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
     # the unified memory than the shipped default leaves free. Four Sparks hold
     # a quarter of the weights each, so a chain may also leave the host more.

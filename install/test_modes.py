@@ -55,6 +55,14 @@ class ServingModes(unittest.TestCase):
         self.assertEqual(env["ATLAS_GLM_DECODE_FUSE"], "1")
         self.assertNotIn("ATLAS_NO_DFLASH_DRAFTER_NVFP4", env)
 
+    def test_spark_disables_shared_split_rounding_that_failed_arithmetic(self):
+        for profile in ("4x1m", "4x512k", "8x128k"):
+            self.profile = json.loads((HERE / f"profiles/{profile}.json").read_text())
+            _, env = self.launch("spark")
+            self.assertEqual(env.get("ATLAS_GLM_SHARED_TP_SPLIT"), "0")
+            self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "0")
+            self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "0")
+
     def test_shared_and_dense_overrides_are_spark_only(self):
         for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
             for value in ('0', '1'):
@@ -133,6 +141,22 @@ class ServingModes(unittest.TestCase):
         self.env["SPARKGLM_STRICT_MTP"] = "yes"
         with self.assertRaises(ValueError):
             self.launch("strict")
+
+    def test_native_mtp_one_million_profile_preserves_host_headroom(self):
+        self.env["SPARKGLM_STRICT_MTP"] = "1"
+        args, env = self.launch("strict")
+        self.assertEqual(env.get("ATLAS_KV_MAX_BLOCKS"), "66000")
+        self.assertIn("--max-seq-len=1048576", args)
+        self.assertIn("--oom-guard-mb=4096", args)
+        for profile in ("8x128k", "4x512k"):
+            self.profile = json.loads((HERE / f"profiles/{profile}.json").read_text())
+            _, env = self.launch("strict")
+            self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
+        self.profile = json.loads((HERE / "profiles/4x1m.json").read_text())
+        self.env["SPARKGLM_STRICT_MTP"] = "0"
+        for mode in ("strict", "spark"):
+            _, env = self.launch(mode)
+            self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
 
     def test_explicit_modes_are_tp2_only(self):
         self.profile["server_argv"] = [
