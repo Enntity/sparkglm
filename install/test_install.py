@@ -17,7 +17,7 @@ spec.loader.exec_module(serve)
 DISK_TIER = ('ATLAS_KV_NVME', 'ATLAS_SSM_TIER', 'ATLAS_GLM_NVME')
 # The engine's refusals at world > 2 (serve_phases/preflight/glm_chain.rs).
 REFUSED_BEYOND_TWO_RANKS = (
-    'ATLAS_GLM_SPARSE_NATIVE', 'ATLAS_GLM_K3_MLA_QUERY_COMPARE', 'ATLAS_GLM_KV_SHARD',
+    'ATLAS_GLM_K3_MLA_QUERY_COMPARE', 'ATLAS_GLM_KV_SHARD_OVERLAP',
     'ATLAS_GLM_C4_DECODE', 'ATLAS_GLM_C4_SPARSE', 'ATLAS_GLM_C4_GROUPED_MOE', 'ATLAS_GLM_INDEPENDENT_DECODE',
     'ATLAS_GLM_MTP_REPAIR', 'ATLAS_GLM_MTP_DISTRIBUTED')
 
@@ -40,7 +40,7 @@ class LaunchContract(unittest.TestCase):
             with self.subTest(profile=path.name):
                 _, actual = serve.launch(environment, profile)
                 self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'],
-                                 '1' if serve.world_size(profile) == 2 else '0')
+                                 '1')
                 self.assertEqual(actual['ATLAS_DFLASH_MASKED_VERIFY'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_NATIVE'], '1')
                 self.assertEqual(actual['ATLAS_GLM_FP4L_INPUT_SCALES'], '1')

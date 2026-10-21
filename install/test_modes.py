@@ -164,14 +164,14 @@ class ServingModes(unittest.TestCase):
             self.assertNotIn("ATLAS_LARGE_ENCODE_CONCURRENCY", env)
             self.assertNotIn("ATLAS_TOKENIZER_IDS_ONLY", env)
 
-    def test_explicit_modes_are_tp2_only(self):
-        self.profile["server_argv"] = [
-            "--world-size=4" if arg == "--world-size=2" else arg
-            for arg in self.profile["server_argv"]
-        ]
+    def test_explicit_modes_preserve_tp4_topology(self):
+        self.profile = json.loads((HERE / "profiles/4x1m-tp4.json").read_text())
         self.env.update(FABRIC_HCA="", FABRIC_RIGHT_HCA="roce1")
-        with self.assertRaisesRegex(ValueError, "TP2"):
-            self.launch("spark")
+        for mode in ('strict', 'spark'):
+            args, env = self.launch(mode)
+            self.assertIn('--world-size=4', args)
+            self.assertEqual(env['ATLAS_GLM_SERVING_MODE'], mode)
+            self.assertEqual(env['ATLAS_RDMA_TOPOLOGY'], 'chain')
 
 
 if __name__ == "__main__":

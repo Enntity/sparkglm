@@ -97,26 +97,31 @@ def world_size(profile):
 
 
 def fabric_rails(environ, rank, world, siblings):
-    """RDMA devices per link. Two Sparks share one cable, which NCCL and the
-    engine's all-reduce both use (FABRIC_HCA). Four Sparks in a daisy chain
-    link each rank only to its neighbours: FABRIC_LEFT_HCA toward rank - 1 and
-    FABRIC_RIGHT_HCA toward rank + 1. NCCL cannot reach a Spark that is not
-    cabled to it, so the engine carries that traffic itself."""
-    chain = ('FABRIC_LEFT_HCA', 'FABRIC_RIGHT_HCA')
+    """Resolve exact physical neighbours for a pair, open chain or closed ring."""
+    topology = environ.get('SPARKGLM_TOPOLOGY', 'pair' if world == 2 else 'chain')
+    links = ('FABRIC_LEFT_HCA', 'FABRIC_RIGHT_HCA')
     if world == 2:
-        if any(environ.get(key) for key in chain):
-            raise ValueError('FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA are only for a four-Spark chain')
+        if topology != 'pair' or any(environ.get(key) for key in links):
+            raise ValueError('Two Sparks require pair topology and FABRIC_HCA')
         hcas = ','.join(fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings))
         return {'NCCL_IB_HCA': hcas, 'ATLAS_RDMA_RAILS': hcas}
+    if topology not in ('chain', 'ring'):
+        raise ValueError('Four Sparks require SPARKGLM_TOPOLOGY=chain or ring')
     if environ.get('FABRIC_HCA'):
-        raise ValueError('A four-Spark chain takes FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA, not FABRIC_HCA')
-    rails = {}
-    for key, side, linked in zip(chain, ('LEFT', 'RIGHT'), (rank > 0, rank < world - 1)):
+        raise ValueError('Four Sparks take FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA, not FABRIC_HCA')
+    rails = {'ATLAS_RDMA_TOPOLOGY': topology}
+    seen = set()
+    for key, side, linked in zip(links, ('LEFT', 'RIGHT'),
+                                 (rank > 0 or topology == 'ring', rank < world - 1 or topology == 'ring')):
         value = environ.get(key, '')
         if bool(value) != linked:
-            raise ValueError(f'Rank {rank} of {world} {"needs" if linked else "has no neighbour for"} {key}')
+            raise ValueError(f'Rank {rank} of {world} {topology} {"needs" if linked else "has no neighbour for"} {key}')
         if value:
-            rails[f'ATLAS_RDMA_{side}_RAILS'] = ','.join(fabric_hcas(value, siblings=siblings))
+            devices = fabric_hcas(value, siblings=siblings)
+            if seen.intersection(devices):
+                raise ValueError('Left and right links must use distinct RDMA devices')
+            seen.update(devices)
+            rails[f'ATLAS_RDMA_{side}_RAILS'] = ','.join(devices)
     return rails
 
 
@@ -135,11 +140,9 @@ def kv_shard(environ):
 
 
 def serving_mode(environ, profile, world):
-    """Resolve TP2 precision independently of the capacity profile."""
-    if world != 2:
-        if 'SPARKGLM_MODE' in environ:
-            raise ValueError('strict/spark modes are qualified for TP2 only')
-        return None, {}
+    """Resolve precision independently of capacity and physical topology."""
+    if world not in (2, 4):
+        raise ValueError('strict/spark modes require TP2 or TP4')
     mode = environ.get('SPARKGLM_MODE', 'strict')
     if mode not in ('strict', 'spark'):
         raise ValueError('SPARKGLM_MODE must be strict or spark')
@@ -198,7 +201,7 @@ def launch(environ, profile):
     mode, precision = serving_mode(environ, profile, world)
     native_mtp = environ.get('SPARKGLM_STRICT_MTP', '0')
     if native_mtp not in ('0', '1') or (native_mtp == '1' and mode != 'strict'):
-        raise ValueError('SPARKGLM_STRICT_MTP must be 0 or 1 and requires strict TP2 mode')
+        raise ValueError('SPARKGLM_STRICT_MTP must be 0 or 1 and requires strict mode')
     rank = environ.get('NODE_RANK', '')
     if rank not in [str(r) for r in range(world)]:
         raise ValueError(f'NODE_RANK must be 0 to {world - 1}')
@@ -246,7 +249,8 @@ def launch(environ, profile):
             # Keep the shared 1M prefix plus 7,424 tokens of aggregate COW and
             # continuation space. Native MTP has a second private KV pool;
             # allocating all remaining memory leaves too little host headroom.
-            env['ATLAS_KV_MAX_BLOCKS'] = '66000'
+            if world == 2:
+                env['ATLAS_KV_MAX_BLOCKS'] = '66000'
             # Large tokenizer temporary buffers are host allocations made
             # before GPU admission. Bound their burst, preserving GPU C4.
             env['ATLAS_LARGE_ENCODE_CONCURRENCY'] = '2'
@@ -268,7 +272,8 @@ def launch(environ, profile):
         env['SPARKGLM_MODE'] = mode
         for flag in ('ATLAS_KV_NVME_DIR', 'ATLAS_SSM_TIER_SWAP_DIR'):
             if flag in env:
-                env[flag] = env[flag].replace('/prefix-cache/', f'/prefix-cache/{mode}/', 1)
+                namespace = mode if world == 2 else f'tp4/{env["ATLAS_RDMA_TOPOLOGY"]}/{mode}'
+                env[flag] = env[flag].replace('/prefix-cache/', f'/prefix-cache/{namespace}/', 1)
     env.update(kv_shard(environ))
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
@@ -335,7 +340,7 @@ def main():
         raise ValueError('Incomplete DFlash drafter')
     source = json.loads((here/'source-manifest.json').read_text())
     print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'], 'profile': profile.stem,
-                      'mode': env.get('SPARKGLM_MODE', 'legacy-tp4'),
+                      'mode': env.get('SPARKGLM_MODE', 'strict'),
                       'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE') == 'spark' else 'native',
                       'source': f"{source['repository']}@{source['commit']}"}), flush=True)
     os.execve(argv[0], argv, env)
