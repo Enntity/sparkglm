@@ -146,17 +146,20 @@ class ServingModes(unittest.TestCase):
         self.env["SPARKGLM_STRICT_MTP"] = "1"
         args, env = self.launch("strict")
         self.assertEqual(env.get("ATLAS_KV_MAX_BLOCKS"), "66000")
+        self.assertEqual(env.get("ATLAS_LARGE_ENCODE_CONCURRENCY"), "2")
         self.assertIn("--max-seq-len=1048576", args)
         self.assertIn("--oom-guard-mb=4096", args)
         for profile in ("8x128k", "4x512k"):
             self.profile = json.loads((HERE / f"profiles/{profile}.json").read_text())
             _, env = self.launch("strict")
             self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
+            self.assertNotIn("ATLAS_LARGE_ENCODE_CONCURRENCY", env)
         self.profile = json.loads((HERE / "profiles/4x1m.json").read_text())
         self.env["SPARKGLM_STRICT_MTP"] = "0"
         for mode in ("strict", "spark"):
             _, env = self.launch(mode)
             self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
+            self.assertNotIn("ATLAS_LARGE_ENCODE_CONCURRENCY", env)
 
     def test_explicit_modes_are_tp2_only(self):
         self.profile["server_argv"] = [

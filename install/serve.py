@@ -247,6 +247,9 @@ def launch(environ, profile):
             # continuation space. Native MTP has a second private KV pool;
             # allocating all remaining memory leaves too little host headroom.
             env['ATLAS_KV_MAX_BLOCKS'] = '66000'
+            # Large tokenizer temporary buffers are host allocations made
+            # before GPU admission. Bound their burst, preserving GPU C4.
+            env['ATLAS_LARGE_ENCODE_CONCURRENCY'] = '2'
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
     # the unified memory than the shipped default leaves free. Four Sparks hold
     # a quarter of the weights each, so a chain may also leave the host more.
