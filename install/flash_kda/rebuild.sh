@@ -22,15 +22,28 @@ actual_cutlass=$("${git_cutlass[@]}" rev-parse HEAD)
 [[ "$actual_flash" == "$flash_kda_commit" ]]
 [[ "$actual_cutlass" == "$cutlass_commit" ]]
 
-slot_patch="$script_dir/flash_kda_sm121_slots.patch"
-if "${git_source[@]}" apply --reverse --check "$slot_patch" 2>/dev/null; then
-  :
-elif "${git_source[@]}" diff --quiet; then
-  "${git_source[@]}" apply "$slot_patch"
-else
-  echo "FlashKDA source has unrelated changes; refusing to patch" >&2
-  exit 2
+# The patches in order: state slots, TMA swizzle, FP32 recurrence. A tree with
+# a prefix of them applied resumes after the last one that reverse-applies.
+patches=(
+  "$script_dir/flash_kda_sm121_slots.patch"
+  "$script_dir/flash_kda_tma_swizzle.patch"
+  "$script_dir/flash_kda_fp32_recurrence.patch"
+)
+applied=0
+if ! "${git_source[@]}" diff --quiet; then
+  for i in "${!patches[@]}"; do
+    if "${git_source[@]}" apply --reverse --check "${patches[$i]}" 2>/dev/null; then
+      applied=$((i + 1))
+    fi
+  done
+  if [[ $applied == 0 ]]; then
+    echo "FlashKDA source has unrelated changes; refusing to patch" >&2
+    exit 2
+  fi
 fi
+for patch in "${patches[@]:$applied}"; do
+  "${git_source[@]}" apply "$patch"
+done
 
 mkdir -p "$output_dir/build"
 common_flags=(

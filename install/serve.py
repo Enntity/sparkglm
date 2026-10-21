@@ -88,6 +88,43 @@ def disk_prefix_cache(gb):
             'ATLAS_SSM_TIER_SLOTS': '2'}
 
 
+def world_size(profile):
+    """The number of Sparks a profile serves on (its --world-size)."""
+    sizes = [str(a).split('=', 1)[1] for a in profile['server_argv'] if str(a).startswith('--world-size=')]
+    if len(sizes) != 1 or sizes[0] not in ('2', '4'):
+        raise ValueError('A profile must serve on 2 or 4 Sparks')
+    return int(sizes[0])
+
+
+def fabric_rails(environ, rank, world, siblings):
+    """Resolve exact physical neighbours for a pair, open chain or closed ring."""
+    topology = environ.get('SPARKGLM_TOPOLOGY', 'pair' if world == 2 else 'chain')
+    links = ('FABRIC_LEFT_HCA', 'FABRIC_RIGHT_HCA')
+    if world == 2:
+        if topology != 'pair' or any(environ.get(key) for key in links):
+            raise ValueError('Two Sparks require pair topology and FABRIC_HCA')
+        hcas = ','.join(fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings))
+        return {'NCCL_IB_HCA': hcas, 'ATLAS_RDMA_RAILS': hcas}
+    if topology not in ('chain', 'ring'):
+        raise ValueError('Four Sparks require SPARKGLM_TOPOLOGY=chain or ring')
+    if environ.get('FABRIC_HCA'):
+        raise ValueError('Four Sparks take FABRIC_LEFT_HCA and FABRIC_RIGHT_HCA, not FABRIC_HCA')
+    rails = {'ATLAS_RDMA_TOPOLOGY': topology}
+    seen = set()
+    for key, side, linked in zip(links, ('LEFT', 'RIGHT'),
+                                 (rank > 0 or topology == 'ring', rank < world - 1 or topology == 'ring')):
+        value = environ.get(key, '')
+        if bool(value) != linked:
+            raise ValueError(f'Rank {rank} of {world} {topology} {"needs" if linked else "has no neighbour for"} {key}')
+        if value:
+            devices = fabric_hcas(value, siblings=siblings)
+            if seen.intersection(devices):
+                raise ValueError('Left and right links must use distinct RDMA devices')
+            seen.update(devices)
+            rails[f'ATLAS_RDMA_{side}_RAILS'] = ','.join(devices)
+    return rails
+
+
 def kv_shard(environ):
     """Engine settings that split GLM's MLA latent KV between the two ranks,
     when SPARKGLM_KV_SHARD=1: each rank stores the latents of half the blocks,
@@ -102,10 +139,72 @@ def kv_shard(environ):
     return {'ATLAS_GLM_KV_SHARD': '1', 'ATLAS_GLM_KV_SHARD_COMPACT': '1'}
 
 
+def serving_mode(environ, profile, world):
+    """Resolve precision independently of capacity and physical topology."""
+    if world not in (2, 4):
+        raise ValueError('strict/spark modes require TP2 or TP4')
+    mode = environ.get('SPARKGLM_MODE', 'strict')
+    if mode not in ('strict', 'spark'):
+        raise ValueError('SPARKGLM_MODE must be strict or spark')
+    required = {
+        'ATLAS_GLM_FP4L_NATIVE': '1',
+        'ATLAS_GLM_FP4L_MLA_FP8': '1',
+        'ATLAS_GLM_FP4L_SHARED_FP8': '1' if mode == 'strict' else '0',
+        'ATLAS_GLM_FP4L_DENSE_MXFP8': '1' if mode == 'strict' else '1',
+        'ATLAS_GLM_FP4L_KDA_W8A8_PREFILL': '1',
+        'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
+        'ATLAS_GLM_FP4L_FP8_PREFILL': 'w8a8',
+        'ATLAS_GLM_LM_HEAD_MXFP8': '1',
+    }
+    if mode == 'spark':
+        for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
+            value = profile['environment'].get(flag, required[flag])
+            if value not in ('0', '1'):
+                raise ValueError(f'{flag} must be 0 or 1')
+            required[flag] = value
+    for flag, value in required.items():
+        if flag in profile['environment'] and profile['environment'][flag] != value:
+            raise ValueError(f'{mode} mode requires {flag}={value}')
+    flags = dict(required, ATLAS_GLM_SERVING_MODE=mode,
+                 ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1' if mode == 'strict' else '0',
+                 ATLAS_GLM_FP4L_DECODE_A16='1' if mode == 'strict' else '0',
+                 ATLAS_GLM_FP4L_KDA_TILED_TWIN='0')
+    if mode == 'spark':
+        # Splitting the shared expert rounds each partial BF16 output before
+        # routed/shared blending and all-reduce. The matched C4 arithmetic
+        # regression passes only with the full shared output blended afterward.
+        flags['ATLAS_GLM_SHARED_TP_SPLIT'] = '0'
+    if mode == 'strict':
+        forbidden = ('--ngram-speculative', '--self-speculative')
+        if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):
+            raise ValueError('strict mode requires serial target decoding')
+        # Keep the canonical one-row target path. The engine disables speculative
+        # dispatch for every request in strict mode; the unused drafter stays BF16.
+        flags.update(ATLAS_NO_DFLASH_DRAFTER_NVFP4='1', ATLAS_HC_PERSEQ_DECODE='1',
+                     ATLAS_GLM_CANONICAL_VERIFY='1', ATLAS_GLM_DFLASH='1')
+        for flag in (
+            'ATLAS_DFLASH_DRAFTER_FP8', 'ATLAS_DFLASH_NVFP4_TC',
+            'ATLAS_DFLASH_NVFP4_HEAD', 'ATLAS_DFLASH_MXFP8',
+            'ATLAS_DFLASH_MXFP8_HEAD', 'ATLAS_DFLASH_DROP_BF16',
+            'ATLAS_DFLASH_CTX_NVFP4', 'ATLAS_DFLASH_CONV_TWIN',
+            'ATLAS_GLM_DRAFT_TP', 'ATLAS_GLM_DRAFT_TP_BATCH',
+            'ATLAS_GLM_DRAFT_TP_CTX', 'ATLAS_GLM_DRAFT_TP_TOPK',
+        ):
+            flags[flag] = '0'
+    elif 'ATLAS_NO_DFLASH_DRAFTER_NVFP4' in profile['environment']:
+        raise ValueError('spark mode requires its reviewed NVFP4 drafter policy')
+    return mode, flags
+
+
 def launch(environ, profile):
+    world = world_size(profile)
+    mode, precision = serving_mode(environ, profile, world)
+    native_mtp = environ.get('SPARKGLM_STRICT_MTP', '0')
+    if native_mtp not in ('0', '1') or (native_mtp == '1' and mode != 'strict'):
+        raise ValueError('SPARKGLM_STRICT_MTP must be 0 or 1 and requires strict mode')
     rank = environ.get('NODE_RANK', '')
-    if rank not in ('0', '1'):
-        raise ValueError('NODE_RANK must be 0 or 1')
+    if rank not in [str(r) for r in range(world)]:
+        raise ValueError(f'NODE_RANK must be 0 to {world - 1}')
     master = str(ipaddress.ip_address(environ['MASTER_ADDR']))
     port = int(environ.get('MASTER_PORT', '29510'))
     if not 1 <= port <= 65535:
@@ -116,7 +215,7 @@ def launch(environ, profile):
     siblings = environ.get('FABRIC_SIBLINGS', '0')
     if siblings not in ('0', '1'):
         raise ValueError('FABRIC_SIBLINGS must be 0 or 1')
-    hcas = fabric_hcas(environ.get('FABRIC_HCA', ''), siblings=siblings == '1')
+    rails = fabric_rails(environ, int(rank), world, siblings == '1')
     model = environ.get('MODEL_PATH', '/models/atlas-overlay')
     drafter = environ.get('DRAFTER_PATH', '/models/drafter')
     for label, path in (('MODEL_PATH', model), ('DRAFTER_PATH', drafter)):
@@ -126,21 +225,55 @@ def launch(environ, profile):
     # changes require a new reviewed image/profile instead of accidental tuning.
     env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
     env.update(profile['environment'])
+    env.update(precision)
     env['NCCL_SOCKET_IFNAME'] = interface
-    env['NCCL_IB_HCA'] = ','.join(hcas)
-    # The engine's direct RDMA all-reduce stripes over the same devices.
-    env['ATLAS_RDMA_RAILS'] = env['NCCL_IB_HCA']
+    env.update(rails)
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
+    if native_mtp == '1':
+        # Native prediction retains the selected serving capacity and prefix
+        # cache. disable_mtp compares serial on this same loaded target.
+        drop = ('--dflash', '--draft-model', '--dflash-gamma', '--dflash-window-size',
+                '--num-drafts', '--mtp-quantization', '--mtp-vocab')
+        args = [a for a in args if a.split('=', 1)[0] not in drop]
+        args += ['--speculative', '--num-drafts=6', '--mtp-quantization=bf16', '--mtp-vocab=0']
+        env.update(ATLAS_GLM_STRICT_NATIVE_MTP='1', ATLAS_GLM_DFLASH='0',
+                   ATLAS_GLM_MTP_LONG_CONTEXT='1', ATLAS_GLM_NATIVE_MTP_HEAD='bf16',
+                   ATLAS_GLM_MTP_BF16_DRAFTS='1', ATLAS_GLM_NATIVE_MTP_REPAIR_BATCH='0',
+                   ATLAS_GLM_NATIVE_MTP_STOP_PROB='0.95', ATLAS_MTP_SPEC_THINK='1',
+                   ATLAS_NO_MTP_K_LADDER='1', ATLAS_MTP_TIMING='1',
+                   # The grouped multi-owner FFN changes target arithmetic.
+                   # Keep C4 admission but verify owners individually in strict.
+                   ATLAS_GLM_LONG_BATCH_VERIFY='0')
+        if '--max-seq-len=1048576' in args and '--max-num-seqs=4' in args:
+            # Keep the shared 1M prefix plus 7,424 tokens of aggregate COW and
+            # continuation space. Native MTP has a second private KV pool;
+            # allocating all remaining memory leaves too little host headroom.
+            if world == 2:
+                env['ATLAS_KV_MAX_BLOCKS'] = '66000'
+            # Large tokenizer temporary buffers are host allocations made
+            # before GPU admission. Bound their burst, preserving GPU C4.
+            env['ATLAS_LARGE_ENCODE_CONCURRENCY'] = '2'
+            # Serving consumes token IDs only; avoid retaining unused token
+            # spellings and offsets in each million-token request.
+            env['ATLAS_TOKENIZER_IDS_ONLY'] = '1'
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
-    # the unified memory than the shipped default leaves free.
+    # the unified memory than the shipped default leaves free. Four Sparks hold
+    # a quarter of the weights each, so a chain may also leave the host more.
     util = environ.get('SPARKGLM_GPU_MEMORY_UTILIZATION')
     if util:
-        if not re.fullmatch(r'0\.(8[0-9]|9[0-5])', util):
-            raise ValueError('SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.80 to 0.95')
+        low = '6' if world == 4 else '8'
+        if not re.fullmatch(rf'0\.([{low}-8][0-9]|9[0-5])', util):
+            raise ValueError(f'SPARKGLM_GPU_MEMORY_UTILIZATION must be 0.{low}0 to 0.95')
         args = [f'--gpu-memory-utilization={util}' if a.startswith('--gpu-memory-utilization=') else a
                 for a in args]
     env.update(disk_prefix_cache(environ.get('SPARKGLM_PREFIX_CACHE_GB', '')))
+    if mode:
+        env['SPARKGLM_MODE'] = mode
+        for flag in ('ATLAS_KV_NVME_DIR', 'ATLAS_SSM_TIER_SWAP_DIR'):
+            if flag in env:
+                namespace = mode if world == 2 else f'tp4/{env["ATLAS_RDMA_TOPOLOGY"]}/{mode}'
+                env[flag] = env[flag].replace('/prefix-cache/', f'/prefix-cache/{namespace}/', 1)
     env.update(kv_shard(environ))
     name = environ.get('SERVED_MODEL_NAME', 'glm-5.3-flash-atlas')
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]{0,127}', name):
@@ -203,10 +336,12 @@ def main():
         raise ValueError('The NVIDIA NVFP4 checkpoint needs the MTP overlay (install/convert.sh), '
                          'which has not completed conversion')
     drafter = Path(env.get('DRAFTER_PATH', '/models/drafter'))
-    if not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file():
+    if env.get('ATLAS_GLM_STRICT_NATIVE_MTP') != '1' and (not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file()):
         raise ValueError('Incomplete DFlash drafter')
     source = json.loads((here/'source-manifest.json').read_text())
     print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'], 'profile': profile.stem,
+                      'mode': env.get('SPARKGLM_MODE', 'strict'),
+                      'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE') == 'spark' else 'native',
                       'source': f"{source['repository']}@{source['commit']}"}), flush=True)
     os.execve(argv[0], argv, env)
 

@@ -1,0 +1,72 @@
+{
+  "identities": [
+    {
+      "host": "ennspark01",
+      "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+      "running": true,
+      "mode": "spark",
+      "clock_service": "active"
+    },
+    {
+      "host": "ennspark02",
+      "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+      "running": true,
+      "mode": "spark",
+      "clock_service": "active"
+    }
+  ],
+  "gateway_canary": {
+    "passed": true,
+    "seconds": 0.2868079439504072,
+    "request": {
+      "model": "glm-5.3-flash-atlas",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is 17 + 25? Reply with only the integer."
+        }
+      ],
+      "temperature": 0,
+      "max_tokens": 128,
+      "chat_template_kwargs": {
+        "reasoning_effort": "low"
+      }
+    },
+    "response": {
+      "id": "chatcmpl-94f753e3-af13-4a50-851c-6993565a2cea",
+      "object": "chat.completion",
+      "created": 1792553293,
+      "model": "glm-5.3-flash-atlas",
+      "system_fingerprint": "fp_atlas",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "reasoning_content": "42",
+            "content": "42"
+          },
+          "finish_reason": "stop",
+          "logprobs": null
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 26,
+        "completion_tokens": 4,
+        "total_tokens": 30,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 3,
+          "rejected_prediction_tokens": 0
+        },
+        "time_to_first_token_ms": 183.520876,
+        "response_token/s": 39.375449200046404
+      }
+    }
+  }
+}

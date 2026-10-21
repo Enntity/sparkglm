@@ -15,6 +15,11 @@ spec = importlib.util.spec_from_file_location('atlas_serve', HERE/'serve.py')
 serve = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(serve)
 DISK_TIER = ('ATLAS_KV_NVME', 'ATLAS_SSM_TIER', 'ATLAS_GLM_NVME')
+# The engine's refusals at world > 2 (serve_phases/preflight/glm_chain.rs).
+REFUSED_BEYOND_TWO_RANKS = (
+    'ATLAS_GLM_K3_MLA_QUERY_COMPARE', 'ATLAS_GLM_KV_SHARD_OVERLAP',
+    'ATLAS_GLM_C4_DECODE', 'ATLAS_GLM_C4_SPARSE', 'ATLAS_GLM_C4_GROUPED_MOE', 'ATLAS_GLM_INDEPENDENT_DECODE',
+    'ATLAS_GLM_MTP_REPAIR', 'ATLAS_GLM_MTP_DISTRIBUTED')
 
 
 class LaunchContract(unittest.TestCase):
@@ -23,6 +28,22 @@ class LaunchContract(unittest.TestCase):
         self.environment = {'NODE_RANK': '0', 'MASTER_ADDR': '192.0.2.1',
                             'FABRIC_INTERFACE': 'enp1s0f0np0', 'FABRIC_HCA': 'rocep1s0f0', 'MODEL_PATH': '/models/overlay',
                             'DRAFTER_PATH': '/models/drafter'}
+
+    def test_profiles_hold_verified_decode_policy_in_actual_launch_environment(self):
+        # Spark uses A4 speculative decode; strict uses serial A16 decode.
+        for path in sorted((HERE/'profiles').glob('*.json')):
+            profile = json.loads(path.read_text())
+            environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1',
+                               ATLAS_DFLASH_MASKED_VERIFY='0')
+            if serve.world_size(profile) == 4:
+                environment.update(FABRIC_HCA='', FABRIC_RIGHT_HCA='rocep1s0f1')
+            with self.subTest(profile=path.name):
+                _, actual = serve.launch(environment, profile)
+                self.assertEqual(actual['ATLAS_GLM_FP4L_DECODE_A16'],
+                                 '1')
+                self.assertEqual(actual['ATLAS_DFLASH_MASKED_VERIFY'], '1')
+                self.assertEqual(actual['ATLAS_GLM_FP4L_NATIVE'], '1')
+                self.assertEqual(actual['ATLAS_GLM_FP4L_INPUT_SCALES'], '1')
 
     def test_two_rank_contract_and_private_ports(self):
         for rank in ('0', '1'):
@@ -54,7 +75,8 @@ class LaunchContract(unittest.TestCase):
         self.assertNotIn('ATLAS_KV_OVERCOMMIT', env)
         self.assertEqual(env['ATLAS_GLM_KV_CAP_TO_CONTEXTS'], '0')
         self.assertIn('--oom-guard-mb=4096', argv)
-        self.assertIn('--video-max-frames=32', argv)
+        # Video frames follow the checkpoint's processor config (engine default), not a cap.
+        self.assertFalse(any(a.startswith('--video-max-frames') for a in argv))
 
     def test_dflash_drafter_path_is_substituted_and_validated(self):
         argv, _ = serve.launch(self.environment, self.profile)
@@ -223,13 +245,26 @@ class LaunchContract(unittest.TestCase):
                      'ATLAS_GLM_LAYER_FORK', 'ATLAS_GLM_L2_AHEAD',
                      'ATLAS_KV_NVME_DIR', 'ATLAS_GLM_KDA_PREFILL_LT_FP8_SPLITK1',
                      'ATLAS_GLM_TAIL_CUT_DEEP', 'ATLAS_GLM_ZERO_ROWS',
-                     # Opt-in (docs/ENGINE.md): checkpoint-format serving is slower,
-                     # packed prefill is not yet exact, the rest are untuned or diagnostics.
-                     'ATLAS_GLM_FP4L_NATIVE', 'ATLAS_GLM_PACKED_PREFILL', 'ATLAS_DFLASH_WARM_CTX',
+                     # Opt-in (docs/ENGINE.md): packed prefill is not yet exact, the
+                     # rest are untuned or diagnostics.
+                     'ATLAS_GLM_PACKED_PREFILL', 'ATLAS_DFLASH_WARM_CTX',
                      'ATLAS_TAIL_SPLIT_MIN_TOKENS', 'ATLAS_PREFILL_BURST', 'ATLAS_TTFT_TRACE')
+        # FP4-Local is served in its checkpoint formats: its QAD-trained MXFP8/FP8
+        # KDA, dense, shared and MLA weights requantized to NVFP4 lose long-context
+        # retrieval (60-item needle 21 vs 32 of 60; the vLLM reference 37).
+        # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs: cuBLASLt has
+        # no 128-block FP8 kernel for SM121, so the in-tree fallback would serve them.
+        # Keep calibrated input scales, but hold A16 routed decode/verify off:
+        # its speculative outputs changed with concurrency in TP2 diagnostics.
+        # This A4 fallback differs from the reference decode activation policy.
+        native = {'ATLAS_GLM_FP4L_NATIVE': '1', 'ATLAS_GLM_FP4L_KDA_MXFP8_DECODE': '1',
+                  'ATLAS_GLM_FP8B_CUTLASS': '1', 'ATLAS_GLM_FP4L_INPUT_SCALES': '1',
+                  'ATLAS_GLM_FP4L_DECODE_A16': '0'}
         for env in envs:
             for key in exact:
                 self.assertEqual(env.get(key), '1', key)
+            for key, value in native.items():
+                self.assertEqual(env.get(key), value, key)
             # A mask: 3 = both bit-exact mHC seam twins (partial and finalize).
             self.assertEqual(env.get('ATLAS_GLM_HC_SEAM_ILP'), '3')
             for key, value in policy.items():
@@ -241,9 +276,19 @@ class LaunchContract(unittest.TestCase):
         argv, _ = serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION='0.93'), self.profile)
         self.assertIn('--gpu-memory-utilization=0.93', argv)
         self.assertEqual(sum(a.startswith('--gpu-memory-utilization=') for a in argv), 1)
-        for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x'):
+        for bad in ('0.99', '1', '0.5', '0.9 ', '0.93x', '0.65'):
             with self.subTest(util=bad), self.assertRaises(ValueError):
                 serve.launch(dict(self.environment, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), self.profile)
+
+    def test_a_chain_may_leave_its_hosts_more_memory(self):
+        # A quarter of the weights a rank: four Sparks may go down to 0.60.
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        chain = dict(self.environment, FABRIC_HCA='', NODE_RANK='3', FABRIC_LEFT_HCA='rocep1s0f1,roceP2p1s0f1')
+        argv, _ = serve.launch(dict(chain, SPARKGLM_GPU_MEMORY_UTILIZATION='0.65'), tp4)
+        self.assertIn('--gpu-memory-utilization=0.65', argv)
+        for bad in ('0.59', '0.5', '0.96'):
+            with self.subTest(util=bad), self.assertRaises(ValueError):
+                serve.launch(dict(chain, SPARKGLM_GPU_MEMORY_UTILIZATION=bad), tp4)
 
     def test_display_carveout_is_off_unless_switched_on(self):
         plain, _ = serve.launch(self.environment, self.profile)
@@ -288,9 +333,9 @@ class LaunchContract(unittest.TestCase):
             _, env = serve.launch(dict(self.environment, NODE_RANK=rank, SPARKGLM_PREFIX_CACHE_GB='48'),
                                   self.profile)
             self.assertEqual({k: v for k, v in env.items() if k.startswith(DISK_TIER)}, {
-                'ATLAS_KV_NVME_DIR': '/prefix-cache/kv', 'ATLAS_KV_NVME_GB': '24',
+                'ATLAS_KV_NVME_DIR': '/prefix-cache/strict/kv', 'ATLAS_KV_NVME_GB': '24',
                 'ATLAS_GLM_NVME_FAST': '1', 'ATLAS_SSM_TIER': '1', 'ATLAS_SSM_TIER_UNIFIED': '1',
-                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
+                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/strict/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
                 'ATLAS_SSM_TIER_SLOTS': '2'})
         _, env = serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB='17'), self.profile)
         self.assertEqual((env['ATLAS_KV_NVME_GB'], env['ATLAS_SSM_TIER_DISK_GB']), ('8', '9'))
@@ -310,6 +355,9 @@ class LaunchContract(unittest.TestCase):
         (sysfs/'rocep1s0f0/device/net/enp1s0f0np0').mkdir(parents=True)
         (sysfs/'rocep1s0f0/ports/1').mkdir(parents=True)
         (sysfs/'rocep1s0f0/ports/1/state').write_text('4: ACTIVE')
+        for dev in ('roceP2p1s0f0', 'rocep1s0f1', 'roceP2p1s0f1'):
+            (sysfs/dev/'ports/1').mkdir(parents=True)
+            (sysfs/dev/'ports/1/state').write_text('4: ACTIVE')
         # A recording docker; stat and df report ext4 and 100 GiB free unless told otherwise.
         for name, body in (('docker', f'echo "$*" >> {root}/docker.log'),
                            ('stat', 'echo "${FSTYPE:-ext2/ext3}"'),
@@ -362,6 +410,19 @@ class LaunchContract(unittest.TestCase):
                 with self.subTest(checkpoint=bad):
                     self.assertNotEqual(run.returncode, 0)
                     self.assertEqual(docker_run, [])
+
+    def test_start_node_passes_validated_mode_on_both_ranks(self):
+        with tempfile.TemporaryDirectory() as root:
+            _, start = self.fake_node(Path(root))
+            for rank in ('0', '1'):
+                for mode in ('strict', 'spark'):
+                    run, launched = start(rank, '--mode', mode)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertIn(f'-e SPARKGLM_MODE={mode} ', launched[0])
+            for mode in ('', 'fast', 'STRICT'):
+                run, launched = start('0', '--mode', mode)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertEqual(launched, [])
 
     def test_start_node_mounts_the_disk_prefix_cache(self):
         with tempfile.TemporaryDirectory() as root:
@@ -423,6 +484,120 @@ class LaunchContract(unittest.TestCase):
         for bad in ('../x', '', 'a/b', '.hidden'):
             with self.subTest(name=bad), self.assertRaises(ValueError):
                 serve.profile_path({'SPARKGLM_PROFILE': bad}, HERE)
+
+    def test_tp4_profile_is_4x1m_on_four_ranks(self):
+        # Four Sparks in a daisy chain: 4x1m with the options the engine
+        # refuses beyond two ranks switched off (its table in
+        # serve_phases/preflight/glm_chain.rs), and NCCL left to startup traffic over sockets, since it cannot reach a
+        # Spark that is not cabled to it.
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        full = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m'}, HERE).read_text())
+        expected = {k: '0' if k in REFUSED_BEYOND_TWO_RANKS else v for k, v in full['environment'].items()}
+        # Checkpoint-format weight slices everywhere, KDA decode included: the
+        # QAD-trained MXFP8 KDA q/k/v/o served as NVFP4 lose long-context
+        # retrieval (60-item needle gate, 204K fill 10/12 -> 12/12); 8 MiB chain one-shots for the prefill seams; the chain's
+        # proxies spinning through the vocab head's gap, and the piecewise
+        # DFlash verify graphs, which capture the chain's all-reduces; the
+        # drafter's MLP and head split across the ranks (its attention stays whole); and
+        # CUTLASS blockwise FP8 for the native block-FP8 prefill GEMMs (cuBLASLt
+        # has no 128-block FP8 kernel for SM121); and the MoE input gathered as
+        # its routed NVFP4 rows (3.5x fewer bytes over the chain, same bits);
+        # the MoE output's reduce-scatter overlapped with the next attention
+        # gather, its unpermute on 32 blocks so the chain kernels keep SMs; and
+        # the KDA conv writing FlashKDA's q/k/v planes (no pack copy, same bits);
+        # and dead verify rows, so an owner batch skips the experts of drafts
+        # not worth verifying (same greedy outputs); and the KDA attention
+        # input gathered as its MXFP8 cast plus side planes (same bits); and the MoE unpermute writing its rows
+        # straight into one fused chain reduce-scatter in 16 MiB segments
+        # (~80-96 MiB pinned per rank, same sums in the same order). No lossy
+        # prefill lanes: the o_proj all-to-all, E4M3 MoE down rows and the
+        # two-warpgroup sparse MLA together cost long-context retrieval (two
+        # 60-item needle draws, 52 vs 62 of 120). The seam gathers one block
+        # per exchange; and the chain
+        # reduce-scatter on 24 blocks, which leaves the shared expert SMs
+        # beside the fused unpermute (its GEMMs start at once, not at the end);
+        # and the MLA input gathered as its FP8-block cast per seam block, its
+        # o_proj reduce-scattered block by block (same bits); and the index
+        # split's selection rows gathered packed beside q_b (same words).
+        expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
+                        ATLAS_GLM_SHARED_TP_SPLIT='0',
+                        ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1',
+                        ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
+                        ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head',
+                        ATLAS_GLM_SP_MOE_QUANT_GATHER='1',
+                        ATLAS_GLM_SP_MOE_SEAM='1', ATLAS_GLM_SP_MOE_SEAM_CTAS='32',
+                        ATLAS_GLM_KDA_FLASH_PLANES='1', ATLAS_DFLASH_DEAD_ROWS='1',
+                        ATLAS_GLM_SP_KDA_QUANT_GATHER='1',
+                        ATLAS_RDMA_RS_FUSED_SEG='16777216',
+                        ATLAS_GLM_SP_MOE_GATHER_GROUP='1',
+                        ATLAS_RDMA_RS_BLOCKS='24',
+                        ATLAS_GLM_SP_MLA_QUANT_GATHER='1', ATLAS_GLM_SP_MLA_OPROJ_AHEAD='1',
+                        ATLAS_GLM_INDEX_SPLIT_BESIDE='1', ATLAS_GLM_INDEX_SPLIT_COMPACT='1')
+        self.assertEqual(tp4['environment'], expected)
+        # A quarter of the weights a rank leaves room: 0.72 still holds 4x1m's
+        # ~4.2M KV tokens and frees ~20 GB of each host.
+        four = {'--world-size=2': '--world-size=4', '--tp-size=2': '--tp-size=4', '--ep-size=2': '--ep-size=4',
+                '--gpu-memory-utilization=0.88': '--gpu-memory-utilization=0.72'}
+        self.assertEqual(tp4['server_argv'], [four.get(a, a) for a in full['server_argv']])
+        for arg in four:
+            self.assertIn(arg, full['server_argv'])
+
+    def test_chain_ranks_take_rails_toward_each_neighbour(self):
+        tp4 = json.loads(serve.profile_path({'SPARKGLM_PROFILE': '4x1m-tp4'}, HERE).read_text())
+        left, right = 'rocep1s0f0,roceP2p1s0f0', 'rocep1s0f1,roceP2p1s0f1'
+        chain = dict(self.environment, FABRIC_HCA='', FABRIC_INTERFACE='enP2p1s0f0np0')
+        sides = {'0': {'FABRIC_RIGHT_HCA': right}, '1': {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right},
+                 '2': {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}, '3': {'FABRIC_LEFT_HCA': left}}
+        for rank, rails in sides.items():
+            with self.subTest(rank=rank):
+                argv, env = serve.launch(dict(chain, NODE_RANK=rank, **rails), tp4)
+                self.assertIn('--world-size=4', argv)
+                self.assertIn(f'--rank={rank}', argv)
+                self.assertEqual(env.get('ATLAS_RDMA_LEFT_RAILS'), rails.get('FABRIC_LEFT_HCA'))
+                self.assertEqual(env.get('ATLAS_RDMA_RIGHT_RAILS'), rails.get('FABRIC_RIGHT_HCA'))
+                self.assertNotIn('ATLAS_RDMA_RAILS', env)
+                self.assertNotIn('NCCL_IB_HCA', env)
+                self.assertEqual(env['NCCL_SOCKET_IFNAME'], 'enP2p1s0f0np0')
+                self.assertEqual(env['NCCL_NET'], 'Socket')
+        bad = [('0', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}),  # nothing left of rank 0
+               ('3', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right}),  # nothing right of rank 3
+               ('1', {'FABRIC_RIGHT_HCA': right}), ('2', {'FABRIC_LEFT_HCA': left}),
+               ('4', {'FABRIC_LEFT_HCA': left}), ('1', {'FABRIC_LEFT_HCA': 'a0,a0', 'FABRIC_RIGHT_HCA': right}),
+               ('1', {'FABRIC_LEFT_HCA': left, 'FABRIC_RIGHT_HCA': right, 'FABRIC_HCA': left})]
+        for rank, rails in bad:
+            with self.subTest(rank=rank, rails=rails), self.assertRaises(ValueError):
+                serve.launch(dict(chain, NODE_RANK=rank, **rails), tp4)
+        # A two-rank profile takes no chain rails.
+        with self.assertRaises(ValueError):
+            serve.launch(dict(self.environment, FABRIC_RIGHT_HCA=right), self.profile)
+
+    def test_start_node_launches_a_chain_rank(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            _, start = self.fake_node(root)
+            left, right = 'rocep1s0f0,roceP2p1s0f0', 'rocep1s0f1,roceP2p1s0f1'
+            run, docker_run = start('2', '--world-size', '4', '--left-hca', left, '--right-hca', right)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e NODE_RANK=2 ', docker_run[0])
+            self.assertIn(f'-e FABRIC_LEFT_HCA={left} ', docker_run[0])
+            self.assertIn(f'-e FABRIC_RIGHT_HCA={right} ', docker_run[0])
+            self.assertIn('-e FABRIC_HCA= ', docker_run[0])
+            run, docker_run = start('3', '--world-size', '4', '--left-hca', right)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e FABRIC_RIGHT_HCA= ', docker_run[0])
+            for rank, extra in (('4', ['--world-size', '4', '--left-hca', left]),
+                                ('1', ['--world-size', '3', '--left-hca', left, '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--left-hca', 'rocep1s0f9', '--right-hca', right]),
+                                ('1', ['--world-size', '4', '--fabric-hca', left, '--left-hca', left,
+                                       '--right-hca', right])):
+                run, docker_run = start(rank, *extra)
+                with self.subTest(rank=rank, extra=extra):
+                    self.assertNotEqual(run.returncode, 0)
+                    self.assertEqual(docker_run, [])
+            # Two ranks take no chain rails.
+            run, docker_run = start('1', '--right-hca', right)
+            self.assertNotEqual(run.returncode, 0)
 
     def test_invalid_cluster_configuration_fails_before_process_launch(self):
         for key, value in [('NODE_RANK', '2'), ('MASTER_ADDR', 'not-an-address'),

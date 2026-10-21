@@ -8,9 +8,10 @@
 set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
-usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
+usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
-                     [--profile 4x512k|8x128k|FILE] [--gpu-memory-utilization 0.80-0.95]
+                     [--world-size 2|4 [--topology chain|ring] [--left-hca DEVICE[,...]] [--right-hca DEVICE[,...]]]
+                     [--mode strict|spark] [--strict-mtp] [--profile 4x1m|4x512k|8x128k|4x1m-tp4|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
                      [--cuda-cache DIR] [--name NAME]
@@ -27,25 +28,41 @@ usage: start-node.sh --rank 0|1 --leader-address IP --model-root DIR --image TAG
                      interface of the first --fabric-hca; otherwise required)
   --no-fabric-siblings  compatibility option; explicit HCA lists are always
                      passed without adding another device
-  --profile          a profile shipped in the image (default 4x512k) or a JSON
-                     file of your own; use the same one on both ranks
+  --world-size       Sparks serving together (default 2). With 4, wired as a
+                     chain rank 0-1-2-3 or ring 0-1-2-3-0; start workers then 0;
+                     --rank goes up to 3, --fabric-interface is this node's
+                     interface for NCCL's startup traffic (every Spark must
+                     reach the others' addresses on it; --leader-address is
+                     rank 0's address there) and replaces --fabric-hca
+  --topology         chain (default for TP4) or ring; ring requires the 3-0 link
+  --left-hca         with --world-size 4: devices to rank - 1 (modulo 4 for ring)
+  --right-hca        with --world-size 4: devices to rank + 1 (modulo 4 for ring)
+  --mode             strict (default) or spark; same on every rank
+  --strict-mtp       native MTP in strict mode; retains profile capacity and prefix cache
+  --profile          a profile shipped in the image (TP2 default 4x512k, TP4 4x1m-tp4) or a JSON
+                     file of your own; use the same one on every rank
   --gpu-memory-utilization  share of unified memory for the engine (default:
-                     the profile's 0.88); raise it on dedicated hosts for a
+                     the profile's: 0.88, or 0.72 on four Sparks); raise it on dedicated hosts for a
                      larger KV pool and prefix cache
   --prefix-cache-dir keep evicted prefix-cache entries in this directory on
                      the node's own disk (ext4/xfs) instead of dropping them
                      (default: off)
-  --prefix-cache-gb  their disk budget in GiB (default 48); the same on both ranks
+  --prefix-cache-gb  their disk budget in GiB (default 48); the same on every rank
   --display-carveout lend the GB10's 2 GiB display carveout to the KV cache
-                     (2 GiB more KV cache); use it on both ranks (default: off)
-  --kv-shard         split the KV cache between the two Sparks, about 1.8x the
-                     pool for the same memory; use it on both ranks (default: off)
+                     (2 GiB more KV cache); use it on every rank (default: off)
+  --kv-shard         split latent KV ownership across the Sparks; enable it on
+                     every rank (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
 }
-rank="" leader="" iface="" model_root="" image="" hca=""
+rank="" leader="" iface="" model_root="" image="" hca="" world=2 left_hca="" right_hca=""
 cache="$HOME/.cache/atlas-cuda" name="" profile=4x512k util="" pc_dir="" pc_gb="" carveout="" siblings=0 kvshard=0
+mode=""
+mode_given=0
+topology=""
+profile_given=0
+strict_mtp=0
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -53,12 +70,18 @@ while [[ $# -gt 0 ]]; do
     --leader-address) leader=$2; shift 2 ;;
     --fabric-interface) iface=$2; shift 2 ;;
     --fabric-hca) hca=$2; shift 2 ;;
+    --world-size) world=$2; shift 2 ;;
+    --topology) topology=$2; shift 2 ;;
+    --left-hca) left_hca=$2; shift 2 ;;
+    --right-hca) right_hca=$2; shift 2 ;;
     --model-root) model_root=$2; shift 2 ;;
     --image) image=$2; shift 2 ;;
     --cuda-cache) cache=$2; shift 2 ;;
     --checkpoint) checkpoint_name=$2; shift 2 ;;
     --name) name=$2; shift 2 ;;
-    --profile) profile=$2; shift 2 ;;
+    --profile) profile=$2; profile_given=1; shift 2 ;;
+    --mode) mode=$2; mode_given=1; shift 2 ;;
+    --strict-mtp) strict_mtp=1; shift ;;
     --gpu-memory-utilization) util=$2; shift 2 ;;
     --prefix-cache-dir) pc_dir=$2; shift 2 ;;
     --prefix-cache-gb) pc_gb=$2; shift 2 ;;
@@ -68,36 +91,67 @@ while [[ $# -gt 0 ]]; do
     *) usage ;;
   esac
 done
-[[ $rank == 0 || $rank == 1 ]] && [[ -n $leader && -n $model_root && -n $image ]] || usage
+[[ $world == 2 || $world == 4 ]] && [[ $rank =~ ^[0-9]$ ]] && (( rank < world )) &&
+  [[ -n $leader && -n $model_root && -n $image ]] || usage
+if [[ $mode_given == 0 ]]; then mode=strict; fi
+[[ $mode == strict || $mode == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
+[[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires strict mode" >&2; exit 2; }
+if [[ $world == 2 ]]; then
+  topology=${topology:-pair}
+  [[ $topology == pair ]] || { echo "two Sparks require pair topology" >&2; exit 2; }
+else
+  topology=${topology:-chain}
+  [[ $topology == chain || $topology == ring ]] || { echo "--topology must be chain or ring" >&2; exit 2; }
+  if [[ $profile_given == 0 ]]; then profile=4x1m-tp4; fi
+fi
+
 sysfs=${FABRIC_SYSFS:-/sys/class/infiniband}
-if [[ -z $hca ]]; then
-  [[ -n $iface ]] || { echo "pass --fabric-hca or --fabric-interface; no port is assumed" >&2; exit 2; }
-  matches=()
-  for dev in "$sysfs"/*; do
-    [[ -e $dev/device/net/$iface ]] && matches+=("${dev##*/}")
+# check_rails LIST: every device named once, up and well formed.
+check_rails() {
+  [[ $1 =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*$ ]] ||
+    { echo "invalid RDMA device list $1" >&2; exit 2; }
+  local rail seen=,
+  IFS=',' read -r -a rails <<< "$1"
+  for rail in "${rails[@]}"; do
+    [[ $seen != *,"$rail",* ]] || { echo "duplicate RDMA device $rail" >&2; exit 2; }
+    seen+="$rail,"
+    grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
+      { echo "RDMA device $rail is missing or down" >&2; exit 2; }
   done
-  [[ ${#matches[@]} == 1 ]] || { echo "ambiguous or missing RDMA device for $iface; pass --fabric-hca" >&2; exit 2; }
-  hca=${matches[0]}
+}
+if (( world > 2 )); then
+  [[ -z $hca ]] || { echo "a chain takes --left-hca and --right-hca, not --fabric-hca" >&2; exit 2; }
+  [[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] || { echo "a chain needs --fabric-interface" >&2; exit 2; }
+  if (( rank > 0 )) || [[ $topology == ring ]]; then [[ -n $left_hca ]] || { echo "rank $rank needs --left-hca" >&2; exit 2; }
+  else [[ -z $left_hca ]] || { echo "rank 0 has no left neighbour" >&2; exit 2; }; fi
+  if (( rank < world - 1 )) || [[ $topology == ring ]]; then [[ -n $right_hca ]] || { echo "rank $rank needs --right-hca" >&2; exit 2; }
+  else [[ -z $right_hca ]] || { echo "rank $rank has no right neighbour" >&2; exit 2; }; fi
+  for list in "$left_hca" "$right_hca"; do [[ -z $list ]] || check_rails "$list"; done
+  if [[ -n $left_hca && -n $right_hca ]]; then
+    check_rails "$left_hca,$right_hca"
+  fi
+else
+  [[ -z $left_hca && -z $right_hca ]] || { echo "--left-hca and --right-hca need --world-size 4" >&2; exit 2; }
+  if [[ -z $hca ]]; then
+    [[ -n $iface ]] || { echo "pass --fabric-hca or --fabric-interface; no port is assumed" >&2; exit 2; }
+    matches=()
+    for dev in "$sysfs"/*; do
+      [[ -e $dev/device/net/$iface ]] && matches+=("${dev##*/}")
+    done
+    [[ ${#matches[@]} == 1 ]] || { echo "ambiguous or missing RDMA device for $iface; pass --fabric-hca" >&2; exit 2; }
+    hca=${matches[0]}
+  fi
+  check_rails "$hca"
+  if [[ -z $iface ]]; then
+    primary=${hca%%,*}
+    matches=("$sysfs/$primary"/device/net/*)
+    [[ ${#matches[@]} == 1 && -e ${matches[0]} ]] ||
+      { echo "ambiguous or missing network interface for $primary; pass --fabric-interface" >&2; exit 2; }
+    iface=${matches[0]##*/}
+  fi
+  [[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ && -e $sysfs/${hca%%,*}/device/net/$iface ]] ||
+    { echo "--fabric-interface must belong to the first --fabric-hca device" >&2; exit 2; }
 fi
-[[ $hca =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*(,[a-zA-Z0-9_][a-zA-Z0-9_.-]*)*$ ]] ||
-  { echo "invalid --fabric-hca device list" >&2; exit 2; }
-if [[ -z $iface ]]; then
-  primary=${hca%%,*}
-  matches=("$sysfs/$primary"/device/net/*)
-  [[ ${#matches[@]} == 1 && -e ${matches[0]} ]] ||
-    { echo "ambiguous or missing network interface for $primary; pass --fabric-interface" >&2; exit 2; }
-  iface=${matches[0]##*/}
-fi
-[[ $iface =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ && -e $sysfs/${hca%%,*}/device/net/$iface ]] ||
-  { echo "--fabric-interface must belong to the first --fabric-hca device" >&2; exit 2; }
-IFS=',' read -r -a rails <<< "$hca"
-seen=,
-for rail in "${rails[@]}"; do
-  [[ $seen != *,"$rail",* ]] || { echo "duplicate RDMA device $rail" >&2; exit 2; }
-  seen+="$rail,"
-  grep -qs ACTIVE "$sysfs/$rail/ports/1/state" ||
-    { echo "RDMA device $rail is missing or down" >&2; exit 2; }
-done
 [[ $checkpoint_name =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$ ]] ||
   { echo "--checkpoint must be one directory name under --model-root" >&2; exit 2; }
 model_root=$(realpath "$model_root")
@@ -167,10 +221,12 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   ${carveout_args[@]+"${carveout_args[@]}"} \
   -e NODE_RANK="$rank" -e MASTER_ADDR="$leader" -e MASTER_PORT=29510 \
   -e FABRIC_INTERFACE="$iface" -e FABRIC_HCA="$hca" -e FABRIC_SIBLINGS="$siblings" -e SPARKGLM_KV_SHARD="$kvshard" \
+  -e FABRIC_LEFT_HCA="$left_hca" -e FABRIC_RIGHT_HCA="$right_hca" -e SPARKGLM_TOPOLOGY="$topology" \
   -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
-  -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" \
+  -e SPARKGLM_STRICT_MTP="$strict_mtp" \
+  -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" ${mode:+-e SPARKGLM_MODE="$mode"} \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
-  -e ATLAS_WORLD_SIZE=2 -e ATLAS_TP_SIZE=2 -e ATLAS_EP_SIZE=2 -e ATLAS_CONTEXT_WINDOW=524288 \
+  -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \
   -e NCCL_SOCKET_IFNAME="$iface" -e GLOO_SOCKET_IFNAME="$iface" -e NCCL_IB_HCA="$hca" \
   -e NCCL_IB_ADDR_FAMILY=AF_INET -e NCCL_IB_ROCE_VERSION_NUM=2 -e NCCL_CROSS_NIC=0 \
   -e NCCL_NET=IB -e NCCL_IB_DISABLE=0 -e NCCL_IB_RETRY_CNT=7 -e NCCL_IB_TIMEOUT=22 \

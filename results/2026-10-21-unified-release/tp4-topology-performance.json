@@ -1,0 +1,157 @@
+{
+  "passed": true,
+  "scope": "Two repetitions per prompt; uncapped clock service; same image, model, requests, and argv. Topology and its cache namespaces differ. Not a statistical significance claim.",
+  "rows": {
+    "prose": {
+      "chain_median_tps": 57.145,
+      "ring_median_tps": 58.328,
+      "ring_change_percent": 2.0701723685361717,
+      "repetitions": [
+        {
+          "run": 1,
+          "chain_tps": 58.4,
+          "ring_tps": 59.636,
+          "exact_outputs": true,
+          "chain_tokens": 971,
+          "ring_tokens": 971
+        },
+        {
+          "run": 2,
+          "chain_tps": 55.889,
+          "ring_tps": 57.019,
+          "exact_outputs": true,
+          "chain_tokens": 1008,
+          "ring_tokens": 1008
+        }
+      ]
+    },
+    "code": {
+      "chain_median_tps": 104.147,
+      "ring_median_tps": 106.368,
+      "ring_change_percent": 2.1325626278241305,
+      "repetitions": [
+        {
+          "run": 1,
+          "chain_tps": 105.312,
+          "ring_tps": 107.523,
+          "exact_outputs": true,
+          "chain_tokens": 1783,
+          "ring_tokens": 1783
+        },
+        {
+          "run": 2,
+          "chain_tps": 102.981,
+          "ring_tps": 105.214,
+          "exact_outputs": true,
+          "chain_tokens": 2080,
+          "ring_tokens": 2080
+        }
+      ]
+    },
+    "structured": {
+      "chain_median_tps": 137.936,
+      "ring_median_tps": 141.363,
+      "ring_change_percent": 2.4844855585198777,
+      "repetitions": [
+        {
+          "run": 1,
+          "chain_tps": 135.843,
+          "ring_tps": 139.47,
+          "exact_outputs": true,
+          "chain_tokens": 446,
+          "ring_tokens": 446
+        },
+        {
+          "run": 2,
+          "chain_tps": 140.029,
+          "ring_tps": 143.256,
+          "exact_outputs": true,
+          "chain_tokens": 441,
+          "ring_tokens": 441
+        }
+      ]
+    }
+  },
+  "configuration_differences": [
+    {
+      "host": "ennspark01",
+      "differences": {
+        "ATLAS_RDMA_LEFT_RAILS": [
+          null,
+          "rocep1s0f1,roceP2p1s0f1"
+        ],
+        "ATLAS_RDMA_TOPOLOGY": [
+          "chain",
+          "ring"
+        ],
+        "ATLAS_SSM_TIER_SWAP_DIR": [
+          "/prefix-cache/tp4/chain/spark/ssm",
+          "/prefix-cache/tp4/ring/spark/ssm"
+        ],
+        "ATLAS_KV_NVME_DIR": [
+          "/prefix-cache/tp4/chain/spark/kv",
+          "/prefix-cache/tp4/ring/spark/kv"
+        ]
+      }
+    },
+    {
+      "host": "ennspark02",
+      "differences": {
+        "ATLAS_RDMA_TOPOLOGY": [
+          "chain",
+          "ring"
+        ],
+        "ATLAS_SSM_TIER_SWAP_DIR": [
+          "/prefix-cache/tp4/chain/spark/ssm",
+          "/prefix-cache/tp4/ring/spark/ssm"
+        ],
+        "ATLAS_KV_NVME_DIR": [
+          "/prefix-cache/tp4/chain/spark/kv",
+          "/prefix-cache/tp4/ring/spark/kv"
+        ]
+      }
+    },
+    {
+      "host": "ennspark03",
+      "differences": {
+        "ATLAS_RDMA_TOPOLOGY": [
+          "chain",
+          "ring"
+        ],
+        "ATLAS_SSM_TIER_SWAP_DIR": [
+          "/prefix-cache/tp4/chain/spark/ssm",
+          "/prefix-cache/tp4/ring/spark/ssm"
+        ],
+        "ATLAS_KV_NVME_DIR": [
+          "/prefix-cache/tp4/chain/spark/kv",
+          "/prefix-cache/tp4/ring/spark/kv"
+        ]
+      }
+    },
+    {
+      "host": "ennspark04",
+      "differences": {
+        "ATLAS_RDMA_RIGHT_RAILS": [
+          null,
+          "rocep1s0f0,roceP2p1s0f0"
+        ],
+        "ATLAS_RDMA_TOPOLOGY": [
+          "chain",
+          "ring"
+        ],
+        "ATLAS_SSM_TIER_SWAP_DIR": [
+          "/prefix-cache/tp4/chain/spark/ssm",
+          "/prefix-cache/tp4/ring/spark/ssm"
+        ],
+        "ATLAS_KV_NVME_DIR": [
+          "/prefix-cache/tp4/chain/spark/kv",
+          "/prefix-cache/tp4/ring/spark/kv"
+        ]
+      }
+    }
+  ],
+  "source_files": {
+    "chain": "results/tp4-chain-spark-final/speed.json",
+    "ring": "results/tp4-ring-spark-final/speed.json"
+  }
+}

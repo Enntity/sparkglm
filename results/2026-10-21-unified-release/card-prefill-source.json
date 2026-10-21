@@ -1,0 +1,97 @@
+{
+  "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+  "scope": "TP2 GLM FP4-Local only. Both GPUs uncapped during measurements.",
+  "profile": "4x1m, .91, KV sharding, display carveout, 48 GiB prefix cache, Low reasoning",
+  "spark_prefill": {
+    "32768": {
+      "cold": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 2853.446,
+          "median": 2848.963,
+          "minimum": 2844.48,
+          "p90": 2853.446
+        },
+        "ttft_seconds": {
+          "maximum": 11.52,
+          "median": 11.502,
+          "minimum": 11.484,
+          "p90": 11.52
+        }
+      },
+      "warm_replay": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 182110.206,
+          "median": 179708.794,
+          "minimum": 177307.382,
+          "p90": 182110.206
+        },
+        "ttft_seconds": {
+          "maximum": 0.185,
+          "median": 0.182,
+          "minimum": 0.18,
+          "p90": 0.185
+        }
+      }
+    },
+    "65536": {
+      "cold": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 3014.369,
+          "median": 3008.119,
+          "minimum": 3001.87,
+          "p90": 3014.369
+        },
+        "ttft_seconds": {
+          "maximum": 21.832,
+          "median": 21.786,
+          "minimum": 21.741,
+          "p90": 21.832
+        }
+      },
+      "warm_replay": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 331004.945,
+          "median": 330735.386,
+          "minimum": 330465.827,
+          "p90": 331004.945
+        },
+        "ttft_seconds": {
+          "maximum": 0.198,
+          "median": 0.198,
+          "minimum": 0.198,
+          "p90": 0.198
+        }
+      }
+    },
+    "8192": {
+      "cold": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 2754.124,
+          "median": 2749.064,
+          "minimum": 2744.005,
+          "p90": 2754.124
+        },
+        "ttft_seconds": {
+          "maximum": 2.985,
+          "median": 2.98,
+          "minimum": 2.974,
+          "p90": 2.985
+        }
+      },
+      "warm_replay": {
+        "effective_prefill_tokens_per_second": {
+          "maximum": 46374.186,
+          "median": 45798.439,
+          "minimum": 45222.691,
+          "p90": 46374.186
+        },
+        "ttft_seconds": {
+          "maximum": 0.181,
+          "median": 0.179,
+          "minimum": 0.177,
+          "p90": 0.181
+        }
+      }
+    }
+  }
+}

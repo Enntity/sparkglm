@@ -8,17 +8,16 @@
 #include <cstdint>
 
 #include "fwd.h"
+#include "utils.cuh"
 
 extern "C" long long atlas_flash_kda_workspace_size(int total_tokens,
                                                      int heads,
                                                      int sequences) {
   if (total_tokens <= 0 || heads <= 0 || sequences <= 0) return -1;
   constexpr long long chunk = 16;
-  constexpr long long dimension = 128;
   const long long total_tiles =
       (total_tokens + chunk - 1) / chunk + sequences;
-  const long long per_tile = 3 * chunk * dimension * 2 + dimension * 4 +
-                             2 * chunk * chunk * 2;
+  const long long per_tile = WorkspaceSizes<chunk, 128>::kPerTile;
   const long long prefix = ((sequences + 1) * 4 + 127) / 128 * 128;
   return heads * total_tiles * per_tile + prefix;
 }

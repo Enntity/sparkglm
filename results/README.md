@@ -1,5 +1,10 @@
 # Results
 
+- [Unified TP2/TP4 release, 2026-10-21](2026-10-21-unified-release/RESULT.md): published identity, deployment, current quick decode and provenance.
+- [Unified qualification](2026-10-21-unified-rc/RESULT.md): TP2/TP4 Strict/Spark, chain/ring, cache restore and native MTP.
+- [Retained TP2 campaign](2026-10-20-tp2-qualification/RESULT.md): full measured suite and its original failed gates, resolved by the later focused checks.
+
+
 Each directory is one measured configuration: `RESULT.md` says what was run
 and what it showed, `raw/` holds the unedited receipts, and `SHA256SUMS`
 covers every raw file.

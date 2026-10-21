@@ -5,8 +5,14 @@ Run one workload at a time, with nothing else using the pair. They need only
 Python 3; the comparison videos also need Pillow and ffmpeg.
 
 The current release's numbers and raw receipts are in
-[`results/2026-10-17-fp4local/`](../results/2026-10-17-fp4local/RESULT.md); earlier
+[`results/2026-10-21-unified-release/`](../results/2026-10-21-unified-release/RESULT.md); earlier
 releases' are in the other folders under [`results/`](../results/).
+
+## Historical benchmark commands
+
+The commands below reproduce their dated studies. The unified release report
+includes the exact quick-comparison requests and the scope of retained TP2
+benchmark evidence.
 
 ## Default profile (4 × 1M)
 

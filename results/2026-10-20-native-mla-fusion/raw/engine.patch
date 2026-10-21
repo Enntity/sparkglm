@@ -1,0 +1,839 @@
+commit 1b186c435a8fd2e2b9da7c41c8c0375a7d90834f
+Author:     Jason McCartney <jmac@theroot.org>
+AuthorDate: Tue Oct 20 15:48:11 2026 -0700
+Commit:     Jason McCartney <jmac@theroot.org>
+CommitDate: Tue Oct 20 15:48:11 2026 -0700
+
+    sparkglm: fuse native FP8 MLA front on TP2
+
+diff --git a/crates/spark-model/src/layers/ops/glm_mla_fuse.rs b/crates/spark-model/src/layers/ops/glm_mla_fuse.rs
+index b441530ce..799da9367 100644
+--- a/crates/spark-model/src/layers/ops/glm_mla_fuse.rs
++++ b/crates/spark-model/src/layers/ops/glm_mla_fuse.rs
+@@ -56,6 +56,7 @@ pub fn glm_mla_fuse_requested() -> Result<bool> {
+ #[derive(Clone, Copy, Debug)]
+ pub struct MlaFuse {
+     down: [KernelHandle; 3],
++    down_fp8b: [KernelHandle; 3],
+     mid: KernelHandle,
+ }
+ 
+@@ -87,9 +88,21 @@ impl MlaFuse {
+                 "glm_mla_down_fuse_tc32",
+             ]
+             .map(kernel),
++            down_fp8b: [
++                "glm_mla_down_fuse_fp8b_tc8",
++                "glm_mla_down_fuse_fp8b_tc16",
++                "glm_mla_down_fuse_fp8b_tc32",
++            ]
++            .map(kernel),
+             mid: kernel("glm_mla_mid_fuse"),
+         };
+-        (this.mid.0 != 0 && this.down.iter().all(|k| k.0 != 0)).then_some(this)
++        (this.mid.0 != 0
++            && this
++                .down
++                .iter()
++                .chain(this.down_fp8b.iter())
++                .all(|k| k.0 != 0))
++        .then_some(this)
+     }
+ }
+ 
+@@ -106,7 +119,8 @@ pub fn initialize_glm_mla_fuse(
+     Ok(())
+ }
+ 
+-/// One MXFP8 projection: values `[n, k]` and E8M0 scales `[n, k / 32]`.
++/// One row-major FP8 projection. Scales are E8M0 per 32 values for MXFP8,
++/// or FP32 per 128x128 block when `DownArgs::fp8_block` is true.
+ #[derive(Clone, Copy, Debug)]
+ pub struct MxProj {
+     pub data: DevicePtr,
+@@ -121,6 +135,7 @@ pub struct MxProj {
+ /// geometry ([`super::GemvTouch`]), or `None` for no touch.
+ #[derive(Clone, Copy, Debug)]
+ pub struct DownArgs {
++    pub fp8_block: bool,
+     pub input: DevicePtr,
+     pub rows: u32,
+     pub k: u32,
+@@ -139,11 +154,18 @@ pub struct DownArgs {
+ /// within `budget` bytes in all.
+ fn touch_bytes(a: &DownArgs, budget: u64) -> [u32; 6] {
+     let k = u64::from(a.k);
++    let scales = |n: u32| {
++        if a.fp8_block {
++            u64::from(n.div_ceil(128)) * k.div_ceil(128) * 4
++        } else {
++            u64::from(n) * k / 32
++        }
++    };
+     let sizes = [
+         u64::from(a.q_a.n) * k,
+-        u64::from(a.q_a.n) * k / 32,
++        scales(a.q_a.n),
+         u64::from(a.kv_a.n) * k,
+-        u64::from(a.kv_a.n) * k / 32,
++        scales(a.kv_a.n),
+         u64::from(a.ni) * k * 2,
+         u64::from(a.ni) * k * 2,
+     ];
+@@ -202,7 +224,7 @@ impl MlaFuse {
+     pub fn launch_down(&self, gpu: &dyn GpuBackend, a: &DownArgs, stream: u64) -> Result<()> {
+         ensure!(
+             (1..=MLA_FUSE_MAX_ROWS).contains(&a.rows)
+-                && a.k.is_multiple_of(64)
++                && a.k.is_multiple_of(if a.fp8_block { 128 } else { 64 })
+                 && a.ni.is_multiple_of(16)
+                 && a.q_a.n.is_multiple_of(16)
+                 && a.kv_a.n.is_multiple_of(16),
+@@ -221,7 +243,13 @@ impl MlaFuse {
+         let (budget, ctas) = a.touch.unwrap_or((0, 1));
+         let touch = touch_bytes(a, budget);
+         let grid = 2 * div_ceil(a.ni, 16) + div_ceil(a.q_a.n, 16) + div_ceil(a.kv_a.n, 16);
+-        let mut launch = KernelLaunch::new(gpu, self.down[tier])
++        let kernel = if a.fp8_block {
++            self.down_fp8b[tier]
++        } else {
++            self.down[tier]
++        };
++        ensure!(kernel.0 != 0, "fused GLM MLA native FP8 kernel unavailable");
++        let mut launch = KernelLaunch::new(gpu, kernel)
+             .grid([grid, 1, 1])
+             .block([256, 1, 1])
+             .arg_ptr(a.input)
+@@ -331,7 +359,8 @@ mod tests {
+             out: DevicePtr::NULL,
+             n,
+         };
+-        let a = DownArgs {
++        let mut a = DownArgs {
++            fp8_block: false,
+             input: DevicePtr::NULL,
+             rows: 3,
+             k: 4096,
+@@ -358,6 +387,21 @@ mod tests {
+         let budget = 1536 * 4096 + 1000;
+         assert_eq!(touch_bytes(&a, budget), [1536 * 4096, 1000, 0, 0, 0, 0]);
+         assert_eq!(touch_bytes(&a, 0), [0; 6]);
++        a.fp8_block = true;
++        assert_eq!(
++            touch_bytes(&a, 12 << 20),
++            [
++                1536 * 4096,
++                12 * 32 * 4,
++                512 * 4096,
++                4 * 32 * 4,
++                128 * 8192,
++                128 * 8192
++            ]
++        );
++        // Native scales have a final partial 128-row block at other shapes.
++        a.kv_a.n = 528;
++        assert_eq!(touch_bytes(&a, 12 << 20)[3], 5 * 32 * 4);
+     }
+ }
+ 
+diff --git a/crates/spark-model/src/layers/ops/glm_mla_fuse_test_gpu.rs b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_gpu.rs
+index 55ce474a6..886a30498 100644
+--- a/crates/spark-model/src/layers/ops/glm_mla_fuse_test_gpu.rs
++++ b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_gpu.rs
+@@ -105,6 +105,7 @@ fn mx(gpu: &dyn GpuBackend, rng: &mut Rng, n: u32) -> Result<(DevicePtr, DeviceP
+ 
+ /// The layer's weights, shared by both runs.
+ struct Weights {
++    fp8_block: bool,
+     q_a: (DevicePtr, DevicePtr),
+     kv_a: (DevicePtr, DevicePtr),
+     wk: DevicePtr,
+@@ -117,10 +118,12 @@ struct Weights {
+ }
+ 
+ impl Weights {
+-    fn new(gpu: &dyn GpuBackend, rng: &mut Rng) -> Result<Self> {
++    fn new(gpu: &dyn GpuBackend, rng: &mut Rng, fp8_block: bool) -> Result<Self> {
++        let weight = if fp8_block { native::weight } else { mx };
+         Ok(Self {
+-            q_a: mx(gpu, rng, QL)?,
+-            kv_a: mx(gpu, rng, KVL)?,
++            fp8_block,
++            q_a: weight(gpu, rng, QL)?,
++            kv_a: weight(gpu, rng, KVL)?,
+             wk: upload(gpu, &bf16_bytes((ID * H) as usize, rng, 0.02, 0.0))?,
+             gate: upload(gpu, &bf16_bytes((ID * H) as usize, rng, 0.02, 0.0))?,
+             q_norm: upload(gpu, &bf16_bytes(QL as usize, rng, 0.25, 1.0))?,
+@@ -274,126 +277,9 @@ fn kernel(gpu: &dyn GpuBackend, module: &str, name: &str) -> Result<KernelHandle
+     Ok(k)
+ }
+ 
+-/// The twelve launches, as the canonical verify runs them.
+-fn unfused(
+-    gpu: &dyn GpuBackend,
+-    w: &Weights,
+-    run: &Run,
+-    meta: &Meta,
+-    input: DevicePtr,
+-    rows: u32,
+-    owner: ShardRank,
+-    s: u64,
+-) -> Result<()> {
+-    let tier = |m: u32| match m {
+-        1..=8 => "8",
+-        9..=16 => "16",
+-        _ => "32",
+-    };
+-    let mxk = kernel(gpu, "mxfp8_gemv", &format!("mxfp8_gemv_tc{}", tier(rows)))?;
+-    let dk = kernel(
+-        gpu,
+-        "dense_gemv_bf16_batchm",
+-        &format!("dense_gemv_bf16_tc{}", tier(rows)),
+-    )?;
+-    let norm = kernel(gpu, "glm_rms_norm_regs", "rms_norm_vanilla_regs")?;
+-    let idx = |name| kernel(gpu, "glm_indexer", name);
+-    let dw = |weight| DenseWeight { weight };
+-    ops::mxfp8_gemv(gpu, mxk, input, w.q_a.0, w.q_a.1, run.q, rows, QL, H, QL, s)?;
+-    ops::rms_norm(gpu, norm, run.q, &dw(w.q_norm), run.q, rows, QL, 1e-6, s)?;
+-    ops::mxfp8_gemv(
+-        gpu, mxk, input, w.kv_a.0, w.kv_a.1, run.kv, rows, KVL, H, KVL, s,
+-    )?;
+-    ops::rms_norm(
+-        gpu,
+-        norm,
+-        run.kv,
+-        &dw(w.kv_norm),
+-        run.kv,
+-        rows,
+-        KVL,
+-        1e-6,
+-        s,
+-    )?;
+-    let v_entries = run.entries.offset(rows as usize * KVL as usize * 2);
+-    let assemble = kernel(gpu, "mla_absorbed", "mla_cache_assemble_batched")?;
+-    ops::mla_cache_assemble_batched(
+-        gpu,
+-        assemble,
+-        run.kv,
+-        DevicePtr::NULL,
+-        run.entries,
+-        v_entries,
+-        rows,
+-        KVL,
+-        0,
+-        KVL,
+-        s,
+-    )?;
+-    let slots = if owner.world > 1 {
+-        ops::glm_kv_shard_map_slots(gpu, meta.slots, run.local, rows, BS, owner, s)?;
+-        run.local
+-    } else {
+-        meta.slots
+-    };
+-    let write = kernel(gpu, "reshape_and_cache", "glm_latent_cache_write_fp8g128")?;
+-    ops::glm_latent_cache_write_fp8g128(
+-        gpu,
+-        write,
+-        run.entries,
+-        run.latent,
+-        slots,
+-        rows,
+-        BS,
+-        KVL,
+-        s,
+-    )?;
+-    ops::dense_gemv_bf16_tc(gpu, dk, input, &dw(w.wk), run.keys, rows, ID, H, ID, s)?;
+-    let ln = idx("glm_index_layernorm_bf16")?;
+-    ops::glm_index_layernorm(gpu, ln, run.keys, w.k_norm_w, w.k_norm_b, rows, ID, 1e-6, s)?;
+-    ops::dense_gemv_bf16_tc(gpu, dk, input, &dw(w.gate), run.gates, rows, ID, H, ID, s)?;
+-    let tail = idx("glm_index_tail_write_bf16")?;
+-    let (keys, gates, tm) = (run.keys, run.gates, DevicePtr::NULL);
+-    ops::glm_index_tail_write(
+-        gpu,
+-        tail,
+-        keys,
+-        gates,
+-        run.tail,
+-        tm,
+-        meta.slots,
+-        rows,
+-        BS,
+-        4,
+-        ID,
+-        TAIL_STRIDE,
+-        s,
+-    )?;
+-    let fin = idx("glm_index_kpool_finalize_bf16")?;
+-    ops::glm_index_kpool_finalize(
+-        gpu,
+-        fin,
+-        run.tail,
+-        tm,
+-        w.ape,
+-        run.pool,
+-        meta.slots,
+-        rows,
+-        BS,
+-        4,
+-        ID,
+-        TAIL_STRIDE,
+-        POOL_STRIDE,
+-        s,
+-    )?;
+-    if owner.world > 1 {
+-        let (ids, counts) = (run.ids, run.counts);
+-        ops::glm_kv_shard_localize(
+-            gpu, None, ids, counts, meta.table, rows, WIDTH, BS, owner, meta.start, s,
+-        )?;
+-    }
+-    Ok(())
+-}
++#[path = "glm_mla_fuse_test_reference.rs"]
++mod reference;
++use reference::unfused;
+ 
+ /// The two launches.
+ fn fused(
+@@ -414,6 +300,7 @@ fn fused(
+         n,
+     };
+     let down = DownArgs {
++        fp8_block: w.fp8_block,
+         input,
+         rows,
+         k: H,
+@@ -464,17 +351,21 @@ fn fused(
+ #[test]
+ #[ignore = "needs a GB10 and the glm-5.3-flash kernels"]
+ fn fused_front_matches_the_twelve_launches() -> Result<()> {
++    compare_front(false)
++}
++
++fn compare_front(fp8_block: bool) -> Result<()> {
+     let gpu = backend()?;
+     let f = MlaFuse::load(gpu).context("glm_mla_fuse kernels")?;
+     let s = gpu.default_stream();
+     let mut rng = Rng(0x6d6c_6166_7573_6501);
+-    let w = Weights::new(gpu, &mut rng)?;
++    let w = Weights::new(gpu, &mut rng, fp8_block)?;
+     let owners = [
+         ShardRank { rank: 0, world: 1 },
+         ShardRank { rank: 0, world: 2 },
+         ShardRank { rank: 1, world: 2 },
+     ];
+-    for rows in (1..=32).filter(|r| *r <= 8 || r % 4 == 0 || [9, 17, 31].contains(r)) {
++    for rows in 1..=32 {
+         let (a, b) = (Run::new(gpu, rows)?, Run::new(gpu, rows)?);
+         // Mid-pool and mid-block starts, and a block ending at 2048.
+         for start in [29u32, 64, 126, 2016 - rows.min(16)] {
+@@ -523,3 +414,6 @@ fn fused_front_matches_the_twelve_launches() -> Result<()> {
+     );
+     Ok(())
+ }
++
++#[path = "glm_mla_fuse_test_native.rs"]
++mod native;
+diff --git a/crates/spark-model/src/layers/ops/glm_mla_fuse_test_native.rs b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_native.rs
+new file mode 100644
+index 000000000..06583c0ea
+--- /dev/null
++++ b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_native.rs
+@@ -0,0 +1,119 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++use super::*;
++
++/// Native E4M3 bytes and independently varied non-power-of-two FP32 block
++/// scales. Applying a BF16-rounded scale before the MMA must fail parity.
++pub(super) fn weight(
++    gpu: &dyn GpuBackend,
++    rng: &mut Rng,
++    n: u32,
++) -> Result<(DevicePtr, DevicePtr)> {
++    let values: Vec<u8> = (0..n * H).map(|_| rng.next() as u8 & 0xbf).collect();
++    let scales: Vec<u8> = (0..n.div_ceil(128) * (H / 128))
++        .flat_map(|_| (0.003 + 0.009 * (rng.unit() + 1.0)).to_le_bytes())
++        .collect();
++    Ok((upload(gpu, &values)?, upload(gpu, &scales)?))
++}
++
++#[test]
++#[ignore = "needs a GB10 and the glm-5.3-flash kernels"]
++fn native_fp8_fused_front_is_byte_exact() -> Result<()> {
++    compare_front(true)
++}
++
++#[test]
++#[ignore = "needs a GB10 and the glm-5.3-flash kernels"]
++fn native_fp8_raw_projections_are_byte_exact_with_and_without_touch() -> Result<()> {
++    let gpu = backend()?;
++    let f = MlaFuse::load(gpu).context("glm_mla_fuse kernels")?;
++    let s = gpu.default_stream();
++    let mut rng = Rng(0x6d6c_6166_7038_0001);
++    let w = Weights::new(gpu, &mut rng, true)?;
++    for rows in 1..=32 {
++        let (a, b) = (Run::new(gpu, rows)?, Run::new(gpu, rows)?);
++        let input = upload(gpu, &bf16_bytes((rows * H) as usize, &mut rng, 1.0, 0.0))?;
++        let tier = if rows <= 8 {
++            8
++        } else if rows <= 16 {
++            16
++        } else {
++            32
++        };
++        let k = kernel(gpu, "mxfp8_gemv", &format!("fp8b_gemv_tc{tier}"))?;
++        gemv(gpu, k, input, w.q_a.0, w.q_a.1, a.q, rows, QL, H, QL, s)?;
++        gemv(
++            gpu, k, input, w.kv_a.0, w.kv_a.1, a.kv, rows, KVL, H, KVL, s,
++        )?;
++        let proj = |(data, scales), out, n| MxProj {
++            data,
++            scales,
++            out,
++            n,
++        };
++        for touch in [None, Some((12 << 20, 32))] {
++            f.launch_down(
++                gpu,
++                &DownArgs {
++                    fp8_block: true,
++                    input,
++                    rows,
++                    k: H,
++                    wk: w.wk,
++                    gate: w.gate,
++                    keys: b.keys,
++                    gates: b.gates,
++                    ni: ID,
++                    q_a: proj(w.q_a, b.q, QL),
++                    kv_a: proj(w.kv_a, b.kv, KVL),
++                    touch,
++                },
++                s,
++            )?;
++            gpu.synchronize(s)?;
++            for (name, want, got, n) in [("q", a.q, b.q, QL), ("kv", a.kv, b.kv, KVL)] {
++                let bytes = (rows * n * 2) as usize;
++                let (want, got) = (raw(gpu, want, bytes)?, raw(gpu, got, bytes)?);
++                let first = want.iter().zip(&got).position(|(a, b)| a != b);
++                anyhow::ensure!(
++                    first.is_none(),
++                    "native raw {name}: rows {rows}, touch {touch:?}, byte {first:?}"
++                );
++            }
++        }
++        a.free(gpu)?;
++        b.free(gpu)?;
++        gpu.free(input)?;
++    }
++    Ok(())
++}
++
++// Match fp8b_gemv_tc*'s ten-argument ABI, including disabled touch geometry.
++#[allow(clippy::too_many_arguments)]
++pub(super) fn gemv(
++    gpu: &dyn GpuBackend,
++    kernel: KernelHandle,
++    input: DevicePtr,
++    data: DevicePtr,
++    scales: DevicePtr,
++    out: DevicePtr,
++    m: u32,
++    n: u32,
++    k: u32,
++    stride: u32,
++    stream: u64,
++) -> Result<()> {
++    KernelLaunch::new(gpu, kernel)
++        .grid([n.div_ceil(16), 1, 1])
++        .block([256, 1, 1])
++        .arg_ptr(input)
++        .arg_ptr(data)
++        .arg_ptr(scales)
++        .arg_ptr(out)
++        .arg_u32(m)
++        .arg_u32(n)
++        .arg_u32(k)
++        .arg_u32(stride)
++        .arg_u32(0)
++        .arg_u32(1)
++        .launch(stream)
++}
+diff --git a/crates/spark-model/src/layers/ops/glm_mla_fuse_test_reference.rs b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_reference.rs
+new file mode 100644
+index 000000000..8daff4841
+--- /dev/null
++++ b/crates/spark-model/src/layers/ops/glm_mla_fuse_test_reference.rs
+@@ -0,0 +1,133 @@
++// SPDX-License-Identifier: AGPL-3.0-only
++use super::*;
++
++/// The twelve launches, as the canonical verify runs them.
++pub(super) fn unfused(
++    gpu: &dyn GpuBackend,
++    w: &Weights,
++    run: &Run,
++    meta: &Meta,
++    input: DevicePtr,
++    rows: u32,
++    owner: ShardRank,
++    s: u64,
++) -> Result<()> {
++    let tier = |m: u32| match m {
++        1..=8 => "8",
++        9..=16 => "16",
++        _ => "32",
++    };
++    let family = if w.fp8_block { "fp8b" } else { "mxfp8" };
++    let mxk = kernel(
++        gpu,
++        "mxfp8_gemv",
++        &format!("{family}_gemv_tc{}", tier(rows)),
++    )?;
++    let dk = kernel(
++        gpu,
++        "dense_gemv_bf16_batchm",
++        &format!("dense_gemv_bf16_tc{}", tier(rows)),
++    )?;
++    let gemv = if w.fp8_block {
++        native::gemv
++    } else {
++        ops::mxfp8_gemv
++    };
++    let norm = kernel(gpu, "glm_rms_norm_regs", "rms_norm_vanilla_regs")?;
++    let idx = |name| kernel(gpu, "glm_indexer", name);
++    let dw = |weight| DenseWeight { weight };
++    gemv(gpu, mxk, input, w.q_a.0, w.q_a.1, run.q, rows, QL, H, QL, s)?;
++    ops::rms_norm(gpu, norm, run.q, &dw(w.q_norm), run.q, rows, QL, 1e-6, s)?;
++    gemv(
++        gpu, mxk, input, w.kv_a.0, w.kv_a.1, run.kv, rows, KVL, H, KVL, s,
++    )?;
++    ops::rms_norm(
++        gpu,
++        norm,
++        run.kv,
++        &dw(w.kv_norm),
++        run.kv,
++        rows,
++        KVL,
++        1e-6,
++        s,
++    )?;
++    let v_entries = run.entries.offset(rows as usize * KVL as usize * 2);
++    let assemble = kernel(gpu, "mla_absorbed", "mla_cache_assemble_batched")?;
++    ops::mla_cache_assemble_batched(
++        gpu,
++        assemble,
++        run.kv,
++        DevicePtr::NULL,
++        run.entries,
++        v_entries,
++        rows,
++        KVL,
++        0,
++        KVL,
++        s,
++    )?;
++    let slots = if owner.world > 1 {
++        ops::glm_kv_shard_map_slots(gpu, meta.slots, run.local, rows, BS, owner, s)?;
++        run.local
++    } else {
++        meta.slots
++    };
++    let write = kernel(gpu, "reshape_and_cache", "glm_latent_cache_write_fp8g128")?;
++    ops::glm_latent_cache_write_fp8g128(
++        gpu,
++        write,
++        run.entries,
++        run.latent,
++        slots,
++        rows,
++        BS,
++        KVL,
++        s,
++    )?;
++    ops::dense_gemv_bf16_tc(gpu, dk, input, &dw(w.wk), run.keys, rows, ID, H, ID, s)?;
++    let ln = idx("glm_index_layernorm_bf16")?;
++    ops::glm_index_layernorm(gpu, ln, run.keys, w.k_norm_w, w.k_norm_b, rows, ID, 1e-6, s)?;
++    ops::dense_gemv_bf16_tc(gpu, dk, input, &dw(w.gate), run.gates, rows, ID, H, ID, s)?;
++    let tail = idx("glm_index_tail_write_bf16")?;
++    let (keys, gates, tm) = (run.keys, run.gates, DevicePtr::NULL);
++    ops::glm_index_tail_write(
++        gpu,
++        tail,
++        keys,
++        gates,
++        run.tail,
++        tm,
++        meta.slots,
++        rows,
++        BS,
++        4,
++        ID,
++        TAIL_STRIDE,
++        s,
++    )?;
++    let fin = idx("glm_index_kpool_finalize_bf16")?;
++    ops::glm_index_kpool_finalize(
++        gpu,
++        fin,
++        run.tail,
++        tm,
++        w.ape,
++        run.pool,
++        meta.slots,
++        rows,
++        BS,
++        4,
++        ID,
++        TAIL_STRIDE,
++        POOL_STRIDE,
++        s,
++    )?;
++    if owner.world > 1 {
++        let (ids, counts) = (run.ids, run.counts);
++        ops::glm_kv_shard_localize(
++            gpu, None, ids, counts, meta.table, rows, WIDTH, BS, owner, meta.start, s,
++        )?;
++    }
++    Ok(())
++}
+diff --git a/crates/spark-model/src/layers/qwen3_attention/mla_native.rs b/crates/spark-model/src/layers/qwen3_attention/mla_native.rs
+index f7b1517a4..d82654502 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/mla_native.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/mla_native.rs
+@@ -17,10 +17,9 @@
+ //! mapped address as the lookup key: a reader this module does not route
+ //! faults instead of reading freed memory.
+ //!
+-//! What is lost: the fused front (`ATLAS_GLM_MLA_FUSE`, off by default) reads
+-//! MXFP8 twins of q_a / kv_a, which a native layer does not have, so it
+-//! declines and the unfused front runs; the q_a / kv_a weight-touch twins
+-//! (`ATLAS_GLM_DECODE_GEMV_BATCH`) are MXFP8-only and are skipped.
++//! The fused front (`ATLAS_GLM_MLA_FUSE`) can read native q_a / kv_a on
++//! TP2 through the same FP8 block CTA body. Their checkpoint bytes and
++//! FP32 block-scale arithmetic are unchanged.
+ 
+ use anyhow::{Result, ensure};
+ use spark_runtime::gpu::DevicePtr;
+@@ -72,7 +71,10 @@ impl Qwen3AttentionLayer {
+     }
+ 
+     /// The native twin keyed by `weight`, with its `[n, k]`.
+-    fn mla_native_twin(&self, weight: DevicePtr) -> Option<([usize; 2], &Fp8BlockWeight)> {
++    pub(super) fn mla_native_twin(
++        &self,
++        weight: DevicePtr,
++    ) -> Option<([usize; 2], &Fp8BlockWeight)> {
+         self.mla_native
+             .twins
+             .iter()
+diff --git a/crates/spark-model/src/layers/qwen3_attention/prefill/paged_glm_front.rs b/crates/spark-model/src/layers/qwen3_attention/prefill/paged_glm_front.rs
+index 3e729b9f9..7d1ca4e07 100644
+--- a/crates/spark-model/src/layers/qwen3_attention/prefill/paged_glm_front.rs
++++ b/crates/spark-model/src/layers/qwen3_attention/prefill/paged_glm_front.rs
+@@ -190,7 +190,7 @@ impl Qwen3AttentionLayer {
+ 
+     /// The fused front ([`ops::MlaFuse`]) where it applies: a canonical
+     /// verify block of at most `MLA_FUSE_MAX_ROWS` rows with nothing below
+-    /// the write floor, the MXFP8 q_a / kv_a and BF16 index projections the
++    /// the write floor, the MXFP8 or native FP8 q_a / kv_a and BF16 index projections the
+     /// canonical path would run, an fp8_g128 latent cache and the BF16
+     /// four-token semantic index. Returns whether it localized the owner.
+     fn glm_front_fused(
+@@ -221,13 +221,37 @@ impl Qwen3AttentionLayer {
+                 && s.head_dim == ctx.config.index_head_dim
+                 && index_dim == 128
+         });
+-        let (Some(Some(q_a)), Some(Some(kv_a)), Some(None), Some(None)) = (
+-            mx(&mla.wq_a),
+-            mx(&mla.wkv_a),
+-            mx(&indexer.wk),
+-            mx(&indexer.kpool_gate),
+-        ) else {
++        if !matches!(
++            (mx(&indexer.wk), mx(&indexer.kpool_gate)),
++            (Some(None), Some(None))
++        ) || self.mla_is_native(&indexer.wk)
++            || self.mla_is_native(&indexer.kpool_gate)
++        {
+             return Ok(None);
++        }
++        let native = (
++            self.mla_native_twin(mla.wq_a.weight),
++            self.mla_native_twin(mla.wkv_a.weight),
++        );
++        let (qa_data, qa_scales, kva_data, kva_scales, fp8_block) = match native {
++            (Some((q_shape, q)), Some((kv_shape, kv)))
++                if ctx.config.tp_world_size == 2
++                    && !crate::layers::glm_packed_scope::active()
++                    && !q.tiled
++                    && !kv.tiled
++                    && args.h.is_multiple_of(128)
++                    && q_shape == [mla.q_lora_rank, args.h as usize]
++                    && kv_shape == [mla.kv_lora_rank, args.h as usize] =>
++            {
++                (q.data, q.scales, kv.data, kv.scales, true)
++            }
++            (None, None) => match (mx(&mla.wq_a), mx(&mla.wkv_a)) {
++                (Some(Some(q)), Some(Some(kv))) if !q.tiled && !kv.tiled => {
++                    (q.data, q.scales, kv.data, kv.scales, false)
++                }
++                _ => return Ok(None),
++            },
++            _ => return Ok(None),
+         };
+         let n = args.n;
+         if !(ctx.config.model_type == "glm5_next"
+@@ -246,14 +270,11 @@ impl Qwen3AttentionLayer {
+         let (q_latent, kv_latent) = (ctx.buffers.ssm_ba(), ctx.buffers.expert_gate_out());
+         let keys = ctx.buffers.ssm_qkvz();
+         let gates = keys.offset(n as usize * index_dim as usize * 2);
+-        let proj = |w: crate::weight_map::Mxfp8Weight, out, rows: usize| {
+-            debug_assert!(!w.tiled, "the fused front reads row-major q_a / kv_a twins");
+-            ops::MxProj {
+-                data: w.data,
+-                scales: w.scales,
+-                out,
+-                n: rows as u32,
+-            }
++        let proj = |data, scales, out, rows: usize| ops::MxProj {
++            data,
++            scales,
++            out,
++            n: rows as u32,
+         };
+         // The q_a / kv_a touch twins' geometry, where they ran (<= 16 rows).
+         let touch = (n <= 16)
+@@ -261,6 +282,7 @@ impl Qwen3AttentionLayer {
+             .flatten()
+             .map(|t| (t.bytes, t.ctas));
+         let down = ops::DownArgs {
++            fp8_block,
+             input: args.normed,
+             rows: n,
+             k: args.h,
+@@ -269,8 +291,8 @@ impl Qwen3AttentionLayer {
+             keys,
+             gates,
+             ni: index_dim,
+-            q_a: proj(q_a, q_latent, mla.q_lora_rank),
+-            kv_a: proj(kv_a, kv_latent, mla.kv_lora_rank),
++            q_a: proj(qa_data, qa_scales, q_latent, mla.q_lora_rank),
++            kv_a: proj(kva_data, kva_scales, kv_latent, mla.kv_lora_rank),
+             touch,
+         };
+         let shard = kv_cache.latent_shard();
+diff --git a/crates/spark-runtime/src/cuda_backend/gpu_impl/pdl.rs b/crates/spark-runtime/src/cuda_backend/gpu_impl/pdl.rs
+index 39c23b218..549fd079f 100644
+--- a/crates/spark-runtime/src/cuda_backend/gpu_impl/pdl.rs
++++ b/crates/spark-runtime/src/cuda_backend/gpu_impl/pdl.rs
+@@ -142,6 +142,9 @@ pub(super) const PDL_KERNELS: &[&str] = &[
+     "glm_mla_down_fuse_tc8",
+     "glm_mla_down_fuse_tc16",
+     "glm_mla_down_fuse_tc32",
++    "glm_mla_down_fuse_fp8b_tc8",
++    "glm_mla_down_fuse_fp8b_tc16",
++    "glm_mla_down_fuse_fp8b_tc32",
+     "glm_mla_mid_fuse",
+     "rms_norm_vanilla",
+     "rms_norm_vanilla_regs",
+diff --git a/kernels/gb10/glm-5.3-flash/nvfp4/glm_mla_fuse.cu b/kernels/gb10/glm-5.3-flash/nvfp4/glm_mla_fuse.cu
+index 32c21365e..b58646953 100644
+--- a/kernels/gb10/glm-5.3-flash/nvfp4/glm_mla_fuse.cu
++++ b/kernels/gb10/glm-5.3-flash/nvfp4/glm_mla_fuse.cu
+@@ -48,7 +48,7 @@
+ // The indexer's key and gate CTAs, then q_a's, then kv_a's (16 output rows
+ // each). `wk` / `wg` are BF16 [ni, K]; q_a / kv_a MXFP8 values [n, K] and
+ // E8M0 scales [n, K/32].
+-template <int NT>
++template <int NT, bool B128 = false>
+ __device__ __forceinline__ void glm_mla_down_fuse_impl(
+     const __nv_bfloat16* __restrict__ A, const unsigned char* __restrict__ wk,
+     const unsigned char* __restrict__ wg, const unsigned char* __restrict__ wqa,
+@@ -68,10 +68,10 @@ __device__ __forceinline__ void glm_mla_down_fuse_impl(
+     }
+     b -= 2u * ic;
+     if (b < qc) {
+-        mxfp8_gemv_tc_cta<NT>(A, wqa, sqa, q_out, M, nq, K, K, nq, b);
++        mxfp8_gemv_tc_cta<NT, false, B128>(A, wqa, sqa, q_out, M, nq, K, K, nq, b);
+         return;
+     }
+-    mxfp8_gemv_tc_cta<NT>(A, wkva, skva, kv_out, M, nkv, K, K, nkv, b - qc);
++    mxfp8_gemv_tc_cta<NT, false, B128>(A, wkva, skva, kv_out, M, nkv, K, K, nkv, b - qc);
+ }
+ 
+ // This CTA's (projection, CTA within it, touching CTAs of it) for
+@@ -95,7 +95,7 @@ __device__ __forceinline__ GlmMlaDownRole glm_mla_down_role(
+ // ceil(nq/16) + ceil(nkv/16), 1, 1), block (256, 1, 1). `_tc{8,16,32}` take
+ // up to 8, 16 and 32 rows, the activation tiles (NT) of the canonical tiers
+ // the four launches ran at that row count.
+-template <int NT>
++template <int NT, bool B128 = false>
+ __device__ __forceinline__ void glm_mla_down_fuse_entry(
+     const __nv_bfloat16* __restrict__ A, const unsigned char* __restrict__ wk,
+     const unsigned char* __restrict__ wg, const unsigned char* __restrict__ wqa,
+@@ -111,7 +111,7 @@ __device__ __forceinline__ void glm_mla_down_fuse_entry(
+                               {wkva, touch_kva, 0ull}, {skva, touch_skva, 0ull},
+                               {wk, touch_wk, 0ull}, {wg, touch_wg, 0ull}, 1u,
+                               glm_mla_down_role(ni, nq, nkv, touch_ctas));
+-    glm_mla_down_fuse_impl<NT>(A, wk, wg, wqa, sqa, wkva, skva, keys, gates, q_out, kv_out, M, K,
++    glm_mla_down_fuse_impl<NT, B128>(A, wk, wg, wqa, sqa, wkva, skva, keys, gates, q_out, kv_out, M, K,
+                                ni, nq, nkv);
+ }
+ 
+@@ -163,6 +163,55 @@ extern "C" __global__ void __launch_bounds__(DG_TC_WARPS * WARP_SIZE) glm_mla_do
+                                touch_wg, touch_ctas);
+ }
+ 
++// Native E4M3 weights with FP32 128x128 block scales; identical CTA arithmetic.
++extern "C" __global__ void __launch_bounds__(DG_TC_WARPS * WARP_SIZE) glm_mla_down_fuse_fp8b_tc8(
++    const __nv_bfloat16* __restrict__ A, const unsigned char* __restrict__ wk,
++    const unsigned char* __restrict__ wg, const unsigned char* __restrict__ wqa,
++    const unsigned char* __restrict__ sqa, const unsigned char* __restrict__ wkva,
++    const unsigned char* __restrict__ skva, __nv_bfloat16* __restrict__ keys,
++    __nv_bfloat16* __restrict__ gates, __nv_bfloat16* __restrict__ q_out,
++    __nv_bfloat16* __restrict__ kv_out, unsigned int M, unsigned int K, unsigned int ni,
++    unsigned int nq, unsigned int nkv, unsigned int touch_qa, unsigned int touch_sqa,
++    unsigned int touch_kva, unsigned int touch_skva, unsigned int touch_wk,
++    unsigned int touch_wg, unsigned int touch_ctas
++) {
++    glm_mla_down_fuse_entry<1, true>(A, wk, wg, wqa, sqa, wkva, skva, keys, gates, q_out, kv_out, M, K,
++                               ni, nq, nkv, touch_qa, touch_sqa, touch_kva, touch_skva, touch_wk,
++                               touch_wg, touch_ctas);
++}
++
++extern "C" __global__ void __launch_bounds__(DG_TC_WARPS * WARP_SIZE) glm_mla_down_fuse_fp8b_tc16(
++    const __nv_bfloat16* __restrict__ A, const unsigned char* __restrict__ wk,
++    const unsigned char* __restrict__ wg, const unsigned char* __restrict__ wqa,
++    const unsigned char* __restrict__ sqa, const unsigned char* __restrict__ wkva,
++    const unsigned char* __restrict__ skva, __nv_bfloat16* __restrict__ keys,
++    __nv_bfloat16* __restrict__ gates, __nv_bfloat16* __restrict__ q_out,
++    __nv_bfloat16* __restrict__ kv_out, unsigned int M, unsigned int K, unsigned int ni,
++    unsigned int nq, unsigned int nkv, unsigned int touch_qa, unsigned int touch_sqa,
++    unsigned int touch_kva, unsigned int touch_skva, unsigned int touch_wk,
++    unsigned int touch_wg, unsigned int touch_ctas
++) {
++    glm_mla_down_fuse_entry<2, true>(A, wk, wg, wqa, sqa, wkva, skva, keys, gates, q_out, kv_out, M, K,
++                               ni, nq, nkv, touch_qa, touch_sqa, touch_kva, touch_skva, touch_wk,
++                               touch_wg, touch_ctas);
++}
++
++extern "C" __global__ void __launch_bounds__(DG_TC_WARPS * WARP_SIZE) glm_mla_down_fuse_fp8b_tc32(
++    const __nv_bfloat16* __restrict__ A, const unsigned char* __restrict__ wk,
++    const unsigned char* __restrict__ wg, const unsigned char* __restrict__ wqa,
++    const unsigned char* __restrict__ sqa, const unsigned char* __restrict__ wkva,
++    const unsigned char* __restrict__ skva, __nv_bfloat16* __restrict__ keys,
++    __nv_bfloat16* __restrict__ gates, __nv_bfloat16* __restrict__ q_out,
++    __nv_bfloat16* __restrict__ kv_out, unsigned int M, unsigned int K, unsigned int ni,
++    unsigned int nq, unsigned int nkv, unsigned int touch_qa, unsigned int touch_sqa,
++    unsigned int touch_kva, unsigned int touch_skva, unsigned int touch_wk,
++    unsigned int touch_wg, unsigned int touch_ctas
++) {
++    glm_mla_down_fuse_entry<4, true>(A, wk, wg, wqa, sqa, wkva, skva, keys, gates, q_out, kv_out, M, K,
++                               ni, nq, nkv, touch_qa, touch_sqa, touch_kva, touch_skva, touch_wk,
++                               touch_wg, touch_ctas);
++}
++
+ #define MLA_MID_THREADS 1024u
+ #define MLA_MID_INDEX_GROUP 128u
+ 

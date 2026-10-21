@@ -141,15 +141,32 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
     { cat /tmp/atlas-parser-check.log; exit 1; }; \
     cat /tmp/atlas-parser-check.log && grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-parser-check.log
 
-# DFlash verify: the argmax-only (TP2 vocab-split) head keeps every pick on the
-# raw argmax, and an exhausted thinking budget still closes `</think>`.
+# DFlash split-head verification must preserve the requested distribution,
+# including whole-row fallback and seeded serial/speculative equivalence.
+# Explicit thinking caps still close reasoning; a zero server ceiling stays
+# uncapped on spontaneous entry and re-entry. Completions expose original
+# generated token IDs only when requested. Request-level disable_mtp must
+# reach both handlers and override speculative dispatch. Each filter executes tests.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
-    set -eu; for check in dflash_seq_policy:2 verify_dflash_step::think_end:7; do \
+    set -eu; for filter in dflash_seq_policy verify_dflash_step::think_end \
+                          verify_dflash_step::split_head verify_dflash_step::masked_path_tests \
+                          verify_pipeline_helper::split_rows verify_pipeline_helper::scored::tests prediction_usage unscored_logprob_admission batched_logprob_read_failure_aborts_every_advanced_member spontaneous_thinking_ \
+                          glm_prompt_parity_tests completion_token_ids_ \
+                          completion_disable_mtp_reaches_scheduler \
+                          request_disable_mtp_overrides_all_spec_dispatch_modes; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
-      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "${check%:*}" \
+      cargo test --locked --release -j "$BUILD_JOBS" -p spark-server --bin spark "$filter" \
         > /tmp/atlas-verify-check.log 2>&1 || { cat /tmp/atlas-verify-check.log; exit 1; }; \
       cat /tmp/atlas-verify-check.log; \
-      grep -F "test result: ok. ${check##*:} passed;" /tmp/atlas-verify-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-verify-check.log; \
+    done
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    set -eu; for check in spark-runtime:sampler::tests spark-model:glm_verify_sample; do \
+      LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+      cargo test --locked --release -j "$BUILD_JOBS" -p "${check%%:*}" --lib "${check#*:}" \
+        > /tmp/atlas-sample-check.log 2>&1 || { cat /tmp/atlas-sample-check.log; exit 1; }; \
+      cat /tmp/atlas-sample-check.log; \
+      grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-sample-check.log; \
     done
 
 # Refusal content: keep the full blocking response body alongside refusal
@@ -175,6 +192,12 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
       cat /tmp/atlas-vision-cache-check.log; \
       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-vision-cache-check.log; \
     done
+
+# Run the workspace lint gate with the same pinned Rust compiler as the image.
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    rustup component add clippy --toolchain 1.93.1 && \
+    ATLAS_SKIP_BUILD=1 CUDARC_CUDA_VERSION=13000 \
+    cargo clippy --locked --workspace --tests -j "$BUILD_JOBS"
 
 FROM nvidia/cuda:13.0.0-runtime-ubuntu24.04@sha256:95318efecfd68ab3d109da5277863257b06137c84f34a87f38de970d5cd035d3 AS runtime
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow-change-held-packages \

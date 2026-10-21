@@ -1,0 +1,16 @@
+warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: compiled 239 kernels for target 0 (gb10, glm-5.3-flash, nvfp4) (54 model-specific overrides)
+warning: atlas-kernels@1.0.0-beta-preview: atlas-kernels: dedup+parallel: 239/239 unique nvcc invocations (0 cache hits, 1.0× dedup), 20 parallel workers
+warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/hip.h)
+warning: atlas-kernels@1.0.0-beta-preview: closure: unresolved include (kernels/gb10/qwen3.6-27b/nvfp4/q4k_vendor/common.cuh -> vendors/musa.h)
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running unittests src/lib.rs (target/release/deps/spark_model-db9863b46de8e0fb)
+
+running 3 tests
+test layers::ops::glm_mla_fuse::gpu_tests::fused_front_matches_the_twelve_launches ... ok
+test layers::ops::glm_mla_fuse::gpu_tests::native::native_fp8_fused_front_is_byte_exact ... fused MLA front == twelve launches: rows 1..=32 x 4 starts x unsharded/rank 0/rank 1
+ok
+test layers::ops::glm_mla_fuse::gpu_tests::native::native_fp8_raw_projections_are_byte_exact_with_and_without_touch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2073 filtered out; finished in 70.64s
+
+fused MLA front == twelve launches: rows 1..=32 x 4 starts x unsharded/rank 0/rank 1

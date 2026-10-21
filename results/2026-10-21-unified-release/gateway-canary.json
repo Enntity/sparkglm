@@ -1,0 +1,95 @@
+{
+  "passed": true,
+  "seconds": 0.2926740209804848,
+  "request": {
+    "model": "glm-5.3-flash-atlas",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 17 + 25? Reply with only the integer."
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 64,
+    "chat_template_kwargs": {
+      "reasoning_effort": "low"
+    }
+  },
+  "response": {
+    "id": "chatcmpl-acd68e6e-9a4a-45f6-b9a5-17a84ece693a",
+    "object": "chat.completion",
+    "created": 1792570053,
+    "model": "glm-5.3-flash-atlas",
+    "system_fingerprint": "fp_atlas",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "reasoning_content": "42",
+          "content": "42"
+        },
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 26,
+      "completion_tokens": 4,
+      "total_tokens": 30,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 3,
+        "rejected_prediction_tokens": 0
+      },
+      "time_to_first_token_ms": 183.06802299999998,
+      "response_token/s": 38.96113813484512
+    }
+  },
+  "route_proof": {
+    "id": "conn_2941",
+    "at": "2026-10-21T08:07:33.420Z",
+    "route": "/v1/chat/completions",
+    "model": "glm-5.3-flash-atlas",
+    "requestedModel": "glm-5.3-flash-atlas",
+    "upstreamModel": "glm-5.3-flash-atlas",
+    "kind": "chat",
+    "backend": "glm53-flash-atlas",
+    "runtime": "glm53-flash-atlas-cluster",
+    "resolvedModel": "glm-5.3-flash-atlas",
+    "failoverAttempt": null,
+    "failoverTargets": null,
+    "failoverReason": null,
+    "failedOver": false,
+    "target": "default",
+    "node": null,
+    "caller": "glm-restore-73ebe67fef5a",
+    "entity": null,
+    "purpose": null,
+    "requestClass": "standard",
+    "status": 200,
+    "ok": true,
+    "interrupted": false,
+    "errorCode": null,
+    "stream": false,
+    "durationMs": 282,
+    "queueWaitMs": 1,
+    "firstContentMs": 281,
+    "lastContentMs": 281,
+    "responseBytes": 640,
+    "requestBytes": 213,
+    "outputChars": 16,
+    "usage": {
+      "input_tokens": 26,
+      "output_tokens": 4,
+      "total_tokens": 30
+    },
+    "upstreamGenerationId": null,
+    "upstreamHeadersReceived": null
+  }
+}

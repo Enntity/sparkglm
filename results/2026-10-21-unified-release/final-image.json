@@ -1,0 +1,56 @@
+{
+  "tag": "ghcr.io/enntity/atlas-sparkglm:e3792e6e8c51",
+  "image_id": "sha256:88961a7c2f219413def187dcbf14c377c6a0f7c6e5f40a1f0f86c79d806d645b",
+  "install_tree": "e3792e6e8c515dec593e674fc2e022fc83315048",
+  "source": {
+    "schema": "sparkglm.atlas-engine-source/v2",
+    "note": "Unified SparkGLM release: TP2 and TP4, Strict and Spark modes, native MTP, corrected FP4 weight rounding, native FP8 MLA fusion, sparse attention ABI2, and explicit switchless chain/ring. Release qualification and source-export provenance are recorded under results/2026-10-21-unified-release. The accepted source export preserves the qualified runtime code; one documentation example uses a public example address.",
+    "repository": "https://github.com/Enntity/atlas.git",
+    "branch": "sparkglm/atlas-20261021-unified",
+    "commit": "f4d95a100516338c938a4524e23a65a2c4c3206e",
+    "tree": "58ed69bb21acc6bec5aa3cf0f2f339dc2366d0a2",
+    "layers": {
+      "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
+      "shared_engine": {
+        "branch": "upstream/atlas-shared-20261015-vision",
+        "commit": "a94648109f3c9a9a739e6cdf3d9630acaf45bac8",
+        "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the shared vision fixes (every tower encodes per chunk into per-sequence state, vision layout errors fail only their request, MRoPE positions from the whole prompt, vision markup in message text encodes as text) and the vision prefix cache for every tower, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
+      },
+      "sparkglm_only": {
+        "branch": "sparkglm/atlas-20261021-unified",
+        "commit": "f4d95a100516338c938a4524e23a65a2c4c3206e",
+        "base_commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+        "note": "Accepted unified release on the published FP4-Local foundation. Model-independent candidates remain in this product layer until the next shared-engine refresh. SparkQwen and the shared branch are unchanged."
+      }
+    },
+    "kernel_target": "glm-5.3-flash",
+    "license": "AGPL-3.0-only"
+  },
+  "hashes": {
+    "/usr/local/bin/spark": "e79d163dd10c07e3244de7c26a73c915a35ae3df08d5db34162243baaf182467",
+    "/opt/atlas/serve.py": "cf43230373b79a7c918eb6e57e9fd249dd1e39ccc1eda06f522d96ac75dcb3e1",
+    "/opt/atlas/native/libatlas_glm53_flash_kda.so": "de037d70bd833bad64b3abc118fc96cf8a92d9c4319b0eca4ca1869652fd7fa9",
+    "/opt/atlas/native/libatlas_mango_flash.so": "88a77a5804e5c2f66a782c1140b99a984707aa48c654333b4f8ecf45685874fe",
+    "/opt/atlas/native/libatlas_glm_sparse_native.so": "59f53b2d980ad78f9a092d9d7a6623ec210b612f42c8476a808c943920abd9f8",
+    "/opt/atlas/profiles/4x1m.json": "36dd7b7fb564bf3b892f940f33e3e1d793dea274c4f3567860e6f900335fff83",
+    "/opt/atlas/profiles/4x1m-tp4.json": "b970e7cbca76dd2383fc6a62c17c6fa94bbf0322f4f54089bf8dddd68ff02a3c",
+    "/opt/atlas/profiles/8x128k.json": "5ee2bbc9947c22b971abf5442fede52e2c7240b99c4b5c4511ca5679cb2a6a55",
+    "/opt/atlas/profiles/4x512k.json": "e744ab306f106299e71beb5107b2fcb5d0c6febd4ff4c1b3fbf7e4f555dd067e"
+  },
+  "qualified_image": "sha256:26433ce1554b84e55d22aeaec8f6d7207850edb7dcb75e40fd0eeb8652c63e33",
+  "qualified_layers_preserved": true,
+  "only_added_files": [
+    "/opt/atlas/source-manifest.json",
+    "/opt/atlas/build-provenance.json"
+  ],
+  "build_provenance": {
+    "tested_commit": "d3620ffbaf654186c7213b320e52d0112a71f956",
+    "tested_tree": "5ea6906a3fa565ee597d22647fb4ca6a758977b5",
+    "published_commit": "f4d95a100516338c938a4524e23a65a2c4c3206e",
+    "published_tree": "58ed69bb21acc6bec5aa3cf0f2f339dc2366d0a2",
+    "public_parent": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+    "runtime_source_changed": false,
+    "source_delta": "Documentation example replaces private fabric address with RFC5737 address. All other file bytes and modes match.",
+    "source_diff": "diff --git a/crates/spark-model/examples/comm_pair_bench.rs b/crates/spark-model/examples/comm_pair_bench.rs\nindex 42e0fa102..7163d0050 100644\n--- a/crates/spark-model/examples/comm_pair_bench.rs\n+++ b/crates/spark-model/examples/comm_pair_bench.rs\n@@ -50,7 +50,7 @@\n //! meet (NCCL also needs `NCCL_MULTI_RANK_GPU_ENABLE=1` for that).\n //!\n //! Run (per process):\n-//!   comm_pair_bench --rank R[,R...] [--world 2] --master 10.100.192.2\n+//!   comm_pair_bench --rank R[,R...] [--world 2] --master 192.0.2.2\n //!     [--port 29610] [--rows 1,2,4,5,7,8,16,32] [--iters 2000]\n //!     [--calls-per-graph 87] [--skew-us 0] [--stress 0]\n //!     [--peer-exchange-bytes 128] [--gather-rows 0] [--cmd-steps 0] [--cmd-pause-us 7000]"
+  }
+}
