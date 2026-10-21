@@ -48,6 +48,19 @@ class FourRankModes(unittest.TestCase):
                         self.assertEqual(env['ATLAS_GLM_SHARED_TP_SPLIT'], '0')
                         self.assertIn(f'/tp4/{topology}/{mode}/', env['ATLAS_KV_NVME_DIR'])
 
+    def test_release_profiles_protect_valid_shared_prefix_blocks(self):
+        # A recompute in another request must not rewrite blocks held by a
+        # cached target/predictor checkpoint. Subblock and exact-end cache
+        # policies can publish incomplete blocks and invalidate this floor.
+        for path in sorted((HERE / 'profiles').glob('*.json')):
+            profile = json.loads(path.read_text())
+            env = profile['environment']
+            with self.subTest(profile=path.name):
+                self.assertEqual(env['ATLAS_GLM_PC_WRITE_FLOOR'], '1')
+                self.assertEqual(env['ATLAS_PREFIX_SUBBLOCK'], '0')
+                self.assertEqual(env.get('ATLAS_MARCONI_EXACT', '0'), '0')
+                self.assertEqual(env.get('ATLAS_GLM_KV_WRITE_FLOOR_LEGACY', '0'), '0')
+
     def test_native_mtp_preserves_capacity_without_copying_pair_memory_cap(self):
         for topology in ('chain', 'ring'):
             args, env = self.launch(topology=topology, mtp=True)
