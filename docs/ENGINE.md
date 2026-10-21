@@ -7,12 +7,12 @@ pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
 kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-The 2026-10-19 qualification candidate adds the four-rank RDMA chain,
-checkpoint-format defaults, checkpoint chat and sampling behavior, FP32
-router logits, and sampled speculative verification. This description was
-checked against engine source `6b8a35ed4`; the install manifest selects the
-exact source used by a build. Source support alone does not qualify an image.
-Final TP2 and TP4 performance and quality claims require that image's receipts.
+The unified TP2/TP4 RC provides Strict and Spark precision policies, corrected
+FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
+and sparse attention for TP2's 32 or TP4's 16 local heads. The same image runs
+an explicit four-rank chain or ring. The install manifest selects the exact
+source; source support alone does not qualify an image. Final-image TP4
+correctness, headroom and performance validation is pending.
 
 The earlier release was `sparkglm/atlas-20261017-fp4local` at `b3b016ab`
 (tree `14316380`), built on the shared-engine release
@@ -31,19 +31,39 @@ draft-depth statistics retain their existing meaning.
 
 ## Candidate behavior
 
-Every TP2 and TP4 product profile enables `ATLAS_GLM_FP4L_NATIVE=1`.
-KDA projections and the dense MLP use the checkpoint's MXFP8 weights;
-MLA and shared experts use its FP8 block weights. This avoids the earlier
-NVFP4 requantization of those projections. The profiles also enable
-`ATLAS_GLM_FP4L_INPUT_SCALES=1` for calibrated routed-expert activation
-scales. Routed decode and verify use calibrated A4 activations;
-`ATLAS_GLM_FP4L_DECODE_A16=0` in every production profile. A16 remains
-experimental: a bounded TP2 diagnostic found speculative outputs changed
-between C1 and C4 with A16 enabled, while disabling it restored exact
-concurrency agreement on those four prompts. This fallback differs from the
-reference's BF16 decode activation policy. It does not establish reference
-fidelity, full-suite quality or TP4 correctness. Native weight formats still
-have their prescribed activation quantization and floating-point rounding.
+The launcher resolves the mode over a capacity profile; the profile's raw
+`environment` alone is not the effective serving policy. Every rank must
+resolve the same mode and topology.
+
+- **Strict** preserves native weights and checkpoint input scales and uses
+  A16 routed decode. It runs the canonical serial target by default. Native
+  checkpoint MTP is opt-in with `SPARKGLM_STRICT_MTP=1`, at C1..C4 with prefix
+  caching and the profile's context limit. The full predictor runs only on
+  rank 0; every rank runs target verification and prefix/admission agreement.
+- **Spark** uses calibrated A4 routed decode, DFlash2 and corrected
+  round-to-nearest-even FP4 KDA decode/shared-expert weights. KDA prefill,
+  MLA, dense projections and the vocabulary head remain native. Shared-expert
+  TP splitting is off: it introduced additional partial-output rounding in
+  the arithmetic regression. Drafter weight conversions also use corrected
+  rounding; activation quantizers are not changed by that rounding fix.
+
+Both modes reject missing required formats/calibration instead of silently
+falling back to another weight conversion. Neither removes FP8 KV, dynamic
+prefill activation quantization, floating-point rounding, or chunk-scheduling
+effects. Strict describes the precision policy, not a cross-engine bitwise
+identity guarantee.
+
+TP4 uses the native-FP8 MLA fusion and the sparse-prefill library's 16-head
+path. The library has ABI2 with an explicit 16/32-head geometry, and is rebuilt
+with the engine; old ABI1 libraries are rejected before serving. Existing
+sequence-parallel prefill, sparse decode and staged projections already handle
+TP4. Some historical K5 switches remain present in profiles but are inactive
+under canonical verification, including `ATLAS_GLM_K5_FUSED_TP_HC`; copying a
+switch value is not evidence that its path executes.
+
+TP4 chain and ring use the same arithmetic and rank placement. Ring requires
+explicit left/right links on every rank, including rank 3–rank 0. Its performance
+must be measured on the resulting image and fabric; no speedup is assumed.
 
 The checkpoint chat template opens a reasoning block, including when a
 client sends `enable_thinking: false`. Its default is `Reasoning Effort: Max`;
@@ -134,8 +154,8 @@ workload. It measured decode 10–16% slower: code / prose / structured 72.6 / 3
 82.8 / 47.2 / 104.7 tok/s. ToolEvalBench was 91 for both arms, with about
 2.6 GB less memory per rank before the KV pool (+26% blocks). Those receipts
 are in the [dated result bundle](../results/2026-10-17-fp4local/RESULT.md).
-Native formats are now enabled by the product profiles; those old timings
-do not measure the integrated candidate.
+Current formats are selected by mode; those old timings do not measure
+either mode of the unified RC.
 
 ## Opt-in switches (default off)
 

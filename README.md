@@ -1,22 +1,20 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <p align="center">
-  <img src="docs/assets/banner.png" alt="SparkGLM: GLM-5.3-Flash on two DGX Sparks" width="100%">
+  <img src="docs/assets/banner.png" alt="SparkGLM: GLM-5.3-Flash on DGX Sparks" width="100%">
 </p>
 
 # SparkGLM
 
-GLM-5.3-Flash on two NVIDIA DGX Sparks, served by the
-[Atlas](https://github.com/Enntity/atlas) inference engine: tensor and expert
-parallelism across both boxes over one ConnectX-7 cable, NVIDIA's FP4-Local
-checkpoint, DFlash2 speculative decoding, prefix caching, up to four
-concurrent requests with a per-request limit of the model's full 1M context, and an
-OpenAI-compatible API. A four-Spark TP4 chain is also available as a
-qualification candidate through LLooM. The 2026-10-19 candidate enables
-native checkpoint formats and sampled speculative verification at both
-sizes; its performance and quality still require official-image receipts.
-Earlier greedy C1/C4 and cached-conversation measurements are recorded below.
-They do not prove invariance for every workload: chunked prefill can still
-change results when request scheduling changes.
+GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
+[Atlas](https://github.com/Enntity/atlas) inference engine. One image supplies
+TP2 and TP4, Strict and Spark modes, prefix caching, and an OpenAI-compatible
+API. TP4 supports a switchless chain or an explicitly configured ring.
+The supplied profiles allow up to four concurrent requests with a per-request
+limit of the model's full 1M context; a TP2 profile also offers eight slots at 128K.
+
+This unified release candidate is unpublished and its final-image TP4
+qualification is pending. The dated performance tables below describe earlier
+builds; they do not establish this RC's speed or quality, or a ring speedup.
 
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
@@ -25,25 +23,36 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination
 ./start.sh
 ```
 
-## TP2 serving modes (local RC)
+## Strict and Spark modes
 
 Select `MODE=strict` (default) or `MODE=spark` in `.env`, or run
-`./start.sh --mode spark`. Low-level launches accept `--mode strict|spark`;
-managed containers use `SPARKGLM_MODE`. Both ranks must select the same mode.
+`./start.sh --mode spark` for a TP2 pair. The per-node launcher accepts
+`--mode strict|spark` on TP2 and TP4; managed containers use `SPARKGLM_MODE`.
+Every rank must use the same image, profile and mode.
 
-Strict preserves the checkpoint's native weight formats and calibrated input
-scales, with A16 routed decode and serial target execution. FP8 KV and dynamic
-prefill activation quantization are part of the supplied DGX recipe. Strict does
-not promise bit-identical floating-point results across different engines.
+| Mode | Target execution |
+|---|---|
+| **Strict** | Preserves checkpoint weight formats and calibrated input scales, with A16 routed decode. Serial by default; the checkpoint's native MTP predictor is an explicit option. |
+| **Spark** | Uses calibrated A4 routed decode and DFlash2, with corrected round-to-nearest-even FP4 KDA decode and shared-expert weights. KDA prefill, MLA, dense projections and the vocabulary head retain checkpoint formats. |
 
-Spark retains the optimized serving profile, calibrated A4 routed decode and
-DFlash, and uses round-to-nearest-even FP4 KDA decode, shared-expert weights.
-KDA prefill, MLA, the vocabulary head, dense projections stay in their
-checkpoint formats. Drafter weight conversions also use corrected rounding.
-Unsupported weight formats fail loading instead of silently converting them.
-Disk prefix caches are separated by mode. These mode presets currently cover TP2.
+Drafter weight conversions use corrected rounding too. Spark disables
+shared-expert TP splitting on TP2 and TP4 because the split's partial-output
+rounding caused an arithmetic regression. Unsupported weight formats fail
+loading instead of silently converting. FP8 KV and prefill activation
+quantization remain in both modes; Strict is not a promise of bit-identical
+results across engines or prefill schedules.
 
-This is an unpublished RC; focused validation receipts identify the tested image.
+For native MTP in Strict, pass `--mode strict --strict-mtp` to
+`install/start-node.sh` on every rank, or set `SPARKGLM_MODE=strict` and
+`SPARKGLM_STRICT_MTP=1` in every managed container. Use a profile with at most
+four active/admitted requests (`4x1m`, `4x512k`, or `4x1m-tp4`). It retains
+prefix caching and the profile's request-context limit. C4 near 1M with a shared
+prefix does not mean four independent full-window contexts fit in memory.
+`start.sh` currently exposes mode selection but not the native-MTP option.
+
+Disk cache directories are separated by mode; TP4 also separates chain and
+ring directories from each other and from TP2. See the
+[manual launcher instructions](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring).
 
 ## What it does
 
@@ -91,7 +100,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
 | Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
-These dated measurements do not describe the 2026-10-19 candidate. Rows
+These dated measurements do not describe the unified TP2/TP4 RC. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
@@ -104,14 +113,15 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Requirements
 
-- Two DGX Spark (GB10, 128 GB) systems joined by a direct ConnectX-7 cable,
-  with an IPv4 address on the cable's interface on each (RoCE; the engine
-  finds the GID itself and uses both PCIe halves of the port).
-- Docker with the NVIDIA runtime on both, and passwordless `ssh` from the
-  Spark you run `./start.sh` on to the other one, whose user can run `docker`.
+- Two DGX Spark (GB10, 128 GB) systems joined by direct ConnectX-7 links,
+  or four systems connected as a switchless chain or ring. Each selected
+  RDMA rail needs an IPv4 RoCE address and a matching link to its neighbour.
+  A dual-rail ring needs both rails on the closing rank 3–rank 0 link too.
+- Docker with the NVIDIA runtime on every node. The TP2 `start.sh` launcher
+  also needs passwordless `ssh` to its worker, whose user can run `docker`.
 - About 190 GB free on each Spark: the checkpoint takes 177.5 GB (165.3 GiB)
   and the drafter 2 GB. The download is made once and copied to the other
-  Spark over the cable. Nothing is converted. (The earlier NVFP4 checkpoint,
+  Spark over the cable. No on-disk conversion is needed for FP4-Local. (The earlier NVFP4 checkpoint,
   which `.env` can still select, takes 204 GB plus a 16 GB overlay.)
 - Nothing else using the GPUs' memory. GB10 memory is shared with the host,
   and the engine uses most of it.
@@ -121,10 +131,12 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 Run it on the Spark that will serve the API (rank 0). Each step is skipped when
 already done, so rerunning it just restarts the engine.
 
-`start.sh` manages a TP2 pair. Four-Spark TP4 uses [LLooM](https://github.com/Enntity/lloom)
-with the `linux-nvidia-dgx-spark-4x-glm53-atlas-tp4` recipe, which configures
-the chain and starts all four ranks. The `4x1m-tp4` profile requires that
-four-rank orchestration.
+`start.sh` manages a TP2 pair. TP4 uses the same image and
+`install/start-node.sh --world-size 4 --profile 4x1m-tp4` on each rank, or
+[LLooM](docs/LLOOM.md) four-rank orchestration. Chain is the default; ring is
+selected explicitly with `--topology ring` and requires the closing links.
+[Manual TP4 setup](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring) describes
+the per-rank rails.
 
 1. **Image.** Pulls `ghcr.io/enntity/atlas-sparkglm:<tag>`, whose tag is the
    git tree of [`install/`](install/), so the image always matches your
@@ -137,7 +149,7 @@ four-rank orchestration.
    and the [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2)
    drafter at pinned revisions, and copies them to the other Spark. It uses
    `hf` when installed and a throwaway container otherwise.
-3. **Overlay, NVFP4 checkpoint only.** FP4-Local is served as published. If
+3. **Overlay, NVFP4 checkpoint only.** FP4-Local needs no on-disk overlay. If
    `.env` selects the NVFP4 checkpoint ([below](#the-checkpoint)), this step
    converts the 864 BF16 MTP matrices Atlas needs to NVFP4 in an overlay on
    each Spark and verifies every payload (about a minute;
@@ -185,7 +197,7 @@ action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
 - `4x512k`: up to four requests with up to 512K each.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
-- `4x1m-tp4`: the four-Spark candidate, selected by four-rank orchestration
+- `4x1m-tp4`: the TP4 profile, selected by four-rank orchestration
   rather than `PROFILE` in `start.sh`; four sequences, up to 1M tokens per
   request, with memory utilization 0.72. See the
   [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4-candidate).
@@ -219,21 +231,19 @@ MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
 is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
-The candidate profiles enable the checkpoint's native projection formats
-(`ATLAS_GLM_FP4L_NATIVE=1`) and calibrated routed-expert input scales.
-Routed decode/verify uses the calibrated A4 fallback; A16 is disabled pending
-investigation of concurrency-dependent speculative output. Masked verification
-is enabled to apply thinking-boundary policy per verified row. Final image
-quality and throughput qualification remain pending. The 2026-10-17 default
-requantized MXFP8/FP8 projections to NVFP4; its numbers do not measure this
-configuration. Earlier retrieval comparisons and remaining fidelity limits
-are described in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). The historical
-2026-10-17 ToolEvalBench score was 91.0; NVIDIA's card gave 92.4 for
-FP4-Local and 91.9 for BF16 on an earlier version of the suite
-([receipts](results/2026-10-17-fp4local/RESULT.md#toolevalbench)).
+The unified RC selects precision through [Strict and Spark modes](#strict-and-spark-modes).
+Both use checkpoint input scales. Strict keeps native projection weights and
+A16 routed decode; Spark permits the selected FP4 KDA/shared-expert conversions
+with corrected rounding and A4 routed decode. MLA, dense projections and the
+vocabulary head remain native in both. These policies replace the earlier
+blanket requantization and the intermediate native-format-only candidate.
+Final-image TP4 quality and throughput qualification remain pending. The
+2026-10-17 measurements below are historical evidence, not measurements of
+these mode presets. See [fidelity limits](docs/LIMITATIONS.md#fp4-local).
 
-The loader also supports the earlier NVFP4 checkpoint. Its prior
-prompt-logprob comparisons are historical; they do not qualify this candidate.
+The installer retains its earlier NVFP4 checkpoint override. It is outside
+the unified Strict/Spark RC qualification; required native-format checks still
+apply at load. Prior prompt-logprob comparisons are historical.
 To select it, add both lines to `.env` and rerun
 `./start.sh`; it downloads the checkpoint and converts its overlay:
 

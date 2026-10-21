@@ -10,7 +10,7 @@ What to know before relying on SparkGLM.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
 - Each README row comes from the dated release its receipt names. The
-  2026-10-19 integrated candidate needs its own official-image receipts;
+  unified TP2/TP4 RC needs its own final-image receipts;
   earlier component, development-binary and release measurements do not
   establish its performance or quality at TP2 or TP4. RigMark decode,
   cold prefill, staggered arrivals, the staggered C4 field guide, the Matrix
@@ -31,12 +31,11 @@ What to know before relying on SparkGLM.
 
 ## Not yet measured
 
-- **Long context:** on 2026-10-09 RC2 we ran four concurrent ~204K-token
-  sessions with cached follow-ups (12/12 and 8/8 exact) and a two-hop 24K
-  needle probe (24/24), but we have not exercised a single request anywhere
-  near the profile's full 1,048,576-token window under load. On an earlier
-  engine commit, before the thinking-budget fix, four concurrent 190K requests
-  and one 500K request completed with at least 8.3 GB of host memory free.
+- **Unified RC long context:** TP4 needs final-image evidence at its full
+  request-context limit, including native-MTP headroom and cached concurrent
+  branches. Earlier TP2 results and the profile's configured limit do not
+  qualify that configuration. A shared-prefix C4 result also would not prove
+  that four independent million-token contexts fit simultaneously.
 - **Chunked prefill and endurance:** prefill is not row-invariant. A prompt
   long enough to prefill in several chunks (over 8K tokens) can still differ
   when the engine is busy, and long-context endurance, cancellation under load
@@ -45,12 +44,12 @@ What to know before relying on SparkGLM.
 ## Capacity and prefix caching
 
 The pool sizes and memory margins below are historical TP2 measurements.
-The current candidate enables native checkpoint formats and calibrated routed
-input scales. A16 routed decode/verify is disabled in all profiles after a
-bounded TP2 test found concurrency-dependent speculative output. The calibrated
-A4 fallback differs from the reference decode activation policy; four prompts
-do not qualify full quality or TP4 behavior. Read the candidate's actual pool
-allocation and host-memory receipts before planning capacity.
+The unified RC selects precision by mode: Strict uses native weights and A16
+routed decode, while Spark uses the selected corrected FP4 conversions and
+calibrated A4 routed decode. Final-image TP4 qualification is pending. Read
+the actual pool allocation and host-memory receipts before planning capacity.
+Native MTP has a private predictor cache on rank 0; near 1M shared-prefix C4
+must not be interpreted as four independent full-window contexts.
 
 - All requests share one KV pool, which also holds the prefix cache. With the
   NVFP4 checkpoint, unsplit, it is about 600K tokens at the default 0.88 memory
@@ -107,17 +106,15 @@ allocation and host-memory receipts before planning capacity.
 
 ## FP4-Local
 
-- FP4-Local's MXFP8 and FP8-block projections are served in the checkpoint's
-  own formats (`ATLAS_GLM_FP4L_NATIVE=1`, in every profile since 2026-10-19).
-  The earlier default requantized KDA, shared-expert and dense weights to
-  NVFP4, and MLA weights to MXFP8. The dated native-format timing comparison
-  is in
-  [docs/ENGINE.md](ENGINE.md).
-- The candidate profiles also enable calibrated routed-expert prompt input
-  scales and BF16 activations for routed decode/verify rows. Keeping the
-  checkpoint's weight formats does not remove activation quantization,
-  floating-point rounding, chunk effects or the need for matched model-level
-  quality and sampling tests.
+- Strict preserves checkpoint weight formats; Spark intentionally converts
+  KDA decode and shared-expert weights to FP4 with corrected nearest-even
+  rounding. MLA, dense projections, the vocabulary head and KDA prefill stay
+  native. Spark shared-expert TP splitting is disabled. Older blanket
+  requantization and native-format-only timings do not describe either mode.
+- Both modes use checkpoint input scales. Strict uses A16 routed decode and
+  Spark uses calibrated A4. Weight-format preservation does not remove
+  activation/KV quantization, floating-point rounding, prefill chunk effects
+  or the need for matched model-level quality and sampling tests.
 - The published 2026-10-17 FP4-Local evidence checked its MXFP8/NVFP4 vision
   tower only as far as loading. The candidate's vision changes need their
   own image, conversation and caching receipts.
@@ -196,32 +193,41 @@ chunks, which halve our KV pool).
 - The API has no authentication and listens only on rank 0's loopback.
 - GB10 memory is shared with the host. Running other large workloads on
   either Spark while serving can hang the host.
-- All supplied profiles need the DFlash2 drafter, which is licensed for
-  non-commercial use only. No profile without it is shipped yet.
+- Spark uses DFlash2, which is licensed for non-commercial use only.
+  Strict uses serial target execution or the checkpoint's native MTP head,
+  but the current installer still requires the DFlash2 artifact during
+  setup. Selecting Strict does not remove bundled artifact license terms.
 - The image is built for arm64 and SM121 (GB10) only.
 
 ## Four-Spark TP4 candidate
 
-- `start.sh` manages two Sparks. TP4 requires four-rank orchestration and
-  left/right RDMA rails for the chain, with world size, TP and EP all set to
-  four. `4x1m-tp4` selects four sequences, a 1,048,576-token request limit,
-  8K prefill chunks and memory utilization 0.72. The profile name does not
-  prove that four full 1M contexts fit or have been tested together.
-- The LLooM TP4 recipe leaves the two-rank KV-shard option, disk prefix
-  cache and display carveout off. The TP2 pool and restore measurements
-  above do not apply to that recipe.
-- Some pair-specific optimizations are refused at startup, including the
-  native sparse path, independent decode and non-speculative C4 decode.
-  Some others remain off through their own guards. The engine logs these
-  decisions; TP2 settings cannot be copied wholesale to the chain.
-- Sampled verification requires the candidate exchange kernels and protocol
-  on all ranks. Unsupported sampling/logprob requests fail before verify
-  dispatch. A failed exchange after dispatch can terminate the ranks and
-  interrupt other requests. Peer lifelines must remain enabled for peer
-  shutdown after a rank exits.
-- TP4 throughput, scaling, long-context quality and memory margins need
-  receipts from the exact official image. No TP4 result is implied by the
-  historical TP2 table.
+- The unified RC provides Strict and Spark on TP2 and TP4 in one image.
+  `start.sh` manages two nodes; TP4 uses four per-node launcher invocations
+  or an orchestrator. `4x1m-tp4` supplies world/TP/EP4, four sequences, a
+  1,048,576-token request limit, 8K prefill chunks and memory utilization 0.72.
+  These limits do not prove four independent full-window contexts fit.
+- Chain is the default. Ring is explicit and requires closing 3–0 links on
+  every configured rail. Missing links or mismatched topology fail startup;
+  there is no automatic chain fallback. The launcher does not change host
+  networking. Ring speedup remains unmeasured for this RC.
+- The native-FP8 MLA fusion and native sparse-prefill 16-head path are ported
+  to TP4. The latter requires the matching ABI2 library bundled in the image.
+  Pair-specific inactive research lanes, including independent/non-speculative
+  C4 decode, remain unsupported. Historical K5 flags can also be inactive
+  under canonical verification; flag presence alone does not prove execution.
+- Strict native MTP is an explicit option, with a full predictor on rank 0 and
+  target execution on all four ranks. Its near-limit headroom, prefix restore,
+  cancellation/reuse and serial-equivalence checks must pass on the final
+  image and topology. The TP2-specific native KV cap is not copied to TP4.
+- Disk cache paths separate rank count, topology and mode. TP4 token-sharded
+  KV cannot be combined with the NVMe KV tier in this engine; disk caching
+  without KV sharding remains a separate configuration to validate.
+- Sampled verification requires the exchange kernels and protocol on every
+  rank. Unsupported sampling/logprob requests fail before verify dispatch.
+  A failed exchange after dispatch can terminate the ranks and interrupt
+  other requests; peer lifelines must remain enabled.
+- Final-image TP4 correctness, throughput, scaling, long-context quality and
+  memory margins are pending. Historical TP2 results do not qualify TP4.
 
 ## Structured output
 
