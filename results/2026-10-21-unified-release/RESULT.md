@@ -69,6 +69,15 @@ medians rounded to one decimal place, not selected maximum runs. Serving
 clock caps were restored after measurement; these numbers do not describe
 clock-capped live serving.
 
+## Prefill score on the cards
+
+The prefill panel is labeled **TP2 · cold 64K · retained TP2 RC · median**.
+It shows 3,008 tok/s, rounded from 3,008.119 (repetitions 3,001.870 and
+3,014.369). This is the earlier Spark qualification on image `f5c00e667bd2`,
+with uncapped GPU clocks and the same native prefill path. It is not a new
+measurement of the published image or a TP4 prefill claim. Exact values and
+all underlying requests remain in the retained TP2 benchmark summary/archive.
+
 ## Qualification retained and extended
 
 The [unified RC qualification](../2026-10-21-unified-rc/RESULT.md) and its

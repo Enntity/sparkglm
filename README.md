@@ -83,6 +83,12 @@ Each chain/ring repetition has identical output, reasoning and stream hashes.
 Ring improves TP4 medians by 2.07–2.48%; two repetitions do not establish
 statistical significance. [All repetitions, configurations and raw outputs](results/2026-10-21-unified-release/RESULT.md).
 
+The cards also show the retained TP2 Spark cold-64K prefill median of **3,008
+tok/s** (3,008.119 before rounding; repetitions 3,001.870 and 3,014.369).
+The same qualification measured 2,749 tok/s at 8K and 2,849 at 32K. This is
+prior TP2 qualification data, labeled as such on the cards, not a new TP4
+prefill measurement. [Prefill receipts](results/2026-10-20-tp2-qualification/RESULT.md#decode-and-serving-performance).
+
 Retained TP2 Kindling results use the adapted zero-thinking-budget harness,
 `8x128k`, uncapped GPU clocks, and 512/768-token output limits: 80 measured
 runs and 193 streams per mode including warmups. These are earlier qualified
