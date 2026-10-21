@@ -1,0 +1,529 @@
+{
+  "scope": "TP2 GLM FP4-Local only. Both GPUs uncapped during measurements.",
+  "normal_profile": "4x1m, .91, KV sharding, display carveout, 48 GiB prefix cache, Low reasoning",
+  "rig_original_image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+  "kindling_repaired_image": "sha256:9042aba369f2ee1b45bdec4df733a82826524cd0184abac4ae97836cf894cdf9",
+  "kindling_request_policy": {
+    "reason": "GLM reference prompt always opens reasoning and legacy enable_thinking=false flags do not cap it. The first stock code measurement had no visible answer at its 512-token limit.",
+    "change": "Use thinking:{type:enabled,budget_tokens:0} with explicit Low effort, replacing obsolete disable-thinking flags. Stop on invalid warmups. Both arms use the same fresh nonce series, fixed fixtures and limits.",
+    "old_sha256": "fe4f7627673b15be7a439e1ea559b0d322627cf05d37b6c66217e784573bc538",
+    "new_sha256": "5bf8ad8683f209d89b5f0074065944f06ea44fe964e92ef637bfc6cc1328c170",
+    "engine_changed": false,
+    "partial_run_retained_as": "strict-serial-kindling-legacy-flags",
+    "extra_canary_requests": 0,
+    "source_reference": "crates/spark-server/src/api/chat/glm_prompt_parity_tests.rs:164",
+    "series": "glm-rc-explicit-zero-20261020",
+    "runner_old_sha256": "d45097a6c4d3efc75f2744402c93d334e2a578b66722c2affa279c4555aed5f2",
+    "runner_new_sha256": "b0065527d88f65ed4f2cf9f6d4b8b6f11db524518e565cc9718a324a4157f3ed",
+    "attempt_top_level_zero_sha256": "b28eefd30f4925b5124ff8682a06ee78d169af574ddd39e68d9d954feab28b87",
+    "wire_diagnosis": "thinking_token_budget=0 lowers to Off, then the mandatory GLM reasoning prefix restores an unlimited server budget. The thinking object preserves On{budget:Some(0)} and survives template detection. Verified from chat_request.rs and template.rs.",
+    "additional_preserved_attempt": "strict-serial-kindling-zero-field (one 4-token warmup and one 512-token code warmup; no measured runs)"
+  },
+  "arithmetic_c1_diagnostic": {
+    "same_tokens": true,
+    "first_token_difference": null,
+    "token_counts": [
+      211,
+      211
+    ],
+    "expected": -381530,
+    "answers": [
+      "2123 \u00d7 49 = 2123 \u00d7 50 \u2212 2123 = 106150 \u2212 2123 = 104027\n7256 \u00d7 67 = 7256 \u00d7 70 \u2212 7256 \u00d7 3 = 507920 \u2212 21768 = 486152\n104027 \u2212 486152 + 595 = 104622 \u2212 486152 = \u2212381530\n\nAnswer: -381530",
+      "2123 \u00d7 49 = 2123 \u00d7 50 \u2212 2123 = 106150 \u2212 2123 = 104027\n7256 \u00d7 67 = 7256 \u00d7 70 \u2212 7256 \u00d7 3 = 507920 \u2212 21768 = 486152\n104027 \u2212 486152 + 595 = 104622 \u2212 486152 = \u2212381530\n\nAnswer: -381530"
+    ],
+    "note": "Two C1 diagnostic requests on repaired Spark 8x128k at .91; original miss occurred in the frozen Spark C4 answer-quality suite on 4x1m at .91. No causality or quality-pass claim from a non-reproduction."
+  },
+  "rig": {
+    "spark-normal": {
+      "decode": {
+        "code": {
+          "maximum": 67.328,
+          "median": 66.543,
+          "minimum": 65.757,
+          "p90": 67.328
+        },
+        "prose": {
+          "maximum": 39.143,
+          "median": 38.581,
+          "minimum": 38.019,
+          "p90": 39.143
+        },
+        "structured": {
+          "maximum": 90.744,
+          "median": 90.136,
+          "minimum": 89.529,
+          "p90": 90.744
+        }
+      },
+      "concurrency": {
+        "1": {
+          "maximum": 50.79,
+          "median": 49.092,
+          "minimum": 47.394,
+          "p90": 50.79
+        },
+        "2": {
+          "maximum": 66.756,
+          "median": 66.459,
+          "minimum": 66.161,
+          "p90": 66.756
+        },
+        "3": {
+          "maximum": 71.305,
+          "median": 70.476,
+          "minimum": 69.646,
+          "p90": 71.305
+        },
+        "4": {
+          "maximum": 76.421,
+          "median": 75.868,
+          "minimum": 75.314,
+          "p90": 76.421
+        }
+      },
+      "prefill": {
+        "32768": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 2853.446,
+              "median": 2848.963,
+              "minimum": 2844.48,
+              "p90": 2853.446
+            },
+            "ttft_seconds": {
+              "maximum": 11.52,
+              "median": 11.502,
+              "minimum": 11.484,
+              "p90": 11.52
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 182110.206,
+              "median": 179708.794,
+              "minimum": 177307.382,
+              "p90": 182110.206
+            },
+            "ttft_seconds": {
+              "maximum": 0.185,
+              "median": 0.182,
+              "minimum": 0.18,
+              "p90": 0.185
+            }
+          }
+        },
+        "65536": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 3014.369,
+              "median": 3008.119,
+              "minimum": 3001.87,
+              "p90": 3014.369
+            },
+            "ttft_seconds": {
+              "maximum": 21.832,
+              "median": 21.786,
+              "minimum": 21.741,
+              "p90": 21.832
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 331004.945,
+              "median": 330735.386,
+              "minimum": 330465.827,
+              "p90": 331004.945
+            },
+            "ttft_seconds": {
+              "maximum": 0.198,
+              "median": 0.198,
+              "minimum": 0.198,
+              "p90": 0.198
+            }
+          }
+        },
+        "8192": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 2754.124,
+              "median": 2749.064,
+              "minimum": 2744.005,
+              "p90": 2754.124
+            },
+            "ttft_seconds": {
+              "maximum": 2.985,
+              "median": 2.98,
+              "minimum": 2.974,
+              "p90": 2.985
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 46374.186,
+              "median": 45798.439,
+              "minimum": 45222.691,
+              "p90": 46374.186
+            },
+            "ttft_seconds": {
+              "maximum": 0.181,
+              "median": 0.179,
+              "minimum": 0.177,
+              "p90": 0.181
+            }
+          }
+        }
+      }
+    },
+    "strict-mtp-normal": {
+      "decode": {
+        "code": {
+          "maximum": 41.299,
+          "median": 41.133,
+          "minimum": 40.966,
+          "p90": 41.299
+        },
+        "prose": {
+          "maximum": 31.296,
+          "median": 31.211,
+          "minimum": 31.126,
+          "p90": 31.296
+        },
+        "structured": {
+          "maximum": 50.379,
+          "median": 50.364,
+          "minimum": 50.35,
+          "p90": 50.379
+        }
+      },
+      "concurrency": {
+        "1": {
+          "maximum": 36.925,
+          "median": 36.558,
+          "minimum": 36.192,
+          "p90": 36.925
+        },
+        "2": {
+          "maximum": 36.468,
+          "median": 36.403,
+          "minimum": 36.337,
+          "p90": 36.468
+        },
+        "3": {
+          "maximum": 36.035,
+          "median": 35.959,
+          "minimum": 35.883,
+          "p90": 36.035
+        },
+        "4": {
+          "maximum": 36.069,
+          "median": 35.853,
+          "minimum": 35.637,
+          "p90": 36.069
+        }
+      },
+      "prefill": {
+        "32768": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 2516.068,
+              "median": 2515.901,
+              "minimum": 2515.734,
+              "p90": 2516.068
+            },
+            "ttft_seconds": {
+              "maximum": 13.025,
+              "median": 13.024,
+              "minimum": 13.023,
+              "p90": 13.025
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 169233.471,
+              "median": 167551.022,
+              "minimum": 165868.573,
+              "p90": 169233.471
+            },
+            "ttft_seconds": {
+              "maximum": 0.198,
+              "median": 0.196,
+              "minimum": 0.194,
+              "p90": 0.198
+            }
+          }
+        },
+        "65536": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 2638.445,
+              "median": 2637.99,
+              "minimum": 2637.536,
+              "p90": 2638.445
+            },
+            "ttft_seconds": {
+              "maximum": 24.847,
+              "median": 24.843,
+              "minimum": 24.839,
+              "p90": 24.847
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 330092.98,
+              "median": 323933.197,
+              "minimum": 317773.414,
+              "p90": 330092.98
+            },
+            "ttft_seconds": {
+              "maximum": 0.206,
+              "median": 0.202,
+              "minimum": 0.199,
+              "p90": 0.206
+            }
+          }
+        },
+        "8192": {
+          "cold": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 2415.911,
+              "median": 2414.373,
+              "minimum": 2412.836,
+              "p90": 2415.911
+            },
+            "ttft_seconds": {
+              "maximum": 3.395,
+              "median": 3.393,
+              "minimum": 3.391,
+              "p90": 3.395
+            }
+          },
+          "warm_replay": {
+            "effective_prefill_tokens_per_second": {
+              "maximum": 44488.131,
+              "median": 44242.626,
+              "minimum": 43997.121,
+              "p90": 44488.131
+            },
+            "ttft_seconds": {
+              "maximum": 0.186,
+              "median": 0.185,
+              "minimum": 0.184,
+              "p90": 0.186
+            }
+          }
+        }
+      }
+    }
+  },
+  "kindling": {
+    "strict-serial-kindling": {
+      "code": {
+        "runs": 16,
+        "tps": 25.57264379360636,
+        "ci": [
+          25.484150779892516,
+          25.654361209952615
+        ],
+        "cv": 0.006931576416153591,
+        "detects": 0.006865831655195471,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": 39.034238213077586,
+        "ttft_ms": 349.3318594992161,
+        "outliers": [
+          2,
+          3,
+          4,
+          5,
+          7
+        ],
+        "problems": 0
+      },
+      "prose": {
+        "runs": 16,
+        "tps": 25.758952011680925,
+        "ci": [
+          25.736953800627596,
+          25.782187044896553
+        ],
+        "cv": 0.0019974794259342127,
+        "detects": 0.0019785336913000586,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": 38.89828545916072,
+        "ttft_ms": 364.3135480233468,
+        "outliers": [],
+        "problems": 0
+      },
+      "structured": {
+        "runs": 16,
+        "tps": 25.6853481237724,
+        "ci": [
+          25.667572136504916,
+          25.69911445503719
+        ],
+        "cv": 0.0013013462042996036,
+        "detects": 0.001289003168604859,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": 39.000094802403154,
+        "ttft_ms": 350.4622270120308,
+        "outliers": [
+          12
+        ],
+        "problems": 0
+      },
+      "counting": {
+        "runs": 16,
+        "tps": 25.692382212979876,
+        "ci": [
+          25.679733064088026,
+          25.703339879969114
+        ],
+        "cv": 0.0009968504031473647,
+        "detects": 0.0009873954555955787,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": 39.01391044953549,
+        "ttft_ms": 337.92740700300783,
+        "outliers": [
+          7
+        ],
+        "problems": 0
+      },
+      "mixed4": {
+        "runs": 8,
+        "tps": 25.20916502853275,
+        "ci": [
+          25.10963007496054,
+          25.282979664269057
+        ],
+        "cv": 0.0053730421219299355,
+        "detects": 0.007526557404399455,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": null,
+        "ttft_ms": 909.8617392301094,
+        "outliers": [
+          0,
+          1
+        ],
+        "problems": 0
+      },
+      "mixed8": {
+        "runs": 8,
+        "tps": 25.183961067170237,
+        "ci": [
+          25.166390530094397,
+          25.201069647907378
+        ],
+        "cv": 0.0010384907101896978,
+        "detects": 0.001454717786833729,
+        "tok_per_step": 1.0,
+        "drafts_per_step": 0.0,
+        "ms_per_step": null,
+        "ttft_ms": 2144.6194632153492,
+        "outliers": [],
+        "problems": 0
+      }
+    },
+    "spark-kindling": {
+      "code": {
+        "runs": 16,
+        "tps": 70.95866077619712,
+        "ci": [
+          67.64041620822653,
+          74.18040532927407
+        ],
+        "cv": 0.08593616420376196,
+        "detects": 0.08512107507626314,
+        "tok_per_step": 5.439193729003359,
+        "drafts_per_step": 5.484210526315789,
+        "ms_per_step": 75.57546997896249,
+        "ttft_ms": 346.6610069735907,
+        "outliers": [],
+        "problems": 0
+      },
+      "prose": {
+        "runs": 16,
+        "tps": 42.193914273301566,
+        "ci": [
+          41.05222978799088,
+          43.41045658042362
+        ],
+        "cv": 0.062219992753120824,
+        "detects": 0.061629847264594306,
+        "tok_per_step": 2.331704896759666,
+        "drafts_per_step": 2.421712463862095,
+        "ms_per_step": 54.62515362844977,
+        "ttft_ms": 354.99642143258825,
+        "outliers": [],
+        "problems": 0
+      },
+      "structured": {
+        "runs": 16,
+        "tps": 91.05426005503617,
+        "ci": [
+          87.07983560205044,
+          94.94541949460292
+        ],
+        "cv": 0.0864099627068294,
+        "detects": 0.0855903796853797,
+        "tok_per_step": 7.395755693581781,
+        "drafts_per_step": 6.7338509316770185,
+        "ms_per_step": 78.03569135290303,
+        "ttft_ms": 346.2043940089643,
+        "outliers": [],
+        "problems": 0
+      },
+      "counting": {
+        "runs": 16,
+        "tps": 98.37641702181232,
+        "ci": [
+          97.76370934638875,
+          98.95000796395338
+        ],
+        "cv": 0.012680037437994297,
+        "detects": 0.012559769553713575,
+        "tok_per_step": 7.6081411600279525,
+        "drafts_per_step": 6.849056603773585,
+        "ms_per_step": 77.26578597436335,
+        "ttft_ms": 335.7596124988049,
+        "outliers": [],
+        "problems": 0
+      },
+      "mixed4": {
+        "runs": 8,
+        "tps": 80.28339213091753,
+        "ci": [
+          76.42341644027204,
+          84.31061589124305
+        ],
+        "cv": 0.08040495031552118,
+        "detects": 0.11263125440198207,
+        "tok_per_step": 4.630451570946633,
+        "drafts_per_step": 5.715216392290433,
+        "ms_per_step": null,
+        "ttft_ms": 966.742328775581,
+        "outliers": [],
+        "problems": 0
+      },
+      "mixed8": {
+        "runs": 8,
+        "tps": 95.08122794170546,
+        "ci": [
+          92.43772891564502,
+          97.94052778922966
+        ],
+        "cv": 0.04555697830042844,
+        "detects": 0.06381621520324016,
+        "tok_per_step": 3.2883508590401274,
+        "drafts_per_step": 3.126376160527104,
+        "ms_per_step": null,
+        "ttft_ms": 1941.5547590178903,
+        "outliers": [],
+        "problems": 0
+      }
+    }
+  }
+}

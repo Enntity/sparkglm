@@ -23,9 +23,9 @@ Starting launches rank 1, then rank 0, and routes the gateway model
 The recipe is additive: it doesn't change your default model or aliases.
 Nothing is built or converted while a runtime starts.
 
-## Unified TP2/TP4 candidate
+## Unified TP2/TP4 release
 
-The unified RC uses one SparkGLM image and the same precision policies at
+The unified release uses one SparkGLM image and the same precision policies at
 both sizes. See [current validation and image identity](../results/2026-10-21-unified-rc/RESULT.md).
 An existing LLooM recipe may pin an earlier SparkGLM commit; check its resolved image and
 `install/` tree before assuming these options are present.

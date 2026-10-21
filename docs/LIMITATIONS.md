@@ -6,12 +6,12 @@ What to know before relying on SparkGLM.
 ## Scope of the measurements
 
 - Historical comparisons used one pair of DGX Sparks on one cable. The
-  unified RC also has four-Spark chain/ring checks. Other firmware, drivers,
+  unified release also has four-Spark chain/ring checks. Other firmware, drivers,
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
 - Each README row comes from the dated release its receipt names. The
-  unified TP2/TP4 RC has a separate
+  unified TP2/TP4 release has a separate
   [status and evidence page](../results/2026-10-21-unified-rc/RESULT.md);
   earlier component, development-binary and release measurements do not
   establish its performance or quality at TP2 or TP4. RigMark decode,
@@ -45,7 +45,7 @@ What to know before relying on SparkGLM.
 ## Capacity and prefix caching
 
 The bulleted pool sizes and memory margins below are historical TP2 measurements.
-The unified RC selects precision by mode: Strict uses native weights and A16
+The unified release selects precision by mode: Strict uses native weights and A16
 routed decode, while Spark uses the selected corrected FP4 conversions and
 calibrated A4 routed decode. Read the
 [current pool and memory receipts](../results/2026-10-21-unified-rc/RESULT.md)
@@ -128,7 +128,7 @@ endurance guarantee.
   activation/KV quantization, floating-point rounding, prefill chunk effects
   or the need for matched model-level quality and sampling tests.
 - The published 2026-10-17 FP4-Local evidence checked its MXFP8/NVFP4 vision
-  tower only as far as loading. The candidate's vision changes need their
+  tower only as far as loading. The release's vision changes need their
   own image, conversation and caching receipts.
 - The Matrix, the field guide and the 925K-token needle have not been re-run
   on FP4-Local; those README rows are from the NVFP4 checkpoint.
@@ -171,7 +171,7 @@ chunks, which halve our KV pool).
 ## Behaviour
 
 - The pinned checkpoint template opens reasoning even when a client sends
-  `enable_thinking: false`. The candidate follows its default Max effort or
+  `enable_thinking: false`. The release follows its default Max effort or
   the template's low/high effort selection. It has no automatic short
   thinking budget. An explicit thinking-token budget can cap reasoning;
   otherwise `max_tokens` can end the request while it is still reasoning,
@@ -211,9 +211,9 @@ chunks, which halve our KV pool).
   setup. Selecting Strict does not remove bundled artifact license terms.
 - The image is built for arm64 and SM121 (GB10) only.
 
-## Four-Spark TP4 candidate
+## Four-Spark TP4
 
-- The unified RC provides Strict and Spark on TP2 and TP4 in one image.
+- The unified release provides Strict and Spark on TP2 and TP4 in one image.
   `start.sh` manages two nodes; TP4 uses four per-node launcher invocations
   or an orchestrator. `4x1m-tp4` supplies world/TP/EP4, four sequences, a
   1,048,576-token request limit, 8K prefill chunks and memory utilization 0.72.
@@ -221,7 +221,8 @@ chunks, which halve our KV pool).
 - Chain is the default. Ring is explicit and requires closing 3–0 links on
   every configured rail. Missing links or mismatched topology fail startup;
   there is no automatic chain fallback. The launcher does not change host
-  networking. Ring speedup remains unmeasured for this RC.
+  networking. The final Spark comparison measured ring 2.07–2.48% faster than chain,
+  with two runs per workload and exact paired outputs.
 - The native-FP8 MLA fusion and native sparse-prefill 16-head path are ported
   to TP4. The latter requires the matching ABI2 library bundled in the image.
   Pair-specific inactive research lanes, including independent/non-speculative
@@ -252,8 +253,8 @@ chunks, which halve our KV pool).
   rank. Unsupported sampling/logprob requests fail before verify dispatch.
   A failed exchange after dispatch can terminate the ranks and interrupt
   other requests; peer lifelines must remain enabled.
-- The [unified RC result](../results/2026-10-21-unified-rc/RESULT.md) tracks
-  remaining Spark/TP2 validation. The native-versus-serial speed comparison
+- The [unified release result](../results/2026-10-21-unified-rc/RESULT.md) records
+  the completed affected Spark/TP2 checks and evidence carried forward. The native-versus-serial speed comparison
   has one run per workload/arm; it does not measure chain-versus-ring scaling
   or establish broad workload quality.
 
@@ -263,7 +264,7 @@ chunks, which halve our KV pool).
   with a grammar, including during speculative decoding. A strict schema the
   engine cannot enforce is refused with HTTP 400 (an error event when
   streaming). It never silently falls back to free text.
-- The candidate's sampled speculative verification applies temperature,
+- The release's sampled speculative verification applies temperature,
   sampling filters, penalties and grammar masks at verify positions on TP2
   and TP4. Profiles also enable masked verification for greedy requests,
   including thinking-boundary masks applied per row. Greedy selection remains

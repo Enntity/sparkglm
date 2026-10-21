@@ -7,12 +7,12 @@ pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
 kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-The unified TP2/TP4 RC provides Strict and Spark precision policies, corrected
+The unified TP2/TP4 release provides Strict and Spark precision policies, corrected
 FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
 and sparse attention for TP2's 32 or TP4's 16 local heads. The same image runs
 an explicit four-rank chain or ring. The install manifest selects the exact
-source. [Current RC evidence](../results/2026-10-21-unified-rc/RESULT.md)
-records the completed Strict checks and remaining Spark/TP2 validation.
+source. [Release evidence](../results/2026-10-21-unified-release/RESULT.md)
+records the completed checks and the scope of reused TP2 results.
 
 The earlier release was `sparkglm/atlas-20261017-fp4local` at `b3b016ab`
 (tree `14316380`), built on the shared-engine release
@@ -20,7 +20,7 @@ The earlier release was `sparkglm/atlas-20261017-fp4local` at `b3b016ab`
 Its [2026-10-17 results](../results/2026-10-17-fp4local/RESULT.md) remain
 historical measurements. The README describes the [engine layers](../README.md#the-engine).
 
-The candidate also fixes speculative returned scores under logit bias and
+The release also fixes speculative returned scores under logit bias and
 history penalties. Requested scores use the serial processed distribution;
 unsupported speculative scoring paths use a supported verification or serial
 path. First-prefill-token logit-bias support remains an inherited limitation.
@@ -29,7 +29,7 @@ Accepted prediction usage counts only draft tokens retained in the response,
 including token-limit, stop and rollback cases. Internal verification and
 draft-depth statistics retain their existing meaning.
 
-## Candidate behavior
+## Serving behavior
 
 The launcher resolves the mode over a capacity profile; the profile's raw
 `environment` alone is not the effective serving policy. Every rank must
@@ -97,7 +97,7 @@ native/serial speed comparison have separate
 
 The checkpoint chat template opens a reasoning block, including when a
 client sends `enable_thinking: false`. Its default is `Reasoning Effort: Max`;
-the template recognizes low and high effort. The candidate removes the
+the template recognizes low and high effort. The release removes the
 old automatic short reasoning cap. An explicit client thinking-token budget
 can cap reasoning; otherwise it ends when the model closes the block or
 the request reaches `max_tokens`. That limit includes reasoning, so a short
@@ -185,7 +185,7 @@ workload. It measured decode 10–16% slower: code / prose / structured 72.6 / 3
 2.6 GB less memory per rank before the KV pool (+26% blocks). Those receipts
 are in the [dated result bundle](../results/2026-10-17-fp4local/RESULT.md).
 Current formats are selected by mode; those old timings do not measure
-either mode of the unified RC.
+either mode of the unified release.
 
 ## Opt-in switches (default off)
 

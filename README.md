@@ -12,12 +12,13 @@ API. TP4 supports a switchless chain or an explicitly configured ring.
 The supplied profiles allow up to four concurrent requests with a per-request
 limit of the model's full 1M context; a TP2 profile also offers eight slots at 128K.
 
-This unified release candidate is unpublished. Focused checks pass for Strict
-and Spark on TP2 and TP4, TP4 chain/ring, native MTP near-1M shared-prefix
-concurrency, and protected prefix-cache disk restore. Use the accompanying
-source bundle and build instructions for this local candidate.
-[Current status and receipts](results/2026-10-21-unified-rc/RESULT.md) identify
-the tested configurations; historical tables below describe earlier releases.
+The [2026-10-21 unified release](https://github.com/Enntity/sparkglm/releases/tag/unified-20261021)
+ships one image for both sizes and modes. Strict preserves the checkpoint's
+weight formats; Spark uses the measured, qualified FP4 conversions and
+DFlash2. Focused TP4 chain/ring, native-MTP concurrency and cache-restore
+checks extend the retained TP2 validation.
+[Release identity, benchmarks and raw receipts](results/2026-10-21-unified-release/RESULT.md)
+record the tested configurations and remaining limits.
 
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
@@ -62,36 +63,53 @@ and two-cycle disk-restore checks passed. All release profiles protect matched
 prefix blocks from being rewritten during another request's prefill. See the
 [manual launcher instructions](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring).
 
-## Current RC measurements
+## Current release measurements
 
-On the TP4 ring, one matched run per workload and execution mode measured
-the same engine before the final prefix write-protection setting:
+Spark mode, GPU clocks uncapped, two repetitions per workload. Every response
+stopped naturally below the 4,096-token allowance. These are **medians**, not
+best runs. The cards round these same measurements to one decimal place.
 
-| Workload | Strict native MTP (tok/s) | Strict serial (tok/s) |
-|---|---:|---:|
-| Prose | 41.531 | 39.888 |
-| Code | 53.066 | 39.586 |
-| Structured | 57.021 | 39.991 |
-
-Output and reasoning hashes matched in all three pairs. These are focused
-single-run comparisons, not a broad benchmark or a chain-versus-ring
-comparison. A separate Strict ring capacity check passed with a
-1,046,988-token prompt and four concurrent identical or distinct branches
-of that shared prefix. It does not establish capacity for four independent
-1M-token contexts. See the [full evidence and scope](results/2026-10-21-unified-rc/RESULT.md).
-
-Spark on the final image, two repetitions per case with clocks uncapped:
-
-| Workload | TP4 chain (tok/s) | TP4 ring (tok/s) | Ring change |
+| Workload | TP2 (tok/s) | TP4 chain (tok/s) | TP4 ring (tok/s) |
 |---|---:|---:|---:|
-| Prose | 57.145 | 58.328 | +2.07% |
-| Code | 104.147 | 106.368 | +2.13% |
-| Structured | 137.936 | 141.363 | +2.48% |
+| Prose | 37.489 | 57.145 | 58.328 |
+| Code | 67.166 | 104.147 | 106.368 |
+| Structured | 89.752 | 137.936 | 141.363 |
 
-These are medians of the two runs. Every paired output, reasoning and stream
-hash matched. All requests completed naturally; all repetitions and the
-matched configuration proof are in the linked report. Two runs per case do
-not establish statistical significance.
+TP2 ran the published image from a fresh public clone. TP4 ran the qualified
+RC with identical executable, native libraries, launcher and profile bytes;
+the published image adds source-provenance metadata only. Both use the same
+quick RigMark-derived requests, low reasoning effort and timing calculation.
+Each chain/ring repetition has identical output, reasoning and stream hashes.
+Ring improves TP4 medians by 2.07–2.48%; two repetitions do not establish
+statistical significance. [All repetitions, configurations and raw outputs](results/2026-10-21-unified-release/RESULT.md).
+
+Retained TP2 Kindling results use the adapted zero-thinking-budget harness,
+`8x128k`, uncapped GPU clocks, and 512/768-token output limits: 80 measured
+runs and 193 streams per mode including warmups. These are earlier qualified
+measurements, not a rerun of the final release. Spark's shared-expert split
+was already off in this profile.
+
+| Workload | Strict serial (tok/s) | Spark (tok/s) |
+|---|---:|---:|
+| Prose | 25.759 | 42.194 |
+| Code | 25.573 | 70.959 |
+| Structured | 25.685 | 91.054 |
+| Counting | 25.692 | 98.376 |
+| Mixed C4, aggregate | 25.209 | 80.283 |
+| Mixed C8, aggregate | 25.184 | 95.081 |
+
+[The retained report and all receipts](results/2026-10-20-tp2-qualification/RESULT.md)
+preserve the original arithmetic and capacity failures. The subsequent
+[focused fixes and final qualification](results/2026-10-21-unified-rc/RESULT.md)
+resolve those affected checks; the historical report is not rewritten as a pass.
+
+On TP4 ring, one matched native-MTP/serial sample per workload measured
+41.531/39.888 tok/s prose, 53.066/39.586 code, and 57.021/39.991 structured,
+with identical output and reasoning hashes. Those samples precede the final
+prefix write-protection setting. Final-policy correctness, concurrent native
+MTP near 1M, and two forced disk-cache restores passed separately. The capacity
+check used four branches of a shared 1,046,988-token prefix; it does not show
+that four independent million-token contexts fit. [Scope and evidence](results/2026-10-21-unified-rc/RESULT.md).
 
 ## What it does
 
@@ -139,7 +157,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
 | Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
-These dated measurements do not describe the unified TP2/TP4 RC. Rows
+These dated measurements do not describe the unified TP2/TP4 release. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
@@ -213,7 +231,7 @@ curl -s http://127.0.0.1:8893/v1/chat/completions -H 'Content-Type: application/
 Streaming, tool calls, JSON and structured output, images and short videos
 are supported. GLM's checkpoint template opens reasoning even with
 `chat_template_kwargs.enable_thinking: false`; its default is Max effort,
-with low/high selected through `reasoning_effort`. The candidate no longer
+with low/high selected through `reasoning_effort`. This release no longer
 adds a short reasoning cap. `max_tokens` includes reasoning and can end a
 request before the answer appears; an explicit thinking-token budget can
 cap the reasoning section. See [behavior limits](docs/LIMITATIONS.md#behaviour).
@@ -221,7 +239,7 @@ cap the reasoning section. See [behavior limits](docs/LIMITATIONS.md#behaviour).
 For serial/speculative comparisons, `/v1/completions` accepts
 `disable_mtp: true`. Blocking completions can request `return_token_ids: true`
 for exact generated IDs in `choices[].token_ids`; streaming with this option
-is rejected. Both default to false. [Engine details](docs/ENGINE.md#candidate-behavior)
+is rejected. Both default to false. [Engine details](docs/ENGINE.md#serving-behavior)
 explain their limits.
 
 When an agent repeats the same tool call and gets the same result, the engine
@@ -239,14 +257,14 @@ action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
 - `4x1m-tp4`: the TP4 profile, selected by four-rank orchestration
   rather than `PROFILE` in `start.sh`; four sequences, up to 1M tokens per
   request, with memory utilization 0.72. See the
-  [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4-candidate).
+  [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4).
 
 The context limit applies to each request; it does not reserve that much KV
 for every concurrent slot. At the historical TP2 2.66M-token pool size, four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
-The figures in this section are historical TP2 measurements; candidate
+The figures in this section are historical TP2 measurements; release
 capacity must be read from its own startup and load-test receipts.
 For the TP2 launcher, the KV cache is split between the two Sparks (`KV_SHARD`, on by default): each
 stores the latents of half the blocks, so the pool holds about 1.8x the tokens,
@@ -270,18 +288,18 @@ MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
 is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
-The unified RC selects precision through [Strict and Spark modes](#strict-and-spark-modes).
+The unified release selects precision through [Strict and Spark modes](#strict-and-spark-modes).
 Both use checkpoint input scales. Strict keeps native projection weights and
 A16 routed decode; Spark permits the selected FP4 KDA/shared-expert conversions
 with corrected rounding and A4 routed decode. MLA, dense projections and the
 vocabulary head remain native in both. These policies replace the earlier
 blanket requantization and the intermediate native-format-only candidate.
-The [current RC evidence](results/2026-10-21-unified-rc/RESULT.md) is separate
+The [current release evidence](results/2026-10-21-unified-rc/RESULT.md) is separate
 from the 2026-10-17 historical measurements, which do not describe
 these mode presets. See [fidelity limits](docs/LIMITATIONS.md#fp4-local).
 
 The installer retains its earlier NVFP4 checkpoint override. It is outside
-the unified Strict/Spark RC qualification; required native-format checks still
+the unified Strict/Spark release qualification; required native-format checks still
 apply at load. Prior prompt-logprob comparisons are historical.
 To select it, add both lines to `.env` and rerun
 `./start.sh`; it downloads the checkpoint and converts its overlay:
@@ -405,65 +423,33 @@ comparison videos.
 
 ## The engine
 
-Atlas here is built from [`Enntity/atlas`](https://github.com/Enntity/atlas)
-at the commit and tree in
-[`install/atlas-source.json`](install/atlas-source.json). The 2026-10-19
-candidate adds TP4, checkpoint behavior fixes and sampled verification to
-the earlier `sparkglm/atlas-20261017-fp4local` foundation at `b3b016ab`.
-Its behavior and switches are described in [docs/ENGINE.md](docs/ENGINE.md). The fork keeps one
-branch per layer: `spark-shared`, which SparkQwen builds on too, and `sparkglm`
-on top of it ([branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md)).
-The engine is built from three layers:
+Atlas is built from the public [Enntity fork](https://github.com/Enntity/atlas)
+at the immutable tag
+[`sparkglm/atlas-20261021-unified`](https://github.com/Enntity/atlas/tree/sparkglm/atlas-20261021-unified),
+commit `f4d95a100516338c938a4524e23a65a2c4c3206e`. The exact commit and tree
+are pinned in [`install/atlas-source.json`](install/atlas-source.json).
 
-1. Atlas-Inf `main` at `7ffd183f`.
-2. The shared Spark engine layer `upstream/atlas-shared-20261015-vision` at
-   `a9464810`, which [SparkQwen](https://github.com/Enntity/sparkqwen) builds on too. It holds
-   GLM-5.3-Flash support and optimizations, which we intend to propose to
-   Atlas-Inf after review (it started as Reiner Schmidt's port,
-   [Mango-kid/atlas](https://github.com/Mango-kid/atlas/tree/feat/glm53-dual-spark);
-   the engine's `docs/porting/GLM_5_3_FLASH.md` has the history); the
-   Qwen3.8-Flash-Next series, whose paths stay off for GLM; and the
-   model-independent work both products share: speculation that commits
-   exactly the tokens plain greedy decode commits (one lowest-index tie rule),
-   shared-prefix admission, opt-in content-loop steering, batched prefix-cache
-   eviction, the refusal-content fix (Atlas-Inf issue 172), the vision
-   prefix cache below and the vision fixes both models share: every vision
-   tower encodes per chunk into per-sequence state, a malformed vision
-   layout fails only its request, MRoPE positions come from the whole
-   prompt, and vision markup typed in message text encodes as text.
-3. SparkGLM-only commits: FlashKDA and native sparse-MLA prefill bridges,
-   which rely on libraries built outside the Atlas tree, the GB10 display
-   carveout (including where the split KV pools are placed in it), and the
-   FP4-Local series: the compressed-scale decoder and loader, four exact
-   prefill options the profiles turn on, the tools + `response_format` union
-   grammar and the checkpoint-format path, now enabled by product profiles.
-   The candidate adds calibrated routed input scales, experimental A16 routed
-   decode/verify (disabled in product profiles), FP32 router logits, checkpoint prompt/reasoning behavior, sampled verify
-   and the TP4 chain. Its model-independent
-   commits (`shared:`) are candidates for the shared layer.
+The fork keeps stable `spark-shared`, `sparkglm` and `sparkqwen` branches.
+This release extends the published SparkGLM FP4-Local foundation without
+changing the shared or Qwen branches. Its layers are Atlas-Inf `7ffd183f`,
+the shared Spark layer `a9464810`, and the accepted SparkGLM release.
+Model-independent additions remain in the product layer pending the next
+shared refresh. See the [branch and release index](https://github.com/Enntity/atlas/blob/enntity/releases/docs/PUBLISHED_RELEASES.md).
 
-The profiles set `ATLAS_MOE_INPLACE_TRANSPOSE=0`: the shared engine's default
-in-place MoE transpose keeps every expert's allocation, which on GB10 costs
-about 1.5 GB of kernel memory per Spark that the KV pool would otherwise get.
-In the 2026-10-15 comparison against its predecessor, text prompts scored
-the same prompt logprobs and the prefix-cache, fill, tool-call and vision checks passed
-([results/2026-10-15-shared-engine](results/2026-10-15-shared-engine/RESULT.md)).
+The accepted source export has the same runtime code as the qualified RC;
+one documentation example replaces a lab address with an example address.
+The published image preserves the tested executable, native libraries,
+launcher and profile bytes. Its source manifest and release labels were
+repacked, with the source mapping and runtime hashes recorded in the
+[release provenance](results/2026-10-21-unified-release/RESULT.md).
+This is not a claim of an independent cold rebuild or complete upstream CI
+qualification. Product checks and the affected Linux/GPU checks are listed
+with their receipts.
 
-**Image prompts use the prefix cache.** Every image used to be the same run
-of placeholder tokens, so image prompts bypassed the prefix cache entirely:
-once an image entered a long conversation, every turn re-prefilled the whole
-history and re-encoded every image. The cache key now replaces each
-placeholder with an id derived from its image's SHA-256 content hash, so a
-different image never shares KV and the same image hits; text before the first
-image keys as before. Only images a prefill actually computes go through the
-vision encoder, the second Spark no longer loads the vision tower (rank 0
-encodes and sends the rows), and concurrent image prompts keep their vision
-state per request. In that 2026-10-14 comparison, text prompt-logprob hashes
-were unchanged. Receipts: [results/2026-10-14-vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md).
-
-The manifest's `layers` entries distinguish the published historical
-foundations from the qualification candidate. A source pin and passing
-source tests do not establish image publication or hardware qualification.
+[Engine behavior and switches](docs/ENGINE.md) describe the current modes.
+Historical [shared-engine](results/2026-10-15-shared-engine/RESULT.md) and
+[vision-prefix-cache](results/2026-10-14-vision-prefix-cache/RESULT.md)
+comparisons retain their original identities and scope.
 
 ## History
 
