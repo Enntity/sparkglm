@@ -1,10 +1,10 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Local unified TP2/TP4 RC candidate: Strict and Spark precision policies, corrected weight RNE, native MTP with per-owner prefix/admission, native FP8 MLA fusion and sparse ABI2 for 16/32 heads, explicit switchless chain/ring. Hardware qualification is recorded separately; candidate until affected tests pass. TP2 focused fixes retained. TP4 ring completion flags use parity-separated words to prevent cross-link completion overtaking; pair wire semantics are unchanged.",
+  "note": "Local unified TP2/TP4 RC candidate: Strict and Spark precision policies, corrected weight RNE, native MTP with per-owner prefix/admission, native FP8 MLA fusion and sparse ABI2 for 16/32 heads, explicit switchless chain/ring. Hardware qualification is recorded separately; candidate until affected tests pass. TP2 focused fixes retained. TP4 ring completion flags use parity-separated words to prevent cross-link completion overtaking; pair wire semantics are unchanged. TP4 sharded NVMe prefix spill/restore uses four record classes and class-aware eviction. Both TP4 modes disable shared-expert splitting after the matched arithmetic control; TP2 Strict policy is retained.",
   "repository": "https://github.com/Enntity/atlas.git",
   "branch": "sparkglm/unified-rc-20261021",
-  "commit": "494098191bbc716166f31de01beea7314f0b11d9",
-  "tree": "2aab2485e8a031950b26ac34f90d88d5364e2500",
+  "commit": "d3620ffbaf654186c7213b320e52d0112a71f956",
+  "tree": "5ea6906a3fa565ee597d22647fb4ca6a758977b5",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {

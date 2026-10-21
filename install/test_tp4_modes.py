@@ -42,8 +42,10 @@ class FourRankModes(unittest.TestCase):
                                          '1' if mode == 'strict' else '0')
                         self.assertEqual(env['ATLAS_GLM_FP4L_DECODE_A16'],
                                          '1' if mode == 'strict' else '0')
-                        if mode == 'spark':
-                            self.assertEqual(env['ATLAS_GLM_SHARED_TP_SPLIT'], '0')
+                        # TP4 Strict also reproduces the arithmetic miss when
+                        # the shared expert is split; both release modes use
+                        # its full output before blending.
+                        self.assertEqual(env['ATLAS_GLM_SHARED_TP_SPLIT'], '0')
                         self.assertIn(f'/tp4/{topology}/{mode}/', env['ATLAS_KV_NVME_DIR'])
 
     def test_native_mtp_preserves_capacity_without_copying_pair_memory_cap(self):

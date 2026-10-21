@@ -40,18 +40,18 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --mode             strict (default) or spark; same on every rank
   --strict-mtp       native MTP in strict mode; retains profile capacity and prefix cache
   --profile          a profile shipped in the image (TP2 default 4x512k, TP4 4x1m-tp4) or a JSON
-                     file of your own; use the same one on both ranks
+                     file of your own; use the same one on every rank
   --gpu-memory-utilization  share of unified memory for the engine (default:
                      the profile's: 0.88, or 0.72 on four Sparks); raise it on dedicated hosts for a
                      larger KV pool and prefix cache
   --prefix-cache-dir keep evicted prefix-cache entries in this directory on
                      the node's own disk (ext4/xfs) instead of dropping them
                      (default: off)
-  --prefix-cache-gb  their disk budget in GiB (default 48); the same on both ranks
+  --prefix-cache-gb  their disk budget in GiB (default 48); the same on every rank
   --display-carveout lend the GB10's 2 GiB display carveout to the KV cache
-                     (2 GiB more KV cache); use it on both ranks (default: off)
-  --kv-shard         split the KV cache between the two Sparks, about 1.8x the
-                     pool for the same memory; use it on both ranks (default: off)
+                     (2 GiB more KV cache); use it on every rank (default: off)
+  --kv-shard         split latent KV ownership across the Sparks; enable it on
+                     every rank (default: off)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2

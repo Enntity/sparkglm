@@ -520,6 +520,7 @@ class LaunchContract(unittest.TestCase):
         # o_proj reduce-scattered block by block (same bits); and the index
         # split's selection rows gathered packed beside q_b (same words).
         expected.update(NCCL_NET='Socket', NCCL_IB_DISABLE='1', ATLAS_RDMA_ONESHOT_STRIPE_MIN='16384',
+                        ATLAS_GLM_SHARED_TP_SPLIT='0',
                         ATLAS_GLM_FP4L_NATIVE='1', ATLAS_GLM_FP4L_KDA_MXFP8_DECODE='1',
                         ATLAS_RDMA_ONESHOT_MAX='8388544', ATLAS_RDMA_PAIR_SPIN_US='30000',
                         ATLAS_GLM_VERIFY_GRAPH='1', ATLAS_GLM_DRAFT_TP='mlp,head',
