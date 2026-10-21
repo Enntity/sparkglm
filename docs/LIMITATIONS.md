@@ -5,12 +5,14 @@ What to know before relying on SparkGLM.
 
 ## Scope of the measurements
 
-- We tested one pair of DGX Sparks on one cable. Other firmware, drivers,
+- Historical comparisons used one pair of DGX Sparks on one cable. The
+  unified RC also has four-Spark chain/ring checks. Other firmware, drivers,
   cables or cooling may give different numbers.
 - The vLLM and Mia comparison runs were recorded earlier on the same pair.
   They were not alternated with the Atlas runs.
 - Each README row comes from the dated release its receipt names. The
-  unified TP2/TP4 RC needs its own final-image receipts;
+  unified TP2/TP4 RC has a separate
+  [status and evidence page](../results/2026-10-21-unified-rc/RESULT.md);
   earlier component, development-binary and release measurements do not
   establish its performance or quality at TP2 or TP4. RigMark decode,
   cold prefill, staggered arrivals, the staggered C4 field guide, the Matrix
@@ -31,25 +33,32 @@ What to know before relying on SparkGLM.
 
 ## Not yet measured
 
-- **Unified RC long context:** TP4 needs final-image evidence at its full
-  request-context limit, including native-MTP headroom and cached concurrent
-  branches. Earlier TP2 results and the profile's configured limit do not
-  qualify that configuration. A shared-prefix C4 result also would not prove
-  that four independent million-token contexts fit simultaneously.
+- **Independent full-window contexts:** the Strict ring check passed at a
+  1,046,988-token prompt with four concurrent branches sharing that prefix.
+  It does not establish capacity for four independent million-token contexts.
 - **Chunked prefill and endurance:** prefill is not row-invariant. A prompt
   long enough to prefill in several chunks (over 8K tokens) can still differ
-  when the engine is busy, and long-context endurance, cancellation under load
-  and multimodal work at full context are not measured.
+  when the engine is busy. Focused cancellation/reuse checks passed;
+  sustained long-context endurance and multimodal work at full context are
+  not measured.
 
 ## Capacity and prefix caching
 
-The pool sizes and memory margins below are historical TP2 measurements.
+The bulleted pool sizes and memory margins below are historical TP2 measurements.
 The unified RC selects precision by mode: Strict uses native weights and A16
 routed decode, while Spark uses the selected corrected FP4 conversions and
-calibrated A4 routed decode. Final-image TP4 qualification is pending. Read
-the actual pool allocation and host-memory receipts before planning capacity.
+calibrated A4 routed decode. Read the
+[current pool and memory receipts](../results/2026-10-21-unified-rc/RESULT.md)
+before planning capacity.
 Native MTP has a private predictor cache on rank 0; near 1M shared-prefix C4
 must not be interpreted as four independent full-window contexts.
+
+The Strict TP4 ring capacity check used a 1,046,988-token prompt. Identical
+and distinct branches reached decode width four; the four distinct resident
+branches overlapped for 8.539699 seconds. Minimum observed host
+`MemAvailable` was 25.209 / 45.570 / 39.974 / 45.678 GiB on nodes 01 / 02 /
+03 / 04. These are margins observed in that run, not reserved memory or an
+endurance guarantee.
 
 - All requests share one KV pool, which also holds the prefix cache. With the
   NVFP4 checkpoint, unsplit, it is about 600K tokens at the default 0.88 memory
@@ -92,12 +101,13 @@ must not be interpreted as four independent full-window contexts.
   a multiple of 16. GLM restores from block-aligned snapshots anyway, so
   turning this off costs nothing.
 - The prefix cache on disk (`PREFIX_CACHE_DIR`, off by default) has been
-  measured in one pass, on 25K-token conversations. Long contexts, many
-  restores at once, the cost to the request whose prefill pushes blocks out,
-  and endurance are not measured.
+  timed on historical TP2 25K-token conversations; the current TP4 check
+  adds two exact restore cycles under a bounded diagnostic pool. Disk restores
+  near the context limit, many simultaneous restores, eviction latency imposed
+  on another request, and endurance are not measured.
 - The engine refuses to start when the directory is on tmpfs, ramfs or
   overlayfs, cannot be written, or cannot hold the KV half of the size, and
-  when the two Sparks' settings differ. Its host memory comes out of the KV
+  when the ranks' settings differ. Its host memory comes out of the KV
   pool (see the README).
 - With caching on, the engine disables its fused prefill/decode path. Cold
   C4-16K is about 6% slower than in the release without caching.
@@ -109,7 +119,9 @@ must not be interpreted as four independent full-window contexts.
 - Strict preserves checkpoint weight formats; Spark intentionally converts
   KDA decode and shared-expert weights to FP4 with corrected nearest-even
   rounding. MLA, dense projections, the vocabulary head and KDA prefill stay
-  native. Spark shared-expert TP splitting is disabled. Older blanket
+  native. Spark shared-expert TP splitting is disabled; the TP4 profile also
+  disables it in Strict after the matched C4 arithmetic control. TP2 Strict
+  is unchanged. Older blanket
   requantization and native-format-only timings do not describe either mode.
 - Both modes use checkpoint input scales. Strict uses A16 routed decode and
   Spark uses calibrated A4. Weight-format preservation does not remove
@@ -216,18 +228,34 @@ chunks, which halve our KV pool).
   C4 decode, remain unsupported. Historical K5 flags can also be inactive
   under canonical verification; flag presence alone does not prove execution.
 - Strict native MTP is an explicit option, with a full predictor on rank 0 and
-  target execution on all four ranks. Its near-limit headroom, prefix restore,
-  cancellation/reuse and serial-equivalence checks must pass on the final
-  image and topology. The TP2-specific native KV cap is not copied to TP4.
+  target execution on all four ranks. The focused ring and chain Strict smoke passed
+  C1/C4 native-versus-serial token checks, resident-prefix forks,
+  cancellation/reuse, JSON/tools and sampled logprobs. The separate near-1M
+  capacity check is described above. The TP2-specific native KV cap is not
+  copied to TP4.
+- TP4 Strict shared-expert splitting is off. A same-image control changing
+  only that switch corrected the C4 arithmetic result from `-382130` to
+  `-381530` in all four serial and all four native requests; native token IDs
+  matched serial. Spark was already unsplit, and TP2 Strict is unchanged.
 - Disk cache paths separate rank count, topology and mode. TP4 token-sharded
-  KV cannot be combined with the NVMe KV tier in this engine; disk caching
-  without KV sharding remains a separate configuration to validate.
+  KV spill/restore uses the same `--prefix-cache-dir` option. Two cycles
+  restored on all four ranks with exact cold/warm native/serial outputs,
+  using a 2,048-block diagnostic GPU pool, the normal 48 GiB combined disk
+  tier, 16 GPU SSM slots and two host-tier slots.
+- The earlier cache mismatch reproduced without eviction: another request
+  rewrote a matched 16-token prefix during recomputation. The same-binary
+  control passed after enabling only `ATLAS_GLM_PC_WRITE_FLOOR=1`, followed
+  by the two-cycle disk check. All four release profiles enable this
+  protection; the configuration update leaves the binary/native libraries
+  unchanged.
 - Sampled verification requires the exchange kernels and protocol on every
   rank. Unsupported sampling/logprob requests fail before verify dispatch.
   A failed exchange after dispatch can terminate the ranks and interrupt
   other requests; peer lifelines must remain enabled.
-- Final-image TP4 correctness, throughput, scaling, long-context quality and
-  memory margins are pending. Historical TP2 results do not qualify TP4.
+- The [unified RC result](../results/2026-10-21-unified-rc/RESULT.md) tracks
+  remaining Spark/TP2 validation. The native-versus-serial speed comparison
+  has one run per workload/arm; it does not measure chain-versus-ring scaling
+  or establish broad workload quality.
 
 ## Structured output
 

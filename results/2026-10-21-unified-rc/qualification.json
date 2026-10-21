@@ -1,0 +1,338 @@
+{
+  "schema": "sparkglm.unified-rc-qualification/v1",
+  "passed": true,
+  "status": "local RC qualified for the scoped TP2/TP4 release; not publicly published",
+  "image": {
+    "image_id": "sha256:26433ce1554b84e55d22aeaec8f6d7207850edb7dcb75e40fd0eeb8652c63e33",
+    "tag": "localhost/atlas-sparkglm:unified-rc-46f14bee214a",
+    "builder_id": "sha256:20c19afc4a0a53dd972bbb0ebf7541eafb6932cb0dc09c0c8efac5fde4488aa8",
+    "builder_tag": "localhost/atlas-glm-unified-builder:46f14bee214a",
+    "source": {
+      "schema": "sparkglm.atlas-engine-source/v2",
+      "note": "Local unified TP2/TP4 RC candidate: Strict and Spark precision policies, corrected weight RNE, native MTP with per-owner prefix/admission, native FP8 MLA fusion and sparse ABI2 for 16/32 heads, explicit switchless chain/ring. Hardware qualification is recorded separately; candidate until affected tests pass. TP2 focused fixes retained. TP4 ring completion flags use parity-separated words to prevent cross-link completion overtaking; pair wire semantics are unchanged. TP4 sharded NVMe prefix spill/restore uses four record classes and class-aware eviction. Both TP4 modes disable shared-expert splitting after the matched arithmetic control; TP2 Strict policy is retained.",
+      "repository": "https://github.com/Enntity/atlas.git",
+      "branch": "sparkglm/unified-rc-20261021",
+      "commit": "d3620ffbaf654186c7213b320e52d0112a71f956",
+      "tree": "5ea6906a3fa565ee597d22647fb4ca6a758977b5",
+      "layers": {
+        "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
+        "shared_engine": {
+          "branch": "upstream/atlas-shared-20261015-vision",
+          "commit": "a94648109f3c9a9a739e6cdf3d9630acaf45bac8",
+          "note": "The engine layer SparkGLM and SparkQwen share, on Atlas-Inf main 7ffd183f: the GLM-5.3-Flash series (port, RC4 commits, tool-call fixes, repeat notice; 236beb90), the Qwen3.8-Flash-Next series (gated by model type, off for GLM; 476e2208), the model-independent SparkQwen RC16 commits (speculation commits serial decode's tokens, one lowest-index greedy tie rule, shared-prefix admission, opt-in loop steering and prefill burst, step trace), the refusal-content fix, batched prefix-cache eviction, the shared vision fixes (every tower encodes per chunk into per-sequence state, vision layout errors fail only their request, MRoPE positions from the whole prompt, vision markup in message text encodes as text) and the vision prefix cache for every tower, and the shared-engine fixes: the w4a16_gemv_qg_batch4 lookup gated to qwen4_exp, sequence-parallel prefill kept with DFlash when its window fits rank 0's half, and ATLAS_MOE_INPLACE_TRANSPOSE (SparkGLM's profiles set 0, the consolidated transpose)."
+        },
+        "sparkglm_only": {
+          "branch": "sparkglm/atlas-20261017-fp4local",
+          "commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
+          "note": "Historical SparkGLM foundation below the qualification candidate. The SparkGLM layer (sparkglm/atlas-20261015-vision, 16315004: FlashKDA/native sparse-MLA prefill bridges, GB10 display-carveout KV placement and sharded latent pools in the carveout) plus the FP4-Local series: the lossless NVFP4-CSF (csf_32x2_v1) block-scale decoder, decoded per slice under expert TP; FP4-Local's MXFP8 and FP8_PB_WO projections loaded through production's arms on exact (MXFP8) or nearest (FP8 block) BF16 copies, its quantized MTP experts and ViT, and every quantized source released after expansion; four exact prefill options the profiles set (ATLAS_GLM_KDA_SIDE_PROJ_LT, ATLAS_GLM_KDA_CONV_PLANES, ATLAS_GLM_HC_PREFILL_FUSE2, ATLAS_GLM_SP_GATHER_OVERLAP); tools + response_format under tool_choice auto compiled as one tool-call-or-JSON union grammar; and default-off options: every group in the checkpoint's own format (ATLAS_GLM_FP4L_NATIVE and per-group switches), the drafter's prompt window on warm turns (ATLAS_DFLASH_WARM_CTX), packed multi-prompt prefill (ATLAS_GLM_PACKED_PREFILL), ATLAS_TAIL_SPLIT_MIN_TOKENS and the per-request TTFT trace (ATLAS_TTFT_TRACE). Commits marked `shared:` are model-independent and are candidates for the shared layer; they sit in this layer until it moves. Fork-only."
+        },
+        "qualification_candidate": {
+          "branch": "sparkglm/fidelity-rc-20261019",
+          "commit": "6b8a35ed42de2265cbbbe4e813df860b64ff05a7",
+          "note": "Integration prepared on 2026-10-19 of the TP4 chain through 73e4dd6ef, GLM checkpoint prompt/generation/vision parity and FP32 router through f6e251cfe, reference input scales and W4A16 decode/verify MoE lanes, sampled split-head verification, zero-ceiling thinking re-entry, and completion token-ID and request speculation controls. Includes regression fixes that reject unsupported sampled split-head verification before worker dispatch and preserve the full-vocabulary route for requested logprobs. Product profiles enable input scales but disable A16 routed decode/verify after TP2 diagnostics found concurrency-dependent speculative outputs with A16 enabled. The calibrated A4 fallback differs from the reference decode activation policy and still requires full quality qualification. Hardware qualification and publication are recorded separately in release receipts. No default max_tokens expansion is included. The final source also splits oversized candidate modules without changing their algorithms. Speculative returned logprobs now use the same processed distribution as serial decode, including logit bias and history; unsupported score-reporting paths use supported verification or serial execution. This change does not add first-prefill-token logit-bias support. Accepted prediction usage counts only retained output draft tokens, including token-limit, stop and rollback handling; internal verification statistics are unchanged. Profiles enable per-row masked verification. Split/scored verify spans retain their processed thinking-boundary decisions instead of replaying the raw forced-end helper against pre-span state. This repair does not change the generic LegacyFallback path or establish final image quality/performance."
+        },
+        "tp2_modes": {
+          "commit": "b4bf5336b2a8dec746c15077a2a8ca7f6c07556e",
+          "base_commit": "8cd6e0487a50a124ee9cc8274179847711731f12",
+          "note": "Explicit mode enforcement, missing-format/calibration rejection, separate caches, strict serial target requests, and corrected drafter weight RNE. No activation quantizer change."
+        }
+      },
+      "kernel_target": "glm-5.3-flash",
+      "license": "AGPL-3.0-only"
+    },
+    "hashes": {
+      "/usr/local/bin/spark": "e79d163dd10c07e3244de7c26a73c915a35ae3df08d5db34162243baaf182467",
+      "/opt/atlas/serve.py": "cf43230373b79a7c918eb6e57e9fd249dd1e39ccc1eda06f522d96ac75dcb3e1",
+      "/opt/atlas/native/libatlas_glm53_flash_kda.so": "de037d70bd833bad64b3abc118fc96cf8a92d9c4319b0eca4ca1869652fd7fa9",
+      "/opt/atlas/native/libatlas_mango_flash.so": "88a77a5804e5c2f66a782c1140b99a984707aa48c654333b4f8ecf45685874fe",
+      "/opt/atlas/native/libatlas_glm_sparse_native.so": "59f53b2d980ad78f9a092d9d7a6623ec210b612f42c8476a808c943920abd9f8",
+      "/opt/atlas/profiles/4x1m.json": "36dd7b7fb564bf3b892f940f33e3e1d793dea274c4f3567860e6f900335fff83",
+      "/opt/atlas/profiles/4x1m-tp4.json": "b970e7cbca76dd2383fc6a62c17c6fa94bbf0322f4f54089bf8dddd68ff02a3c",
+      "/opt/atlas/profiles/8x128k.json": "5ee2bbc9947c22b971abf5442fede52e2c7240b99c4b5c4511ca5679cb2a6a55",
+      "/opt/atlas/profiles/4x512k.json": "e744ab306f106299e71beb5107b2fcb5d0c6febd4ff4c1b3fbf7e4f555dd067e"
+    },
+    "install_tree": "46f14bee214afe112fa6199e719a60586da00ffc",
+    "product_commit": "49adf4e049c0768ac4565ca53c0a3bba52bae1ce"
+  },
+  "host_identity": {
+    "ennspark01": {
+      "image_id": "sha256:26433ce1554b84e55d22aeaec8f6d7207850edb7dcb75e40fd0eeb8652c63e33",
+      "content_projection_sha256": "2dcaaa507e4acdea7807cfdebc3e1dc7d9efef28a0b59e251c0d7198a4c7214b"
+    },
+    "ennspark02": {
+      "image_id": "sha256:26433ce1554b84e55d22aeaec8f6d7207850edb7dcb75e40fd0eeb8652c63e33",
+      "content_projection_sha256": "2dcaaa507e4acdea7807cfdebc3e1dc7d9efef28a0b59e251c0d7198a4c7214b"
+    },
+    "ennspark03": {
+      "image_id": "sha256:19e79229aa7be4d16872ba3339b983035004de8b0ae91b45222781ceda185f18",
+      "content_projection_sha256": "2dcaaa507e4acdea7807cfdebc3e1dc7d9efef28a0b59e251c0d7198a4c7214b"
+    },
+    "ennspark04": {
+      "image_id": "sha256:19e79229aa7be4d16872ba3339b983035004de8b0ae91b45222781ceda185f18",
+      "content_projection_sha256": "2dcaaa507e4acdea7807cfdebc3e1dc7d9efef28a0b59e251c0d7198a4c7214b"
+    }
+  },
+  "final_image_checks": [
+    {
+      "arm": "tp4-chain-spark-final",
+      "checks": 15,
+      "requests": 22,
+      "passed": true,
+      "receipt": "results/tp4-chain-spark-final/smoke.json"
+    },
+    {
+      "arm": "tp4-ring-spark-final",
+      "checks": 15,
+      "requests": 22,
+      "passed": true,
+      "receipt": "results/tp4-ring-spark-final/smoke.json"
+    },
+    {
+      "arm": "tp4-ring-strict-native-protected",
+      "checks": 19,
+      "requests": 31,
+      "passed": true,
+      "receipt": "results/tp4-ring-strict-native-protected/smoke.json"
+    },
+    {
+      "arm": "tp2-chain-strict-native-final",
+      "checks": 19,
+      "requests": 31,
+      "passed": true,
+      "receipt": "results/tp2-chain-strict-native-final/smoke.json"
+    },
+    {
+      "arm": "tp2-chain-spark-final",
+      "checks": 15,
+      "requests": 22,
+      "passed": true,
+      "receipt": "results/tp2-chain-spark-final/smoke.json"
+    }
+  ],
+  "topology_comparison": {
+    "passed": true,
+    "scope": "Two repetitions per prompt; uncapped clock service; same image, model, requests, and argv. Topology and its cache namespaces differ. Not a statistical significance claim.",
+    "rows": {
+      "prose": {
+        "chain_median_tps": 57.145,
+        "ring_median_tps": 58.328,
+        "ring_change_percent": 2.0701723685361717,
+        "repetitions": [
+          {
+            "run": 1,
+            "chain_tps": 58.4,
+            "ring_tps": 59.636,
+            "exact_outputs": true,
+            "chain_tokens": 971,
+            "ring_tokens": 971
+          },
+          {
+            "run": 2,
+            "chain_tps": 55.889,
+            "ring_tps": 57.019,
+            "exact_outputs": true,
+            "chain_tokens": 1008,
+            "ring_tokens": 1008
+          }
+        ]
+      },
+      "code": {
+        "chain_median_tps": 104.147,
+        "ring_median_tps": 106.368,
+        "ring_change_percent": 2.1325626278241305,
+        "repetitions": [
+          {
+            "run": 1,
+            "chain_tps": 105.312,
+            "ring_tps": 107.523,
+            "exact_outputs": true,
+            "chain_tokens": 1783,
+            "ring_tokens": 1783
+          },
+          {
+            "run": 2,
+            "chain_tps": 102.981,
+            "ring_tps": 105.214,
+            "exact_outputs": true,
+            "chain_tokens": 2080,
+            "ring_tokens": 2080
+          }
+        ]
+      },
+      "structured": {
+        "chain_median_tps": 137.936,
+        "ring_median_tps": 141.363,
+        "ring_change_percent": 2.4844855585198777,
+        "repetitions": [
+          {
+            "run": 1,
+            "chain_tps": 135.843,
+            "ring_tps": 139.47,
+            "exact_outputs": true,
+            "chain_tokens": 446,
+            "ring_tokens": 446
+          },
+          {
+            "run": 2,
+            "chain_tps": 140.029,
+            "ring_tps": 143.256,
+            "exact_outputs": true,
+            "chain_tokens": 441,
+            "ring_tokens": 441
+          }
+        ]
+      }
+    },
+    "configuration_differences": [
+      {
+        "host": "ennspark01",
+        "differences": {
+          "ATLAS_RDMA_LEFT_RAILS": [
+            null,
+            "rocep1s0f1,roceP2p1s0f1"
+          ],
+          "ATLAS_RDMA_TOPOLOGY": [
+            "chain",
+            "ring"
+          ],
+          "ATLAS_SSM_TIER_SWAP_DIR": [
+            "/prefix-cache/tp4/chain/spark/ssm",
+            "/prefix-cache/tp4/ring/spark/ssm"
+          ],
+          "ATLAS_KV_NVME_DIR": [
+            "/prefix-cache/tp4/chain/spark/kv",
+            "/prefix-cache/tp4/ring/spark/kv"
+          ]
+        }
+      },
+      {
+        "host": "ennspark02",
+        "differences": {
+          "ATLAS_RDMA_TOPOLOGY": [
+            "chain",
+            "ring"
+          ],
+          "ATLAS_SSM_TIER_SWAP_DIR": [
+            "/prefix-cache/tp4/chain/spark/ssm",
+            "/prefix-cache/tp4/ring/spark/ssm"
+          ],
+          "ATLAS_KV_NVME_DIR": [
+            "/prefix-cache/tp4/chain/spark/kv",
+            "/prefix-cache/tp4/ring/spark/kv"
+          ]
+        }
+      },
+      {
+        "host": "ennspark03",
+        "differences": {
+          "ATLAS_RDMA_TOPOLOGY": [
+            "chain",
+            "ring"
+          ],
+          "ATLAS_SSM_TIER_SWAP_DIR": [
+            "/prefix-cache/tp4/chain/spark/ssm",
+            "/prefix-cache/tp4/ring/spark/ssm"
+          ],
+          "ATLAS_KV_NVME_DIR": [
+            "/prefix-cache/tp4/chain/spark/kv",
+            "/prefix-cache/tp4/ring/spark/kv"
+          ]
+        }
+      },
+      {
+        "host": "ennspark04",
+        "differences": {
+          "ATLAS_RDMA_RIGHT_RAILS": [
+            null,
+            "rocep1s0f0,roceP2p1s0f0"
+          ],
+          "ATLAS_RDMA_TOPOLOGY": [
+            "chain",
+            "ring"
+          ],
+          "ATLAS_SSM_TIER_SWAP_DIR": [
+            "/prefix-cache/tp4/chain/spark/ssm",
+            "/prefix-cache/tp4/ring/spark/ssm"
+          ],
+          "ATLAS_KV_NVME_DIR": [
+            "/prefix-cache/tp4/chain/spark/kv",
+            "/prefix-cache/tp4/ring/spark/kv"
+          ]
+        }
+      }
+    ],
+    "source_files": {
+      "chain": "results/tp4-chain-spark-final/speed.json",
+      "ring": "results/tp4-ring-spark-final/speed.json"
+    }
+  },
+  "capacity_receipt": "results/tp4-ring-strict-native-final/capacity/result.json",
+  "cache_causal_receipt": "nvme-causal-comparison.json",
+  "evidence_reuse": [
+    "TP2 full qualification and focused arithmetic/native-MTP fixes from 2026-10-20; final-image smoke covers changed launch/cache policy.",
+    "TP4 near-1M capacity and strict-native speed from candidate03: final image changes only prefix write protection, not engine, memory allocation, kernels or context limits. Final protected-policy smoke reruns the affected cache and native checks.",
+    "TP4 forced restore from candidate03 plus sole WRITE_FLOOR=1 override: identical final engine/native bytes and same protected cache policy; final default profile removes only the diagnostic 2048-block cap.",
+    "Native sparse attention and MLA fusion GPU exactness, transport mixed-collective GPU/CPU regressions, Linux native build and four-class storage CPU/GPU tests carried by exact source/binary/library identity."
+  ],
+  "limits": [
+    "Two speed repetitions per case are not a statistical significance study.",
+    "Near-1M C4 means four branches sharing one resident prefix, not four independent million-token contexts.",
+    "Strict preserves checkpoint weight formats and scales; existing FP8 KV and floating-point execution remain.",
+    "Ring accelerates flood/gather routes; specialized reduce-scatter and all-to-all retain their existing linear schedules.",
+    "No new full Kindling, RigMark, NLL, sampler or broad quality campaign."
+  ],
+  "restoration": {
+    "pair": {
+      "resource": "pair",
+      "checked_unix": 1792568460.071091,
+      "hosts": {
+        "ennspark01": {
+          "name": "lloom-atlas-sparkglm-ennspark01",
+          "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+          "running": true,
+          "started": "2026-10-21T07:40:24.39343629Z",
+          "clock_service": "active"
+        },
+        "ennspark02": {
+          "name": "lloom-atlas-sparkglm-ennspark02",
+          "image": "sha256:f5c00e667bd2473ec26a243a3c2d28573a8986bbe8a8063f078b30e5f0051a20",
+          "running": true,
+          "started": "2026-10-21T07:40:24.147794333Z",
+          "clock_service": "active"
+        }
+      },
+      "passed": true,
+      "canary": {
+        "model": "glm-5.3-flash-atlas",
+        "answer": "42",
+        "seconds": 0.6134236640064046
+      }
+    },
+    "drafter-0304": {
+      "resource": "drafter-0304",
+      "checked_unix": 1792568060.902814,
+      "hosts": {
+        "ennspark03": {
+          "name": "lloom-atlas-sparkqwen-ennspark03",
+          "image": "sha256:a0cebe89737898692964d3923477bef293a4ebde9dd32e27202697c54f763c9d",
+          "running": true,
+          "started": "2026-10-21T07:31:12.740466093Z",
+          "clock_service": "active"
+        },
+        "ennspark04": {
+          "name": "lloom-atlas-sparkqwen-ennspark04",
+          "image": "sha256:a0cebe89737898692964d3923477bef293a4ebde9dd32e27202697c54f763c9d",
+          "running": true,
+          "started": "2026-10-21T07:31:12.488651483Z",
+          "clock_service": "active"
+        }
+      },
+      "passed": true,
+      "canary": {
+        "model": "qwen3.8-flash-next-atlas",
+        "answer": "42",
+        "seconds": 1.2134067480219528
+      }
+    }
+  }
+}

@@ -2,9 +2,9 @@
 
 These are the same steps [`./start.sh`](../start.sh) runs, one command at a
 time. Run steps 1–3 on **every** participating Spark with the same `MODEL_ROOT`.
-The unified TP2/TP4 image is an unpublished RC; final-image TP4 qualification
-is pending. The launcher instructions describe supported configuration, not
-completed hardware validation.
+The unified TP2/TP4 image is an unpublished RC. See the
+[current validation status](../results/2026-10-21-unified-rc/RESULT.md) for
+completed checks and the exact tested image/configuration.
 
 | Component | Pin |
 |---|---|
@@ -189,13 +189,24 @@ memory utilization 0.72. Capacity depends on actual free memory and the chosen
 mode. Strict native MTP also allocates a private predictor cache on rank 0;
 it does not inherit the TP2-specific 66,000-block cap. Read startup allocation
 and load-test receipts before changing the memory setting.
+The Strict ring capacity check passed at a 1,046,988-token prompt with four
+concurrent branches sharing that prefix. Four independent full-window
+contexts remain a different capacity requirement.
+The TP4 profile keeps shared-expert TP splitting off in both Strict and
+Spark after the focused C4 arithmetic control. TP2 Strict is unchanged.
 
 When disk prefix caching is enabled, TP2 uses `strict/` or `spark/` beneath
 the mounted cache root. TP4 uses `tp4/chain/strict/`, `tp4/chain/spark/`,
 `tp4/ring/strict/` or `tp4/ring/spark/`; each contains the separate KV/state
 directories. This prevents cache reuse across modes, rank counts or topologies.
-The engine currently refuses a TP4 token-sharded KV pool together with the
-NVMe KV tier; use disk caching without `--kv-shard` on TP4.
+TP4 token-sharded KV now supports NVMe prefix spill/restore. Add `--kv-shard`
+and `--prefix-cache-dir DIR` on every rank, with optional
+`--prefix-cache-gb 48`; each node uses its own disk. Two eviction/restore
+cycles passed on all four ranks using the normal 48 GiB combined disk tier
+and a 2,048-block diagnostic GPU pool. All release profiles enable
+`ATLAS_GLM_PC_WRITE_FLOOR=1` so a new request cannot rewrite matched cached
+prefix blocks during recomputation. Keep that setting when deriving a custom
+profile. See [storage receipts](../results/2026-10-21-unified-rc/RESULT.md).
 
 ## Troubleshooting
 

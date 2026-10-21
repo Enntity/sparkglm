@@ -11,8 +11,8 @@ The unified TP2/TP4 RC provides Strict and Spark precision policies, corrected
 FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
 and sparse attention for TP2's 32 or TP4's 16 local heads. The same image runs
 an explicit four-rank chain or ring. The install manifest selects the exact
-source; source support alone does not qualify an image. Final-image TP4
-correctness, headroom and performance validation is pending.
+source. [Current RC evidence](../results/2026-10-21-unified-rc/RESULT.md)
+records the completed Strict checks and remaining Spark/TP2 validation.
 
 The earlier release was `sparkglm/atlas-20261017-fp4local` at `b3b016ab`
 (tree `14316380`), built on the shared-engine release
@@ -47,6 +47,13 @@ resolve the same mode and topology.
   the arithmetic regression. Drafter weight conversions also use corrected
   rounding; activation quantizers are not changed by that rounding fix.
 
+The TP4 profile disables shared-expert TP splitting in Strict as well. In a
+same-image C4 control, changing only `ATLAS_GLM_SHARED_TP_SPLIT` from `1` to
+`0` corrected all four serial and four native-MTP arithmetic answers from
+`-382130` to `-381530`; native token IDs matched serial. TP2 Strict's setting
+is unchanged. This control establishes the TP4 policy for that regression,
+not a performance gain or general numerical equivalence.
+
 Both modes reject missing required formats/calibration instead of silently
 falling back to another weight conversion. Neither removes FP8 KV, dynamic
 prefill activation quantization, floating-point rounding, or chunk-scheduling
@@ -64,6 +71,29 @@ switch value is not evidence that its path executes.
 TP4 chain and ring use the same arithmetic and rank placement. Ring requires
 explicit left/right links on every rank, including rank 3–rank 0. Its performance
 must be measured on the resulting image and fabric; no speedup is assumed.
+
+TP4 sharded KV now supports the NVMe prefix tier using the same
+`--prefix-cache-dir` launcher option. Cache namespaces still separate TP2
+from TP4, Strict from Spark, and the TP4 chain from ring.
+
+The release profiles enable `ATLAS_GLM_PC_WRITE_FLOOR=1`. A control without
+eviction reproduced a cache mismatch after another request matched a
+16-token prefix without a usable recurrent-state snapshot, then recomputed
+and rewrote those shared KV rows. Changing only this switch on the same
+binary preserved the matched blocks and restored exact cold/warm
+native-versus-serial outputs. Two subsequent NVMe eviction/restore cycles
+passed on all four ranks. The correction changes profile configuration;
+the engine executable and native libraries are unchanged.
+
+Strict smoke passed on both TP4 ring and chain: C1/C4 native-versus-serial
+token checks, resident-prefix forks, cancellation/reuse, constrained JSON,
+tools and sampled full-vocabulary verification with finite logprobs. The
+ring also passed the separate 1,046,988-token shared-prefix capacity check,
+including four distinct resident branches at decode width four. The disk
+test used a 2,048-block diagnostic GPU pool, the normal 48 GiB combined disk
+tier, 16 GPU SSM slots and two host-tier slots. These checks and the focused
+native/serial speed comparison have separate
+[receipts and scope](../results/2026-10-21-unified-rc/RESULT.md).
 
 The checkpoint chat template opens a reasoning block, including when a
 client sends `enable_thinking: false`. Its default is `Reasoning Effort: Max`;

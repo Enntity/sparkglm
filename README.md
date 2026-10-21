@@ -12,9 +12,12 @@ API. TP4 supports a switchless chain or an explicitly configured ring.
 The supplied profiles allow up to four concurrent requests with a per-request
 limit of the model's full 1M context; a TP2 profile also offers eight slots at 128K.
 
-This unified release candidate is unpublished and its final-image TP4
-qualification is pending. The dated performance tables below describe earlier
-builds; they do not establish this RC's speed or quality, or a ring speedup.
+This unified release candidate is unpublished. Focused checks pass for Strict
+and Spark on TP2 and TP4, TP4 chain/ring, native MTP near-1M shared-prefix
+concurrency, and protected prefix-cache disk restore. Use the accompanying
+source bundle and build instructions for this local candidate.
+[Current status and receipts](results/2026-10-21-unified-rc/RESULT.md) identify
+the tested configurations; historical tables below describe earlier releases.
 
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
@@ -37,7 +40,9 @@ Every rank must use the same image, profile and mode.
 
 Drafter weight conversions use corrected rounding too. Spark disables
 shared-expert TP splitting on TP2 and TP4 because the split's partial-output
-rounding caused an arithmetic regression. Unsupported weight formats fail
+rounding caused an arithmetic regression. The TP4 profile also disables it
+in Strict after a matched C4 control corrected an arithmetic answer; TP2
+Strict's split setting is unchanged. Unsupported weight formats fail
 loading instead of silently converting. FP8 KV and prefill activation
 quantization remain in both modes; Strict is not a promise of bit-identical
 results across engines or prefill schedules.
@@ -51,8 +56,42 @@ prefix does not mean four independent full-window contexts fit in memory.
 `start.sh` currently exposes mode selection but not the native-MTP option.
 
 Disk cache directories are separated by mode; TP4 also separates chain and
-ring directories from each other and from TP2. See the
+ring directories from each other and from TP2. TP4 sharded KV spill/restore
+uses the same `--prefix-cache-dir` option. Resident-prefix TP4 Strict smoke
+and two-cycle disk-restore checks passed. All release profiles protect matched
+prefix blocks from being rewritten during another request's prefill. See the
 [manual launcher instructions](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring).
+
+## Current RC measurements
+
+On the TP4 ring, one matched run per workload and execution mode measured
+the same engine before the final prefix write-protection setting:
+
+| Workload | Strict native MTP (tok/s) | Strict serial (tok/s) |
+|---|---:|---:|
+| Prose | 41.531 | 39.888 |
+| Code | 53.066 | 39.586 |
+| Structured | 57.021 | 39.991 |
+
+Output and reasoning hashes matched in all three pairs. These are focused
+single-run comparisons, not a broad benchmark or a chain-versus-ring
+comparison. A separate Strict ring capacity check passed with a
+1,046,988-token prompt and four concurrent identical or distinct branches
+of that shared prefix. It does not establish capacity for four independent
+1M-token contexts. See the [full evidence and scope](results/2026-10-21-unified-rc/RESULT.md).
+
+Spark on the final image, two repetitions per case with clocks uncapped:
+
+| Workload | TP4 chain (tok/s) | TP4 ring (tok/s) | Ring change |
+|---|---:|---:|---:|
+| Prose | 57.145 | 58.328 | +2.07% |
+| Code | 104.147 | 106.368 | +2.13% |
+| Structured | 137.936 | 141.363 | +2.48% |
+
+These are medians of the two runs. Every paired output, reasoning and stream
+hash matched. All requests completed naturally; all repetitions and the
+matched configuration proof are in the linked report. Two runs per case do
+not establish statistical significance.
 
 ## What it does
 
@@ -237,8 +276,8 @@ A16 routed decode; Spark permits the selected FP4 KDA/shared-expert conversions
 with corrected rounding and A4 routed decode. MLA, dense projections and the
 vocabulary head remain native in both. These policies replace the earlier
 blanket requantization and the intermediate native-format-only candidate.
-Final-image TP4 quality and throughput qualification remain pending. The
-2026-10-17 measurements below are historical evidence, not measurements of
+The [current RC evidence](results/2026-10-21-unified-rc/RESULT.md) is separate
+from the 2026-10-17 historical measurements, which do not describe
 these mode presets. See [fidelity limits](docs/LIMITATIONS.md#fp4-local).
 
 The installer retains its earlier NVFP4 checkpoint override. It is outside
@@ -253,6 +292,15 @@ CHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93
 ```
 
 ## Prefix cache on disk (optional)
+
+TP4 now supports sharded KV spill/restore through
+`install/start-node.sh --kv-shard --prefix-cache-dir DIR` on every rank,
+with separate TP, topology and mode namespaces. The
+[TP4 Strict storage check](results/2026-10-21-unified-rc/RESULT.md) passed two
+eviction/restore cycles on all four ranks with exact cold/warm native/serial
+outputs. It used a 2,048-block diagnostic GPU pool to force eviction and the
+normal 48 GiB combined disk tier. The measurements and capacity figures
+below are historical TP2 results.
 
 When the KV pool fills up, the prefix cache drops the conversations used
 least recently, and one that comes back is prefilled again from the start.
