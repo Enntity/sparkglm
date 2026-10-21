@@ -250,6 +250,9 @@ def launch(environ, profile):
             # Large tokenizer temporary buffers are host allocations made
             # before GPU admission. Bound their burst, preserving GPU C4.
             env['ATLAS_LARGE_ENCODE_CONCURRENCY'] = '2'
+            # Serving consumes token IDs only; avoid retaining unused token
+            # spellings and offsets in each million-token request.
+            env['ATLAS_TOKENIZER_IDS_ONLY'] = '1'
     # A dedicated pair can give the KV pool (and so the prefix cache) more of
     # the unified memory than the shipped default leaves free. Four Sparks hold
     # a quarter of the weights each, so a chain may also leave the host more.
