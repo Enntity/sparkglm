@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 
 
 def fabric_hcas(value, sysfs=Path('/sys/class/infiniband'), siblings=True):
@@ -331,8 +332,28 @@ def mtp_ready(model):
     return f'model.language_model.layers.{mtp}.mlp.experts' in quantized
 
 
+def release_info(here):
+    release = json.loads((here/'release.json').read_text())
+    source_path = here/'source-manifest.json'
+    if not source_path.is_file():
+        source_path = here/'atlas-source.json'
+    source = json.loads(source_path.read_text())
+    return {'product': release['product'], 'version': release['version'],
+            'engine_commit': source['commit'], 'engine_tree': source['tree']}
+
+
+def print_version(here):
+    info = release_info(here)
+    print(f"{info['product']} {info['version']}")
+    print(f"Atlas {info['engine_commit']}")
+    print(f"Engine tree {info['engine_tree']}")
+
+
 def main():
     here = Path(__file__).resolve().parent
+    if sys.argv[1:] == ['--version']:
+        print_version(here)
+        return
     profile = profile_path(os.environ, here)
     argv, env = launch(os.environ, json.loads(profile.read_text()))
     model = Path(env.get('MODEL_PATH', '/models/atlas-overlay'))
@@ -346,7 +367,7 @@ def main():
     if env.get('ATLAS_GLM_STRICT_NATIVE_MTP') != '1' and (not (drafter/'config.json').is_file() or not (drafter/'model.safetensors').is_file()):
         raise ValueError('Incomplete DFlash drafter')
     source = json.loads((here/'source-manifest.json').read_text())
-    print(json.dumps({'event': 'atlas-recipe-start', 'rank': env['NODE_RANK'], 'profile': profile.stem,
+    print(json.dumps({'event': 'atlas-recipe-start', **release_info(here), 'rank': env['NODE_RANK'], 'profile': profile.stem,
                       'mode': env.get('SPARKGLM_MODE', 'strict'),
                       'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE') == 'spark' else 'native',
                       'source': f"{source['repository']}@{source['commit']}"}), flush=True)
