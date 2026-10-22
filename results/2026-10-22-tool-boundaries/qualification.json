@@ -1,0 +1,43 @@
+{
+  "schema": "sparkglm.correctness-qualification/v1",
+  "date": "2026-10-22",
+  "status": "passed",
+  "scope": [
+    "short assistant filler must not suppress tool use"
+  ],
+  "baseline_engine": "f4d95a100516338c938a4524e23a65a2c4c3206e",
+  "loop_engine": "e2fcc5cd4e57421b4828f142957f82bbf10aee52",
+  "loop_image_local_id": "sha256:929d31dcf201d4a03e634f047202a720b0b68cc40a9750b263c20b6d74e7b14f",
+  "hardware": "DGX Spark pair, tensor parallel 2",
+  "profile": "4x1m",
+  "mode": "spark",
+  "gpu_memory_utilization": 0.91,
+  "display_carveout": true,
+  "kv_shard": true,
+  "drafter": "incoai/GLM-5.3-Flash-DFlash2",
+  "dflash_gamma": 8,
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "loop_escape_hatch": false,
+  "tool_eval_bench_version": "2.0.6",
+  "tool_eval_bench_commit": "c3868bff099592c9a1045de2c9a3dc24abebb7fb",
+  "context_size": 131072,
+  "temperature": 0,
+  "seed": 42,
+  "max_turns": 8,
+  "timeout_seconds": 180,
+  "native_loop_server_tests": {
+    "passed": 2843,
+    "ignored": 13,
+    "failed": 0
+  },
+  "limitations": [
+    "Correctness qualification, not a throughput comparison.",
+    "The model template forces thinking on even when no-think is requested.",
+    "Atlas broad CI is not green; exact scope and failures are recorded in the associated PR."
+  ],
+  "engine_tree": "13149883c2b5722d24f49dfa62983253fde1c08d",
+  "atlas_pr": "https://github.com/Enntity/atlas/pull/7",
+  "installer_pr": "https://github.com/Enntity/sparkglm/pull/57",
+  "total_passed": 60,
+  "total_failed": 0
+}
