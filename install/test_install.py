@@ -121,6 +121,14 @@ class LaunchContract(unittest.TestCase):
         self.assertNotIn('ATLAS_GLM_UNREVIEWED_EXPERIMENT', env)
         self.assertIn('--dflash-gamma=8', argv)
 
+    def test_operational_flags_pass_through_but_tuning_flags_do_not(self):
+        # #55: the loop-suppression escape hatch and log knobs must survive the
+        # ATLAS_* strip; they change observability and recovery, not numerics.
+        argv, env = serve.launch(dict(self.environment, ATLAS_LOOP_NO_SUPPRESS='1',
+                                      ATLAS_LOG_SPIN='1', ATLAS_GLM_DFLASH='0'), self.profile)
+        self.assertEqual(env['ATLAS_LOOP_NO_SUPPRESS'], '1')
+        self.assertEqual(env['ATLAS_LOG_SPIN'], '1')
+        self.assertEqual(env['ATLAS_GLM_DFLASH'], '1')
     @staticmethod
     def rdma_sysfs(root, devices):
         """A /sys/class/infiniband tree: (name, PCI address, port state, IPv4 GID or None)."""
