@@ -5,6 +5,9 @@
 
 # SparkGLM
 
+**SparkGLM 0.1.0** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
+
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
 [Atlas](https://github.com/Enntity/atlas) inference engine. One image supplies
 TP2 and TP4, Strict and Spark modes, prefix caching, and an OpenAI-compatible

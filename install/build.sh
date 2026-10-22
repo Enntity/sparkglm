@@ -16,6 +16,7 @@ image=${SPARKGLM_IMAGE_REPO:-ghcr.io/enntity/atlas-sparkglm}:${tree:0:12}
 [[ $# == 0 ]] || { echo 'usage: build.sh [--tag]' >&2; exit 2; }
 [[ -z $(git -C "$product" status --porcelain --untracked-files=all -- install) ]] || {
   echo 'install/ has local changes; commit them first (the image tag is its git tree)' >&2; exit 2; }
+version=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$here/release.json")
 read -r repo commit pin_tree < <(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(m["repository"], m["commit"], m["tree"])' "$here/atlas-source.json")
 
 mkdir -p "${SPARKGLM_BUILD_DIR:=$HOME/.cache/sparkglm}"
@@ -36,7 +37,7 @@ cp "$here/dockerignore" "$context/.dockerignore"
 # host), at most half the cores and at least 2.
 jobs=${ATLAS_BUILD_JOBS:-$(awk -v cores="$(nproc)" '/MemAvailable/ {
   j = int($2 / 1048576 / 10); if (j > cores / 2) j = int(cores / 2); if (j < 2) j = 2; print j }' /proc/meminfo)}
-args=(--build-arg "INSTALL_TREE=$tree" --build-arg "BUILD_JOBS=$jobs" -f "$context/install/Dockerfile")
+args=(--build-arg "INSTALL_TREE=$tree" --build-arg "PRODUCT_VERSION=$version" --build-arg "BUILD_JOBS=$jobs" -f "$context/install/Dockerfile")
 echo "building $image with $jobs jobs" >&2
 # The release checks (the `checks` stage) run unless ATLAS_IMAGE_CHECKS=0, for
 # builds whose engine commit already passed them elsewhere.
