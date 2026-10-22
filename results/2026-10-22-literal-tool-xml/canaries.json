@@ -46,7 +46,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 4.529
+      "seconds": 4.57
     },
     {
       "case": "openai-fence-block",
@@ -92,7 +92,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 3.178
+      "seconds": 3.334
     },
     {
       "case": "openai-quoted-block",
@@ -138,7 +138,53 @@
       "finish": [
         "stop"
       ],
-      "seconds": 2.287
+      "seconds": 2.279
+    },
+    {
+      "case": "openai-closing-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The closing tag is `</tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.963
     },
     {
       "case": "openai-plain-block",
@@ -184,7 +230,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 4.17
+      "seconds": 4.184
     },
     {
       "case": "openai-no-tools-block",
@@ -210,7 +256,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 2.594
+      "seconds": 2.609
     },
     {
       "case": "openai-malformed-known-block",
@@ -255,7 +301,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 3.173
+      "seconds": 3.205
     },
     {
       "case": "openai-real-block",
@@ -317,7 +363,7 @@
       "finish": [
         "tool_calls"
       ],
-      "seconds": 1.111
+      "seconds": 1.171
     },
     {
       "case": "openai-inline-stream",
@@ -363,7 +409,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 2.66
+      "seconds": 2.692
     },
     {
       "case": "openai-fence-stream",
@@ -409,7 +455,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 3.202
+      "seconds": 3.223
     },
     {
       "case": "openai-quoted-stream",
@@ -455,7 +501,53 @@
       "finish": [
         "stop"
       ],
-      "seconds": 2.307
+      "seconds": 2.248
+    },
+    {
+      "case": "openai-closing-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The closing tag is `</tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.923
     },
     {
       "case": "openai-plain-stream",
@@ -501,7 +593,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 4.175
+      "seconds": 4.195
     },
     {
       "case": "openai-no-tools-stream",
@@ -527,7 +619,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 2.534
+      "seconds": 2.544
     },
     {
       "case": "openai-malformed-known-stream",
@@ -572,7 +664,7 @@
       "finish": [
         "stop"
       ],
-      "seconds": 3.169
+      "seconds": 3.225
     },
     {
       "case": "openai-real-stream",
@@ -641,7 +733,7 @@
       "finish": [
         "tool_calls"
       ],
-      "seconds": 1.107
+      "seconds": 1.099
     },
     {
       "case": "anthropic-inline-block",
@@ -681,7 +773,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.628
+      "seconds": 2.658
     },
     {
       "case": "anthropic-fence-block",
@@ -721,7 +813,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 3.174
+      "seconds": 3.191
     },
     {
       "case": "anthropic-quoted-block",
@@ -761,7 +853,47 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.242
+      "seconds": 2.316
+    },
+    {
+      "case": "anthropic-closing-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The closing tag is `</tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.925
     },
     {
       "case": "anthropic-plain-block",
@@ -801,7 +933,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 4.255
+      "seconds": 4.196
     },
     {
       "case": "anthropic-no-tools-block",
@@ -824,7 +956,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.564
+      "seconds": 2.599
     },
     {
       "case": "anthropic-malformed-known-block",
@@ -863,7 +995,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 3.175
+      "seconds": 3.19
     },
     {
       "case": "anthropic-real-block",
@@ -919,7 +1051,7 @@
       "finish": [
         "tool_use"
       ],
-      "seconds": 1.102
+      "seconds": 1.105
     },
     {
       "case": "anthropic-inline-stream",
@@ -959,7 +1091,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.633
+      "seconds": 2.66
     },
     {
       "case": "anthropic-fence-stream",
@@ -999,7 +1131,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 3.173
+      "seconds": 3.181
     },
     {
       "case": "anthropic-quoted-stream",
@@ -1039,7 +1171,47 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.243
+      "seconds": 2.31
+    },
+    {
+      "case": "anthropic-closing-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The closing tag is `</tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The closing tag is `</tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.908
     },
     {
       "case": "anthropic-plain-stream",
@@ -1079,7 +1251,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 4.189
+      "seconds": 4.289
     },
     {
       "case": "anthropic-no-tools-stream",
@@ -1102,7 +1274,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 2.66
+      "seconds": 2.574
     },
     {
       "case": "anthropic-malformed-known-stream",
@@ -1141,7 +1313,7 @@
       "finish": [
         "end_turn"
       ],
-      "seconds": 3.206
+      "seconds": 3.2
     },
     {
       "case": "anthropic-real-stream",
@@ -1201,7 +1373,7 @@
       "finish": [
         "tool_use"
       ],
-      "seconds": 1.107
+      "seconds": 1.102
     }
   ]
 }
