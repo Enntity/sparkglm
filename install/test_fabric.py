@@ -146,6 +146,9 @@ class CheckpointOverride(unittest.TestCase):
                 (sysfs/dev/'ports/1/state').write_text('4: ACTIVE')
             bindir = root/'bin'; bindir.mkdir()
             scripts = {
+                # This fixture models a prepared host; clock-cap behavior has
+                # its own tests in tests/test_clock_cap.py.
+                'systemctl': '#!/bin/sh\nexit 0\n',
                 'ssh': '#!/bin/bash\nshift 3\nif [[ "$*" == "bash -s" ]]; then cat >/dev/null; '
                        "echo 'right nic1 192.0.2.2/24'; else bash -c \"$*\"; fi\n",
                 'docker': '#!/bin/bash\nprintf "%s\\n" "$*" >> "$DOCKER_CALLS"\n',
