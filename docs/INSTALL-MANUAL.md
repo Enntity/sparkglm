@@ -213,7 +213,10 @@ profile. See [storage receipts](../results/2026-10-21-unified-rc/RESULT.md).
 - **NCCL fails with `modify_qp -> RTR failed`:** the RoCE link, or its IPv4
   address, is missing on one Spark. The engine picks each rail's RoCE v2 IPv4
   GID automatically. To force one, add `"ATLAS_RDMA_GID": "<index>"` to the
-  profile's `environment`; the launcher ignores ambient `ATLAS_*` variables.
+  profile's `environment`; the launcher ignores ambient `ATLAS_*` variables,
+  except operational flags (the `ATLAS_LOG_*` knobs and, from #55,
+  `ATLAS_LOOP_NO_SUPPRESS=1` to stop masking tool-call syntax on repeated
+  short turns).
 - **`no RoCE v2 GID with an IPv4 address` or `ibv_modify_qp failed with 22`
   on `roceP2p1s0f0`:** the board wires the ConnectX-7's second PCIe domain to a
   separate physical port rather than to the same cable (ASUS GX10). An

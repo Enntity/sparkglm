@@ -223,7 +223,14 @@ def launch(environ, profile):
             raise ValueError(f'{label} must be an absolute path')
     # Profile values intentionally win over ambient optimization flags. Runtime
     # changes require a new reviewed image/profile instead of accidental tuning.
-    env = {key: value for key, value in environ.items() if not key.startswith('ATLAS_')}
+    # Tuning flags (anything ATLAS_*) are stripped, EXCEPT the operational
+    # allowlist below: log/diagnostic knobs and the #55 loop-suppression
+    # escape hatch, which affect observability and recovery, not numerics
+    # or throughput. Profile environment still overrides all of them.
+    operational_prefixes = ('ATLAS_LOG_',)
+    env = {key: value for key, value in environ.items()
+           if not key.startswith('ATLAS_') or key.startswith(operational_prefixes)
+           or key == 'ATLAS_LOOP_NO_SUPPRESS'}
     env.update(profile['environment'])
     env.update(precision)
     env['NCCL_SOCKET_IFNAME'] = interface
