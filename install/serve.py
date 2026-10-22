@@ -227,9 +227,10 @@ def launch(environ, profile):
     # allowlist below: log/diagnostic knobs and the #55 loop-suppression
     # escape hatch, which affect observability and recovery, not numerics
     # or throughput. Profile environment still overrides all of them.
-    operational = ('ATLAS_LOG_', 'ATLAS_LOOP_NO_SUPPRESS')
+    operational_prefixes = ('ATLAS_LOG_',)
     env = {key: value for key, value in environ.items()
-           if not key.startswith('ATLAS_') or key.startswith(operational)}
+           if not key.startswith('ATLAS_') or key.startswith(operational_prefixes)
+           or key == 'ATLAS_LOOP_NO_SUPPRESS'}
     env.update(profile['environment'])
     env.update(precision)
     env['NCCL_SOCKET_IFNAME'] = interface
