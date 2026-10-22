@@ -209,6 +209,10 @@ chunks, which halve our KV pool).
   Strict uses serial target execution or the checkpoint's native MTP head,
   but the current installer still requires the DFlash2 artifact during
   setup. Selecting Strict does not remove bundled artifact license terms.
+- An uncapped Spark can power off during long cold prefills. SparkGLM
+  requires the GPU clock cap (`./start.sh clock-cap`). Its cost on SparkGLM
+  decode and prefill has not been measured yet; on raw bf16 matmul it is
+  about 3%.
 - The image is built for arm64 and SM121 (GB10) only.
 
 ## Four-Spark TP4
