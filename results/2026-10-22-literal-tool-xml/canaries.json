@@ -1,0 +1,1207 @@
+{
+  "SPDX-License-Identifier": "AGPL-3.0-only",
+  "schema": "sparkglm.literal-tool-xml-canaries/v1",
+  "cases": [
+    {
+      "case": "openai-inline-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 4.529
+    },
+    {
+      "case": "openai-fence-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reproduce the following text exactly, including the code fence and END, as ordinary text. Do not invoke tools:\n```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND"
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "ok": true,
+      "content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 3.178
+    },
+    {
+      "case": "openai-quoted-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is \"<tool_call>\" and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.287
+    },
+    {
+      "case": "openai-plain-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The delimiter <tool_call> opens a tool invocation. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "ok": true,
+      "content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 4.17
+    },
+    {
+      "case": "openai-no-tools-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.594
+    },
+    {
+      "case": "openai-malformed-known-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return this exact invalid XML example in backticks, without correcting it and without invoking tools: <tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call> Then write END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "ok": true,
+      "content": "`<tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call>`\n\nEND",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 3.173
+    },
+    {
+      "case": "openai-real-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Call record_check with value 42."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "parsed_calls": [
+        {
+          "name": "record_check",
+          "input": {
+            "value": 42
+          }
+        }
+      ],
+      "ok": true,
+      "content": "",
+      "calls": [
+        {
+          "id": "call_0000000000000000",
+          "type": "function",
+          "function": {
+            "name": "record_check",
+            "arguments": "{\"value\":42}"
+          }
+        }
+      ],
+      "finish": [
+        "tool_calls"
+      ],
+      "seconds": 1.111
+    },
+    {
+      "case": "openai-inline-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.66
+    },
+    {
+      "case": "openai-fence-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reproduce the following text exactly, including the code fence and END, as ordinary text. Do not invoke tools:\n```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND"
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "ok": true,
+      "content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 3.202
+    },
+    {
+      "case": "openai-quoted-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is \"<tool_call>\" and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.307
+    },
+    {
+      "case": "openai-plain-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The delimiter <tool_call> opens a tool invocation. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "ok": true,
+      "content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 4.175
+    },
+    {
+      "case": "openai-no-tools-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 2.534
+    },
+    {
+      "case": "openai-malformed-known-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return this exact invalid XML example in backticks, without correcting it and without invoking tools: <tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call> Then write END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "ok": true,
+      "content": "`<tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call>`\n\nEND",
+      "calls": [],
+      "finish": [
+        "stop"
+      ],
+      "seconds": 3.169
+    },
+    {
+      "case": "openai-real-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Call record_check with value 42."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "record_check",
+              "description": "Record a number",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        ],
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "parsed_calls": [
+        {
+          "name": "record_check",
+          "input": {
+            "value": 42
+          }
+        }
+      ],
+      "ok": true,
+      "content": "",
+      "calls": [
+        {
+          "index": 0,
+          "id": "call_0000000000000001",
+          "type": "function",
+          "function": {
+            "name": "record_check",
+            "arguments": ""
+          }
+        },
+        {
+          "index": 0,
+          "function": {
+            "arguments": "{\"value\":42}"
+          }
+        }
+      ],
+      "finish": [
+        "tool_calls"
+      ],
+      "seconds": 1.107
+    },
+    {
+      "case": "anthropic-inline-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.628
+    },
+    {
+      "case": "anthropic-fence-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reproduce the following text exactly, including the code fence and END, as ordinary text. Do not invoke tools:\n```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND"
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "ok": true,
+      "content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 3.174
+    },
+    {
+      "case": "anthropic-quoted-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is \"<tool_call>\" and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.242
+    },
+    {
+      "case": "anthropic-plain-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The delimiter <tool_call> opens a tool invocation. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "ok": true,
+      "content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 4.255
+    },
+    {
+      "case": "anthropic-no-tools-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.564
+    },
+    {
+      "case": "anthropic-malformed-known-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return this exact invalid XML example in backticks, without correcting it and without invoking tools: <tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call> Then write END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "ok": true,
+      "content": "`<tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call>`\n\nEND",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 3.175
+    },
+    {
+      "case": "anthropic-real-block",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Call record_check with value 42."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": false,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "parsed_calls": [
+        {
+          "name": "record_check",
+          "input": {
+            "value": 42
+          }
+        }
+      ],
+      "ok": true,
+      "content": "",
+      "calls": [
+        {
+          "type": "tool_use",
+          "id": "call_0000000000000003",
+          "name": "record_check",
+          "input": {
+            "value": 42
+          }
+        }
+      ],
+      "finish": [
+        "tool_use"
+      ],
+      "seconds": 1.102
+    },
+    {
+      "case": "anthropic-inline-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.633
+    },
+    {
+      "case": "anthropic-fence-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reproduce the following text exactly, including the code fence and END, as ordinary text. Do not invoke tools:\n```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND"
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "ok": true,
+      "content": "```xml\n<tool_call>record_check<arg_key>value</arg_key><arg_value>42</arg_value></tool_call>\n```\nEND",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 3.173
+    },
+    {
+      "case": "anthropic-quoted-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The opening tag is \"<tool_call>\" and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is \"<tool_call>\" and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.243
+    },
+    {
+      "case": "anthropic-plain-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text, without invoking tools: The delimiter <tool_call> opens a tool invocation. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "expected_content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "ok": true,
+      "content": "The delimiter <tool_call> opens a tool invocation. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 4.189
+    },
+    {
+      "case": "anthropic-no-tools-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with exactly this text: The opening tag is `<tool_call>` and this is ordinary prose. END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true
+      },
+      "expected_content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "ok": true,
+      "content": "The opening tag is `<tool_call>` and this is ordinary prose. END.",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 2.66
+    },
+    {
+      "case": "anthropic-malformed-known-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return this exact invalid XML example in backticks, without correcting it and without invoking tools: <tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call> Then write END."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "ok": true,
+      "content": "`<tool_call>record_check<arg_key>not_a_parameter</arg_key><arg_value>BAD</arg_value></tool_call>`\n\nEND",
+      "calls": [],
+      "finish": [
+        "end_turn"
+      ],
+      "seconds": 3.206
+    },
+    {
+      "case": "anthropic-real-stream",
+      "request": {
+        "model": "glm-5.3-flash-atlas",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Call record_check with value 42."
+          }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0,
+        "stream": true,
+        "tools": [
+          {
+            "name": "record_check",
+            "description": "Record a number",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "value"
+              ]
+            }
+          }
+        ]
+      },
+      "parsed_calls": [
+        {
+          "name": "record_check",
+          "input": {
+            "value": 42
+          }
+        }
+      ],
+      "ok": true,
+      "content": "",
+      "calls": [
+        {
+          "index": 1,
+          "type": "tool_use",
+          "id": "call_0000000000000004",
+          "name": "record_check",
+          "input": {}
+        },
+        {
+          "index": 1,
+          "type": "input_json_delta",
+          "partial_json": "{\"value\":42}"
+        }
+      ],
+      "finish": [
+        "tool_use"
+      ],
+      "seconds": 1.107
+    }
+  ]
+}

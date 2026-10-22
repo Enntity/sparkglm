@@ -1,10 +1,10 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Issue 55 loop repair on the unified release: short prose history no longer masks or biases tool calls; actual repeated-tool protections remain. Exact native build and 60/60 ToolEvalBench context-pressure results are recorded under results/2026-10-22-tool-boundaries. Unified SparkGLM release: TP2 and TP4, Strict and Spark modes, native MTP, corrected FP4 weight rounding, native FP8 MLA fusion, sparse attention ABI2, and explicit switchless chain/ring. Release qualification and source-export provenance are recorded under results/2026-10-21-unified-release. The accepted source export preserves the qualified runtime code; one documentation example uses a public example address.",
+  "note": "Literal tool XML remains text in GLM prompts, automatic grammar, parsing and streaming; structured calls retain native protocol tokens. Correctness receipts are under results/2026-10-22-literal-tool-xml. Includes the issue 55 loop repair qualified under results/2026-10-22-tool-boundaries and the unified release qualified under results/2026-10-21-unified-release.",
   "repository": "https://github.com/Enntity/atlas.git",
   "branch": "sparkglm",
-  "commit": "e2fcc5cd4e57421b4828f142957f82bbf10aee52",
-  "tree": "13149883c2b5722d24f49dfa62983253fde1c08d",
+  "commit": "3bc73e0b850435f8d4519ab998a85ef9f7d82706",
+  "tree": "65369cef38b001eae2cb24e9b49026f96f2f3b63",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {
@@ -14,9 +14,9 @@
     },
     "sparkglm_only": {
       "branch": "sparkglm",
-      "commit": "e2fcc5cd4e57421b4828f142957f82bbf10aee52",
+      "commit": "3bc73e0b850435f8d4519ab998a85ef9f7d82706",
       "base_commit": "b3b016ab7e91b73bea220b7280c9e9aa1a2cfb13",
-      "note": "Unified SparkGLM release plus the reviewed Atlas PR7 loop repair. SparkQwen and the shared-engine branch are unchanged."
+      "note": "Unified SparkGLM release plus the reviewed short-prose loop repair and literal tool XML fixes. SparkQwen and the shared-engine branch are unchanged."
     }
   },
   "kernel_target": "glm-5.3-flash",

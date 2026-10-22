@@ -1,0 +1,55 @@
+{
+  "SPDX-License-Identifier": "AGPL-3.0-only",
+  "hardware": "DGX Spark pair, tensor parallel 2",
+  "profile": "4x1m",
+  "mode": "spark",
+  "gpu_memory_utilization": 0.91,
+  "display_carveout": true,
+  "kv_shard": true,
+  "drafter": "incoai/GLM-5.3-Flash-DFlash2",
+  "dflash_gamma": 8,
+  "model": "nvidia/GLM-5.3-Flash-FP4-Local",
+  "loop_escape_hatch": false,
+  "tool_eval_bench_version": "2.0.6",
+  "tool_eval_bench_commit": "c3868bff099592c9a1045de2c9a3dc24abebb7fb",
+  "context_size": 131072,
+  "temperature": 0,
+  "seed": 42,
+  "max_turns": 8,
+  "timeout_seconds": 180,
+  "schema": "sparkglm.correctness-qualification/v1",
+  "date": "2026-10-22",
+  "status": "passed",
+  "engine": "3bc73e0b850435f8d4519ab998a85ef9f7d82706",
+  "engine_tree": "65369cef38b001eae2cb24e9b49026f96f2f3b63",
+  "atlas_pr": "https://github.com/Enntity/atlas/pull/8",
+  "local_image_id": "sha256:6f2856a6b7c936a5d90c0e3f484463117eb5e93112d513cf2cf7004399e96ac7",
+  "verified_source_files": 3906,
+  "native_server_tests": {
+    "passed": 2889,
+    "failed": 0,
+    "ignored": 13
+  },
+  "local_server_tests": {
+    "passed": 2881,
+    "failed": 0,
+    "ignored": 13
+  },
+  "xml_canaries": {
+    "passed": 28,
+    "failed": 0
+  },
+  "tool_smoke": {
+    "passed": 15,
+    "failed": 0,
+    "run_id": "2026-10-22T14-14-19.546642Z_14c3d6a8"
+  },
+  "limitations": [
+    "Correctness qualification, not a throughput comparison.",
+    "Thinking is forced by the checkpoint template despite no-think requests.",
+    "The benchmark backend label vllm selects the compatible client adapter; the actual server is Atlas.",
+    "The earlier 60-case pressure sweep used the preceding loop-fix revision, not this XML revision.",
+    "Local image ID is not a registry digest or evidence of managed deployment.",
+    "Atlas broader CI has inherited failures; local workspace clippy is blocked by unchanged atlas-plugin lints and local typos is unavailable."
+  ]
+}
