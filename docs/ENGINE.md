@@ -8,11 +8,14 @@ kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 Both Spark products use the common `spark-shared` engine. This candidate pins
-`f3f3876ba4d1d4ea581d6696431702fc33c24efe` (tree `ff4bf5c5c0212d21c87c751b54fe1fcb52dc146e`).
+`adb7a5b381ce0f8cafc29e37d11622c63e6ebdb9` (tree `a2965af0d0e9de275523855b7bcf247c0bc0b944`).
 Model-specific execution remains selected by kernel target and checkpoint type.
 The shared media decoder retains GLM's reference frame sampler, canvas sizing,
 normalization and final-frame padding alongside Qwen's timestamped video path.
 Qualification applies to the exact product image, not the branch name alone.
+GLM and Qwen preserve literal XML examples inside streamed reasoning. GLM's
+native tool opener still ends reasoning and enters the validated tool parser;
+legacy model leak guards remain in place.
 
 The unified TP2/TP4 release provides Strict and Spark precision policies, corrected
 FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
