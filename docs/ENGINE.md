@@ -7,6 +7,13 @@ pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
 kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
+Both Spark products use the common `spark-shared` engine. This candidate pins
+`f3f3876ba4d1d4ea581d6696431702fc33c24efe` (tree `ff4bf5c5c0212d21c87c751b54fe1fcb52dc146e`).
+Model-specific execution remains selected by kernel target and checkpoint type.
+The shared media decoder retains GLM's reference frame sampler, canvas sizing,
+normalization and final-frame padding alongside Qwen's timestamped video path.
+Qualification applies to the exact product image, not the branch name alone.
+
 The unified TP2/TP4 release provides Strict and Spark precision policies, corrected
 FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
 and sparse attention for TP2's 32 or TP4's 16 local heads. The same image runs

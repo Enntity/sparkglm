@@ -12,6 +12,16 @@ HERE = Path(__file__).resolve().parent
 
 
 class VersionQueries(unittest.TestCase):
+    def test_engine_pin_uses_the_common_source_and_glm_target(self):
+        pin = json.loads((HERE/'atlas-source.json').read_text())
+        common = pin['layers']['common_engine']
+        self.assertEqual(pin['repository'], 'https://github.com/Enntity/atlas.git')
+        self.assertEqual(pin['branch'], 'spark-shared')
+        self.assertEqual(pin['kernel_target'], 'glm-5.3-flash')
+        for key in ('commit', 'tree'):
+            self.assertRegex(pin[key], r'^[0-9a-f]{40}$')
+            self.assertEqual(pin[key], common[key])
+
     def test_checkout_and_image_entrypoint_report_pin_without_configuration(self):
         release = json.loads((HERE/'release.json').read_text())
         pin = json.loads((HERE/'atlas-source.json').read_text())

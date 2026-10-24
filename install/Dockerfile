@@ -193,6 +193,16 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
       grep -E 'test result: ok. [1-9][0-9]* passed;' /tmp/atlas-vision-cache-check.log; \
     done
 
+# The common engine's serving and media contracts must run for the GLM target
+# too. Keep the complete pinned checkout in this build-only stage because
+# workspace tests inspect fixtures, source and committed benchmark definitions.
+COPY engine/ /build/
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
+    LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
+    cargo test --locked --workspace --release --no-fail-fast -j "$BUILD_JOBS"
+
 # Run the workspace lint gate with the same pinned Rust compiler as the image.
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     rustup component add clippy --toolchain 1.93.1 && \
