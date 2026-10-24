@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """CPU tests for peer selection and preflight without touching a real host."""
 import importlib.util
+import json
 import os
 from pathlib import Path
 import shutil
@@ -120,7 +121,7 @@ class CheckpointOverride(unittest.TestCase):
     """start.sh up with a fake inventory, transport, Docker and converter, keeping
     .env parsing, the convert decision and both real start-node.sh calls."""
 
-    def run_start(self, env_text, repo):
+    def run_start(self, env_text, repo, smoke_response=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             shutil.copytree(ROOT/'install', root/'install')
@@ -152,16 +153,43 @@ class CheckpointOverride(unittest.TestCase):
                 'ssh': '#!/bin/bash\nshift 3\nif [[ "$*" == "bash -s" ]]; then cat >/dev/null; '
                        "echo 'right nic1 192.0.2.2/24'; else bash -c \"$*\"; fi\n",
                 'docker': '#!/bin/bash\nprintf "%s\\n" "$*" >> "$DOCKER_CALLS"\n',
-                'curl': '#!/bin/sh\nprintf \'%s\\n\' \'{"choices":[{"message":{"content":"391"}}]}\'\n'}
+                'curl': '#!/bin/sh\nprintf \'%s\\n\' \"$SMOKE_RESPONSE\"\n'}
             for name, body in scripts.items():
                 path = bindir/name; path.write_text(body); path.chmod(0o755)
             env = {k: v for k, v in os.environ.items() if 'FABRIC' not in k and k != 'LEADER_ADDRESS'}
             env.update(PATH=f'{bindir}:{os.environ["PATH"]}', MODEL_ROOT=str(models), IMAGE='test-image',
-                       FABRIC_SYSFS=str(sysfs), HOME=str(root), DOCKER_CALLS=str(root/'docker.log'))
+                       FABRIC_SYSFS=str(sysfs), HOME=str(root), DOCKER_CALLS=str(root/'docker.log'),
+                       SMOKE_RESPONSE=(smoke_response if isinstance(smoke_response, str) else
+                           json.dumps(smoke_response if smoke_response is not None else {
+                               'choices': [{'message': {'content': '391'}, 'finish_reason': 'stop'}]})))
             result = subprocess.run(['bash', str(root/'start.sh')], env=env, capture_output=True, text=True)
             log = root/'docker.log'
             lines = log.read_text().splitlines() if log.exists() else []
             return result, [l for l in lines if l.startswith('run ')], [l for l in lines if l.startswith('convert ')]
+
+    def test_ready_requires_correct_normally_completed_inference(self):
+        for content, finish, accepted in [('391', 'stop', True), ('392', 'stop', False),
+                                          ('391', 'length', False), (None, 'stop', False)]:
+            with self.subTest(content=content, finish=finish):
+                response = {'choices': [{'message': {'content': content}, 'finish_reason': finish}]}
+                result, calls, _ = self.run_start('WORKER=test-peer\n',
+                    'nvidia/GLM-5.3-Flash-FP4-Local', response)
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(result.returncode == 0, accepted, result.stderr)
+                self.assertEqual('ready: ' in result.stdout, accepted, result.stdout)
+                if not accepted:
+                    self.assertIn('smoke failed:', result.stderr)
+
+    def test_malformed_smoke_response_never_reports_ready(self):
+        for response in ('{"choices":', {}, {'choices': []},
+                         {'choices': [{'message': None, 'finish_reason': 'stop'}]}):
+            with self.subTest(response=response):
+                result, calls, _ = self.run_start('WORKER=test-peer\n',
+                    'nvidia/GLM-5.3-Flash-FP4-Local', response)
+                self.assertEqual(len(calls), 2)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('ready: ', result.stdout)
+                self.assertIn('smoke failed: invalid completion response', result.stderr)
 
     def test_fp4local_is_served_as_published(self):
         result, calls, converts = self.run_start('WORKER=you@worker.example\n', 'nvidia/GLM-5.3-Flash-FP4-Local')
