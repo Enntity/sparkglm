@@ -60,6 +60,8 @@ RUN python3 /product/install/rust-notices.py /build /build/dist/notices-rust
 # runs these only when build.sh asks for this target (ATLAS_IMAGE_CHECKS=1, the
 # default).
 FROM builder AS checks
+# All native tests compile the common engine, including both model fixtures.
+COPY engine/ /build/
 # Check the actual compiled GLM module set and the startup vision selector.
 # CUDA stubs permit these CPU-only tests without GPU build entitlements.
 RUN mkdir -p /opt/cuda-stubs && \
@@ -90,7 +92,6 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # same Linux/CUDA build as the shipped binary. Require each filter to match.
 # The model and runtime test fixtures (the FP4-Local configs, header extracts and CSF golden data
 # the glm5 and weight-map tests embed), as SparkQwen's image copies them.
-COPY engine/test_data/ test_data/
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
     set -eu; for filter in glm_repair_policy glm_index_capacity; do \
       LD_LIBRARY_PATH=/opt/cuda-stubs:/usr/local/cuda/lib64 \
@@ -196,7 +197,6 @@ RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared
 # The common engine's serving and media contracts must run for the GLM target
 # too. Keep the complete pinned checkout in this build-only stage because
 # workspace tests inspect fixtures, source and committed benchmark definitions.
-COPY engine/ /build/
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 RUN --mount=type=cache,target=/build/target,id=atlas-cargo-target,sharing=shared \
