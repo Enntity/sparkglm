@@ -178,10 +178,20 @@ serve() {
   say "loading (about 2.5 minutes)"
   for ((i = 0; i < 90; i++)); do
     if curl -sf "$API/health" >/dev/null; then
+      curl -fsS --max-time 300 "$API/v1/chat/completions" -H 'Content-Type: application/json' -d '{"model": "glm-5.3-flash-atlas",
+        "max_tokens": 1024, "temperature": 0, "top_p": 1, "reasoning_effort": "low",
+        "messages": [{"role": "user", "content": "What is 17*23? Answer with the number."}]}' |
+        python3 -c 'import json,sys
+try:
+    choice = json.load(sys.stdin)["choices"][0]
+    text = (choice.get("message", {}).get("content") or "").strip()
+    finish = choice.get("finish_reason")
+except (ValueError, KeyError, IndexError, AttributeError, TypeError) as error:
+    sys.exit(f"smoke failed: invalid completion response ({error})")
+if text != "391" or finish != "stop":
+    sys.exit(f"smoke failed: expected 391 with normal stop; got {text!r}, finish_reason={finish!r}")
+print("smoke: 17*23 =", text)'
       say "ready: $API/v1 model glm-5.3-flash-atlas"
-      curl -s "$API/v1/chat/completions" -H 'Content-Type: application/json' -d '{"model": "glm-5.3-flash-atlas",
-        "max_tokens": 64, "temperature": 0, "messages": [{"role": "user", "content": "What is 17*23? Answer with the number."}]}' |
-        python3 -c 'import json,sys; print("smoke: 17*23 =", json.load(sys.stdin)["choices"][0]["message"]["content"].strip())'
       return
     fi
     if [[ $(state) != running ]]; then docker logs --tail 40 "${NAME}0"; echo 'rank 0 stopped' >&2; exit 1; fi
