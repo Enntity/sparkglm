@@ -239,6 +239,13 @@ def launch(environ, profile):
     args = [str(arg).replace('${model}', model).replace('${drafter}', drafter)
             for arg in profile['server_argv']]
     if native_mtp == '1':
+        # Native GLM prediction is qualified for C1..C4. Reject unsupported
+        # profiles before loading either rank, rather than shrinking capacity.
+        for flag in ('--max-batch-size', '--max-num-seqs'):
+            values = [arg.split('=', 1)[1] for arg in args if arg.startswith(flag + '=')]
+            if (len(values) != 1 or not values[0].isdigit()
+                    or not 1 <= int(values[0]) <= 4):
+                raise ValueError(f'Strict native MTP requires {flag}=1 to 4')
         # Native prediction retains the selected serving capacity and prefix
         # cache. disable_mtp compares serial on this same loaded target.
         drop = ('--dflash', '--draft-model', '--dflash-gamma', '--dflash-window-size',
