@@ -5,7 +5,7 @@
 
 # SparkGLM
 
-**SparkGLM 0.1.0** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+**SparkGLM 0.2.0** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
 for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
@@ -263,6 +263,12 @@ When an agent repeats the same tool call and gets the same result, the engine
 adds a repeat notice to that result and lets the model think harder on that
 turn; it no longer blocks tool calls, which had left the model narrating the
 action it meant to take ([RC4.2](results/2026-10-12-rc4/RESULT.md)).
+
+A [tool-call guard](docs/TOOL-GUARD.md), on by default, withholds tool calls
+that match recognizable data-exfiltration patterns (cloud metadata probes,
+listed callback hosts, credential transfers) and returns a fixed refusal. It
+is a bounded pattern filter, not a network sandbox; `TOOL_GUARD` and exact host
+exceptions are set in `.env`.
 
 **Profiles** (`PROFILE` in `.env`):
 

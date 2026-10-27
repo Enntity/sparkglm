@@ -43,6 +43,10 @@ prefix cache. The TP4 profile keeps shared-expert TP splitting off in both
 modes after the Strict C4 arithmetic control. Spark remains unsplit on TP2
 as well; TP2 Strict's setting is unchanged.
 
+The [tool-call guard](TOOL-GUARD.md) is on unless a runtime sets
+`SPARKGLM_TOOL_GUARD=off`. Give every rank the same `SPARKGLM_TOOL_GUARD*`
+values; profiles cannot set them.
+
 Four-node topology defaults to `SPARKGLM_TOPOLOGY=chain`. To use a ring,
 configure `SPARKGLM_TOPOLOGY=ring` on every runtime and supply each node's
 `FABRIC_LEFT_HCA` and `FABRIC_RIGHT_HCA` lists, including the closing 3–0
