@@ -7,7 +7,7 @@ pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
 kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-Both Spark products use the common `spark-shared` engine. This candidate pins
+Both Spark products use the common `spark-shared` engine. SparkGLM 0.2.0 pins
 `d0cead146eedbf8848c7f5da49f83e183228830c` (tree `c8ee0b9505afb2680fa21dc40bf14c872b8879c1`),
 the exact engine SparkQwen 0.3.3 ships. It adds the default-on
 [tool-call guard](TOOL-GUARD.md) to the earlier common integration
@@ -15,7 +15,8 @@ the exact engine SparkQwen 0.3.3 ships. It adds the default-on
 Model-specific execution remains selected by kernel target and checkpoint type.
 The shared media decoder retains GLM's reference frame sampler, canvas sizing,
 normalization and final-frame padding alongside Qwen's timestamped video path.
-Qualification applies to the exact product image, not the branch name alone.
+Qualification applies to the exact product image, not the branch name alone
+([TP2, 2026-10-27](../results/2026-10-27-common-engine-020/RESULT.md)).
 GLM and Qwen preserve literal XML examples inside streamed reasoning. GLM's
 native tool opener still ends reasoning and enters the validated tool parser;
 legacy model leak guards remain in place.

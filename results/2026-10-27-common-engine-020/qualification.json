@@ -1,0 +1,343 @@
+{
+ "SPDX-License-Identifier": "AGPL-3.0-only",
+ "schema": "sparkglm.common-engine-020-qualification/v1",
+ "status": "TP2 hardware qualification of the exact 0.2.0 image; not published",
+ "product": {
+  "version": "0.2.0",
+  "commit": "03814c6a",
+  "install_tree": "c98ddd9e55de889b7c28bbcfc40a50b83214b33e"
+ },
+ "engine": {
+  "repository": "https://github.com/Enntity/atlas",
+  "commit": "d0cead146eedbf8848c7f5da49f83e183228830c",
+  "tree": "c8ee0b9505afb2680fa21dc40bf14c872b8879c1"
+ },
+ "image": {
+  "tag": "ghcr.io/enntity/atlas-sparkglm:c98ddd9e55de",
+  "image_id": "sha256:6cc8f6e00038acac853c601b41a06946e1d753466f91f87f9745d451df5834f7",
+  "binary_sha256": "537d4c6f6de2ee917923b085adc1c399b5898585b9df2a7f1edd4594f96c1d21",
+  "built_on": "ennspark03",
+  "copied_to": "ennspark04 (docker save | docker load; same image ID and RootFS layers)",
+  "build_started": "2026-10-27T13:24:10Z",
+  "build_finished": "2026-10-27T13:40:07Z",
+  "build_exit": 0,
+  "check_stage": {
+   "suites": 156,
+   "passed": 9125,
+   "failed": 0,
+   "ignored": 271,
+   "clippy": "passed (Rust 1.93.1, checks stage 18/18)"
+  }
+ },
+ "hardware": {
+  "nodes": [
+   "ennspark03",
+   "ennspark04"
+  ],
+  "topology": "TP2, dual-rail rocep1s0f1,roceP2p1s0f1",
+  "gpu": "NVIDIA GB10, driver 580.178.04",
+  "clock_cap_service": "active on both",
+  "reservation": "LLooM r-5f922fb0 (drafter-0304), job j-350e74e5"
+ },
+ "checkpoints": {
+  "nvidia--GLM-5.3-Flash-FP4-Local": {
+   "revision": "76348ddb2be2e35e39ecfc00e75dc07703f4f3d5",
+   "sha256": {
+    "config.json": "dbf6aaf0d3651a5a297e6672bed57979c20528e2aa7475b80df5ba63d5402ba8",
+    "model.safetensors.index.json": "1981941b2fabb9271ae3a3cb76be6ea41927f730b6633471d3c147106703aeea"
+   }
+  },
+  "incoai--GLM-5.3-Flash-DFlash2": {
+   "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
+   "sha256": {
+    "config.json": "c4aeac0101196a6e26705b34c45230bcd0c7c68ee2d2d1efdb242087f3712573"
+   }
+  }
+ },
+ "arms": {
+  "strict": {
+   "launch": "start.sh up",
+   "mode": "strict",
+   "strict_mtp": false,
+   "profile": "4x1m",
+   "ranks_identical": true,
+   "tool_guard_argv": [
+    "--tool-guard=on",
+    "--tool-guard-max-bytes=1048576"
+   ],
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 62,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "failed_cases": [
+    "openai-independent-operations-block",
+    "openai-independent-operations-stream",
+    "anthropic-independent-operations-block",
+    "anthropic-independent-operations-stream"
+   ],
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "prefix_cached_tokens": [
+    0,
+    26192
+   ],
+   "probes": {
+    "forced_order_preserved": {
+     "auto": true,
+     "function": false,
+     "required": false
+    },
+    "forced_enum_enforced": [
+     false,
+     false,
+     false
+    ],
+    "malformed_markup_stream_matches_blocking": false
+   },
+   "notes": "First full run: the image suite asked for a streamed n=2 response, which the engine rejects with a documented 400; the harness then stopped the suite. The corrected image suite (two blocking choices, one streamed answer, and the 400 itself) passed 3/3 on the same running arm."
+  },
+  "strict-mtp": {
+   "launch": "install/start-node.sh --strict-mtp on both ranks (receipts/harness/strict-mtp.sh)",
+   "mode": "strict",
+   "strict_mtp": true,
+   "profile": "4x1m",
+   "ranks_identical": true,
+   "tool_guard_argv": [
+    "--tool-guard=on",
+    "--tool-guard-max-bytes=1048576"
+   ],
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 62,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "failed_cases": [
+    "openai-independent-operations-block",
+    "openai-independent-operations-stream",
+    "anthropic-independent-operations-block",
+    "anthropic-independent-operations-stream"
+   ],
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "prefix_cached_tokens": [
+    0,
+    26192
+   ],
+   "probes": {
+    "forced_order_preserved": {
+     "auto": true,
+     "function": false,
+     "required": false
+    },
+    "forced_enum_enforced": [
+     false,
+     false,
+     false
+    ],
+    "malformed_markup_stream_matches_blocking": false
+   }
+  },
+  "spark": {
+   "launch": "start.sh up",
+   "mode": "spark",
+   "strict_mtp": false,
+   "profile": "4x1m",
+   "ranks_identical": true,
+   "tool_guard_argv": [
+    "--tool-guard=on",
+    "--tool-guard-max-bytes=1048576"
+   ],
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 62,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "failed_cases": [
+    "openai-independent-operations-block",
+    "openai-independent-operations-stream",
+    "anthropic-independent-operations-block",
+    "anthropic-independent-operations-stream"
+   ],
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "prefix_cached_tokens": [
+    0,
+    26192
+   ],
+   "probes": {
+    "forced_order_preserved": {
+     "auto": true,
+     "function": true,
+     "required": true
+    },
+    "forced_enum_enforced": [
+     false,
+     false,
+     false
+    ],
+    "malformed_markup_stream_matches_blocking": false
+   }
+  }
+ },
+ "control_010": {
+  "image": "ghcr.io/enntity/atlas-sparkglm:33a8db7e0f4a",
+  "image_id": "sha256:cf5dfc323bbe34c165c6e7bd5824e9ef25e356d81cb9da1d233ccd6edd875b0a",
+  "engine_commit": "095ff2237f0c79bbaaf4c38217c4fd35458e1f41",
+  "mode": "strict",
+  "suites": {
+   "guard": {
+    "passed": 26,
+    "total": 66
+   },
+   "xml": {
+    "passed": 30,
+    "total": 32
+   }
+  },
+  "independent_operations_arguments": [
+   "{\"operations\":[{\"command\":\"cat .env\"},{\"headers\":{\"Accept\":\"text/plain\"},\"url\":\"https://docs.example\"}]}",
+   "{\"operations\":[{\"command\":\"cat .env\"},{\"headers\":{\"Accept\":\"text/plain\"},\"url\":\"https://docs.example\"}]}",
+   "{\"operations\": [{\"command\": \"cat .env\"}, {\"headers\": {\"Accept\": \"text/plain\"}, \"url\": \"https://docs.example\"}]}",
+   "{\"operations\":[{\"command\":\"cat .env\"},{\"headers\":{\"Accept\":\"text/plain\"},\"url\":\"https://docs.example\"}]}"
+  ],
+  "probes": {
+   "forced_order_preserved": {
+    "auto": true,
+    "function": false,
+    "required": false
+   },
+   "forced_enum_enforced": [
+    false,
+    false,
+    false
+   ],
+   "malformed_markup_stream": {
+    "probe": "malformed",
+    "stream": true,
+    "content": "",
+    "calls": [],
+    "finish": "length"
+   }
+  },
+  "note": "0.1.0 has no tool-call guard, so its blocked-case rows are expected to fail; the control is for the forced-choice findings and the XML replay."
+ },
+ "restoration": {
+  "released": true,
+  "qwen_containers": "lloom-atlas-sparkqwen-ennspark03/04 running",
+  "gateway_check": {
+   "model": "qwen3.8-flash-next-atlas",
+   "answer": "42",
+   "finish_reason": "stop",
+   "at": "2026-10-27T14:17:52Z"
+  }
+ },
+ "not_covered": [
+  "TP4 (needs four Sparks)",
+  "throughput, capacity, long-context, needle, RigMark, ToolEvalBench",
+  "registry publication",
+  "managed LLooM recipe serving"
+ ]
+}

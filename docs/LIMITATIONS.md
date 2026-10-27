@@ -285,6 +285,15 @@ chunks, which halve our KV pool).
   at our clients' settings (temperature 0.1-0.25, bounded or keyed objects)
   were not affected.
 - Every `json_schema` is enforced as strict, including `"strict": false`.
+- Tool parameter schemas are not enforced like `response_format`. A forced
+  `tool_choice` (a named function or `required`) makes the model call the
+  tool, but it can return values outside an `enum`. It can also order array
+  items differently from the schema. Delivered arguments are re-serialized
+  with object keys sorted. Validate tool arguments in the client. 0.1.0 behaves
+  the same ([2026-10-27](../results/2026-10-27-common-engine-020/RESULT.md#findings)).
+- When a forced call conflicts with the schema, the model can write tool markup
+  as text without the native opener. No call is delivered, and the streamed
+  content omits the argument markup that a blocking response returns.
 
 ## Installer notes (FP4-Local release)
 
