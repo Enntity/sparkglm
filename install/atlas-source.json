@@ -1,10 +1,10 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Common Spark engine shared with SparkQwen 0.3.3, including the default-on, tool-call-only pattern guard that runs after the GLM tool parser (see docs/TOOL-GUARD.md). Includes the existing GLM loop and literal-tool-XML repairs, bounded media admission and decoding, per-choice image preservation, and processed native-MTP bootstrap scores. GLM kernel target, precision policies and capacity profiles remain model-specific.",
+  "note": "Common Spark engine shared with SparkQwen 0.3.3 plus Enntity/atlas#16 (forced tool_choice enforces enum/const argument values; streamed content keeps text-spelled call markup like blocking), including the default-on, tool-call-only pattern guard that runs after the GLM tool parser (see docs/TOOL-GUARD.md). Includes the existing GLM loop and literal-tool-XML repairs, bounded media admission and decoding, per-choice image preservation, and processed native-MTP bootstrap scores. GLM kernel target, precision policies and capacity profiles remain model-specific.",
   "repository": "https://github.com/Enntity/atlas.git",
   "branch": "spark-shared",
-  "commit": "d0cead146eedbf8848c7f5da49f83e183228830c",
-  "tree": "c8ee0b9505afb2680fa21dc40bf14c872b8879c1",
+  "commit": "c87f27906016c874d5a356429e7816987f5b1cc6",
+  "tree": "65f088b595ecedc9b79cde411ad7e04573269b2d",
   "layers": {
     "atlas_inf_main_base": "7ffd183f210708d5b1afba1e046049f14ad498c7",
     "shared_engine": {
@@ -19,11 +19,13 @@
       "note": "Historical GLM contribution retained in the common engine; this is provenance, not a separate active engine."
     },
     "common_engine": {
-      "commit": "d0cead146eedbf8848c7f5da49f83e183228830c",
-      "tree": "c8ee0b9505afb2680fa21dc40bf14c872b8879c1",
+      "commit": "c87f27906016c874d5a356429e7816987f5b1cc6",
+      "tree": "65f088b595ecedc9b79cde411ad7e04573269b2d",
+      "guard_commit": "d0cead146eedbf8848c7f5da49f83e183228830c",
+      "guard_tree": "c8ee0b9505afb2680fa21dc40bf14c872b8879c1",
       "glm_parent": "471bdc5475f08722f8065250485cc49d16e793a3",
       "qwen_parent": "e0213ed10ec474c490276e9fd0a8ad328292e283",
-      "note": "Current common engine with the default tool-call guard. Integration commit/tree preserve the original merged GLM/Qwen snapshot; parent fields record that snapshot's provenance.",
+      "note": "Current common engine: the default tool-call guard (guard_commit, the engine SparkQwen 0.3.3 ships) plus Enntity/atlas#16, which enforces enum/const argument values under forced tool_choice and keeps text-spelled call markup in streamed content for GLM. Integration commit/tree preserve the original merged GLM/Qwen snapshot; parent fields record that snapshot's provenance.",
       "qwen_merge": "d824cdc42b9e725beba47fa57653ee5f490ff013",
       "integration_commit": "adb7a5b381ce0f8cafc29e37d11622c63e6ebdb9",
       "integration_tree": "a2965af0d0e9de275523855b7bcf247c0bc0b944"
