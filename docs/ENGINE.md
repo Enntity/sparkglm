@@ -20,7 +20,7 @@ Model-specific execution remains selected by kernel target and checkpoint type.
 The shared media decoder retains GLM's reference frame sampler, canvas sizing,
 normalization and final-frame padding alongside Qwen's timestamped video path.
 Qualification applies to the exact product image, not the branch name alone
-([TP2, 2026-10-27](../results/2026-10-27-common-engine-020/RESULT.md)).
+([TP2, 2026-10-27](../results/2026-10-27-engine-c87f2790/RESULT.md)).
 GLM and Qwen preserve literal XML examples inside streamed reasoning. GLM's
 native tool opener still ends reasoning and enters the validated tool parser;
 legacy model leak guards remain in place.
