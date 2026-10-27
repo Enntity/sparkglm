@@ -159,6 +159,8 @@ serve() {
   address=$ip0
   common=(--leader-address "$address" --model-root "$MODEL_ROOT" --checkpoint "${repo/\//--}" --image "$IMAGE"
           --profile "$PROFILE" --mode "$MODE"
+          --tool-guard "${TOOL_GUARD:-on}" --tool-guard-max-bytes "${TOOL_GUARD_MAX_BYTES:-1048576}"
+          --tool-guard-allow-hosts "${TOOL_GUARD_ALLOW_HOSTS:-}" --tool-guard-deny-hosts "${TOOL_GUARD_DENY_HOSTS:-}"
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
           ${PREFIX_CACHE_DIR:+--prefix-cache-dir "$PREFIX_CACHE_DIR"} ${PREFIX_CACHE_GB:+--prefix-cache-gb "$PREFIX_CACHE_GB"})
   case ${DISPLAY_CARVEOUT:-0} in
@@ -203,7 +205,12 @@ print("smoke: 17*23 =", text)'
 
 if [[ ${1:-up} == fabric ]]; then pick_fabric; exit; fi
 if [[ ${1:-up} == clock-cap ]]; then clock_cap; exit; fi
-if [[ ${1:-up} == up ]]; then pick_fabric; check_clock_cap; fi
+if [[ ${1:-up} == up ]]; then
+  SPARKGLM_TOOL_GUARD="${TOOL_GUARD:-on}" SPARKGLM_TOOL_GUARD_MAX_BYTES="${TOOL_GUARD_MAX_BYTES:-1048576}" \
+  SPARKGLM_TOOL_GUARD_ALLOW_HOSTS="${TOOL_GUARD_ALLOW_HOSTS:-}" SPARKGLM_TOOL_GUARD_DENY_HOSTS="${TOOL_GUARD_DENY_HOSTS:-}" \
+    python3 -c 'import os,sys; sys.path.insert(0,"install"); import serve; serve.tool_guard_args(os.environ, [])'
+  pick_fabric; check_clock_cap
+fi
 IMAGE=${IMAGE:-$(install/build.sh --tag)}
 mkdir -p "$MODEL_ROOT"; MODEL_ROOT=$(realpath "$MODEL_ROOT")
 case ${1:-up} in

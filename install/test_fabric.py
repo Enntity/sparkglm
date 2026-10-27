@@ -61,6 +61,8 @@ class Fabric(unittest.TestCase):
             text = text[:start]+"fabric_ports() { printf '%s\\n' 'a eth0 192.0.2.1/24'; }\n"+text[end:]
             (root/'start.sh').write_text(text)
             shutil.copy(ROOT/'fabric.py', root/'fabric.py')
+            (root/'install').mkdir()
+            shutil.copy(ROOT/'install'/'serve.py', root/'install'/'serve.py')
             bindir = root/'bin'; bindir.mkdir()
             for name, body in [('ssh', "echo 'b eth1 198.51.100.2/24'"),
                                ('docker', f'touch {root}/DOCKER_CALLED')]:
@@ -85,6 +87,8 @@ class Fabric(unittest.TestCase):
             text = text[:start]+"fabric_ports() { printf '%s\\n' 'left0 nic0 192.0.2.1/24' 'left1 nic1 198.51.100.1/24'; }\n"+text[end:]
             (root/'start.sh').write_text(text)
             shutil.copy(ROOT/'fabric.py', root/'fabric.py')
+            (root/'install').mkdir()
+            shutil.copy(ROOT/'install'/'serve.py', root/'install'/'serve.py')
             bindir = root/'bin'; bindir.mkdir()
             ssh = bindir/'ssh'
             ssh.write_text("#!/bin/sh\nprintf '%s\\n' 'right7 net7 192.0.2.2/24' 'right8 net8 198.51.100.2/24'\n")
