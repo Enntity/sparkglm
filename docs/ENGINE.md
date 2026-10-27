@@ -8,6 +8,9 @@ kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 Both Spark products use the common `spark-shared` engine. This candidate pins
+`d0cead146eedbf8848c7f5da49f83e183228830c` (tree `c8ee0b9505afb2680fa21dc40bf14c872b8879c1`),
+the exact engine SparkQwen 0.3.3 ships. It adds the default-on
+[tool-call guard](TOOL-GUARD.md) to the earlier common integration
 `adb7a5b381ce0f8cafc29e37d11622c63e6ebdb9` (tree `a2965af0d0e9de275523855b7bcf247c0bc0b944`).
 Model-specific execution remains selected by kernel target and checkpoint type.
 The shared media decoder retains GLM's reference frame sampler, canvas sizing,
