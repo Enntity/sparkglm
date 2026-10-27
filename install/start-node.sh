@@ -14,6 +14,8 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--mode strict|spark] [--strict-mtp] [--profile 4x1m|4x512k|8x128k|4x1m-tp4|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
+                     [--tool-guard on|off] [--tool-guard-allow-hosts HOST,...]
+                     [--tool-guard-deny-hosts HOST,...] [--tool-guard-max-bytes BYTES]
                      [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
@@ -38,7 +40,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --left-hca         with --world-size 4: devices to rank - 1 (modulo 4 for ring)
   --right-hca        with --world-size 4: devices to rank + 1 (modulo 4 for ring)
   --mode             strict (default) or spark; same on every rank
-  --strict-mtp       native MTP in strict mode; retains profile capacity and prefix cache
+  --strict-mtp       native MTP in strict mode; requires a profile with one to four active slots
   --profile          a profile shipped in the image (TP2 default 4x512k, TP4 4x1m-tp4) or a JSON
                      file of your own; use the same one on every rank
   --gpu-memory-utilization  share of unified memory for the engine (default:
@@ -52,6 +54,11 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      (2 GiB more KV cache); use it on every rank (default: off)
   --kv-shard         split latent KV ownership across the Sparks; enable it on
                      every rank (default: off)
+  --tool-guard       screen complete tool calls before release (default: on);
+                     see docs/TOOL-GUARD.md
+  --tool-guard-allow-hosts, --tool-guard-deny-hosts  exact host exceptions or
+                     additional blocks, comma-separated
+  --tool-guard-max-bytes  argument bytes per call and pending calls (default 1048576)
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
@@ -63,6 +70,7 @@ mode_given=0
 topology=""
 profile_given=0
 strict_mtp=0
+guard=on guard_allow="" guard_deny="" guard_max=1048576
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -88,6 +96,10 @@ while [[ $# -gt 0 ]]; do
     --display-carveout) carveout=1; shift ;;
     --kv-shard) kvshard=1; shift ;;
     --no-fabric-siblings) siblings=0; shift ;;
+    --tool-guard) guard=$2; shift 2 ;;
+    --tool-guard-allow-hosts) guard_allow=$2; shift 2 ;;
+    --tool-guard-deny-hosts) guard_deny=$2; shift 2 ;;
+    --tool-guard-max-bytes) guard_max=$2; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -96,6 +108,8 @@ done
 if [[ $mode_given == 0 ]]; then mode=strict; fi
 [[ $mode == strict || $mode == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
 [[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires strict mode" >&2; exit 2; }
+[[ $guard == on || $guard == off ]] || { echo "--tool-guard must be on or off" >&2; exit 2; }
+[[ $guard_max =~ ^[1-9][0-9]{0,7}$ && $guard_max -le 67108864 ]] || { echo "invalid --tool-guard-max-bytes" >&2; exit 2; }
 if [[ $world == 2 ]]; then
   topology=${topology:-pair}
   [[ $topology == pair ]] || { echo "two Sparks require pair topology" >&2; exit 2; }
@@ -224,6 +238,8 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   -e FABRIC_LEFT_HCA="$left_hca" -e FABRIC_RIGHT_HCA="$right_hca" -e SPARKGLM_TOPOLOGY="$topology" \
   -e MODEL_PATH="$model" -e DRAFTER_PATH="$drafter" \
   -e SPARKGLM_STRICT_MTP="$strict_mtp" \
+  -e SPARKGLM_TOOL_GUARD="$guard" -e SPARKGLM_TOOL_GUARD_MAX_BYTES="$guard_max" \
+  -e SPARKGLM_TOOL_GUARD_ALLOW_HOSTS="$guard_allow" -e SPARKGLM_TOOL_GUARD_DENY_HOSTS="$guard_deny" \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" ${mode:+-e SPARKGLM_MODE="$mode"} \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \

@@ -159,6 +159,8 @@ serve() {
   address=$ip0
   common=(--leader-address "$address" --model-root "$MODEL_ROOT" --checkpoint "${repo/\//--}" --image "$IMAGE"
           --profile "$PROFILE" --mode "$MODE"
+          --tool-guard "${TOOL_GUARD:-on}" --tool-guard-max-bytes "${TOOL_GUARD_MAX_BYTES:-1048576}"
+          --tool-guard-allow-hosts "${TOOL_GUARD_ALLOW_HOSTS:-}" --tool-guard-deny-hosts "${TOOL_GUARD_DENY_HOSTS:-}"
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
           ${PREFIX_CACHE_DIR:+--prefix-cache-dir "$PREFIX_CACHE_DIR"} ${PREFIX_CACHE_GB:+--prefix-cache-gb "$PREFIX_CACHE_GB"})
   case ${DISPLAY_CARVEOUT:-0} in
@@ -178,10 +180,20 @@ serve() {
   say "loading (about 2.5 minutes)"
   for ((i = 0; i < 90; i++)); do
     if curl -sf "$API/health" >/dev/null; then
+      curl -fsS --max-time 300 "$API/v1/chat/completions" -H 'Content-Type: application/json' -d '{"model": "glm-5.3-flash-atlas",
+        "max_tokens": 1024, "temperature": 0, "top_p": 1, "reasoning_effort": "low",
+        "messages": [{"role": "user", "content": "What is 17*23? Answer with the number."}]}' |
+        python3 -c 'import json,sys
+try:
+    choice = json.load(sys.stdin)["choices"][0]
+    text = (choice.get("message", {}).get("content") or "").strip()
+    finish = choice.get("finish_reason")
+except (ValueError, KeyError, IndexError, AttributeError, TypeError) as error:
+    sys.exit(f"smoke failed: invalid completion response ({error})")
+if text != "391" or finish != "stop":
+    sys.exit(f"smoke failed: expected 391 with normal stop; got {text!r}, finish_reason={finish!r}")
+print("smoke: 17*23 =", text)'
       say "ready: $API/v1 model glm-5.3-flash-atlas"
-      curl -s "$API/v1/chat/completions" -H 'Content-Type: application/json' -d '{"model": "glm-5.3-flash-atlas",
-        "max_tokens": 64, "temperature": 0, "messages": [{"role": "user", "content": "What is 17*23? Answer with the number."}]}' |
-        python3 -c 'import json,sys; print("smoke: 17*23 =", json.load(sys.stdin)["choices"][0]["message"]["content"].strip())'
       return
     fi
     if [[ $(state) != running ]]; then docker logs --tail 40 "${NAME}0"; echo 'rank 0 stopped' >&2; exit 1; fi
@@ -193,7 +205,12 @@ serve() {
 
 if [[ ${1:-up} == fabric ]]; then pick_fabric; exit; fi
 if [[ ${1:-up} == clock-cap ]]; then clock_cap; exit; fi
-if [[ ${1:-up} == up ]]; then pick_fabric; check_clock_cap; fi
+if [[ ${1:-up} == up ]]; then
+  SPARKGLM_TOOL_GUARD="${TOOL_GUARD:-on}" SPARKGLM_TOOL_GUARD_MAX_BYTES="${TOOL_GUARD_MAX_BYTES:-1048576}" \
+  SPARKGLM_TOOL_GUARD_ALLOW_HOSTS="${TOOL_GUARD_ALLOW_HOSTS:-}" SPARKGLM_TOOL_GUARD_DENY_HOSTS="${TOOL_GUARD_DENY_HOSTS:-}" \
+    python3 -c 'import os,sys; sys.path.insert(0,"install"); import serve; serve.tool_guard_args(os.environ, [])'
+  pick_fabric; check_clock_cap
+fi
 IMAGE=${IMAGE:-$(install/build.sh --tag)}
 mkdir -p "$MODEL_ROOT"; MODEL_ROOT=$(realpath "$MODEL_ROOT")
 case ${1:-up} in

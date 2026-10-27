@@ -21,6 +21,8 @@ def fake_tree(root, here_active, worker_active):
     text = text[:start]+"fabric_ports() { printf '%s\\n' 'left0 nic0 192.0.2.1/24'; }\n"+text[end:]
     (root/'start.sh').write_text(text)
     shutil.copy(ROOT/'fabric.py', root/'fabric.py')
+    (root/'install').mkdir()
+    shutil.copy(ROOT/'install'/'serve.py', root/'install'/'serve.py')
     bindir = root/'bin'
     bindir.mkdir()
     stubs = {

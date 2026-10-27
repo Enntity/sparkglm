@@ -7,6 +7,24 @@ pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
 kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
+Both Spark products use the common `spark-shared` engine. SparkGLM 0.2.0 pins
+`c87f27906016c874d5a356429e7816987f5b1cc6` (tree `65f088b595ecedc9b79cde411ad7e04573269b2d`).
+That is the engine SparkQwen 0.3.3 ships, `d0cead146eedbf8848c7f5da49f83e183228830c`,
+plus [Enntity/atlas#16](https://github.com/Enntity/atlas/pull/16), which
+changes GLM tool calls only. A forced `tool_choice` now enforces `enum` and
+`const` argument values, and streamed content keeps text-spelled call markup
+as blocking content does. SparkQwen's engine adds the default-on
+[tool-call guard](TOOL-GUARD.md) to the earlier common integration
+`adb7a5b381ce0f8cafc29e37d11622c63e6ebdb9` (tree `a2965af0d0e9de275523855b7bcf247c0bc0b944`).
+Model-specific execution remains selected by kernel target and checkpoint type.
+The shared media decoder retains GLM's reference frame sampler, canvas sizing,
+normalization and final-frame padding alongside Qwen's timestamped video path.
+Qualification applies to the exact product image, not the branch name alone
+([TP2, 2026-10-27](../results/2026-10-27-engine-c87f2790/RESULT.md)).
+GLM and Qwen preserve literal XML examples inside streamed reasoning. GLM's
+native tool opener still ends reasoning and enters the validated tool parser;
+legacy model leak guards remain in place.
+
 The unified TP2/TP4 release provides Strict and Spark precision policies, corrected
 FP4 weight rounding, native MTP with prefix caching, native-FP8 MLA fusion,
 and sparse attention for TP2's 32 or TP4's 16 local heads. The same image runs

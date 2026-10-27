@@ -150,7 +150,7 @@ class ServingModes(unittest.TestCase):
         self.assertEqual(env.get("ATLAS_TOKENIZER_IDS_ONLY"), "1")
         self.assertIn("--max-seq-len=1048576", args)
         self.assertIn("--oom-guard-mb=4096", args)
-        for profile in ("8x128k", "4x512k"):
+        for profile in ("4x512k",):
             self.profile = json.loads((HERE / f"profiles/{profile}.json").read_text())
             _, env = self.launch("strict")
             self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
@@ -163,6 +163,23 @@ class ServingModes(unittest.TestCase):
             self.assertNotIn("ATLAS_KV_MAX_BLOCKS", env)
             self.assertNotIn("ATLAS_LARGE_ENCODE_CONCURRENCY", env)
             self.assertNotIn("ATLAS_TOKENIZER_IDS_ONLY", env)
+
+    def test_native_mtp_rejects_capacity_above_four(self):
+        self.env["SPARKGLM_STRICT_MTP"] = "1"
+        self.profile = json.loads((HERE / "profiles/8x128k.json").read_text())
+        with self.assertRaisesRegex(ValueError, "native MTP.*1.*4"):
+            self.launch("strict")
+        # Check each limit independently so mismatched custom profiles cannot
+        # bypass the native predictor's qualified concurrency boundary.
+        base = json.loads((HERE / "profiles/4x1m.json").read_text())
+        for flag in ("--max-batch-size", "--max-num-seqs"):
+            for count in (0, 5, 8):
+                with self.subTest(flag=flag, count=count):
+                    self.profile = dict(base, server_argv=[
+                        f"{flag}={count}" if arg.startswith(flag + "=") else arg
+                        for arg in base["server_argv"]])
+                    with self.assertRaisesRegex(ValueError, "native MTP.*1.*4"):
+                        self.launch("strict")
 
     def test_explicit_modes_preserve_tp4_topology(self):
         self.profile = json.loads((HERE / "profiles/4x1m-tp4.json").read_text())

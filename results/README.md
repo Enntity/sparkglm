@@ -1,5 +1,7 @@
 # Results
 
+- [SparkGLM 0.2.0 on engine c87f2790, 2026-10-27](2026-10-27-engine-c87f2790/RESULT.md): exact-image TP2 qualification of the current pin, which adds Enntity/atlas#16's forced tool_choice and streamed-markup fixes. 109/109 in Strict, Strict native MTP and Spark.
+- [SparkGLM 0.2.0 on the common engine, 2026-10-27](2026-10-27-common-engine-020/RESULT.md): exact-image TP2 qualification of Strict, Strict native MTP and Spark with the tool-call guard, on the earlier pin `d0cead14`.
 - [Unified TP2/TP4 release, 2026-10-21](2026-10-21-unified-release/RESULT.md): published identity, deployment, current quick decode and provenance.
 - [Unified qualification](2026-10-21-unified-rc/RESULT.md): TP2/TP4 Strict/Spark, chain/ring, cache restore and native MTP.
 - [Retained TP2 campaign](2026-10-20-tp2-qualification/RESULT.md): full measured suite and its original failed gates, resolved by the later focused checks.

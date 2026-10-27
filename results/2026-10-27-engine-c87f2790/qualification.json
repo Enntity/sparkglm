@@ -1,0 +1,321 @@
+{
+ "SPDX-License-Identifier": "AGPL-3.0-only",
+ "schema": "sparkglm.engine-c87f2790-qualification/v1",
+ "status": "TP2 hardware qualification of the exact 0.2.0 image on engine c87f2790; not published",
+ "date": "2026-10-27",
+ "product_commit": "5f1716c",
+ "engine": {
+  "repository": "Enntity/atlas",
+  "branch": "spark-shared",
+  "commit": "c87f27906016c874d5a356429e7816987f5b1cc6",
+  "tree": "65f088b595ecedc9b79cde411ad7e04573269b2d"
+ },
+ "image": {
+  "tag": "ghcr.io/enntity/atlas-sparkglm:3bf64a4d04c9",
+  "id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+  "build_start": "2026-10-27T20:24:54Z",
+  "build_end": "2026-10-27T20:37:25Z",
+  "checks": {
+   "suites": 156,
+   "passed": 9134,
+   "failed": 0,
+   "ignored": 271
+  }
+ },
+ "pair": "ennspark03/ennspark04 TP2",
+ "reservation": "r-d04a7421",
+ "job": "j-3d2ea732",
+ "modes": {
+  "strict": {
+   "passed": 109,
+   "total": 109,
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 66,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "identity": {
+    "all_match": true,
+    "ranks": [
+     {
+      "rank": 0,
+      "host": "spark-4562",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     },
+     {
+      "rank": 1,
+      "host": "spark-d1e7",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     }
+    ]
+   },
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "expected_reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "probes": {
+    "order_exact": {
+     "auto": true,
+     "function": true,
+     "required": true
+    },
+    "enum_enforced": [
+     true,
+     true,
+     true
+    ],
+    "malformed_stream_matches_blocking": true,
+    "malformed_calls_delivered": [
+     0,
+     0
+    ]
+   },
+   "spelled_stream_matches_blocking": {
+    "no_tools": true,
+    "auto_tool": true
+   }
+  },
+  "strict-mtp": {
+   "passed": 109,
+   "total": 109,
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 66,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "identity": {
+    "all_match": true,
+    "ranks": [
+     {
+      "rank": 0,
+      "host": "spark-4562",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     },
+     {
+      "rank": 1,
+      "host": "spark-d1e7",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     }
+    ]
+   },
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "expected_reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "probes": {
+    "order_exact": {
+     "auto": true,
+     "function": true,
+     "required": true
+    },
+    "enum_enforced": [
+     true,
+     true,
+     true
+    ],
+    "malformed_stream_matches_blocking": true,
+    "malformed_calls_delivered": [
+     0,
+     0
+    ]
+   },
+   "spelled_stream_matches_blocking": {
+    "no_tools": true,
+    "auto_tool": true
+   }
+  },
+  "spark": {
+   "passed": 109,
+   "total": 109,
+   "suites": {
+    "arith": {
+     "passed": 2,
+     "total": 2
+    },
+    "xml": {
+     "passed": 32,
+     "total": 32
+    },
+    "guard": {
+     "passed": 66,
+     "total": 66
+    },
+    "structured": {
+     "passed": 3,
+     "total": 3
+    },
+    "prefix": {
+     "passed": 1,
+     "total": 1
+    },
+    "image": {
+     "passed": 3,
+     "total": 3
+    },
+    "video": {
+     "passed": 2,
+     "total": 2
+    }
+   },
+   "identity": {
+    "all_match": true,
+    "ranks": [
+     {
+      "rank": 0,
+      "host": "spark-4562",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     },
+     {
+      "rank": 1,
+      "host": "spark-d1e7",
+      "image_id": "sha256:7cb36f010f128f215bad4e1fb86e7b1944e2b612452e7db7678c099f21ae3b03",
+      "binary_sha256": "131a821b8485db15a9db932a2775778966a62e4a7201f37792b941155cbf92d4",
+      "gpu": "NVIDIA GB10, 580.178.04, 3003 MHz",
+      "clock_cap_service": "active"
+     }
+    ]
+   },
+   "guard_log": {
+    "guard_events": 36,
+    "blocked_responses": 36,
+    "reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "expected_reason_counts": {
+     "metadata_access": 8,
+     "blocked_host": 12,
+     "credential_transfer": 16
+    },
+    "reasons_match_cases": true,
+    "guard_events_contain_arguments": false
+   },
+   "probes": {
+    "order_exact": {
+     "auto": true,
+     "function": true,
+     "required": true
+    },
+    "enum_enforced": [
+     true,
+     true,
+     true
+    ],
+    "malformed_stream_matches_blocking": true,
+    "malformed_calls_delivered": [
+     0,
+     0
+    ]
+   },
+   "spelled_stream_matches_blocking": {
+    "no_tools": true,
+    "auto_tool": true
+   }
+  }
+ },
+ "baseline_020_spelled": {
+  "image": "ghcr.io/enntity/atlas-sparkglm:c98ddd9e55de",
+  "stream_matches_blocking": {
+   "no_tools": false,
+   "auto_tool": false
+  },
+  "streamed": {
+   "no_tools": "tool_call>probe</tool_call>",
+   "auto_tool": "tool_call>probe</tool_call>"
+  }
+ },
+ "notes": [
+  "The first Spark start failed: rank 0 had 10.4 GB free at KV accounting right after the Strict MTP containers stopped (No memory left for KV cache). Both nodes then showed 107+ GB free; the retry on the same image passed. The failed start is kept in runs-repin/spark-failed-start.",
+  "The engine binary (131a821b...) is byte-identical to the pre-merge atlas#16 test image (209317ddbc48) checked earlier the same day."
+ ]
+}
