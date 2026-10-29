@@ -6,11 +6,12 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 RUN git clone https://github.com/flashinfer-ai/flashinfer.git /opt/flashinfer && \
     git -C /opt/flashinfer checkout --detach 8eccd0c1352165302840c0e19066bc42d36dbd7a
 COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
-COPY engine/research/flash-kda-prefill /engine/research/flash-kda-prefill
 COPY install/build-native.sh /product/install/build-native.sh
 COPY install/flash_kda/ /product/install/flash_kda/
 COPY install/converter/ /product/install/converter/
-ENV NVCC_THREADS=2
+# Candidate engine (Atlas-Inf #220 stack): it ships no research/flash-kda-prefill and
+# loads no FlashKDA library, so only the sparse bridge is built.
+ENV NVCC_THREADS=2 ATLAS_BUILD_SPARSE_ONLY=1
 RUN bash /product/install/build-native.sh /engine /opt/flashinfer /product /opt/atlas/native
 WORKDIR /product/install/converter
 RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS \
