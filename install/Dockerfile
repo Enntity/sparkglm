@@ -35,6 +35,8 @@ COPY engine/Cargo.toml engine/Cargo.lock engine/rust-toolchain.toml engine/READM
 COPY engine/crates/ crates/
 COPY engine/kernels/ kernels/
 COPY engine/vendor/ vendor/
+# The candidate engine's GLM sparse kernels include NVIDIA's sparse-MLA prefill headers.
+COPY engine/third_party/ third_party/
 COPY engine/jinja-templates/ jinja-templates/
 COPY engine/tests/fixtures/ tests/fixtures/
 ENV ATLAS_TARGET_HW=gb10 ATLAS_TARGET_MODEL=glm-5.3-flash ATLAS_TARGET_QUANT=nvfp4
