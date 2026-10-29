@@ -9,10 +9,11 @@ COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
 COPY install/build-native.sh /product/install/build-native.sh
 COPY install/flash_kda/ /product/install/flash_kda/
 COPY install/converter/ /product/install/converter/
-# Candidate engine (Atlas-Inf #220 stack): it ships no research/flash-kda-prefill and
-# loads no FlashKDA library, so only the sparse bridge is built.
-ENV NVCC_THREADS=2 ATLAS_BUILD_SPARSE_ONLY=1
-RUN bash /product/install/build-native.sh /engine /opt/flashinfer /product /opt/atlas/native
+ENV NVCC_THREADS=2
+# Candidate engine (Atlas-Inf #220 stack): it builds its GLM sparse kernels in-tree
+# and loads neither the sparse bridge nor FlashKDA (it has no
+# research/flash-kda-prefill), so no native library is built or shipped.
+RUN mkdir -p /opt/atlas/native/notices && : > /opt/atlas/native/native-libraries.sha256
 WORKDIR /product/install/converter
 RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS \
     -shared -Xcompiler=-fPIC wrapper.cu -o libatlas_mtp_quantize.so && \
@@ -216,12 +217,10 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow
     ibverbs-providers libnl-3-200 libnl-route-3-200 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/dist/spark /usr/local/bin/spark
 COPY --from=builder /build/jinja-templates/ /jinja-templates/
-COPY --from=native /opt/atlas/native/*.so /opt/atlas/native/
 COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
 COPY --from=native /opt/atlas/native/notices/ /opt/atlas/notices/
 COPY --from=builder /opt/cutlass/LICENSE.txt /opt/atlas/notices/CUTLASS-LICENSE.txt
 COPY --from=builder /build/dist/notices-rust/ /opt/atlas/notices/rust/
-COPY --from=native /tmp/FlashKDA-atlas/cutlass/LICENSE.txt /opt/atlas/notices/FlashKDA-CUTLASS-LICENSE.txt
 COPY --from=native /product/install/converter/ /opt/atlas/converter/
 COPY install/serve.py install/release.json /opt/atlas/
 COPY install/profiles/ /opt/atlas/profiles/
