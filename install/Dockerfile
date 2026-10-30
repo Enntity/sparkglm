@@ -10,9 +10,9 @@ COPY install/build-native.sh /product/install/build-native.sh
 COPY install/flash_kda/ /product/install/flash_kda/
 COPY install/converter/ /product/install/converter/
 ENV NVCC_THREADS=2
-# Candidate engine (Atlas-Inf #220 stack): it builds its GLM sparse kernels in-tree
-# and loads neither the sparse bridge nor FlashKDA (it has no
-# research/flash-kda-prefill), so no native library is built or shipped.
+# Parity engine (Atlas main + the SparkGLM ports): it compiles the GLM sparse
+# kernels and SparkGLM's FP32-recurrence FlashKDA in-tree and links them
+# statically, so no native library is built or shipped.
 RUN mkdir -p /opt/atlas/native/notices && : > /opt/atlas/native/native-libraries.sha256
 WORKDIR /product/install/converter
 RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS \
@@ -222,6 +222,8 @@ COPY --from=builder /build/jinja-templates/ /jinja-templates/
 COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
 COPY --from=native /opt/atlas/native/notices/ /opt/atlas/notices/
 COPY --from=builder /opt/cutlass/LICENSE.txt /opt/atlas/notices/CUTLASS-LICENSE.txt
+COPY --from=builder /build/crates/spark-runtime/cuda/glm_kda_fp32/NOTICE /opt/atlas/notices/FlashKDA-NOTICE.txt
+COPY --from=builder /build/crates/spark-runtime/cuda/glm_kda_fp32/flashkda/LICENSE /opt/atlas/notices/FlashKDA-LICENSE.txt
 COPY --from=builder /build/dist/notices-rust/ /opt/atlas/notices/rust/
 COPY --from=native /product/install/converter/ /opt/atlas/converter/
 COPY install/serve.py install/release.json /opt/atlas/
