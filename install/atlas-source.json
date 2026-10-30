@@ -1,24 +1,19 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Parity candidate: Atlas-Inf main + the SparkQwen parity series (#265-#271) + Azeez's GLM stack (#242 <- #253 <- #254 <- #255 <- #256) + the SparkGLM 0.2.0 ports (defaults, in-tree FlashKDA, serving/tool behaviour and mode contract, vision prefix cache, FP4-Local native formats, split-head verify sampling). Under qualification against SparkGLM 0.2.0; not a release pin.",
+  "note": "Parity candidate: Atlas-Inf main (which now carries the SparkQwen series #265-#271) + Azeez's GLM stack (#242 <- #253 <- #254 <- #255 <- #256) + the SparkGLM 0.2.0 ports (defaults, in-tree FlashKDA, serving/tool behaviour and mode contract, vision prefix cache, FP4-Local native formats, split-head verify sampling). Under qualification against SparkGLM 0.2.0; not a release pin.",
   "repository": "https://github.com/Enntity/atlas.git",
-  "branch": "sg/integ",
-  "commit": "6f01ca7d440e9f3a9c6d75dbda8956b0874e9eb2",
-  "tree": "d8953b3440716b19479fa6bfeb825ecd21e8c7ed",
+  "branch": "sg/integ-main",
+  "commit": "7de3920a1b310490312019c9e7f0e0de08f3f127",
+  "tree": "a796d8ab255ff863a714332d9783143b5c103d9e",
   "layers": {
-    "atlas_inf_main_base": "f1c8e556f595feef031de5fa311854b4ca977d35",
-    "sparkqwen_series": {
-      "branch": "sq-pr/series",
-      "commit": "753b80a24476ce4476b8a2d24d2a4c0b86563606",
-      "note": "Atlas-Inf #265-#271 heads merged onto main."
-    },
+    "atlas_inf_main_base": "8eb907260",
     "atlas_inf_glm_stack": {
       "branch": "stack/glm-video",
       "commit": "1c38d5ebcab70cc04af4740a4f9388b4cdacb5be",
       "note": "Atlas-Inf #242 <- #253 <- #254 <- #255 <- #256."
     },
     "sparkglm_ports": {
-      "branch": "sg/integ",
+      "branch": "sg/integ-main",
       "note": "Enntity/atlas sg/defaults, sg/native, sg/serve, sg/vision, sg/fp4l, sg/verify, each ported from spark-shared c87f2790 (SparkGLM 0.2.0) onto sg/base 466aa42f."
     }
   },
