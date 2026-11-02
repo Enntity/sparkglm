@@ -8,7 +8,7 @@ completed checks and the exact tested image/configuration.
 
 | Component | Pin |
 |---|---|
-| Engine | [`Enntity/atlas`](https://github.com/Enntity/atlas) exact commit and tree in [`install/atlas-source.json`](../install/atlas-source.json) |
+| Engine | [`Atlas-Inf/atlas`](https://github.com/Atlas-Inf/atlas) exact commit and tree in [`install/atlas-source.json`](../install/atlas-source.json) |
 | Model | [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) @ `76348ddb2be2e35e39ecfc00e75dc07703f4f3d5` (165.3 GiB, NVIDIA Open Model Agreement; base model MIT) |
 | Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
 | Native dependencies | FlashInfer `8eccd0c1`, CUTLASS `cf064d2e`, FlashKDA ([`install/flash_kda/`](../install/flash_kda/)), Rust 1.93.1, CUDA 13.0 |
@@ -29,7 +29,7 @@ docker pull "$IMAGE" || IMAGE=$(install/build.sh)
 ```
 
 The tag is the git tree hash of `install/`. `install/build.sh` needs a clean
-`install/` directory. It fetches `Enntity/atlas` at the pinned commit, refuses
+`install/` directory. It fetches `Atlas-Inf/atlas` at the pinned commit, refuses
 any other tree, and builds:
 
 - the native bridges (FlashKDA, and NVIDIA's sparse-MLA prefill, BSD-3-Clause,

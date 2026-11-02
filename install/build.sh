@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
-# Build the Atlas SparkGLM image from the pinned Enntity/atlas commit
+# Build the Atlas SparkGLM image from the pinned Atlas-Inf/atlas commit
 # (atlas-source.json) and this directory. The image tag is the git tree hash of
 # install/, so a published image and a local build of the same checkout carry
 # the same tag. Never starts, stops or converts anything.
@@ -28,7 +28,7 @@ GIT_LFS_SKIP_SMUDGE=1 git -C "$context/engine" fetch -q --depth 1 "$repo" "$comm
 GIT_LFS_SKIP_SMUDGE=1 git -C "$context/engine" -c advice.detachedHead=false checkout -q --detach FETCH_HEAD
 [[ $(git -C "$context/engine" rev-parse HEAD) == "$commit" &&
    $(git -C "$context/engine" rev-parse 'HEAD^{tree}') == "$pin_tree" ]] || {
-  echo "fetched engine is not the pinned Enntity/atlas tree $pin_tree" >&2; exit 1; }
+  echo "fetched engine is not the pinned Atlas-Inf/atlas tree $pin_tree" >&2; exit 1; }
 git -C "$product" archive HEAD install | tar -x -C "$context"
 cp "$here/dockerignore" "$context/.dockerignore"
 

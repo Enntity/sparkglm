@@ -1,13 +1,18 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 # The engine
 
-SparkGLM runs [Atlas](https://github.com/Atlas-Inf/atlas), built from the
-public fork [`Enntity/atlas`](https://github.com/Enntity/atlas) at the commit
-pinned in [`install/atlas-source.json`](../install/atlas-source.json), for the
-kernel target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
+SparkGLM runs [Atlas](https://github.com/Atlas-Inf/atlas), built from Atlas-Inf
+`main` at the commit pinned in
+[`install/atlas-source.json`](../install/atlas-source.json), for the kernel
+target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-Both Spark products use the common `spark-shared` engine. SparkGLM 0.2.0 pins
+The pinned snapshot is `8ad9c3c3` (tree `84f18dc0`) on Atlas-Inf `main`, which
+carries the SparkGLM series
+([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)).
+
+SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
+[`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
 `c87f27906016c874d5a356429e7816987f5b1cc6` (tree `65f088b595ecedc9b79cde411ad7e04573269b2d`).
 That is the engine SparkQwen 0.3.3 ships, `d0cead146eedbf8848c7f5da49f83e183228830c`,
 plus [Enntity/atlas#16](https://github.com/Enntity/atlas/pull/16), which
