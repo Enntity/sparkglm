@@ -26,7 +26,7 @@ record the tested configurations and remaining limits.
 ```sh
 git clone https://github.com/Enntity/sparkglm.git
 cd sparkglm
-cp .env.example .env      # set WORKER to the other Spark's ssh destination
+cp .env.example .env      # set WORKER to the other Spark's ssh destination (or the other three)
 ./start.sh
 ```
 
@@ -191,7 +191,7 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
   which `.env` can still select, takes 204 GB plus a 16 GB overlay.)
 - Nothing else using the GPUs' memory. GB10 memory is shared with the host,
   and the engine uses most of it.
-- The GPU clock capped on both Sparks: run `./start.sh clock-cap` once (it
+- The GPU clock capped on every Spark: run `./start.sh clock-cap` once (it
   asks for `sudo` on each). Uncapped, a long cold prefill can power a Spark off
   with nothing in any log. The cap costs about 3% of raw matmul throughput
   ([results](results/2026-10-13-clock-cap/RESULT.md)).
@@ -201,10 +201,11 @@ are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 Run it on the Spark that will serve the API (rank 0). Each step is skipped when
 already done, so rerunning it just restarts the engine.
 
-`start.sh` manages a TP2 pair. TP4 uses the same image and
-`install/start-node.sh --world-size 4 --profile 4x1m-tp4` on each rank, or
-[LLooM](docs/LLOOM.md) four-rank orchestration. Chain is the default; ring is
-selected explicitly with `--topology ring` and requires the closing links.
+`start.sh` serves two Sparks (TP2) or four (TP4): `WORKER` in `.env` names the
+other one or the other three. With four, it reads every Spark's ports and finds
+whether they are cabled as a chain or a ring, so the order of the hosts doesn't
+matter; a chain must start here, at one of its ends. `TOPOLOGY=chain` leaves a
+ring's closing link unused.
 [Manual TP4 setup](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring) describes
 the per-rank rails.
 
@@ -214,24 +215,24 @@ the per-rank rails.
    from source instead ([`install/build.sh`](install/build.sh): Atlas at the
    commit pinned in [`install/atlas-source.json`](install/atlas-source.json);
    30–60 minutes cold). It then
-   pulls or copies the image to the other Spark.
+   pulls or copies the image to the other Sparks.
 2. **Weights.** Downloads [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local)
    and the [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2)
-   drafter at pinned revisions, and copies them to the other Spark. It uses
+   drafter at pinned revisions, and copies them to the other Sparks. It uses
    `hf` when installed and a throwaway container otherwise.
 3. **Overlay, NVFP4 checkpoint only.** FP4-Local needs no on-disk overlay. If
    `.env` selects the NVFP4 checkpoint ([below](#the-checkpoint)), this step
    converts the 864 BF16 MTP matrices Atlas needs to NVFP4 in an overlay on
    each Spark and verifies every payload (about a minute;
    [`install/convert.sh`](install/convert.sh)).
-4. **Serve.** Starts rank 1 over ssh, then rank 0, and waits for health
+4. **Serve.** Starts the other ranks over ssh, then rank 0, and waits for health
    (about 2.5 minutes), then answers one smoke-test question.
 
 Before pulling, downloading or starting anything, it checks that
-`gpu-clock-cap.service` is active on both Sparks and stops if not
+`gpu-clock-cap.service` is active on every Spark and stops if not
 (`CLOCK_CAP=0` skips the check).
 
-Other commands: `./start.sh clock-cap | stop | status | logs [worker] | build | download | convert`.
+Other commands: `./start.sh clock-cap | stop | status | logs [worker [HOST]] | build | download | convert`.
 
 ## Use it
 
@@ -277,8 +278,8 @@ exceptions are set in `.env`.
 - `4x512k`: up to four requests with up to 512K each.
 - `8x128k`: up to eight requests with up to 128K each, for more concurrent
   short work.
-- `4x1m-tp4`: the TP4 profile, selected by four-rank orchestration
-  rather than `PROFILE` in `start.sh`; four sequences, up to 1M tokens per
+- `4x1m-tp4`: the TP4 profile, the default when `WORKER` names three Sparks;
+  four sequences, up to 1M tokens per
   request, with memory utilization 0.72. See the
   [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4).
 
@@ -358,11 +359,11 @@ run that never evicted, token logprobs included.
 To turn it on, add to `.env` and rerun `./start.sh`:
 
 ```sh
-PREFIX_CACHE_DIR=/srv/sparkglm/prefix-cache   # same path on both Sparks, on their own disk
+PREFIX_CACHE_DIR=/srv/sparkglm/prefix-cache   # same path on every Spark, on its own disk
 PREFIX_CACHE_GB=48                             # GiB per Spark, 16-100 (default 48)
 ```
 
-`start.sh` creates `kv/` and `ssm/` in the directory on both Sparks, refuses a
+`start.sh` creates `kv/` and `ssm/` in the directory on every Spark, refuses a
 directory on tmpfs or without that much space free, and mounts it into each
 rank. Half of the size holds KV blocks (6.66 KB per token unsplit, 3.7 KB per
 Spark with the KV shard; 24 GiB holds 3.9M or 6.9M tokens). The other half holds the 78 MB

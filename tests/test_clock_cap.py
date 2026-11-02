@@ -23,6 +23,7 @@ def fake_tree(root, here_active, worker_active):
     shutil.copy(ROOT/'fabric.py', root/'fabric.py')
     (root/'install').mkdir()
     shutil.copy(ROOT/'install'/'serve.py', root/'install'/'serve.py')
+    shutil.copy(ROOT/'install'/'fabric-ports.sh', root/'install'/'fabric-ports.sh')
     bindir = root/'bin'
     bindir.mkdir()
     stubs = {
