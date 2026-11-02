@@ -8,7 +8,7 @@ Run the same checks as CI before opening a pull request:
 ```sh
 python3 -m unittest discover -s install -p 'test_*.py'
 python3 -m unittest discover -s install/converter
-shellcheck -S warning -e SC2054 start.sh install/*.sh install/flash_kda/rebuild.sh
+shellcheck -S warning -e SC2054 start.sh install/*.sh
 python3 -m py_compile bench/*.py
 ```
 

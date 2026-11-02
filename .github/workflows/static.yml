@@ -24,7 +24,7 @@ jobs:
       - name: Host checks
         run: python3 -m unittest discover -s tests -v
       - name: Shell scripts
-        run: shellcheck -S warning -e SC2054 start.sh gpu-clock-cap.sh install/*.sh install/flash_kda/rebuild.sh
+        run: shellcheck -S warning -e SC2054 start.sh gpu-clock-cap.sh install/*.sh
       - name: Benchmark drivers compile
         run: python3 -m py_compile bench/*.py
       - name: Result receipts

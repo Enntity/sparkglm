@@ -11,10 +11,6 @@ from other projects, without their code, are credited in the README's
 |---|---|
 | `start.sh`, `install/`, `bench/`, docs and results | AGPL-3.0-only |
 | `install/converter/` NVFP4 quantization kernel | AGPL-3.0-only, copied unchanged from [Atlas-Inf/atlas](https://github.com/Atlas-Inf/atlas) `kernels/gb10/common/quantize_bf16_to_nvfp4.cu` by way of Mango-kid/atlas ([`provenance.json`](../install/converter/provenance.json)) |
-| `install/flash_kda/flash_kda_sm121_slots.patch` | MIT (FlashKDA context, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) plus AGPL-3.0-only changes |
-| `install/flash_kda/flash_kda_tma_swizzle.patch` | MIT (FlashKDA context, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) plus AGPL-3.0-only changes |
-| `install/flash_kda/flash_kda_fp32_recurrence.patch` | MIT (FlashKDA context, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) plus AGPL-3.0-only changes |
-| `install/flash_kda/atlas_flash_kda_bridge.cu` | AGPL-3.0-only, with its workspace-size and launch arithmetic adapted from FlashKDA `csrc/flash_kda.cpp` (MIT, [`LICENSES/MIT-FlashKDA.txt`](../LICENSES/MIT-FlashKDA.txt)) |
 | `install/start-node.sh`, `install/convert.sh` | AGPL-3.0-only; the container flags and the converter's verify pass follow [LLooM](https://github.com/Enntity/lloom)'s Atlas recipe (MIT, [`LICENSES/MIT-LLooM.txt`](../LICENSES/MIT-LLooM.txt)) |
 | The `mia-*` prompts in `bench/staggered_openai.py` | MIT, Copyright (c) 2026 Mia's AI Lab ([`LICENSES/MIT-Mia.txt`](../LICENSES/MIT-Mia.txt)), quoted from MiaAI-Lab's recipe while it was MIT |
 
@@ -35,8 +31,7 @@ so none of its code is included; its harness calls it from a local checkout.
 |---|---|
 | Atlas engine, [`Atlas-Inf/atlas`](https://github.com/Atlas-Inf/atlas) at the pinned commit | AGPL-3.0-only |
 | FlashKDA (MoonshotAI) | MIT |
-| FlashInfer | Apache-2.0 ([`LICENSES/Apache-2.0.txt`](../LICENSES/Apache-2.0.txt)) |
-| NVIDIA's sparse-MLA SM120 prefill source inside FlashInfer (`csrc/sparse_mla_sm120_prefill.cu`, `include/flashinfer/attention/sparse_mla_sm120/`) | BSD-3-Clause, Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES ([`LICENSES/BSD-3-Clause-NVIDIA.txt`](../LICENSES/BSD-3-Clause-NVIDIA.txt)) |
+| NVIDIA's sparse-MLA SM120 prefill source, in the engine under `third_party/nvidia_sparse_mla_sm120/` | BSD-3-Clause, Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES ([`LICENSES/BSD-3-Clause-NVIDIA.txt`](../LICENSES/BSD-3-Clause-NVIDIA.txt)) |
 | CUTLASS | BSD-3-Clause |
 | The engine's Rust dependencies (`Cargo.lock`) | mostly MIT, Apache-2.0 or BSD |
 | Other models' chat templates in the engine's `jinja-templates/`, copied into the image but unused by GLM | their model vendors' terms |
@@ -51,7 +46,7 @@ confidence-width option's starting calibration table comes from knapcio's
 preparation were drafted by supervised DeepSeek model workers and then reviewed
 by us.
 
-The image ships the FlashInfer, NVIDIA, FlashKDA and CUTLASS notices under
+The image ships the NVIDIA, FlashKDA and CUTLASS notices under
 `/opt/atlas/notices/` and the engine's license at `/LICENSE`. The license,
 copying and notice files of the third-party Rust crates compiled into the
 engine are under `/opt/atlas/notices/rust/` (`INDEX.tsv` lists each crate, its

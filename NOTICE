@@ -11,16 +11,13 @@ The overlay converter's NVFP4 quantization kernel is copied unchanged from
 Atlas-Inf/atlas, by way of Mango-kid/atlas (AGPL-3.0-only); see
 install/converter/provenance.json.
 
-FlashKDA by MoonshotAI (MIT, LICENSES/MIT-FlashKDA.txt) is fetched and patched
-at build time; install/flash_kda/flash_kda_sm121_slots.patch,
-install/flash_kda/flash_kda_tma_swizzle.patch and
-install/flash_kda/flash_kda_fp32_recurrence.patch carry both MIT and AGPL
-terms, and install/flash_kda/atlas_flash_kda_bridge.cu adapts FlashKDA's
-workspace-size and launch arithmetic.
+FlashKDA by MoonshotAI (MIT, LICENSES/MIT-FlashKDA.txt) comes with the Atlas
+engine, in crates/spark-runtime/cuda/glm_kda_fp32/.
 
-FlashInfer (Apache-2.0, LICENSES/Apache-2.0.txt) and CUTLASS (BSD-3-Clause)
-are fetched at build time. NVIDIA's sparse-MLA SM120 prefill source inside
-FlashInfer is BSD-3-Clause, Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES
+CUTLASS (BSD-3-Clause) is fetched at build time. NVIDIA's sparse-MLA SM120
+prefill source comes with the Atlas engine, in
+third_party/nvidia_sparse_mla_sm120/, pinned to FlashInfer. It is BSD-3-Clause,
+Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES
 (LICENSES/BSD-3-Clause-NVIDIA.txt). The image ships these notices under
 /opt/atlas/notices/.
 

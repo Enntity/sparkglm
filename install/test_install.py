@@ -23,6 +23,12 @@ REFUSED_BEYOND_TWO_RANKS = (
 
 
 class LaunchContract(unittest.TestCase):
+    def test_image_ships_the_notices_of_its_in_tree_native_code(self):
+        dockerfile = (HERE/'Dockerfile').read_text()
+        for notice in ('glm_kda_fp32/flashkda/LICENSE', 'third_party/nvidia_sparse_mla_sm120/LICENSE'):
+            prefix = 'crates/spark-runtime/cuda/' if notice.startswith('glm_kda') else ''
+            self.assertIn(f'COPY --from=builder /build/{prefix}{notice} ', dockerfile)
+
     def setUp(self):
         self.profile = json.loads(serve.profile_path({}, HERE).read_text())
         self.environment = {'NODE_RANK': '0', 'MASTER_ADDR': '192.0.2.1',

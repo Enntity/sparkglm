@@ -3,17 +3,8 @@
 FROM nvidia/cuda:13.0.0-devel-ubuntu24.04@sha256:1e8ac7a54c184a1af8ef2167f28fa98281892a835c981ebcddb1fad04bdd452d AS native
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     git ca-certificates build-essential python3 && rm -rf /var/lib/apt/lists/*
-RUN git clone https://github.com/flashinfer-ai/flashinfer.git /opt/flashinfer && \
-    git -C /opt/flashinfer checkout --detach 8eccd0c1352165302840c0e19066bc42d36dbd7a
-COPY engine/scripts/dev/glm_sparse_native /engine/scripts/dev/glm_sparse_native
-COPY install/build-native.sh /product/install/build-native.sh
-COPY install/flash_kda/ /product/install/flash_kda/
 COPY install/converter/ /product/install/converter/
 ENV NVCC_THREADS=2
-# Parity engine (Atlas main + the SparkGLM ports): it compiles the GLM sparse
-# kernels and SparkGLM's FP32-recurrence FlashKDA in-tree and links them
-# statically, so no native library is built or shipped.
-RUN mkdir -p /opt/atlas/native/notices && : > /opt/atlas/native/native-libraries.sha256
 WORKDIR /product/install/converter
 RUN nvcc -O3 -arch=sm_121f --fmad=false --expt-relaxed-constexpr -DTQ_PLUS_SIGNS \
     -shared -Xcompiler=-fPIC wrapper.cu -o libatlas_mtp_quantize.so && \
@@ -219,11 +210,10 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends --allow
     ibverbs-providers libnl-3-200 libnl-route-3-200 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/dist/spark /usr/local/bin/spark
 COPY --from=builder /build/jinja-templates/ /jinja-templates/
-COPY --from=native /opt/atlas/native/native-libraries.sha256 /opt/atlas/native/
-COPY --from=native /opt/atlas/native/notices/ /opt/atlas/notices/
 COPY --from=builder /opt/cutlass/LICENSE.txt /opt/atlas/notices/CUTLASS-LICENSE.txt
 COPY --from=builder /build/crates/spark-runtime/cuda/glm_kda_fp32/NOTICE /opt/atlas/notices/FlashKDA-NOTICE.txt
 COPY --from=builder /build/crates/spark-runtime/cuda/glm_kda_fp32/flashkda/LICENSE /opt/atlas/notices/FlashKDA-LICENSE.txt
+COPY --from=builder /build/third_party/nvidia_sparse_mla_sm120/LICENSE /opt/atlas/notices/NVIDIA-sparse-MLA-LICENSE.txt
 COPY --from=builder /build/dist/notices-rust/ /opt/atlas/notices/rust/
 COPY --from=native /product/install/converter/ /opt/atlas/converter/
 COPY install/serve.py install/release.json /opt/atlas/

@@ -212,8 +212,8 @@ the per-rank rails.
    git tree of [`install/`](install/), so the image always matches your
    checkout. If it isn't published or `BUILD=1` is set, it builds the image
    from source instead ([`install/build.sh`](install/build.sh): Atlas at the
-   commit pinned in [`install/atlas-source.json`](install/atlas-source.json),
-   FlashKDA and FlashInfer's sparse-MLA prefill; 30–60 minutes cold). It then
+   commit pinned in [`install/atlas-source.json`](install/atlas-source.json);
+   30–60 minutes cold). It then
    pulls or copies the image to the other Spark.
 2. **Weights.** Downloads [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local)
    and the [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2)
