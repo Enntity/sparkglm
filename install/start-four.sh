@@ -8,8 +8,9 @@
 #   install/start-four.sh fabric|up|stop|status HOST0 HOST1 HOST2 HOST3
 #
 # Set IMAGE and MODEL_ROOT (the same absolute path on every host) for up. Optional:
-# MODE (spark), PROFILE (4x1m-tp4), KV_SHARD (1), GPU_MEMORY_UTILIZATION,
-# PREFIX_CACHE_DIR, PREFIX_CACHE_GB, TOOL_GUARD (on).
+# MODE (spark), STRICT_MTP (0), TOPOLOGY (chain, to leave a ring's closing link
+# unused), PROFILE (4x1m-tp4), KV_SHARD (1), GPU_MEMORY_UTILIZATION, PREFIX_CACHE_DIR,
+# PREFIX_CACHE_GB, TOOL_GUARD (on).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 usage() { sed -n '8p' "$0" | cut -c3- >&2; exit 2; }
@@ -43,8 +44,12 @@ up() {
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
           ${PREFIX_CACHE_DIR:+--prefix-cache-dir "$PREFIX_CACHE_DIR"} ${PREFIX_CACHE_GB:+--prefix-cache-gb "$PREFIX_CACHE_GB"})
   [[ ${KV_SHARD:-1} == 1 ]] && common+=(--kv-shard)
+  [[ ${STRICT_MTP:-0} == 1 ]] && common+=(--strict-mtp)
   stop
   while read -r rank host kind iface leader left right; do
+    if [[ ${TOPOLOGY:-$kind} == chain ]]; then
+      kind=chain; ((rank == 0)) && left=-; ((rank == 3)) && right=-
+    fi
     echo "rank $rank on ${hosts[$host]}: $kind, $iface, left ${left}, right ${right}"
     on "${hosts[$host]}" ping -c1 -W2 "$leader" >/dev/null ||
       { echo "${hosts[$host]} cannot reach the leader at $leader" >&2; exit 1; }
