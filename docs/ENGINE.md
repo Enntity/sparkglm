@@ -7,7 +7,7 @@ SparkGLM runs [Atlas](https://github.com/Atlas-Inf/atlas), built from Atlas-Inf
 target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-The pinned snapshot is `8ad9c3c3` (tree `84f18dc0`) on Atlas-Inf `main`, which
+The pinned snapshot is `9b3473f0` (tree `8f9fe6a7`) on Atlas-Inf `main`, which
 carries the SparkGLM series
 ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)).
 
