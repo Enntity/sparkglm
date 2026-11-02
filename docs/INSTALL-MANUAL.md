@@ -139,8 +139,9 @@ headless Spark; see the README.
 ## Four-Spark chain or ring
 
 Use the same image, model directories and `4x1m-tp4` profile on all four nodes.
-`start.sh` remains the two-node convenience launcher; TP4 uses one
-`install/start-node.sh` invocation per rank, directly or through an orchestrator.
+`start.sh` launches four Sparks when `WORKER` names the other three: it reads
+each Spark's ports, finds the chain or ring, and runs the steps below for you.
+By hand, TP4 is one `install/start-node.sh` invocation per rank.
 Start workers 1, 2 and 3 before leader 0. All ranks need the same reachable leader
 IPv4 address and a selected socket network interface.
 

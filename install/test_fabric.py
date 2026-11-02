@@ -13,6 +13,10 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('fabric', ROOT/'fabric.py')
 fabric = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fabric)
+spec = importlib.util.spec_from_file_location('test_fabric_topology', ROOT/'tests/test_fabric_topology.py')
+topology_fixtures = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(topology_fixtures)
+RING = topology_fixtures.RING  # the bench's four-Spark ring
 LEFT = 'left0 nic0 192.0.2.1/24\nleft1 nic1 198.51.100.1/24'
 RIGHT = 'right7 net7 192.0.2.2/24\nright8 net8 198.51.100.2/24'
 
@@ -123,7 +127,7 @@ class CheckpointOverride(unittest.TestCase):
     """start.sh up with a fake inventory, transport, Docker and converter, keeping
     .env parsing, the convert decision and both real start-node.sh calls."""
 
-    def run_start(self, env_text, repo, smoke_response=None):
+    def run_start(self, env_text, repo, smoke_response=None, inventories=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             shutil.copytree(ROOT/'install', root/'install')
@@ -131,7 +135,7 @@ class CheckpointOverride(unittest.TestCase):
             text = (ROOT/'start.sh').read_text()
             start = text.index('fabric_ports() {')
             end = text.index('\npick_fabric()', start)
-            text = text[:start]+"fabric_ports() { echo 'left nic0 192.0.2.1/24'; }\n"+text[end:]
+            text = text[:start]+'fabric_ports() { cat "$INVENTORY/here"; }\n'+text[end:]
             text = text.replace('case ${1:-up} in', 'build() { :; }\ndownload() { :; }\ncase ${1:-up} in')
             (root/'start.sh').write_text(text)
             # The converter writes the overlay's marker and says where it ran.
@@ -142,8 +146,13 @@ class CheckpointOverride(unittest.TestCase):
             for name in (repo.replace('/', '--'), 'incoai--GLM-5.3-Flash-DFlash2'):
                 (models/name).mkdir(parents=True)
                 (models/name/'config.json').write_text('{}')
+            # Each host's port inventory, keyed by its ssh destination; 'peer' answers the rest.
+            inventories = inventories or {'here': 'left nic0 192.0.2.1/24', 'peer': 'right nic1 192.0.2.2/24'}
+            (root/'inventory').mkdir()
+            for host, text in inventories.items():
+                (root/'inventory'/host).write_text(text+'\n')
             sysfs = root/'sysfs'
-            for dev, nic in [('left', 'nic0'), ('right', 'nic1')]:
+            for dev, nic in {tuple(line.split()[:2]) for text in inventories.values() for line in text.splitlines()}:
                 (sysfs/dev/'device/net'/nic).mkdir(parents=True)
                 (sysfs/dev/'ports/1').mkdir(parents=True)
                 (sysfs/dev/'ports/1/state').write_text('4: ACTIVE')
@@ -152,8 +161,8 @@ class CheckpointOverride(unittest.TestCase):
                 # This fixture models a prepared host; clock-cap behavior has
                 # its own tests in tests/test_clock_cap.py.
                 'systemctl': '#!/bin/sh\nexit 0\n',
-                'ssh': '#!/bin/bash\nshift 3\nif [[ "$*" == "bash -s" ]]; then cat >/dev/null; '
-                       "echo 'right nic1 192.0.2.2/24'; else bash -c \"$*\"; fi\n",
+                'ssh': '#!/bin/bash\nhost=$3; shift 3\nif [[ "$*" == "bash -s" ]]; then cat >/dev/null; '
+                       'cat "$INVENTORY/$host" 2>/dev/null || cat "$INVENTORY/peer"; else bash -c "$*"; fi\n',
                 'docker': '#!/bin/bash\nprintf "%s\\n" "$*" >> "$DOCKER_CALLS"\n',
                 'curl': '#!/bin/sh\nprintf \'%s\\n\' \"$SMOKE_RESPONSE\"\n'}
             for name, body in scripts.items():
@@ -161,6 +170,7 @@ class CheckpointOverride(unittest.TestCase):
             env = {k: v for k, v in os.environ.items() if 'FABRIC' not in k and k != 'LEADER_ADDRESS'}
             env.update(PATH=f'{bindir}:{os.environ["PATH"]}', MODEL_ROOT=str(models), IMAGE='test-image',
                        FABRIC_SYSFS=str(sysfs), HOME=str(root), DOCKER_CALLS=str(root/'docker.log'),
+                       INVENTORY=str(root/'inventory'),
                        SMOKE_RESPONSE=(smoke_response if isinstance(smoke_response, str) else
                            json.dumps(smoke_response if smoke_response is not None else {
                                'choices': [{'message': {'content': '391'}, 'finish_reason': 'stop'}]})))
@@ -214,6 +224,19 @@ class CheckpointOverride(unittest.TestCase):
             self.assertRegex(call, r'MODEL_PATH=\S*/models/atlas-overlay ')
             self.assertIn('nvidia--GLM-5.3-Flash-NVFP4', call)
             self.assertNotIn('FP4-Local', call)
+
+    def test_three_workers_start_four_ranks_workers_first(self):
+        # Hosts in any order: the cables decide the ranks, so d (wired to this host) is rank 1.
+        ring = dict(zip(('here', 'b', 'c', 'd'), RING))
+        result, calls, _ = self.run_start('WORKER="d b c"\n', 'nvidia/GLM-5.3-Flash-FP4-Local', inventories=ring)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([c.split('NODE_RANK=')[1].split()[0] for c in calls], ['3', '2', '1', '0'])
+        for call in calls:
+            for want in ('ATLAS_WORLD_SIZE=4', 'SPARKGLM_TOPOLOGY=ring', 'SPARKGLM_PROFILE=4x1m-tp4',
+                         'SPARKGLM_KV_SHARD=1', 'MASTER_ADDR=10.100.197.1'):
+                self.assertIn(want, call)
+        self.assertIn('rank 1 on d', result.stdout)
+        self.assertIn('rank 2 on c', result.stdout)
 
     def test_half_an_override_is_refused(self):
         for env in ('WORKER=w\nCHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4\n',
