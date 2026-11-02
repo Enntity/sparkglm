@@ -70,8 +70,63 @@ def resolve(left, right, lhca='', rhca='', liface='', riface='', leader_address=
     return [','.join(ln), a[1], str(a[2].ip), ','.join(rn), b[1], str(b[2].ip)]
 
 
+def edges(ports):
+    """Rails between each pair of Sparks, in subnet order so both ends list them alike."""
+    found = {}
+    for i, here in enumerate(ports):
+        for j, there in enumerate(ports):
+            rails = sorted((x[2].network, x, y) for x in here for y in there if i != j and same_link(x, y))
+            if rails:
+                found.setdefault(i, {})[j] = [(x, y) for _, x, y in rails]
+    return found
+
+
+def ring_order(links, count):
+    """Hosts in cable order from host 0, and whether the far end closes the loop."""
+    degrees = sorted(len(links.get(host, ())) for host in range(count))
+    if degrees not in ([2] * count, [1, 1] + [2] * (count - 2)):
+        raise ValueError('the Sparks are cabled as neither a ring nor a chain')
+    closed = degrees[0] == 2
+    if not closed and len(links[0]) != 1:
+        raise ValueError('the first host must be an end of the chain, since rank 0 leads it')
+    order = [0]
+    while len(order) < count:
+        ahead = sorted(set(links[order[-1]]) - set(order))
+        if not ahead:
+            raise ValueError('the Sparks are cabled as neither a ring nor a chain')
+        order.append(ahead[0])
+    return order, closed
+
+
+def topology(inventories):
+    """One entry per rank for four Sparks, the first host leading. Sockets run on the
+    last rail of the 0-1 and 2-3 links; the hosts' routes carry them to the far ranks."""
+    if len(inventories) != 4:
+        raise ValueError('topology takes the inventories of four Sparks')
+    ports = [inventory(text) for text in inventories]
+    links = edges(ports)
+    order, closed = ring_order(links, len(ports))
+    rails = lambda here, there: ','.join(x[0] for x, _ in links[here][there])
+    ranks = []
+    for rank, host in enumerate(order):
+        left = order[rank - 1] if rank or closed else None
+        right = order[(rank + 1) % 4] if rank < 3 or closed else None
+        partner = order[rank ^ 1]
+        ranks.append({'rank': rank, 'host': host, 'topology': 'ring' if closed else 'chain',
+                      'interface': links[host][partner][-1][0][1],
+                      'left': '' if left is None else rails(host, left),
+                      'right': '' if right is None else rails(host, right)})
+    leader = str(links[order[0]][order[1]][-1][0][2].ip)
+    return [{**rank, 'leader': leader} for rank in ranks]
+
+
 def main():
     try:
+        if sys.argv[1:2] == ['topology']:
+            for rank in topology(sys.argv[2:]):
+                print(rank['rank'], rank['host'], rank['topology'], rank['interface'], rank['leader'],
+                      rank['left'] or '-', rank['right'] or '-')
+            return 0
         print(' '.join(resolve(*sys.argv[1:])))
     except (ValueError, TypeError) as error:
         print(f'fabric: {error}', file=sys.stderr)

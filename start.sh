@@ -39,26 +39,12 @@ on_worker() { ssh -o BatchMode=yes "$WORKER" "$@"; }
 script_on_worker() { local script=$1; shift; on_worker "bash -s -- $(printf '%q ' "$@")" < "$script"; }
 has_image() { docker image inspect "$IMAGE" >/dev/null 2>&1; }
 
-# Inventory is read on each host. No device-name or physical-port convention.
-fabric_ports() {
-  local dev net cidr
-  for dev in /sys/class/infiniband/*; do
-    [[ -f $dev/ports/1/state ]] || continue
-    grep -qs ACTIVE "$dev/ports/1/state" || continue
-    for net in "$dev"/device/net/*; do
-      [[ -e $net ]] || continue
-      while read -r cidr; do
-        [[ -n $cidr ]] && printf '%s %s %s\n' "${dev##*/}" "${net##*/}" "$cidr"
-      done < <(ip -4 -o addr show dev "${net##*/}" | awk '{print $4}')
-    done
-  done
-  return 0
-}
+fabric_ports() { bash install/fabric-ports.sh; }
 
 pick_fabric() {
   local here there choice
   here=$(fabric_ports)
-  there=$(on_worker "bash -s" <<< "$(declare -f fabric_ports); fabric_ports")
+  there=$(on_worker "bash -s" < install/fabric-ports.sh)
   choice=$(python3 fabric.py "$here" "$there" \
     "${LEADER_FABRIC_HCA:-${FABRIC_HCA:-}}" "${WORKER_FABRIC_HCA:-${FABRIC_HCA:-}}" \
     "${LEADER_FABRIC_INTERFACE:-${FABRIC_INTERFACE:-}}" "${WORKER_FABRIC_INTERFACE:-${FABRIC_INTERFACE:-}}" \
@@ -183,16 +169,7 @@ serve() {
       curl -fsS --max-time 300 "$API/v1/chat/completions" -H 'Content-Type: application/json' -d '{"model": "glm-5.3-flash-atlas",
         "max_tokens": 1024, "temperature": 0, "top_p": 1, "reasoning_effort": "low",
         "messages": [{"role": "user", "content": "What is 17*23? Answer with the number."}]}' |
-        python3 -c 'import json,sys
-try:
-    choice = json.load(sys.stdin)["choices"][0]
-    text = (choice.get("message", {}).get("content") or "").strip()
-    finish = choice.get("finish_reason")
-except (ValueError, KeyError, IndexError, AttributeError, TypeError) as error:
-    sys.exit(f"smoke failed: invalid completion response ({error})")
-if text != "391" or finish != "stop":
-    sys.exit(f"smoke failed: expected 391 with normal stop; got {text!r}, finish_reason={finish!r}")
-print("smoke: 17*23 =", text)'
+        python3 install/smoke.py
       say "ready: $API/v1 model glm-5.3-flash-atlas"
       return
     fi
