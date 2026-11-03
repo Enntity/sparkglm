@@ -8,8 +8,8 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in; SparkQwen pins the same commit. The pinned snapshot is `5d99d92b`
-(tree `ac7bcb0e`): Atlas-Inf `main` `9c4519131`, which carries the SparkGLM
+merged in; SparkQwen pins the same commit. The pinned snapshot is `162b4226`
+(tree `2b015cc5`): Atlas-Inf `main` `9c4519131`, which carries the SparkGLM
 series ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)), with
 [#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
 chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
