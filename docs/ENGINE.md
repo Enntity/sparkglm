@@ -18,10 +18,11 @@ calls to undeclared tools reach the client) and
 No Enntity pull request is open, so `spark` adds only its own `.spark/`
 scripts. Since 0.3.0, `main` also changed shared sampling code for
 [#320](https://github.com/Atlas-Inf/atlas/pull/320), whose `<tool_call>` ban is
-off for GLM. 0.3.1 is not qualified yet, so 0.3.0 (`162b4226`, qualified on
-2026-11-03 at TP-2 and TP-4 against the builds it replaces: greedy output and
-prompt logprobs identical, speed level or better) stays the release to
-install.
+off for GLM. 0.3.1 qualified on a DGX Spark pair (TP-2) on 2026-11-03 against
+0.3.0 (greedy output and prompt logprobs identical, 109/109 live checks, speed
+level) and is the release to install on two Sparks. It has not been run at
+TP-4 yet, so on four Sparks 0.3.0 (`162b4226`, qualified at TP-4 on 2026-11-03)
+stays the qualified release.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
