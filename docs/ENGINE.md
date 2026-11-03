@@ -8,17 +8,20 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in; SparkQwen pins the same commit. The pinned snapshot is `162b4226`
-(tree `2b015cc5`): Atlas-Inf `main` `9c4519131`, which carries the SparkGLM
-series ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)), with
+merged in; SparkQwen pins the same commit. The pinned snapshot is `5f79b46b`
+(tree `38c21dec`): Atlas-Inf `main` `2f9c37083`, which carries the SparkGLM
+series ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)),
 [#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
 chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
 calls to undeclared tools reach the client) and
 [#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces).
-Its engine source equals what the TP-4 ring and the TP-2 pair ran on
-2026-11-02, apart from `spark`'s own `.spark/` scripts. 0.3.0 qualified on
-2026-11-03 at TP-2 and TP-4 against the builds it replaces (greedy output and
-prompt logprobs identical, speed level or better) and is the release to install.
+No Enntity pull request is open, so `spark` adds only its own `.spark/`
+scripts. Since 0.3.0, `main` also changed shared sampling code for
+[#320](https://github.com/Atlas-Inf/atlas/pull/320), whose `<tool_call>` ban is
+off for GLM. 0.3.1 is not qualified yet, so 0.3.0 (`162b4226`, qualified on
+2026-11-03 at TP-2 and TP-4 against the builds it replaces: greedy output and
+prompt logprobs identical, speed level or better) stays the release to
+install.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
