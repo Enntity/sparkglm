@@ -16,8 +16,9 @@ chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
 calls to undeclared tools reach the client) and
 [#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces).
 Its engine source equals what the TP-4 ring and the TP-2 pair ran on
-2026-11-02, apart from `spark`'s own `.spark/` scripts. 0.3.0 is not qualified
-yet, so 0.2.0 stays the release to install.
+2026-11-02, apart from `spark`'s own `.spark/` scripts. 0.3.0 qualified on
+2026-11-03 at TP-2 and TP-4 against the builds it replaces (greedy output and
+prompt logprobs identical, speed level or better) and is the release to install.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
