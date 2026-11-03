@@ -12,10 +12,10 @@ HERE = Path(__file__).resolve().parent
 
 
 class VersionQueries(unittest.TestCase):
-    def test_engine_pin_uses_atlas_main_and_glm_target(self):
+    def test_engine_pin_uses_enntity_spark_and_glm_target(self):
         pin = json.loads((HERE/'atlas-source.json').read_text())
-        self.assertEqual(pin['repository'], 'https://github.com/Atlas-Inf/atlas.git')
-        self.assertEqual(pin['branch'], 'main')
+        self.assertEqual(pin['repository'], 'https://github.com/Enntity/atlas.git')
+        self.assertEqual(pin['branch'], 'spark')
         self.assertEqual(pin['kernel_target'], 'glm-5.3-flash')
         for key in ('commit', 'tree'):
             self.assertRegex(pin[key], r'^[0-9a-f]{40}$')

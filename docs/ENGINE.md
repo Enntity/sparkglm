@@ -1,15 +1,23 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 # The engine
 
-SparkGLM runs [Atlas](https://github.com/Atlas-Inf/atlas), built from Atlas-Inf
-`main` at the commit pinned in
+SparkGLM runs [Atlas](https://github.com/Atlas-Inf/atlas), built from
+[Enntity/atlas](https://github.com/Enntity/atlas) `spark` at the commit pinned in
 [`install/atlas-source.json`](../install/atlas-source.json), for the kernel
 target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
-The pinned snapshot is `9b3473f0` (tree `8f9fe6a7`) on Atlas-Inf `main`, which
-carries the SparkGLM series
-([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)).
+`spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
+merged in; SparkQwen pins the same commit. The pinned snapshot is `5d99d92b`
+(tree `ac7bcb0e`): Atlas-Inf `main` `9c4519131`, which carries the SparkGLM
+series ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)), with
+[#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
+chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
+calls to undeclared tools reach the client) and
+[#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces).
+Its engine source equals what the TP-4 ring and the TP-2 pair ran on
+2026-11-02, apart from `spark`'s own `.spark/` scripts. 0.3.0 is not qualified
+yet, so 0.2.0 stays the release to install.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
