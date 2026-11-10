@@ -145,7 +145,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 |---|---|---|
 | Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.67 s** | 17.6 s with caching off |
 | Four concurrent ~204K-token sessions, cached follow-up turns † | 12/12 numbers retrieved (two cut to 3 digits by the probe's token cap) | |
-| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.29–2.32M tokens** (0.3.2), up to 1M per request; 1.87–1.96M on 0.3.1 | 2.34M with the NVFP4 checkpoint, same engine |
+| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.18–2.28M tokens** (0.3.2), up to 1M per request; 1.87–1.97M on 0.3.1 | 2.34M with the NVFP4 checkpoint, same engine |
 | Same greedy output at 1 and 4 concurrent requests † | **8/8 prompts** | 0/4 on 2026-10-09 morning |
 | Replaying a 35K-token prompt † | **0.38 s** (13.4 s cold) | |
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
@@ -284,7 +284,7 @@ exceptions are set in `.env`.
   [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4).
 
 The context limit applies to each request; it does not reserve that much KV
-for every concurrent slot. At the TP2 pool size (about 2.3M tokens on 0.3.2), four full
+for every concurrent slot. At the TP2 pool size (about 2.2M tokens on 0.3.2), four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
@@ -294,9 +294,9 @@ For the TP2 launcher, the KV cache is split between the two Sparks (`KV_SHARD`, 
 stores the latents of half the blocks, so the pool holds about 1.8x the tokens,
 and the output is bit-identical to the unsplit pool's. On Sparks that run
 nothing else, at `GPU_MEMORY_UTILIZATION=0.91` with the display carveout and
-the disk prefix cache (both below), the pool is about 2.3M tokens with
-FP4-Local on 0.3.2 (142,988–144,780 blocks across four starts; 0.3.1 holds
-1.87–1.96M). The 2.66M measured on 2026-10-17 predates the vision tower that
+the disk prefix cache (both below), the pool is about 2.2M tokens with
+FP4-Local on 0.3.2 (136,362–142,332 blocks across four starts; 0.3.1 holds
+116,958–123,298, 1.87–1.97M). The 2.66M measured on 2026-10-17 predates the vision tower that
 takes a whole video group on the encoding rank. Four concurrent 204K-token sessions left
 rank 0 at 3.3 GB free at worst. Above
 0.91, real traffic took our rank 0 below 1 GiB free
