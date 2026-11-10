@@ -8,21 +8,29 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in; SparkQwen pins the same commit. The pinned snapshot is `5f79b46b`
-(tree `38c21dec`): Atlas-Inf `main` `2f9c37083`, which carries the SparkGLM
-series ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)),
+merged in. The pinned snapshot is `f7cea507` (tree `9e5df1d2`): `5f79b46b`,
+which is Atlas-Inf `main` `2f9c37083` carrying the SparkGLM series
+([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)),
 [#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
 chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
 calls to undeclared tools reach the client) and
-[#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces).
-No Enntity pull request is open, so `spark` adds only its own `.spark/`
-scripts. Since 0.3.0, `main` also changed shared sampling code for
-[#320](https://github.com/Atlas-Inf/atlas/pull/320), whose `<tool_call>` ban is
-off for GLM. 0.3.1 qualified on a DGX Spark pair (TP-2) on 2026-11-03 against
-0.3.0 (greedy output and prompt logprobs identical, 109/109 live checks, speed
-level) and is the release to install on two Sparks. It has not been run at
-TP-4 yet, so on four Sparks 0.3.0 (`162b4226`, qualified at TP-4 on 2026-11-03)
-stays the qualified release.
+[#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces),
+plus two commits (the change and a test follow-up): the GLM vision tower borrows its encode scratch from the
+prefill arena instead of holding it
+([Atlas-Inf#338](https://github.com/Atlas-Inf/atlas/pull/338)); `spark` carries
+it from merge `c865149d`. On two
+Sparks that frees 1.25 GiB on the encoding rank, and since the KV pool is the
+smallest rank's, it grows the pool by about 15% (136,362–142,332 blocks, about
+2.2M tokens at 0.91 with the display carveout, against 0.3.1's
+116,958–123,298). Image and video support is unchanged: the tower
+still takes one whole video temporal group (120,000 patches). 0.3.2 is
+otherwise the 0.3.1 engine; it does not take `main`'s later changes. 0.3.2
+qualified on a DGX Spark pair (TP-2) on 2026-11-10 against 0.3.1: greedy output
+(8 prompts), prompt logprobs (about 20K tokens) and vision output (images and a
+19K-token video, alone and beside text decodes, every token logprob) identical,
+109/109 live checks with an identical guard log, and decode and image/video
+time to first token level. It has not been run at TP-4. On four Sparks, 0.3.0 (`162b4226`,
+qualified at TP-4 on 2026-11-03) stays the qualified release.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
