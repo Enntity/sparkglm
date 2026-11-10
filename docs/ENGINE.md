@@ -8,17 +8,17 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `dd2b4b8f` (tree `0081efcf`): `5f79b46b`,
+merged in. The pinned snapshot is `f7cea507` (tree `9e5df1d2`): `5f79b46b`,
 which is Atlas-Inf `main` `2f9c37083` carrying the SparkGLM series
 ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)),
 [#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
 chain, native MTP), [#322](https://github.com/Atlas-Inf/atlas/pull/322) (native
 calls to undeclared tools reach the client) and
 [#323](https://github.com/Atlas-Inf/atlas/pull/323) (write paths with spaces),
-plus one commit: the GLM vision tower borrows its encode scratch from the
+plus two commits: the GLM vision tower borrows its encode scratch from the
 prefill arena instead of holding it
 ([Atlas-Inf#338](https://github.com/Atlas-Inf/atlas/pull/338)); `spark` carries
-it from merge `b0b06fbd`. On two
+it from merge `c865149d`. On two
 Sparks that frees 1.25 GiB on the encoding rank, and since the KV pool is the
 smallest rank's, it grows the pool by about 19% (to about 2.3M tokens at 0.91
 with the display carveout). Image and video support is unchanged: the tower
