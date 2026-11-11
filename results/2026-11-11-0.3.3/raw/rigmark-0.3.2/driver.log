@@ -1,0 +1,45 @@
+decode/code: 3 runs
+  1: 63.1 tok/s, TTFT 0.723s, 2040 tokens
+  2: 61.5 tok/s, TTFT 0.611s, 2589 tokens
+  3: 62.6 tok/s, TTFT 0.602s, 1976 tokens
+decode/prose: 3 runs
+  1: 33.4 tok/s, TTFT 0.539s, 1047 tokens
+  2: 34.9 tok/s, TTFT 0.521s, 1053 tokens
+  3: 34.7 tok/s, TTFT 0.526s, 1075 tokens
+decode/structured: 3 runs
+  1: 80.4 tok/s, TTFT 0.526s, 446 tokens
+  2: 81.8 tok/s, TTFT 0.520s, 441 tokens
+  3: 87.9 tok/s, TTFT 0.533s, 691 tokens
+prefill/16384: 6 cold/immediate-replay pairs
+  1: cold 2731.5 tok/s (5.998s), warm 85699.3 tok/s (0.191s)
+  2: cold 2759.6 tok/s (5.937s), warm 91098.1 tok/s (0.180s)
+  3: cold 2743.1 tok/s (5.973s), warm 88509.5 tok/s (0.185s)
+  4: cold 2754.8 tok/s (5.948s), warm 86902.1 tok/s (0.189s)
+  5: cold 2750.7 tok/s (5.956s), warm 84495.0 tok/s (0.194s)
+  6: cold 2756.0 tok/s (5.945s), warm 87206.5 tok/s (0.188s)
+result: /home/enntitysparkadmin/grind/base-032-v81-a/rigmark.json
+card: /home/enntitysparkadmin/grind/base-032-v81-a/rigmark.card.txt
+
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  9/9 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      glm-5.3-flash-atlas                                                          │
+│  APPLIANCE  2 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:40fabcaf6e96  •  dirty  •  worktree:7c17a097cc0d                         │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE              62.6 tok/s      33.1s last     61.5–63.1     ✓ 3/3                    │
+│  PROSE             34.7 tok/s      31.5s last     33.4–34.9     ✓ 3/3                    │
+│  STRUCTURED*       81.8 tok/s       6.1s last     80.4–87.9     ✓ 3/3                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ CONTEXT ────────────────────────────────────────────────────────────────────────────────┤
+│  16K PREFILL   cold 2,753 tok/s  •  immediate replay 87,054 tok/s                        │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:187bcd61f57fdf35…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+exit 0

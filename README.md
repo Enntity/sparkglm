@@ -5,7 +5,7 @@
 
 # SparkGLM
 
-**SparkGLM 0.2.0** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+**SparkGLM 0.3.3** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
 for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
@@ -145,7 +145,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 |---|---|---|
 | Multi-turn conversation, 30–48K tokens: time to first token on turns 2+ (median) | **0.67 s** | 17.6 s with caching off |
 | Four concurrent ~204K-token sessions, cached follow-up turns † | 12/12 numbers retrieved (two cut to 3 digits by the probe's token cap) | |
-| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.18–2.28M tokens** (0.3.2), up to 1M per request; 1.87–1.97M on 0.3.1 | 2.34M with the NVFP4 checkpoint, same engine |
+| KV pool shared by all requests (0.91, display carveout, disk prefix cache on) † | **2.42–2.67M tokens** (0.3.3, two starts), up to 1M per request; 2.18–2.28M on 0.3.2, 1.87–1.97M on 0.3.1 | 2.34M with the NVFP4 checkpoint, same engine |
 | Same greedy output at 1 and 4 concurrent requests † | **8/8 prompts** | 0/4 on 2026-10-09 morning |
 | Replaying a 35K-token prompt † | **0.38 s** (13.4 s cold) | |
 | New session sharing a 24K system prompt with earlier ones: time to first token | **15.7 s** | 36.2 s with the cache policy off |
@@ -157,6 +157,7 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | Single-stream decode, kindling's `bench.py`, code / prose / structured / counting (thinking off, 16 prompts each) † | **72.8 / 44.4 / 99.5 / 112.2 tok/s** | kindling vLLM TP=2 (published) 66.2 / 42.6 / 94.7 / 97.2 |
 | Mixed streams, kindling's `bench.py`, 4 / 8 at once, aggregate † | **82.6 / 100.6 tok/s** | kindling TP=2 (published) 82.6 / 109.6; 89 / 116 remeasured |
 | RigMark decode, code / prose / structured (thinking on, low effort) † | **67.9 / 37.0 / 90.8 tok/s** | [RiNGSiDE](https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE) vLLM TP2 (published) 56.5 / 33.0 / 83.4 · NVFP4 checkpoint (RC4) 72.3 / 38.3 / 91.7 |
+| RigMark on 0.3.3, 2026-11-11: decode code / prose / structured (4,096 tokens, low effort) and cold 16K prefill | **66.0 / 38.1 / 89.0 tok/s**, **2,865 tok/s** | 0.3.2 with its default drafter, same pair, same day: 62.6 / 34.7 / 81.8 tok/s, 2,753 tok/s |
 | RigMark cold prefill 8K / 32K / 64K: time to first token † | **3.21 / 11.89 / 22.67 s** | RiNGSiDE 3.56 / 12.94 / 25.66 s · RC4 3.29 / 12.47 / 23.91 s |
 | RigMark staggered arrivals, prefill first: newcomer time to first token at 2 / 4 † | **2.64 / 3.36 s** | RiNGSiDE 4.70 / 5.15 s · RC4 2.80 / 3.54 s |
 | RigMark short code, 1 / 4 / 6 streams, aggregate † | **47.8 / 72.2 / 81.4 tok/s** | RiNGSiDE 44.0 at 1 stream, 97.3 at 6 · RC4 47.0 / 70.9 at 1 / 4 |
@@ -166,7 +167,9 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 | ToolEvalBench, 69 scenarios × 3 trials, temperature 0 † | **91.0** (91 in one trial on the release image) | NVIDIA's model card: FP4-Local 92.4, BF16 91.9 (an earlier 63-scenario version) |
 | Quality probe: arithmetic / two-hop 24K needle | 39/40 · 12/12 † (the same as with NVFP4); 491/500 · 24/24 on the 500-item set (NVFP4) | every engine configuration we ran scored 484–495/500 |
 
-These dated measurements do not describe the unified TP2/TP4 release. Rows
+These dated measurements do not describe the unified TP2/TP4 release, except
+the rows that name a version. [0.3.3's results](results/2026-11-11-0.3.3/RESULT.md)
+compare it with 0.3.2 on the same pair. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
@@ -174,7 +177,7 @@ decode speed is not an engine-only comparison
 ([details](results/2026-10-17-fp4local/RESULT.md#speed)). Kindling's figures are for
 their vLLM recipe with the NVFP4 checkpoint; ours ran their benchmark scripts
 against FP4-Local ([details](results/2026-10-17-fp4local/RESULT.md#speed)). Our
-profiles prefill in 8K chunks: 16K chunks are faster but halve the KV pool. Known gaps and open questions
+profiles prefill in 8K chunks: 16K chunks are faster (about 7% on 0.3.3) but cost more than half the KV pool. Known gaps and open questions
 are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 
 ## Requirements
@@ -284,7 +287,7 @@ exceptions are set in `.env`.
   [TP4 limits](docs/LIMITATIONS.md#four-spark-tp4).
 
 The context limit applies to each request; it does not reserve that much KV
-for every concurrent slot. At the TP2 pool size (about 2.2M tokens on 0.3.2), four full
+for every concurrent slot. At the TP2 pool size (2.4–2.7M tokens on 0.3.3), four full
 1M-token requests cannot fit together. Requests wait when the pool lacks room.
 
 All requests share one FP8-latent KV pool that also holds the prefix cache.
@@ -294,9 +297,9 @@ For the TP2 launcher, the KV cache is split between the two Sparks (`KV_SHARD`, 
 stores the latents of half the blocks, so the pool holds about 1.8x the tokens,
 and the output is bit-identical to the unsplit pool's. On Sparks that run
 nothing else, at `GPU_MEMORY_UTILIZATION=0.91` with the display carveout and
-the disk prefix cache (both below), the pool is about 2.2M tokens with
-FP4-Local on 0.3.2 (136,362–142,332 blocks across four starts; 0.3.1 holds
-116,958–123,298, 1.87–1.97M). The 2.66M measured on 2026-10-17 predates the vision tower that
+the disk prefix cache (both below), the pool is 2.4–2.7M tokens with
+FP4-Local on 0.3.3 (151,242–166,564 blocks over two starts; 0.3.2 holds 136,362–142,448, about 2.2M,
+and 0.3.1 116,958–123,298, 1.87–1.97M). The 2.66M measured on 2026-10-17 predates the vision tower that
 takes a whole video group on the encoding rank. Four concurrent 204K-token sessions left
 rank 0 at 3.3 GB free at worst. Above
 0.91, real traffic took our rank 0 below 1 GiB free

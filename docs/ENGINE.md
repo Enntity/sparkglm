@@ -8,7 +8,38 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `f7cea507` (tree `9e5df1d2`): `5f79b46b`,
+merged in. The pinned snapshot is `a703c117` (tree `490d70db`): the 0.3.2
+engine below plus three changes that leave output bit-identical, and
+SparkQwen's snapshot aux spill ([Enntity/atlas#23](https://github.com/Enntity/atlas/pull/23);
+GLM has no such state and spills the same blob as before).
+
+- **A pair under expert TP may verify one draft**
+  ([Enntity/atlas#25](https://github.com/Enntity/atlas/pull/25),
+  [Atlas-Inf#346](https://github.com/Atlas-Inf/atlas/pull/346)). The width
+  rule priced a lone 2-row verify 10.3 ms above a 3-row one, a September
+  measurement of a path expert TP retired; it measures 42.0 ms against 47.4.
+  Nearly half of prose steps accept no draft, so prose decode gains about 6%.
+- **Quantized MoE and MLA gathers on the pair**
+  ([#26](https://github.com/Enntity/atlas/pull/26),
+  [Atlas-Inf#347](https://github.com/Atlas-Inf/atlas/pull/347)), on in Spark
+  mode (`ATLAS_GLM_SP_QUANT_GATHER_PAIR=1`, set by `install/serve.py`). During
+  sequence-parallel prefill each Spark sends the packed form the other would
+  compute anyway: a fifth fewer bytes on the link, cold prefill about 3–4%
+  faster. Strict keeps the BF16 gathers.
+- **Three per-pass buffers sized for GLM-5**
+  ([#27](https://github.com/Enntity/atlas/pull/27),
+  [Atlas-Inf#348](https://github.com/Atlas-Inf/atlas/pull/348)). The prefill
+  arena is allocated before the KV pool, so the 0.6 GiB it gives back goes to
+  the prompt cache: 151,242–166,564 blocks (2.42–2.67M tokens, two starts)
+  against 0.3.2's 136,362–142,448.
+
+0.3.3 also makes the reference DFlash2 drafter's Apache-2.0 revision
+(`6cc6c481`, which carries its 2026-08-31 weights) the pinned drafter. It
+qualified on a DGX Spark pair (TP-2, Spark mode) on 2026-11-11 against 0.3.2
+([results](../results/2026-11-11-0.3.3/RESULT.md)). Strict output is identical
+too. It has not been run at TP-4.
+
+0.3.2 pinned `f7cea507` (tree `9e5df1d2`): `5f79b46b`,
 which is Atlas-Inf `main` `2f9c37083` carrying the SparkGLM series
 ([Atlas-Inf#309](https://github.com/Atlas-Inf/atlas/pull/309)),
 [#321](https://github.com/Atlas-Inf/atlas/pull/321) (four Sparks, TP=4 ring or
