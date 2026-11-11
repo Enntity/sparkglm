@@ -10,7 +10,7 @@ completed checks and the exact tested image/configuration.
 |---|---|
 | Engine | [`Atlas-Inf/atlas`](https://github.com/Atlas-Inf/atlas) exact commit and tree in [`install/atlas-source.json`](../install/atlas-source.json) |
 | Model | [`nvidia/GLM-5.3-Flash-FP4-Local`](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) @ `76348ddb2be2e35e39ecfc00e75dc07703f4f3d5` (165.3 GiB, NVIDIA Open Model Agreement; base model MIT) |
-| Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `7d74cdd881ed7e32c31175984a67823127b66cfe` (CC BY-NC-ND 4.0) |
+| Drafter | [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) @ `6cc6c481eee930a5139619ed919f78726371adbc` (Apache-2.0) |
 | Native dependencies | CUTLASS `cf064d2e`, Rust 1.93.1, CUDA 13.0 |
 | Profiles | [`install/profiles/`](../install/profiles/): `4x1m` (what `./start.sh` runs), `4x512k` (the `start-node.sh` default), `8x128k` and TP4 `4x1m-tp4` |
 
@@ -50,7 +50,7 @@ it builds.
 export MODEL_ROOT=$HOME/models/sparkglm     # the same absolute path on every Spark
 hf download nvidia/GLM-5.3-Flash-FP4-Local --revision 76348ddb2be2e35e39ecfc00e75dc07703f4f3d5 \
   --local-dir "$MODEL_ROOT/nvidia--GLM-5.3-Flash-FP4-Local"
-hf download incoai/GLM-5.3-Flash-DFlash2 --revision 7d74cdd881ed7e32c31175984a67823127b66cfe \
+hf download incoai/GLM-5.3-Flash-DFlash2 --revision 6cc6c481eee930a5139619ed919f78726371adbc \
   --local-dir "$MODEL_ROOT/incoai--GLM-5.3-Flash-DFlash2"
 ```
 

@@ -522,5 +522,6 @@ decode prompts.
 AGPL-3.0-only ([LICENSE](LICENSE)); third-party components keep their own
 licenses ([NOTICE](NOTICE), [docs/LICENSING.md](docs/LICENSING.md)). The model
 weights are not distributed here. FP4-Local is under the NVIDIA Open Model
-Agreement. **The DFlash2 drafter is licensed CC BY-NC-ND 4.0
-(non-commercial).** Check both checkpoints' terms before downloading.
+Agreement. The DFlash2 drafter is Apache-2.0 at the pinned revision (its publisher
+relicensed it on 2026-11-10; earlier revisions were CC BY-NC-ND 4.0). Check
+both checkpoints' terms before downloading.

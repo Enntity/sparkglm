@@ -74,7 +74,10 @@ publishers:
 - [`nvidia/GLM-5.3-Flash-NVFP4`](https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4),
   the default until 2026-10-17, which `.env` can still select: MIT.
 - [`incoai/GLM-5.3-Flash-DFlash2`](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2):
-  **CC BY-NC-ND 4.0, non-commercial.** Both shipped profiles use this drafter.
+  Apache-2.0 at the pinned revision `6cc6c481`. The publisher relicensed it on
+  2026-11-10; revisions before that, including the `7d74cdd8` that SparkGLM
+  0.3.2 and earlier pinned, were published under CC BY-NC-ND 4.0
+  (non-commercial). All shipped profiles use this drafter.
 
 Read each model card before use, and before redistributing anything derived
 from it. The overlay `convert.sh` writes for the NVFP4 checkpoint is a local

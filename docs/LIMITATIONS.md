@@ -205,10 +205,11 @@ chunks, which halve our KV pool).
 - The API has no authentication and listens only on rank 0's loopback.
 - GB10 memory is shared with the host. Running other large workloads on
   either Spark while serving can hang the host.
-- Spark uses DFlash2, which is licensed for non-commercial use only.
-  Strict uses serial target execution or the checkpoint's native MTP head,
-  but the current installer still requires the DFlash2 artifact during
-  setup. Selecting Strict does not remove bundled artifact license terms.
+- Spark uses DFlash2, which is Apache-2.0 from the revision 0.3.3 pins;
+  releases up to 0.3.2 pinned a revision published for non-commercial use
+  only. Strict uses serial target execution or the checkpoint's native MTP
+  head, but the current installer still requires the DFlash2 artifact during
+  setup.
 - An uncapped Spark can power off during long cold prefills. SparkGLM
   requires the GPU clock cap (`./start.sh clock-cap`). Its cost on SparkGLM
   decode and prefill has not been measured yet; on raw bf16 matmul it is

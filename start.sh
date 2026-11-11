@@ -35,7 +35,7 @@ if [[ -n ${CHECKPOINT_REPO:-} || -n ${CHECKPOINT_REVISION:-} ]]; then
     { echo 'set both CHECKPOINT_REPO (owner/name) and CHECKPOINT_REVISION (a 40-hex commit) in .env, or neither' >&2; exit 2; }
   CHECKPOINT=$CHECKPOINT_REPO@$CHECKPOINT_REVISION
 fi
-DRAFTER=incoai/GLM-5.3-Flash-DFlash2@7d74cdd881ed7e32c31175984a67823127b66cfe
+DRAFTER=incoai/GLM-5.3-Flash-DFlash2@6cc6c481eee930a5139619ed919f78726371adbc
 API=http://127.0.0.1:8893
 NAME=atlas-sparkglm-rank
 
