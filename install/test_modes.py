@@ -63,6 +63,12 @@ class ServingModes(unittest.TestCase):
             self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "0")
             self.assertEqual(env["ATLAS_GLM_FP4L_SHARED_FP8"], "0")
 
+    def test_pair_quantized_gathers_are_spark_only(self):
+        _, env = self.launch("spark")
+        self.assertEqual(env["ATLAS_GLM_SP_QUANT_GATHER_PAIR"], "1")
+        _, env = self.launch("strict")
+        self.assertNotIn("ATLAS_GLM_SP_QUANT_GATHER_PAIR", env)
+
     def test_shared_and_dense_overrides_are_spark_only(self):
         for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
             for value in ('0', '1'):

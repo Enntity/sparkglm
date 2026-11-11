@@ -175,6 +175,11 @@ def serving_mode(environ, profile, world):
         # routed/shared blending and all-reduce. The matched C4 arithmetic
         # regression passes only with the full shared output blended afterward.
         flags['ATLAS_GLM_SHARED_TP_SPLIT'] = '0'
+        if world == 2:
+            # The pair gathers sequence-parallel MoE and MLA inputs in the packed
+            # form the receiving rank computes anyway (as four Sparks do): same
+            # bits, a fifth fewer bytes on the link. Qualified in Spark mode only.
+            flags['ATLAS_GLM_SP_QUANT_GATHER_PAIR'] = '1'
     if mode == 'strict':
         forbidden = ('--ngram-speculative', '--self-speculative')
         if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):
