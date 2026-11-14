@@ -8,7 +8,26 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `640d7595` (tree `46ccca5c`): the 0.3.3
+merged in. The pinned snapshot is `225a65eb` (tree `1344ed41`): the 0.3.4
+engine plus two changes to how concurrent streams share a verify pass, both
+set by Spark mode on a pair and both leaving every token as it was.
+
+- **Structured output joins the shared pass**
+  (`ATLAS_GLM_STRICT_OWNER_BATCH`,
+  [Enntity/atlas#30](https://github.com/Enntity/atlas/pull/30)). A request
+  with `response_format` used to take a verify pass of its own every step,
+  so JSON streams gained nothing from running together. They now share the
+  one pass every stream's drafts are verified in, each row picked under its
+  grammar mask. Tool-call grammars and sampled structured output still take
+  their own pass.
+- **Each stream verifies its own width** (`ATLAS_GLM_PAIR_LIVE_WIDTHS`,
+  [#31](https://github.com/Enntity/atlas/pull/31)). Streams in a shared pass
+  had one width between them, so a prose stream paid for rows a code stream
+  wanted. Each now verifies as many drafts as its own drafter was sure of;
+  its other rows skip their routed experts. The rule is priced by the
+  pair's step costs measured on 2026-11-14.
+
+0.3.4 pinned `640d7595` (tree `46ccca5c`): the 0.3.3
 engine plus `--thinking-off-budget`
 ([Enntity/atlas#29](https://github.com/Enntity/atlas/pull/29)), which Spark
 mode sets so that a request that turns thinking off reasons at Low effort

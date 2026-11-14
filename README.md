@@ -5,7 +5,7 @@
 
 # SparkGLM
 
-**SparkGLM 0.3.4** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+**SparkGLM 0.3.5** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
 for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
