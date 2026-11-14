@@ -171,12 +171,24 @@ chunks, which halve our KV pool).
 ## Behaviour
 
 - The pinned checkpoint template opens reasoning even when a client sends
-  `enable_thinking: false`. The release follows its default Max effort or
-  the template's low/high effort selection. It has no automatic short
-  thinking budget. An explicit thinking-token budget can cap reasoning;
-  otherwise `max_tokens` can end the request while it is still reasoning,
-  before answer content or a tool call appears. Reasoning is returned in
-  `reasoning_content`. Budgeting must include both reasoning and the answer.
+  `enable_thinking: false`, and treats any effort other than low or high as
+  Max. The reference server therefore answers a thinking-off request with
+  Max-effort reasoning. Strict mode does the same. From 0.3.4, Spark mode
+  serves such a request at the template's Low effort under a 256-token cap
+  (and at most half the request's `max_tokens`); the answer usually follows
+  a few reasoning tokens, which are returned in `reasoning_content`.
+  `THINKING_OFF=reference` (or `SPARKGLM_THINKING_OFF` on a runtime)
+  restores the reference behavior, and `low` selects the new one in Strict
+  mode. A thinking-off prompt in Spark mode is the Low-effort prompt, not
+  the reference server's, and is not comparable with it. The model cannot
+  be made to answer with no reasoning block at all: with the block closed
+  by hand it called a tool it had been told not to use.
+- For requests that reason, the release follows the template's Max, low or
+  high effort. It has no automatic short thinking budget. An explicit
+  thinking-token budget can cap reasoning; otherwise `max_tokens` can end
+  the request while it is still reasoning, before answer content or a tool
+  call appears. Reasoning is returned in `reasoning_content`. Budgeting must
+  include both reasoning and the answer.
 - RC2 scored 491/500 on the larger arithmetic set and 24/24 on two-hop 24K
   needles. Arithmetic scores across the tested engine configurations ranged
   from 484 to 495; single runs do not establish a quality ranking. Earlier
