@@ -171,7 +171,10 @@ These dated measurements do not describe the unified TP2/TP4 release, except
 the rows that name a version. [0.3.3's results](results/2026-11-11-0.3.3/RESULT.md)
 compare it with 0.3.2 on the same pair, and
 [0.3.4's](results/2026-11-14-0.3.4/RESULT.md) show its rows hold while a
-thinking-off request goes from 19–27 s to about 3 s. Rows
+thinking-off request goes from 19–27 s to about 3 s.
+[0.3.5's](results/2026-11-14-0.3.5/RESULT.md) cover concurrent streams: four
+JSON streams go from 43 to 68 tok/s combined and four free-text streams from
+64 to 69, with the same tokens. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
