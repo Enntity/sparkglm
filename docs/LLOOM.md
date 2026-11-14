@@ -47,6 +47,11 @@ The [tool-call guard](TOOL-GUARD.md) is on unless a runtime sets
 `SPARKGLM_TOOL_GUARD=off`. Give every rank the same `SPARKGLM_TOOL_GUARD*`
 values; profiles cannot set them.
 
+A request that turns thinking off reasons at Low effort under a 256-token
+cap in Spark mode, and at Max effort with no limit, as the reference server
+does, in Strict mode. `SPARKGLM_THINKING_OFF=low` or `reference` on every
+rank chooses either.
+
 Four-node topology defaults to `SPARKGLM_TOPOLOGY=chain`. To use a ring,
 configure `SPARKGLM_TOPOLOGY=ring` on every runtime and supply each node's
 `FABRIC_LEFT_HCA` and `FABRIC_RIGHT_HCA` lists, including the closing 3–0

@@ -222,6 +222,20 @@ def tool_guard_args(environ, profile_args):
     return result
 
 
+def thinking_off_args(environ, profile_args, mode):
+    """GLM's template opens a reasoning block whatever a request says, so the
+    reference server answers a thinking-off request by reasoning at Max effort
+    with no limit. Spark mode serves such a request at the template's Low
+    effort under a 256-token cap (a few tokens in practice); Strict mode keeps
+    the reference behavior. SPARKGLM_THINKING_OFF chooses either."""
+    if any(arg.split('=', 1)[0] == '--thinking-off-budget' for arg in profile_args):
+        raise ValueError('Configure thinking-off handling with SPARKGLM_THINKING_OFF, not profile arguments')
+    choice = environ.get('SPARKGLM_THINKING_OFF') or ('low' if mode == 'spark' else 'reference')
+    if choice not in ('low', 'reference'):
+        raise ValueError('SPARKGLM_THINKING_OFF must be low or reference')
+    return ['--thinking-off-budget=256'] if choice == 'low' else []
+
+
 def launch(environ, profile):
     world = world_size(profile)
     mode, precision = serving_mode(environ, profile, world)
@@ -321,6 +335,7 @@ def launch(environ, profile):
     args += [f'--rank={rank}', f'--master-addr={master}', f'--master-port={port}',
              '--bind=127.0.0.1', f'--port={8893 + int(rank)}', f'--model-name={name}']
     args += tool_guard_args(environ, args)
+    args += thinking_off_args(environ, profile['server_argv'], mode)
     return display_carveout(environ, ['/usr/local/bin/spark', *args]), env
 
 

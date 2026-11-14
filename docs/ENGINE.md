@@ -8,7 +8,14 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `a703c117` (tree `490d70db`): the 0.3.2
+merged in. The pinned snapshot is `640d7595` (tree `46ccca5c`): the 0.3.3
+engine plus `--thinking-off-budget`
+([Enntity/atlas#29](https://github.com/Enntity/atlas/pull/29)), which Spark
+mode sets so that a request that turns thinking off reasons at Low effort
+under a cap ([serving behavior](#serving-behavior)). Nothing else changed,
+and a request that reasons renders and decodes as on 0.3.3.
+
+0.3.3 pinned `a703c117` (tree `490d70db`): the 0.3.2
 engine below plus three changes that leave output bit-identical, and
 SparkQwen's snapshot aux spill ([Enntity/atlas#23](https://github.com/Enntity/atlas/pull/23);
 GLM has no such state and spills the same blob as before).
@@ -172,8 +179,12 @@ native/serial speed comparison have separate
 
 The checkpoint chat template opens a reasoning block, including when a
 client sends `enable_thinking: false`. Its default is `Reasoning Effort: Max`;
-the template recognizes low and high effort. The release removes the
-old automatic short reasoning cap. An explicit client thinking-token budget
+the template recognizes low and high effort. In Spark mode the engine runs
+with `--thinking-off-budget=256`: a request whose thinking resolved off is
+rendered at Low effort and its reasoning is closed after 256 tokens, or
+after half the request's `max_tokens` if that is less. Strict mode renders
+the prompt as the reference server does. Requests that reason have no
+automatic reasoning cap. An explicit client thinking-token budget
 can cap reasoning; otherwise it ends when the model closes the block or
 the request reaches `max_tokens`. That limit includes reasoning, so a short
 request can end before producing an answer. Sampling defaults come from

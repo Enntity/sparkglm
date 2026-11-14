@@ -16,6 +16,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
                      [--tool-guard on|off] [--tool-guard-allow-hosts HOST,...]
                      [--tool-guard-deny-hosts HOST,...] [--tool-guard-max-bytes BYTES]
+                     [--thinking-off low|reference]
                      [--cuda-cache DIR] [--name NAME]
 
   --leader-address   rank 0's IPv4 address on the direct Spark-to-Spark fabric
@@ -59,6 +60,10 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --tool-guard-allow-hosts, --tool-guard-deny-hosts  exact host exceptions or
                      additional blocks, comma-separated
   --tool-guard-max-bytes  argument bytes per call and pending calls (default 1048576)
+  --thinking-off     a request that turns thinking off reasons at Low effort
+                     under a 256-token cap (low), or at Max effort with no limit
+                     as the reference server does (reference); default: low in
+                     spark mode, reference in strict mode
   --cuda-cache       persistent CUDA JIT cache (default: ~/.cache/atlas-cuda)
 EOF
   exit 2
@@ -71,6 +76,7 @@ topology=""
 profile_given=0
 strict_mtp=0
 guard=on guard_allow="" guard_deny="" guard_max=1048576
+thinking_off=""
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -100,6 +106,7 @@ while [[ $# -gt 0 ]]; do
     --tool-guard-allow-hosts) guard_allow=$2; shift 2 ;;
     --tool-guard-deny-hosts) guard_deny=$2; shift 2 ;;
     --tool-guard-max-bytes) guard_max=$2; shift 2 ;;
+    --thinking-off) thinking_off=$2; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -110,6 +117,7 @@ if [[ $mode_given == 0 ]]; then mode=strict; fi
 [[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires strict mode" >&2; exit 2; }
 [[ $guard == on || $guard == off ]] || { echo "--tool-guard must be on or off" >&2; exit 2; }
 [[ $guard_max =~ ^[1-9][0-9]{0,7}$ && $guard_max -le 67108864 ]] || { echo "invalid --tool-guard-max-bytes" >&2; exit 2; }
+[[ -z $thinking_off || $thinking_off == low || $thinking_off == reference ]] || { echo "--thinking-off must be low or reference" >&2; exit 2; }
 if [[ $world == 2 ]]; then
   topology=${topology:-pair}
   [[ $topology == pair ]] || { echo "two Sparks require pair topology" >&2; exit 2; }
@@ -240,6 +248,7 @@ docker run -d --name "$name" --restart no --network host --ipc host \
   -e SPARKGLM_STRICT_MTP="$strict_mtp" \
   -e SPARKGLM_TOOL_GUARD="$guard" -e SPARKGLM_TOOL_GUARD_MAX_BYTES="$guard_max" \
   -e SPARKGLM_TOOL_GUARD_ALLOW_HOSTS="$guard_allow" -e SPARKGLM_TOOL_GUARD_DENY_HOSTS="$guard_deny" \
+  ${thinking_off:+-e SPARKGLM_THINKING_OFF="$thinking_off"} \
   -e SERVED_MODEL_NAME=glm-5.3-flash-atlas -e SPARKGLM_PROFILE="$profile" ${mode:+-e SPARKGLM_MODE="$mode"} \
   ${util:+-e SPARKGLM_GPU_MEMORY_UTILIZATION="$util"} \
   -e ATLAS_WORLD_SIZE="$world" -e ATLAS_TP_SIZE="$world" -e ATLAS_EP_SIZE="$world" -e ATLAS_CONTEXT_WINDOW=524288 \

@@ -5,7 +5,7 @@
 
 # SparkGLM
 
-**SparkGLM 0.3.3** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+**SparkGLM 0.3.4** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
 for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
@@ -169,7 +169,9 @@ and [the first Atlas release](results/2026-09-29-atlas-merged/RESULT.md)
 
 These dated measurements do not describe the unified TP2/TP4 release, except
 the rows that name a version. [0.3.3's results](results/2026-11-11-0.3.3/RESULT.md)
-compare it with 0.3.2 on the same pair. Rows
+compare it with 0.3.2 on the same pair, and
+[0.3.4's](results/2026-11-14-0.3.4/RESULT.md) show its rows hold while a
+thinking-off request goes from 19–27 s to about 3 s. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
@@ -250,12 +252,17 @@ curl -s http://127.0.0.1:8893/v1/chat/completions -H 'Content-Type: application/
 ```
 
 Streaming, tool calls, JSON and structured output, images and short videos
-are supported. GLM's checkpoint template opens reasoning even with
-`chat_template_kwargs.enable_thinking: false`; its default is Max effort,
-with low/high selected through `reasoning_effort`. This release no longer
-adds a short reasoning cap. `max_tokens` includes reasoning and can end a
-request before the answer appears; an explicit thinking-token budget can
-cap the reasoning section. See [behavior limits](docs/LIMITATIONS.md#behaviour).
+are supported. GLM's checkpoint template opens reasoning whatever a request
+says; its default is Max effort, with low/high selected through
+`reasoning_effort`. From 0.3.4, Spark mode serves a request that turns
+thinking off (`chat_template_kwargs.enable_thinking: false` or
+`reasoning_effort: "none"`) at Low effort under a 256-token cap, which in
+practice is a few tokens of reasoning. Strict mode answers it as the
+reference server does, at Max effort with no limit; `THINKING_OFF=low` or
+`reference` in `.env` chooses either. Other requests get no reasoning cap.
+`max_tokens` includes reasoning and can end a request before the answer
+appears; an explicit thinking-token budget can cap the reasoning section.
+See [behavior limits](docs/LIMITATIONS.md#behaviour).
 
 For serial/speculative comparisons, `/v1/completions` accepts
 `disable_mtp: true`. Blocking completions can request `return_token_ids: true`
