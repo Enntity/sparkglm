@@ -41,7 +41,8 @@ contexts decode as fast as 2K ones at one, two and four streams.
 `install/serve.py` sets both in Spark mode on a pair. Strict mode and four
 Sparks are unchanged. The engine pin is Enntity/atlas `spark` `225a65eb` (tree
 `1344ed41`); the image is `ghcr.io/enntity/atlas-sparkglm:69295e00a748`, built
-with `ATLAS_IMAGE_CHECKS=0`. It has not been pushed.
+with `ATLAS_IMAGE_CHECKS=0`. It has not been pushed, and the release pins a
+later engine ([2026-11-15 results](../2026-11-15-0.3.5/RESULT.md)).
 
 ## Against 0.3.4
 
@@ -115,7 +116,9 @@ its slower start cancels end to end.
 
 ## Limits
 
-- **Prefill still stalls decoders.** The engine's ordering switch
+- **Prefill still stalls decoders** in the build measured here. The release
+  fixes it another way, by letting a prefill pass yield between layers:
+  [2026-11-15 results](../2026-11-15-0.3.5/RESULT.md). The engine's ordering switch
   (`ATLAS_DECODE_STEPS_PER_CHUNK`) gives decoders steps between chunks but
   cannot shorten the 2.9 s a chunk takes, and it lengthened the new
   request's wait by 2.7 s in one trial. A shorter gap needs smaller chunks

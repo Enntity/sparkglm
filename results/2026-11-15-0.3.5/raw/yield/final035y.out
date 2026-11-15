@@ -1,0 +1,108 @@
+ghcr.io/enntity/atlas-sparkglm:712cf8246f85
+=== yexact 14:58:19
+ATLAS_GLM_PAIR_LIVE_WIDTHS=1 ATLAS_GLM_PREFILL_YIELD_MS=300 ATLAS_GLM_STRICT_OWNER_BATCH=1 
+p1-cold-36k {"tokens": 96, "prompt": 40554, "ttft": 21.09, "error": null, "beside": 2, "dec_gap": 0.58, "dec_tokens": 353}
+p2-fork-20k {"tokens": 96, "prompt": 21956, "ttft": 12.55, "error": null, "beside": 2, "dec_gap": 0.53, "dec_tokens": 269}
+p3-warm-turn {"tokens": 96, "prompt": 44188, "ttft": 3.25, "error": null, "beside": 2, "dec_gap": 0.62, "dec_tokens": 76}
+p4-cold-9k {"tokens": 43, "prompt": 9771, "ttft": 5.82, "error": null, "beside": 2, "dec_gap": 0.41, "dec_tokens": 123}
+p5-cold-5k {"tokens": 15, "prompt": 5179, "ttft": 3.18, "error": null, "beside": 2, "dec_gap": 0.46, "dec_tokens": 92}
+dec-0 1737 tokens 77.5 s 
+dec-1 4341 tokens 147.1 s 
+p1-cold-36k {"tokens": 96, "prompt": 40554, "ttft": 5.03, "error": null, "beside": 2, "dec_gap": 0.34, "dec_tokens": 229}
+p2-fork-20k {"tokens": 96, "prompt": 21956, "ttft": 4.75, "error": null, "beside": 2, "dec_gap": 0.3, "dec_tokens": 224}
+p3-warm-turn {"tokens": 96, "prompt": 44188, "ttft": 6.28, "error": null, "beside": 2, "dec_gap": 0.36, "dec_tokens": 367}
+p4-cold-9k {"tokens": 43, "prompt": 9771, "ttft": 2.56, "error": null, "beside": 2, "dec_gap": 0.36, "dec_tokens": 123}
+p5-cold-5k {"tokens": 15, "prompt": 5179, "ttft": 1.17, "error": null, "beside": 2, "dec_gap": 0.33, "dec_tokens": 48}
+dec-0 1737 tokens 44.7 s 
+dec-1 4341 tokens 113.5 s 
+p1-cold-36k {"tokens": 96, "prompt": 42089, "ttft": 25.66, "error": null, "beside": 2, "dec_gap": 0.56, "dec_tokens": 471}
+p2-fork-20k {"tokens": 96, "prompt": 22721, "ttft": 16.36, "error": null, "beside": 2, "dec_gap": 0.53, "dec_tokens": 350}
+p3-warm-turn {"tokens": 96, "prompt": 45690, "ttft": 6.7, "error": null, "beside": 2, "dec_gap": 0.44, "dec_tokens": 225}
+p4-cold-9k {"tokens": 35, "prompt": 10157, "ttft": 7.25, "error": null, "beside": 2, "dec_gap": 0.65, "dec_tokens": 146}
+p5-cold-5k {"tokens": 22, "prompt": 5387, "ttft": 4.16, "error": null, "beside": 2, "dec_gap": 0.56, "dec_tokens": 129}
+dec-0 1923 tokens 91.9 s 
+dec-1 5061 tokens 169.5 s 
+--- CMP s (test arm, yield off -> release image)
+dec-0: identical (1737 tokens, 0 logprobs)
+dec-1: identical (4341 tokens, 0 logprobs)
+p1-cold-36k: identical (96 tokens, 0 logprobs)
+   ttft 14.80 -> 21.09 s   beside decoders: 2 / 2   decoder max gap 3.02 -> 0.58 s, decoder tokens meanwhile 35 -> 353
+p2-fork-20k: identical (96 tokens, 0 logprobs)
+   ttft 8.69 -> 12.55 s   beside decoders: 2 / 2   decoder max gap 3.45 -> 0.53 s, decoder tokens meanwhile 14 -> 269
+p3-warm-turn: identical (96 tokens, 0 logprobs)
+   ttft 2.53 -> 3.25 s   beside decoders: 2 / 2   decoder max gap 1.66 -> 0.62 s, decoder tokens meanwhile 30 -> 76
+p4-cold-9k: identical (43 tokens, 0 logprobs)
+   ttft 4.15 -> 5.82 s   beside decoders: 2 / 2   decoder max gap 2.85 -> 0.41 s, decoder tokens meanwhile 26 -> 123
+p5-cold-5k: identical (15 tokens, 0 logprobs)
+   ttft 2.19 -> 3.18 s   beside decoders: 2 / 2   decoder max gap 2.11 -> 0.46 s, decoder tokens meanwhile 4 -> 92
+RESULT: IDENTICAL
+--- CMP lp (test arm, yield off -> release image)
+dec-0: identical (1737 tokens, 0 logprobs)
+dec-1: identical (4341 tokens, 0 logprobs)
+p1-cold-36k: identical (96 tokens, 95 logprobs)
+   ttft 5.31 -> 5.03 s   beside decoders: 2 / 2   decoder max gap 0.34 -> 0.34 s, decoder tokens meanwhile 233 -> 229
+p2-fork-20k: identical (96 tokens, 95 logprobs)
+   ttft 4.90 -> 4.75 s   beside decoders: 2 / 2   decoder max gap 0.31 -> 0.30 s, decoder tokens meanwhile 234 -> 224
+p3-warm-turn: identical (96 tokens, 95 logprobs)
+   ttft 6.39 -> 6.28 s   beside decoders: 2 / 2   decoder max gap 0.36 -> 0.36 s, decoder tokens meanwhile 369 -> 367
+p4-cold-9k: identical (43 tokens, 42 logprobs)
+   ttft 2.63 -> 2.56 s   beside decoders: 2 / 2   decoder max gap 0.33 -> 0.36 s, decoder tokens meanwhile 123 -> 123
+p5-cold-5k: identical (15 tokens, 14 logprobs)
+   ttft 1.16 -> 1.17 s   beside decoders: 2 / 2   decoder max gap 0.37 -> 0.33 s, decoder tokens meanwhile 56 -> 48
+RESULT: IDENTICAL
+--- CMP cold (test arm, yield off -> release image)
+dec-0: identical (1923 tokens, 0 logprobs)
+dec-1: identical (5061 tokens, 0 logprobs)
+p1-cold-36k: identical (96 tokens, 95 logprobs)
+   ttft 19.08 -> 25.66 s   beside decoders: 2 / 2   decoder max gap 2.96 -> 0.56 s, decoder tokens meanwhile 175 -> 471
+p2-fork-20k: identical (96 tokens, 95 logprobs)
+   ttft 12.63 -> 16.36 s   beside decoders: 2 / 2   decoder max gap 3.47 -> 0.53 s, decoder tokens meanwhile 158 -> 350
+p3-warm-turn: identical (96 tokens, 95 logprobs)
+   ttft 6.02 -> 6.70 s   beside decoders: 2 / 2   decoder max gap 1.99 -> 0.44 s, decoder tokens meanwhile 191 -> 225
+p4-cold-9k: identical (35 tokens, 34 logprobs)
+   ttft 5.70 -> 7.25 s   beside decoders: 2 / 2   decoder max gap 2.81 -> 0.65 s, decoder tokens meanwhile 63 -> 146
+p5-cold-5k: identical (22 tokens, 21 logprobs)
+   ttft 3.30 -> 4.16 s   beside decoders: 2 / 2   decoder max gap 2.31 -> 0.56 s, decoder tokens meanwhile 52 -> 129
+RESULT: IDENTICAL
+=== verify 15:05:35
+RESULT: PASS
+15
+=== cells 15:06:45
+c1-text-low-ctx60-warm         e2e  44.9 wall   8.9 decode-agg  47.6 per-stream [47.5] ttft [0.5] max_gap [0.09] reasoning [28]
+c1-text-low-ctx2000-warm       e2e  40.4 wall   9.9 decode-agg  41.0 per-stream [40.9] ttft [0.16] max_gap [0.11] reasoning [21]
+c2-text-low-ctx60-warm         e2e  56.5 wall  14.2 decode-agg  58.6 per-stream [29.2, 32.6] ttft [0.49, 1.05] max_gap [0.56, 0.13] reasoning [12, 55]
+c2-text-low-ctx2000-warm       e2e  53.1 wall  15.1 decode-agg  53.8 per-stream [26.8, 28.7] ttft [0.19, 0.46] max_gap [0.27, 0.12] reasoning [14, 13]
+c4-text-low-ctx60-warm         e2e  72.6 wall  22.0 decode-agg  74.2 per-stream [18.7, 19.5, 20.1, 20.5] ttft [0.47, 1.06, 2.2, 1.61] max_gap [0.61, 0
+c4-text-low-ctx2000-warm       e2e  69.9 wall  22.9 decode-agg  70.5 per-stream [18.3, 20.9, 18.1, 21.1] ttft [0.21, 1.19, 0.84, 0.54] max_gap [0.37, 
+c1-json-off-ctx60-warm         e2e  44.7 wall   8.9 decode-agg  47.5 per-stream [47.4] ttft [0.52] max_gap [0.1] reasoning [201]
+c1-json-off-ctx2000-warm       e2e  41.1 wall   9.7 decode-agg  42.0 per-stream [41.8] ttft [0.21] max_gap [0.1] reasoning [16]
+c2-json-off-ctx60-warm         e2e  57.6 wall  13.9 decode-agg  59.9 per-stream [32.0, 29.9] ttft [1.03, 0.52] max_gap [0.13, 0.58] reasoning [87, 66]
+c2-json-off-ctx2000-warm       e2e  56.0 wall  14.3 decode-agg  56.7 per-stream [28.3, 32.2] ttft [0.18, 0.38] max_gap [0.31, 0.12] reasoning [15, 18]
+c4-json-off-ctx60-warm         e2e  69.5 wall  23.0 decode-agg  71.1 per-stream [18.5, 18.7, 21.7, 18.7] ttft [0.51, 1.7, 2.3, 1.11] max_gap [0.63, 0.
+c4-json-off-ctx2000-warm       e2e  68.5 wall  23.4 decode-agg  69.0 per-stream [18.9, 17.5, 18.7, 18.1] ttft [0.19, 0.51, 0.8, 1.09] max_gap [0.32, 0
+{"case": "c2-text-low-ctx30000-warm", "e2e_tok_s": 31.1, "wall_s": 38.6, "aggregate_decode_tok_s": 31.3, "per_stream_tok_s": [17.8, 29.6], "tokens": [
+=== jexact 15:12:18
+json tokens [311, 283, 311, 300, 300, 311, 300, 264, 300, 300, 306, 284] | lone repeat identical 12/12 | waves identical to lone: {'c2': '12/12', 'c4': '12/12', 'c4b': '4/4', 'c3': '12/12'}
+text tokens [300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300] | lone repeat identical 12/12 | waves identical to lone: {'c2': '12/12', 'c4': '12/12', 'c4b': '4/4', 'c3': '12/12'}
+RESULT: IDENTICAL
+=== soak 15:25:09
+{'json': '12/12', 'json_stream': '8/8', 'json_sampled': '10/10', 'text': '9/10', 'tool': '17/17', 'json_object': '11/11'}
+  ERR text: AssertionError("finish=length content=''") finish=length content_chars=0 reasoning_chars=957 prompt='(137246) Tell me about Turin.'
+RESULT: FAIL (1)
+0
+=== qual 15:28:18
+suite 0 guardlog 0 greedy 0 lpdump 0 speed 0 matrix 0 
+sg034-1113 vs sg035y-1115: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.82 sumB=-123.82
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6410.26 sumB=-6410.26
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20994.59 sumB=-20994.59
+greedy same: True
+{"passed": 109, "total": 109}
+=== QUAL2 END 15:38:09
+=== rig 15:38:09
+/decode/code/decode_tokens_per_second/median 67.65
+/decode/prose/decode_tokens_per_second/median 38.81
+/decode/structured/decode_tokens_per_second/median 91.14
+/prefill/16384/cold/effective_prefill_tokens_per_second/median 2628.12
+errors all: 0
+=== FINAL END 15:42:00
