@@ -46,8 +46,8 @@ with the switch off (2026-11-14) against this image:
 | Cold, 5.2K | 2.11 → 0.47 s | 2.2 → 2.9 s |
 
 The cost is the arriving prompt's first token, later by the decode steps that
-ran in between and by the pauses themselves. Where cold prompts arrive
-staggered, the whole wave takes longer:
+ran in between. Where cold prompts arrive staggered, the whole wave takes
+longer:
 
 | Staggered cold prompts, wall time of the wave | 0.3.5 without the yield | This build |
 |---|---|---|
@@ -56,9 +56,28 @@ staggered, the whole wave takes longer:
 | 2 streams, 32K | 35.3 s | 36.8 s (+4.2%) |
 | 4 streams, 16K | 45.5 s | 46.8 s (+2.8%) |
 
-A 32K prompt at this target pauses about 44 times by our count, which puts a
-pause at roughly 30 ms beyond the decode step it makes room for. That is an
-estimate; the pause has not been profiled.
+The pause itself costs nothing these runs can show. Over the four cold and
+fork prompts above, the first token came 9.6 s later in total and the two
+decoders emitted 534 more tokens in that time: 55.6 tok/s, the rate two
+streams decode at with no prefill running (53.7 to 59.0 in the cells below).
+The engine log of the first start says the same: a chunk of 8,192 tokens with
+12 decode steps inside it took 4.17 s, which is 12 steps of 93 ms and 3.05 s of
+prefill, against about 3.0 to 3.1 s for the chunk alone (2.84 s on a normal
+start, scaled by that start's slower prefill). That bounds a pause at under
+10 ms ([`raw/harness/pause.py`](raw/harness/pause.py) reads it from
+`raw/yield/rel-*.log`).
+
+The wave takes longer because the yield moves tokens out of shared steps.
+Tokens a stream decodes while another prompt prefills are decoded alone, and
+as many of the other stream's tokens are then decoded alone at the end;
+without the yield both sets share steps. One stream decodes at 42 to 44 tok/s
+and two at about 28 each, so a token decoded alone costs 23 ms where its share
+of a two-stream step costs 18 ms. With about 12 pauses a chunk and a lone step
+of about 68 ms (the 2026-11-14 step fit, not measured here), that predicts
+0.6 s more for the two-stream 16K wave and 1.6 s more for the 32K one.
+Measured: 0.6 s and 1.5 s. The four-stream wave was not worked through. A longer target
+moves fewer tokens: 600 ms would about halve this and lengthen the freeze
+(not run on this build).
 
 A request with nothing decoding beside it is level. RigMark, one round: prose
 39.0, code 67.5, structured 91.3 tok/s, cold 16K prefill 2,857 (without the
