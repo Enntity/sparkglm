@@ -191,13 +191,12 @@ def serving_mode(environ, profile, world):
             # stream no longer pays for the rows a code stream wants. Same
             # tokens, priced by the pair's measured step costs.
             flags['ATLAS_GLM_PAIR_LIVE_WIDTHS'] = '1'
-            # While streams decode, a prefill pass stops between layers about
-            # every 300 ms to let them step, instead of holding them for a
-            # whole 8K-token chunk (3.0 s). The pass computes the same layers
-            # over the same rows in the same order: same tokens. The prompt
-            # that is prefilling gets its first token later by the decode
-            # steps that ran in between.
-            flags['ATLAS_GLM_PREFILL_YIELD_MS'] = '300'
+            # A prompt longer than one chunk that arrives while another is
+            # prefilling waits its turn, instead of running its first chunk
+            # ahead of the chunks the earlier prompt still has to run. Each
+            # prompt's chunks are unchanged: same tokens, and the earlier
+            # prompt gets its first token sooner. Measured on the pair only.
+            flags['ATLAS_PREFILL_QUEUE_FIRST_CHUNK'] = '1'
     if mode == 'strict':
         forbidden = ('--ngram-speculative', '--self-speculative')
         if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):
