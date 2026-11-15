@@ -116,8 +116,9 @@ its slower start cancels end to end.
 
 ## Limits
 
-- **Prefill still stalls decoders** in the build measured here. The release
-  fixes it another way, by letting a prefill pass yield between layers:
+- **Prefill still stalls decoders**, in the build measured here and in the
+  release. A prefill pass that yields between layers removes the stall and
+  was left off for what it costs under load:
   [2026-11-15 results](../2026-11-15-0.3.5/RESULT.md). The engine's ordering switch
   (`ATLAS_DECODE_STEPS_PER_CHUNK`) gives decoders steps between chunks but
   cannot shorten the 2.9 s a chunk takes, and it lengthened the new

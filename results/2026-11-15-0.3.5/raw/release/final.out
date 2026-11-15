@@ -1,0 +1,51 @@
+ghcr.io/enntity/atlas-sparkglm:503ab09654f0
+prompt 19017 cached 0 ttft 7.28 tok/s 2612
+prompt 19051 cached 32 ttft 7.11 tok/s 2679
+prompt 19052 cached 32 ttft 7.2 tok/s 2646
+ATLAS_PREFILL_SRPT=1
+ATLAS_GLM_STRICT_OWNER_BATCH=1
+ATLAS_GLM_PAIR_LIVE_WIDTHS=1
+ATLAS_PREFILL_QUEUE_FIRST_CHUNK=1
+ghcr.io/enntity/atlas-sparkglm:503ab09654f0
+=== verify 21:05:13
+RESULT: PASS
+15
+=== cells 21:06:13
+c1-text-low-ctx60-warm         e2e  43.4 wall   9.2 decode-agg  45.7 per-stream [45.5] ttft [0.46] max_gap [0.09] reasoning [57]
+c1-text-low-ctx2000-warm       e2e  39.5 wall  10.1 decode-agg  40.2 per-stream [40.1] ttft [0.19] max_gap [0.1] reasoning [20]
+c2-text-low-ctx60-warm         e2e  60.7 wall  13.2 decode-agg  63.3 per-stream [32.9, 31.7] ttft [1.05, 0.55] max_gap [0.12, 0.59] reasoning [28, 93]
+c2-text-low-ctx2000-warm       e2e  55.8 wall  14.3 decode-agg  56.4 per-stream [28.1, 31.9] ttft [0.16, 0.46] max_gap [0.3, 0.12] reasoning [13, 399]
+c4-text-low-ctx60-warm         e2e  69.5 wall  23.0 decode-agg  70.9 per-stream [17.7, 18.8, 19.0, 21.6] ttft [0.46, 1.0, 1.47, 2.0] max_gap [1.59, 1.
+c4-text-low-ctx2000-warm       e2e  70.5 wall  22.7 decode-agg  71.0 per-stream [18.2, 18.1, 19.6, 19.0] ttft [0.46, 0.65, 0.16, 0.81] max_gap [0.52, 
+c1-json-off-ctx60-warm         e2e  48.7 wall   8.2 decode-agg  51.8 per-stream [51.6] ttft [0.49] max_gap [0.09] reasoning [61]
+c1-json-off-ctx2000-warm       e2e  47.5 wall   8.4 decode-agg  48.5 per-stream [48.4] ttft [0.18] max_gap [0.1] reasoning [18]
+c2-json-off-ctx60-warm         e2e  69.2 wall  11.6 decode-agg  72.5 per-stream [38.0, 37.8] ttft [0.53, 1.01] max_gap [0.56, 0.14] reasoning [43, 65]
+c2-json-off-ctx2000-warm       e2e  55.6 wall  14.4 decode-agg  56.2 per-stream [28.1, 29.8] ttft [0.17, 0.48] max_gap [0.34, 0.14] reasoning [15, 15]
+c4-json-off-ctx60-warm         e2e  68.6 wall  23.3 decode-agg  70.1 per-stream [19.4, 17.5, 20.8, 24.7] ttft [1.01, 0.51, 1.58, 2.06] max_gap [1.09, 
+c4-json-off-ctx2000-warm       e2e  68.3 wall  23.4 decode-agg  68.9 per-stream [17.2, 17.7, 17.6, 17.9] ttft [0.19, 0.5, 0.69, 0.88] max_gap [0.74, 0
+{"case": "c2-text-low-ctx30000-warm", "e2e_tok_s": 34.0, "wall_s": 35.3, "aggregate_decode_tok_s": 34.2, "per_stream_tok_s": [17.2, 28.3], "tokens": [
+=== jexact 21:11:35
+json tokens [312, 311, 311, 311, 252, 300, 311, 311, 291, 311, 311, 311] | lone repeat identical 12/12 | waves identical to lone: {'c2': '12/12', 'c4': '12/12', 'c4b': '4/4', 'c3': '12/12'}
+text tokens [300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300] | lone repeat identical 12/12 | waves identical to lone: {'c2': '12/12', 'c4': '12/12', 'c4b': '4/4', 'c3': '12/12'}
+RESULT: IDENTICAL
+=== soak 21:24:29
+{'json': '12/12', 'json_stream': '8/8', 'json_sampled': '9/9', 'text': '9/10', 'tool': '17/17', 'json_object': '10/10'}
+  ERR text: AssertionError("finish=length content=''") finish=length content_chars=0 reasoning_chars=957 prompt='(137246) Tell me about Turin.'
+RESULT: FAIL (1)
+0
+=== qual 21:27:39
+suite 0 guardlog 0 greedy 0 lpdump 0 speed 0 matrix 0 
+sg034-1113 vs sg035g-1115: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.82 sumB=-123.82
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6410.26 sumB=-6410.26
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20994.59 sumB=-20994.59
+greedy same: True
+{"passed": 109, "total": 109}
+=== QUAL2 END 21:37:20
+=== rig 21:37:20
+/decode/code/decode_tokens_per_second/median 67.37
+/decode/prose/decode_tokens_per_second/median 38.73
+/decode/structured/decode_tokens_per_second/median 91.17
+/prefill/16384/cold/effective_prefill_tokens_per_second/median 2856.46
+errors all: 0
+=== FINAL END 21:41:08

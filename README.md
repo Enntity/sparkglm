@@ -175,8 +175,9 @@ thinking-off request goes from 19–27 s to about 3 s.
 [0.3.5's](results/2026-11-14-0.3.5/RESULT.md) cover concurrent streams: four
 JSON streams go from 43 to 68 tok/s combined and four free-text streams from
 64 to 69, with the same tokens, and
-[a stream that is decoding](results/2026-11-15-0.3.5/RESULT.md) no longer
-freezes for 3 s at a time while another request prefills (0.5 s). Rows
+[prompts that arrive together](results/2026-11-15-0.3.5/RESULT.md) prefill in
+arrival order, so the first of four 16K-token prompts gets its first token in
+5.9 s where it took 11.2 s. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
