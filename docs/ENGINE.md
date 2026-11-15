@@ -8,7 +8,48 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `640d7595` (tree `46ccca5c`): the 0.3.3
+merged in. The pinned snapshot is `59ead299` (tree `dfd866dc`): the 0.3.4
+engine plus three changes for concurrent streams, all set by Spark mode on a
+pair and all leaving every token as it was.
+
+- **Structured output joins the shared pass**
+  (`ATLAS_GLM_STRICT_OWNER_BATCH`,
+  [Enntity/atlas#30](https://github.com/Enntity/atlas/pull/30)). A request
+  with `response_format` used to take a verify pass of its own every step,
+  so JSON streams gained nothing from running together. They now share the
+  one pass every stream's drafts are verified in, each row picked under its
+  grammar mask. Tool-call grammars and sampled structured output still take
+  their own pass.
+- **Each stream verifies its own width** (`ATLAS_GLM_PAIR_LIVE_WIDTHS`,
+  [#31](https://github.com/Enntity/atlas/pull/31)). Streams in a shared pass
+  had one width between them, so a prose stream paid for rows a code stream
+  wanted. Each now verifies as many drafts as its own drafter was sure of;
+  its other rows skip their routed experts. The rule is priced by the
+  pair's step costs measured on 2026-11-14.
+- **Prompts prefill in arrival order**
+  (`ATLAS_PREFILL_QUEUE_FIRST_CHUNK`, already in the engine and not set
+  before). Every new prompt ran its first 8K-token chunk when it was
+  admitted, ahead of the chunks an earlier prompt still had to run. Four
+  16K-token prompts arriving a second apart gave the first of them its first
+  token after 11.2 s, where alone it takes 5.7 s. A prompt longer than one
+  chunk that arrives while another is prefilling now waits its turn: 5.9 s,
+  with the wave as long as before and every stream's text unchanged. The
+  profile's shortest-first rule (`ATLAS_PREFILL_SRPT`) still orders the
+  queue, so a prompt one token shorter goes ahead of earlier ones.
+- **A prefill pass can yield to decoders between layers**
+  (`ATLAS_GLM_PREFILL_YIELD_MS`,
+  [#32](https://github.com/Enntity/atlas/pull/32)), and Spark mode does not
+  set it. The scheduler runs one decode step per prefill chunk, so a stream
+  that is decoding freezes for the 3.0 s an 8K-token chunk takes. With the
+  switch a pass runs as slices of whole layers with the ordinary decode step
+  between slices: the same layers over the same rows in the same order. At a
+  300 ms target the longest freeze went from 3.0 s to 0.5 s, and waves of
+  staggered prompts took 2 to 5% longer, because tokens decoded during a
+  prefill lose the steps they would have shared. A profile's environment
+  can set it. A pass with fewer than 1,024 rows to compute, an image
+  prompt's first chunk and four Sparks do not yield.
+
+0.3.4 pinned `640d7595` (tree `46ccca5c`): the 0.3.3
 engine plus `--thinking-off-budget`
 ([Enntity/atlas#29](https://github.com/Enntity/atlas/pull/29)), which Spark
 mode sets so that a request that turns thinking off reasons at Low effort

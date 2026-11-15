@@ -180,6 +180,23 @@ def serving_mode(environ, profile, world):
             # form the receiving rank computes anyway (as four Sparks do): same
             # bits, a fifth fewer bytes on the link. Qualified in Spark mode only.
             flags['ATLAS_GLM_SP_QUANT_GATHER_PAIR'] = '1'
+            # Requests with structured output (response_format) join the pass
+            # that verifies every other stream's drafts, each row picked under
+            # its grammar mask, instead of taking a pass each: same tokens,
+            # and JSON output scales with streams as free text does. Measured
+            # on the pair only.
+            flags['ATLAS_GLM_STRICT_OWNER_BATCH'] = '1'
+            # Streams sharing a verify pass each verify as many drafts as their
+            # own drafter was sure of, instead of one width for all: a prose
+            # stream no longer pays for the rows a code stream wants. Same
+            # tokens, priced by the pair's measured step costs.
+            flags['ATLAS_GLM_PAIR_LIVE_WIDTHS'] = '1'
+            # A prompt longer than one chunk that arrives while another is
+            # prefilling waits its turn, instead of running its first chunk
+            # ahead of the chunks the earlier prompt still has to run. Each
+            # prompt's chunks are unchanged: same tokens, and the earlier
+            # prompt gets its first token sooner. Measured on the pair only.
+            flags['ATLAS_PREFILL_QUEUE_FIRST_CHUNK'] = '1'
     if mode == 'strict':
         forbidden = ('--ngram-speculative', '--self-speculative')
         if any(arg.split('=', 1)[0] in forbidden for arg in profile['server_argv']):

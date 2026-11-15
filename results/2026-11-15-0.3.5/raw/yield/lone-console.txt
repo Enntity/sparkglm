@@ -1,0 +1,20 @@
+Lone cold prefills of an ~19K-token prompt (raw/harness/lone.sh), console output of 2026-11-15, times UTC.
+Each line: prompt tokens, tokens matched in the prefix cache, time to first token (s), prompt tokens per second.
+
+712cf8246f85, first start, after the whole qualification run (about 15:43):
+prompt 19079 cached 16 ttft 7.6 tok/s 2510
+prompt 19052 cached 16 ttft 7.6 tok/s 2507
+prompt 19089 cached 16 ttft 7.57 tok/s 2522
+
+69295e00a748 (the 2026-11-14 build without the yield), fresh start (15:46):
+prompt 19015 cached 0 ttft 7.35 tok/s 2587
+prompt 19030 cached 16 ttft 7.08 tok/s 2688
+prompt 19131 cached 16 ttft 7.15 tok/s 2676
+
+712cf8246f85, second start, fresh (15:54):
+prompt 18447 cached 0 ttft 7.09 tok/s 2602
+prompt 19072 cached 16 ttft 7.16 tok/s 2664
+prompt 18382 cached 16 ttft 6.97 tok/s 2637
+
+The same build of the engine with the switch off and on, fresh starts: lonearms.out.
+The second start after each stage of the qualification traffic: stages-new.out, stages2-new.out.

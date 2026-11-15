@@ -1,0 +1,748 @@
+2026-11-15T15:02:44.152528Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=true, temp=Some(0.0), max_tokens=6000, freq_pen=None, rep_pen=None
+2026-11-15T15:02:44.153725Z  INFO spark::session_key: session key: source=first_user_turn hash=0x62356707eed4a4a0
+2026-11-15T15:02:44.153745Z  INFO spark::api::chat::inner: Session 0x62356707eed4a4a0: 854 prompt tokens, tools=false (0 defined)
+2026-11-15T15:02:44.153939Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=Some(256)
+2026-11-15T15:02:44.154359Z  INFO spark::scheduler::emit_step: Grammar constrained decoding active: response_format=json_schema
+2026-11-15T15:02:44.154364Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 854 prompt tokens, chunk_size=854, max_tokens=6000
+2026-11-15T15:02:44.156883Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 16 tokens (1 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:02:44.175853Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 832 rows as cached (match 16)
+2026-11-15T15:02:44.807110Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 832 (snapshot_id 8, block 52)
+2026-11-15T15:02:44.836182Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_M16 engaged: rows=22 zskip=true
+2026-11-15T15:02:44.981689Z  INFO spark::scheduler::prefill_a_step: Prefill first token: 23591
+2026-11-15T15:02:44.981704Z  INFO spark::scheduler::phase_start_prefills: Prefilled (single chunk): seq_len=854, remaining=5999
+2026-11-15T15:02:44.981761Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:02:44.989487Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 0, generation: 18 }, block_table_ptr: 253175885200384, ctx_ptr: 253122087747584, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:02:44.990217Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 0, generation: 18 }, block_table_ptr: 253175885200384, ctx_ptr: 253122087747584, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:02:45.640079Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=true, temp=Some(0.0), max_tokens=6000, freq_pen=None, rep_pen=None
+2026-11-15T15:02:45.642342Z  INFO spark::session_key: session key: source=first_user_turn hash=0xaed33d97ebcf9b5f
+2026-11-15T15:02:45.642360Z  INFO spark::api::chat::inner: Session 0xaed33d97ebcf9b5f: 864 prompt tokens, tools=false (0 defined)
+2026-11-15T15:02:45.649444Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:02:45.649452Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 864 prompt tokens, chunk_size=864, max_tokens=6000
+2026-11-15T15:02:45.651240Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/864: 0/864 tokens
+2026-11-15T15:02:45.651242Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:02:45.651245Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 864 prompt tokens, chunk_size=864, queued 2 ms
+2026-11-15T15:02:45.651825Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 16 tokens (1 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:02:45.669660Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 832 rows as cached (match 16)
+2026-11-15T15:02:46.299324Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 832 (snapshot_id 9, block 52)
+2026-11-15T15:02:46.327924Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_M16 engaged: rows=32 zskip=true
+2026-11-15T15:02:46.506766Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill first token: 785
+2026-11-15T15:02:46.506833Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:02:46.514725Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 1, generation: 19 }, block_table_ptr: 253259721673728, ctx_ptr: 253122173730816, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:02:46.515435Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 1, generation: 19 }, block_table_ptr: 253259721673728, ctx_ptr: 253122173730816, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:02:46.518621Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=1 ladder_nd=7
+2026-11-15T15:02:46.594556Z  INFO spark::scheduler::emit_step::think_commit: Thinking ended after 29 tokens (budget=Some(256))
+2026-11-15T15:02:46.601256Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:46.666873Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:46.733869Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:46.813188Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:46.881167Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:46.948758Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.018181Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.085667Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.151883Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.219624Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.287733Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.368537Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.447671Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.528294Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.597671Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.683094Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.767330Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.848201Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.916403Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:47.984683Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.067058Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.149003Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.236276Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.315333Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.397494Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.459970Z  INFO spark::scheduler::emit_step::think_commit: Thinking ended after 50 tokens (budget=None)
+2026-11-15T15:02:48.466763Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.575202Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.643058Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.723036Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.848799Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:48.916301Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.007481Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.094232Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.174999Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.250563Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.334442Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.421810Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.489368Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.579575Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.684707Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.754203Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.834938Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.901728Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:49.969701Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.037877Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.105463Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.189551Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.283388Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.389222Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.494054Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.562977Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.639865Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.707913Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.775270Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.842244Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.909958Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:50.979246Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.047638Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.116674Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.146352Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=false, temp=Some(0.0), max_tokens=96, freq_pen=None, rep_pen=None
+2026-11-15T15:02:51.182744Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.227401Z  INFO spark::session_key: session key: source=first_user_turn hash=0xd5d7f3783932f6e8
+2026-11-15T15:02:51.227443Z  INFO spark::api::chat::inner: Session 0xd5d7f3783932f6e8: 42089 prompt tokens, tools=false (0 defined)
+2026-11-15T15:02:51.275245Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:02:51.275258Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 42089 prompt tokens, chunk_size=8192, max_tokens=96
+2026-11-15T15:02:51.277045Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/42089: 0/42089 tokens
+2026-11-15T15:02:51.277048Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:02:51.277052Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 42089 prompt tokens, chunk_size=8192, queued 2 ms
+2026-11-15T15:02:51.278448Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 16 tokens (1 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:02:51.299720Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:51.377533Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.468056Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:51.766573Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:51.864236Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:52.234121Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:52.372107Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:52.632593Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:52.720577Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:52.980787Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:53.060688Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:53.322357Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:53.411917Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:53.674381Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:53.764502Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:54.028975Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:54.114664Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:54.383890Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:54.458246Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:54.722236Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:54.794485Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:55.057296Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:55.150142Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:02:55.178032Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill chunk 8192/42089 tokens
+2026-11-15T15:02:55.178040Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:55.386101Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:55.918971Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:56.314050Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:56.689064Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:57.052427Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:57.405894Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:57.773638Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:58.141370Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:58.515744Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:58.883812Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:59.252576Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:59.355172Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 16384/42089 tokens
+2026-11-15T15:02:59.355180Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:02:59.548582Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:00.074296Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:00.299917Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:00.791110Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:01.040603Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:01.544534Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:01.778150Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:02.281738Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:02.536100Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:03.060025Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:03.296864Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:03.527564Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 24576/42089 tokens
+2026-11-15T15:03:03.527572Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:03.732131Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:04.276752Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:04.524284Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:05.043654Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:05.285668Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:05.796535Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:06.039357Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:06.561594Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:06.804888Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:07.313461Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:07.563280Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:07.807689Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 32768/42089 tokens
+2026-11-15T15:03:07.807699Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:08.020513Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:08.488159Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:08.808544Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:09.134015Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:09.485004Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:09.846138Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:10.180067Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:10.517807Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:10.847447Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:11.192000Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:11.523392Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:11.652412Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 40960/42089 tokens
+2026-11-15T15:03:11.652422Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:11.801044Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:12.152343Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:12.486150Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:12.754078Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 42064 (snapshot_id 10, block 2629)
+2026-11-15T15:03:12.780071Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_M16 engaged: rows=25 zskip=true
+2026-11-15T15:03:12.836236Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 42089/42089 tokens
+2026-11-15T15:03:12.944558Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill first token: 23591
+2026-11-15T15:03:12.944612Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:03:12.963743Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 20 }, block_table_ptr: 253259721675264, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:03:12.964568Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 20 }, block_table_ptr: 253259721675264, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:03:12.968291Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=1 ladder_nd=7
+2026-11-15T15:03:13.068544Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:03:13.086642Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.181007Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.272869Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.380489Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.486235Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.593894Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.698661Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.787739Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:13.915882Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.006036Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.133879Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.241839Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.348135Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.467660Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.587083Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.707699Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:14.858052Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.003855Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.147172Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.254632Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.373697Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.485378Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.615416Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.728245Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.842591Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:15.953587Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.069385Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.174001Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.305646Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.445885Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.572174Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.690288Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:16.795354Z  INFO spark::scheduler::emit_step: emit_token: remaining=0, seq_len=42185, max_seq_len=1048576, output_tokens=96, thinking_tokens=95
+2026-11-15T15:03:16.802645Z  INFO spark::scheduler::mtp_accept_debug: Done: 96 tokens (length) 24.9 tok/s, TTFT=21669.3ms, serial=0.00 mtp=1.00 p1=0.848 mean_na=1.909 tok_step=2.909 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.85,0.64,0.42,0.00,0.00,0.00,0.00
+2026-11-15T15:03:16.804964Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:16.808126Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=false, temp=Some(0.0), max_tokens=96, freq_pen=None, rep_pen=None
+2026-11-15T15:03:16.857803Z  INFO spark::session_key: session key: source=first_user_turn hash=0xe6cb881744038f4a
+2026-11-15T15:03:16.857822Z  INFO spark::api::chat::inner: Session 0xe6cb881744038f4a: 22721 prompt tokens, tools=false (0 defined)
+2026-11-15T15:03:16.883943Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:03:16.883951Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 22721 prompt tokens, chunk_size=8192, max_tokens=96
+2026-11-15T15:03:16.885742Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/22721: 0/22721 tokens
+2026-11-15T15:03:16.885745Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:03:16.885749Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 22721 prompt tokens, chunk_size=8192, queued 2 ms
+2026-11-15T15:03:16.886858Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 4912 tokens (307 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:03:16.887221Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: pc branch checkpoint planned at token 4912 (4912-token shared prefix, restore depth 0)
+2026-11-15T15:03:16.904827Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:16.952045Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:17.039956Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:17.394308Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:17.466312Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:17.763724Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:17.836050Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:18.136237Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:18.235493Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:18.473065Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:18.554498Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:18.855297Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:18.937622Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:19.202177Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:19.288724Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 4912 of 4912 rows as cached (match 4912)
+2026-11-15T15:03:19.307669Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 4912 (snapshot_id 11, block 307)
+2026-11-15T15:03:19.528422Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:19.599768Z  INFO spark::scheduler::prefill_preempt: prefill chunk 0..8192 resumes at recorded progress 4912
+2026-11-15T15:03:19.855747Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:19.948166Z  INFO spark::scheduler::prefill_preempt: prefill chunk 0..8192 resumes at recorded progress 4912
+2026-11-15T15:03:20.236304Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:20.312782Z  INFO spark::scheduler::prefill_preempt: prefill chunk 0..8192 resumes at recorded progress 4912
+2026-11-15T15:03:20.597929Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:20.679343Z  INFO spark::scheduler::prefill_preempt: prefill chunk 0..8192 resumes at recorded progress 4912
+2026-11-15T15:03:20.970722Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:21.071791Z  INFO spark::scheduler::prefill_preempt: prefill chunk 0..8192 resumes at recorded progress 4912
+2026-11-15T15:03:21.341451Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill chunk 8192/22721 tokens
+2026-11-15T15:03:21.341459Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:21.571079Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:22.117845Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:22.486775Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:22.840035Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:23.191631Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:23.553664Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:23.924440Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:24.297345Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:24.666122Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:25.025365Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:25.403785Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:25.506635Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 16384/22721 tokens
+2026-11-15T15:03:25.506643Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:25.696381Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:26.171669Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:26.533390Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:26.880095Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:27.289284Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:27.602661Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:27.993272Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:28.374451Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:28.739981Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:28.933918Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 22704 (snapshot_id 12, block 1419)
+2026-11-15T15:03:28.971069Z  INFO spark_model::layers::moe::decode_m16: ATLAS_GLM_MOE_DECODE_M16 engaged: rows=17 zskip=true
+2026-11-15T15:03:29.016927Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 22721/22721 tokens
+2026-11-15T15:03:29.108207Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill first token: 1654
+2026-11-15T15:03:29.108263Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:03:29.127465Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 21 }, block_table_ptr: 253259721675264, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:03:29.128069Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 21 }, block_table_ptr: 253259721675264, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:03:29.131989Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=1 ladder_nd=7
+2026-11-15T15:03:29.237603Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:03:29.255658Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.365659Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.479558Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.604568Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.734033Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.842462Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:29.947817Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.064274Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.184434Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.294105Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.412731Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.522615Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.631426Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.722429Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.847918Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:30.985296Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.093516Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.204433Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.320065Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.419304Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.557250Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.660401Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.781253Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:31.917080Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.051168Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.160464Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.268763Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.369512Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.482968Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.571919Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.713396Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:32.880319Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:33.036242Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:33.158858Z  INFO spark::scheduler::emit_step: emit_token: remaining=0, seq_len=22818, max_seq_len=1048576, output_tokens=96, thinking_tokens=95
+2026-11-15T15:03:33.166704Z  INFO spark::scheduler::mtp_accept_debug: Done: 96 tokens (length) 23.7 tok/s, TTFT=12224.3ms, serial=0.00 mtp=1.00 p1=0.971 mean_na=1.853 tok_step=2.853 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.97,0.56,0.29,0.03,0.00,0.00,0.00
+2026-11-15T15:03:33.168946Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:33.170368Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=4, tools=0, tools_active=false, tool_choice=None, stream=false, temp=Some(0.0), max_tokens=96, freq_pen=None, rep_pen=None
+2026-11-15T15:03:33.252381Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:33.284377Z  INFO spark::session_key: session key: source=first_user_turn hash=0xd5d7f3783932f6e8
+2026-11-15T15:03:33.284400Z  INFO spark::api::chat::inner: Session 0xd5d7f3783932f6e8: 45690 prompt tokens, tools=false (0 defined)
+2026-11-15T15:03:33.330481Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:03:33.330488Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 45690 prompt tokens, chunk_size=8192, max_tokens=96
+2026-11-15T15:03:33.332288Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/45690: 0/45690 tokens
+2026-11-15T15:03:33.332291Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:03:33.332295Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 45690 prompt tokens, chunk_size=8192, queued 2 ms
+2026-11-15T15:03:33.335018Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Marconi intermediate hit: restored from checkpoint at token 42064 (skipping 42064 tokens, replaying 3626 SSM tokens to reach 45690; 16 of those are the anchor->match gap to 42080)
+2026-11-15T15:03:33.336630Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill chunk 8192/45690 tokens
+2026-11-15T15:03:33.337627Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 16384/45690 tokens
+2026-11-15T15:03:33.338080Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 24576/45690 tokens
+2026-11-15T15:03:33.338333Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 32768/45690 tokens
+2026-11-15T15:03:33.338570Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 40960/45690 tokens
+2026-11-15T15:03:33.406831Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:33.782493Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:34.172830Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:34.564600Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:34.941218Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:35.330124Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:35.522548Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 45664 (snapshot_id 13, block 2854)
+2026-11-15T15:03:35.615470Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 45690/45690 tokens
+2026-11-15T15:03:35.721870Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill first token: 785
+2026-11-15T15:03:35.721918Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:03:35.740622Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 22 }, block_table_ptr: 253208622528000, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:03:35.741269Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 22 }, block_table_ptr: 253208622528000, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:03:35.745681Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=1 ladder_nd=7
+2026-11-15T15:03:35.861366Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:03:35.879625Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:35.984485Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.106932Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.230146Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.354121Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.506152Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.642278Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.758204Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.881008Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:36.994261Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.103717Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.215880Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.333670Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.448380Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.555580Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.666257Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.784333Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.876932Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:37.987498Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.079517Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.201558Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.346169Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.456729Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.579548Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.716952Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.847710Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:38.958516Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.075872Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.206148Z  INFO spark::scheduler::emit_step::think_commit: Thinking ended after 75 tokens (budget=None)
+2026-11-15T15:03:39.214951Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.338931Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.480965Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.612498Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.748538Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:39.858657Z  INFO spark::scheduler::emit_step: emit_token: remaining=0, seq_len=45787, max_seq_len=1048576, output_tokens=96, thinking_tokens=75
+2026-11-15T15:03:39.866925Z  INFO spark::scheduler::mtp_accept_debug: Done: 96 tokens (length) 23.2 tok/s, TTFT=2391.4ms, serial=0.00 mtp=1.00 p1=0.971 mean_na=1.853 tok_step=2.853 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.97,0.47,0.26,0.12,0.03,0.00,0.00
+2026-11-15T15:03:39.869309Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:39.869686Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=false, temp=Some(0.0), max_tokens=96, freq_pen=None, rep_pen=None
+2026-11-15T15:03:39.890834Z  INFO spark::session_key: session key: source=first_user_turn hash=0xc8d9f6fbd70bb8eb
+2026-11-15T15:03:39.890854Z  INFO spark::api::chat::inner: Session 0xc8d9f6fbd70bb8eb: 10157 prompt tokens, tools=false (0 defined)
+2026-11-15T15:03:39.956660Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:03:39.956669Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 10157 prompt tokens, chunk_size=8192, max_tokens=96
+2026-11-15T15:03:39.958461Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/10157: 0/10157 tokens
+2026-11-15T15:03:39.958463Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:03:39.958467Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 10157 prompt tokens, chunk_size=8192, queued 2 ms
+2026-11-15T15:03:39.959148Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 16 tokens (1 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:03:39.977358Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:40.055904Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:40.174102Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:40.577496Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:40.685762Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:40.948189Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:41.033084Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:41.296824Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:41.385694Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:41.648318Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:41.734953Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:41.996405Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:42.108971Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:42.372251Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:42.451766Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:42.715057Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:42.799310Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:43.064229Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:43.152317Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:43.416328Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:43.515785Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:43.777012Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:43.867480Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 8192 rows as cached (match 16)
+2026-11-15T15:03:43.895583Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill chunk 8192/10157 tokens
+2026-11-15T15:03:43.895591Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:44.066228Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:44.408467Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:44.763186Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:45.133555Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:45.496835Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 10128 (snapshot_id 14, block 633)
+2026-11-15T15:03:45.591221Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill chunk 10157/10157 tokens
+2026-11-15T15:03:45.711212Z  INFO spark::scheduler::phase_continue_prefills::run_standard: Prefill first token: 5874
+2026-11-15T15:03:45.711270Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:03:45.728951Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 23 }, block_table_ptr: 253259721677824, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:03:45.729563Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 23 }, block_table_ptr: 253259721677824, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:03:45.733476Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=1 ladder_nd=7
+2026-11-15T15:03:45.901707Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:03:45.919945Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.048539Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.156765Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.286477Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.401671Z  INFO spark::scheduler::emit_step::think_commit: Thinking ended after 13 tokens (budget=None)
+2026-11-15T15:03:46.411224Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.546224Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.675364Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.784605Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:46.874478Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:47.010373Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:47.122326Z  INFO spark::scheduler::mtp_accept_debug: Done: 35 tokens (stop) 24.8 tok/s, TTFT=5754.5ms, serial=0.00 mtp=1.00 p1=1.000 mean_na=2.091 tok_step=3.091 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=1.00,0.64,0.27,0.18,0.00,0.00,0.00
+2026-11-15T15:03:47.124506Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:47.125195Z  INFO spark::api::chat::prepare: Request: model=glm-5.3-flash-atlas, messages=2, tools=0, tools_active=false, tool_choice=None, stream=false, temp=Some(0.0), max_tokens=96, freq_pen=None, rep_pen=None
+2026-11-15T15:03:47.134609Z  INFO spark::session_key: session key: source=first_user_turn hash=0x1b04cb2990e4b7ea
+2026-11-15T15:03:47.134623Z  INFO spark::api::chat::inner: Session 0x1b04cb2990e4b7ea: 5387 prompt tokens, tools=false (0 defined)
+2026-11-15T15:03:47.251908Z  INFO spark::scheduler::prefill_a_step: Thinking enabled, budget=None
+2026-11-15T15:03:47.251915Z  INFO spark::scheduler::prefill_a_step: Chunked prefill start: 5387 prompt tokens, chunk_size=5387, max_tokens=96
+2026-11-15T15:03:47.253713Z  INFO spark::scheduler::phase_start_prefills: Prefill chunk 0/5387: 0/5387 tokens
+2026-11-15T15:03:47.253716Z  INFO spark::scheduler::phase_start_prefills: Prefill queued for its first chunk at 0 of 0 in flight
+2026-11-15T15:03:47.253719Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Queued prefill start: 5387 prompt tokens, chunk_size=5387, queued 2 ms
+2026-11-15T15:03:47.255922Z  INFO spark_model::model::trait_impl::prefill_b::prefix_lookup: Prefix cache hit: 16 tokens (1 blocks) but no SSM snapshot — recomputing all KV
+2026-11-15T15:03:47.274134Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:47.326034Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:47.464141Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:47.814114Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:47.940507Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:48.230283Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:48.355601Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:48.613590Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:48.741340Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:49.030303Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:49.135652Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:49.398848Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:49.518609Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:49.811536Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:49.910232Z  INFO spark_model::model::trait_impl::prefill_b::pc_policy: ATLAS_GLM_PC_WRITE_FLOOR: pass at token 0 keeps 16 of 5360 rows as cached (match 16)
+2026-11-15T15:03:50.113658Z  INFO spark_model::model::trait_impl::prefill_b::save_checkpoint: Intermediate SSM checkpoint saved at token 5360 (snapshot_id 15, block 335)
+2026-11-15T15:03:50.337696Z  INFO spark::scheduler::phase_continue_prefills::queued_first: Prefill first token: 21615
+2026-11-15T15:03:50.337747Z  INFO spark_model::layers::dflash_head::propose: DFlash Option B: allocated 129 blocks (2064 slots) for drafter paged cache
+2026-11-15T15:03:50.355989Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: starting (key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 24 }, block_table_ptr: 253259721676800, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 }, 18 graphs)
+2026-11-15T15:03:50.356807Z  INFO spark_model::layers::dflash_head::rank_split_forward: DFlash rank-split capture: complete key=DflashGraphIdentity { owner: SequenceGeneration { slot: 2, generation: 24 }, block_table_ptr: 253259721676800, ctx_ptr: 253124040196096, markov_ptr: 253265884870656, lane: 0 } (18/18 graphs captured)
+2026-11-15T15:03:50.360396Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=1 ladder_nd=7
+2026-11-15T15:03:50.459987Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:03:50.478532Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:50.604872Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:50.742458Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:50.844282Z  INFO spark::scheduler::emit_step::think_commit: Thinking ended after 9 tokens (budget=None)
+2026-11-15T15:03:50.853315Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:50.999208Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:51.157515Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=3 verify=3 boot=0 ladder_nd=7
+2026-11-15T15:03:51.288238Z  INFO spark::scheduler::mtp_accept_debug: Done: 22 tokens (stop) 23.1 tok/s, TTFT=3085.8ms, serial=0.00 mtp=1.00 p1=0.857 mean_na=2.143 tok_step=3.143 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.86,0.43,0.43,0.29,0.14,0.00,0.00
+2026-11-15T15:03:51.290331Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.381811Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.489665Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.581345Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.665259Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.762106Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.848350Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:51.928273Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.009410Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.103315Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.198306Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.309098Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.405821Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.508198Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.602294Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.687368Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.769115Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.871555Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:52.968848Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.066001Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.146637Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.229373Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.335927Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.430280Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.523302Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.613674Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.722836Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.822367Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:53.935848Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.054741Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.146424Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.229467Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.320290Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.447584Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.555344Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.652547Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.734240Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.827966Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:54.912681Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.025779Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.109334Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.186384Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.279668Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.348580Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.461887Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.556441Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.659897Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.746425Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.839770Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:55.924783Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.026348Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.107904Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.200187Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.294968Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.377552Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.494098Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.600107Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.728604Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.839325Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:56.940079Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.030429Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.135167Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.252549Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.342902Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.457992Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.534664Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.618961Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.713474Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.828205Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:57.916392Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.026421Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.148727Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.229889Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.324910Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.411271Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.491362Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.582436Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.675185Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.765120Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.850517Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:58.934948Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.024010Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.099573Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.204971Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.296850Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.397122Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.495582Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.593997Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.708142Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.817693Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:03:59.907383Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.001646Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.097388Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.197971Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.293233Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.360531Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.430033Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.498250Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.568731Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.676096Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.773965Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.862751Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:00.945446Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.041220Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.139130Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.226517Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1022 oldest, keep 1024)
+2026-11-15T15:04:01.244957Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.336087Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.423207Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.511336Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.590598Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.685533Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.768686Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.892987Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:01.990963Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.102549Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.191538Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.323704Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.462066Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.555520Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.638106Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.722502Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.808750Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:02.934132Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.060228Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.161319Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.250243Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.335099Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.428950Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.518617Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.608469Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.692067Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.788764Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.867957Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:03.962344Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.081922Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.190913Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.293342Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.389404Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.482505Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.613881Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.729185Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.829609Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:04.922069Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.000360Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.090661Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.177976Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.285794Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.357399Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.426493Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.497624Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.569281Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.653558Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.734089Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.815409Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.900787Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:05.980277Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.062765Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.151670Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.227028Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:04:06.243787Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.325313Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.414110Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.502238Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.580960Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.668103Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.763492Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.851687Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:06.956829Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.042438Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.128487Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.210616Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.296451Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.367391Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.436233Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.508045Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.574235Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.658216Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.727622Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.839113Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:07.944614Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.058359Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.175340Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.320266Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.463794Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.585442Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.701095Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.817698Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:08.938279Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.058134Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.205501Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.353826Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.478742Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.603994Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.729704Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.856297Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:09.955649Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.098879Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.238638Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.365847Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.493853Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.635581Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.765476Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:10.885422Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.002993Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.120654Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.248477Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.368975Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.500347Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.631493Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.762543Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:11.884147Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.006222Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.132930Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.251718Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.374135Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.492998Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.609990Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.724820Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.848506Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:12.982558Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.100164Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.218867Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.335149Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.453100Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.572708Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.703065Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.826685Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:13.959874Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.081392Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.212807Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.332084Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.448212Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.592155Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.711587Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.827874Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:14.944542Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.064910Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.180097Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.323926Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.443275Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.562588Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.679686Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.793323Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.902236Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:15.971245Z  INFO spark::scheduler::mtp_step: DFLASH WIDTH n_active=2 verify=2 boot=0 ladder_nd=7
+2026-11-15T15:04:16.043601Z  INFO spark::scheduler::mtp_accept_debug: Done: 1923 tokens (stop) 21.1 tok/s, TTFT=827.3ms, serial=0.00 mtp=1.00 p1=0.746 mean_na=2.390 tok_step=3.390 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.75,0.49,0.34,0.28,0.22,0.18,0.14
+2026-11-15T15:04:33.675967Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1023 oldest, keep 1024)
+2026-11-15T15:04:55.858610Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1023 oldest, keep 1024)
+2026-11-15T15:05:17.777438Z  INFO spark_model::model::trait_impl: DFlash UNIFIED_CTX watermark: slid ctx window (dropped 1024 oldest, keep 1024)
+2026-11-15T15:05:35.117287Z  INFO spark::scheduler::mtp_accept_debug: Done: 5061 tokens (stop) 30.0 tok/s, TTFT=857.3ms, serial=0.00 mtp=1.00 p1=0.727 mean_na=1.689 tok_step=2.689 regime_reprobes=0 depth=k5 depth_switches=0 acc=-,-,-,-,-,-,- surv=0.73,0.41,0.24,0.13,0.09,0.06,0.04
+2026-11-15T15:05:35.117309Z  INFO spark::scheduler::copy_drafts: COPY DRAFTS prompt rounds=60 drafted=297 accepted=207 reply rounds=0 drafted=0 accepted=0
