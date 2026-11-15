@@ -81,6 +81,16 @@ class ServingModes(unittest.TestCase):
         _, env = self.launch("strict")
         self.assertNotIn("ATLAS_GLM_PAIR_LIVE_WIDTHS", env)
 
+    def test_prefill_yields_to_decoders_on_a_spark_pair_only(self):
+        _, env = self.launch("spark")
+        self.assertEqual(env["ATLAS_GLM_PREFILL_YIELD_MS"], "300")
+        _, env = self.launch("strict")
+        self.assertNotIn("ATLAS_GLM_PREFILL_YIELD_MS", env)
+        # The engine slices a pass on a pair only; four Sparks get no switch.
+        _, flags = serve.serving_mode({"SPARKGLM_MODE": "spark"}, self.profile, 4)
+        self.assertNotIn("ATLAS_GLM_PREFILL_YIELD_MS", flags)
+        self.assertEqual(flags["ATLAS_GLM_SERVING_MODE"], "spark")
+
     def test_shared_and_dense_overrides_are_spark_only(self):
         for flag in ('ATLAS_GLM_FP4L_SHARED_FP8',):
             for value in ('0', '1'):

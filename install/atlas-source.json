@@ -1,10 +1,10 @@
 {
   "schema": "sparkglm.atlas-engine-source/v2",
-  "note": "Enntity/atlas spark at merge 225a65eb: the 0.3.4 engine (640d7595) plus two exact changes to how concurrent streams share a verify pass: ATLAS_GLM_STRICT_OWNER_BATCH (Enntity/atlas#30), which lets requests with structured output join it, and ATLAS_GLM_PAIR_LIVE_WIDTHS (#31), which lets each stream verify its own number of drafts in it. Both unset unless given; serve.py sets them in Spark mode on a pair.",
+  "note": "Enntity/atlas spark at merge 59ead299: the 0.3.4 engine (640d7595) plus three exact changes for concurrent streams on a pair. ATLAS_GLM_STRICT_OWNER_BATCH (Enntity/atlas#30) lets requests with structured output join the shared verify pass; ATLAS_GLM_PAIR_LIVE_WIDTHS (#31) lets each stream verify its own number of drafts in it; ATLAS_GLM_PREFILL_YIELD_MS (#32) stops a prefill pass between layers so decoding streams step. All unset unless given; serve.py sets them in Spark mode on a pair.",
   "repository": "https://github.com/Enntity/atlas.git",
   "branch": "spark",
-  "commit": "225a65eb3d5f735ebff7c2575fad956a6606d15d",
-  "tree": "1344ed41faba8b426fd5c6cf2d51c42645188a65",
+  "commit": "59ead2996f3f453e5ea9031f41ff9638993bd877",
+  "tree": "dfd866dcf53506e0a90081f69c77b8be985c7b3d",
   "kernel_target": "glm-5.3-flash",
   "license": "AGPL-3.0-only"
 }

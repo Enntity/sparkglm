@@ -8,9 +8,9 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `225a65eb` (tree `1344ed41`): the 0.3.4
-engine plus two changes to how concurrent streams share a verify pass, both
-set by Spark mode on a pair and both leaving every token as it was.
+merged in. The pinned snapshot is `59ead299` (tree `dfd866dc`): the 0.3.4
+engine plus three changes for concurrent streams, all set by Spark mode on a
+pair and all leaving every token as it was.
 
 - **Structured output joins the shared pass**
   (`ATLAS_GLM_STRICT_OWNER_BATCH`,
@@ -26,6 +26,20 @@ set by Spark mode on a pair and both leaving every token as it was.
   wanted. Each now verifies as many drafts as its own drafter was sure of;
   its other rows skip their routed experts. The rule is priced by the
   pair's step costs measured on 2026-11-14.
+- **A prefill pass yields to decoders between layers**
+  (`ATLAS_GLM_PREFILL_YIELD_MS`,
+  [#32](https://github.com/Enntity/atlas/pull/32)). The scheduler ran one
+  decode step per prefill chunk, so a stream that was decoding froze for the
+  3.0 s an 8K-token chunk takes. Chunks cannot shrink without changing the
+  pass and so the output. A pass now runs as slices of whole layers with the
+  ordinary decode step between slices: the same layers over the same rows in
+  the same order, in more scheduler ticks. A pause copies out and restores
+  the first 128 highway rows and token ids, which a decode step overwrites,
+  and nothing else of the pass moves. Spark mode sets a 300 ms target: the
+  longest freeze beside a cold 36K-token prompt went from 3.0 s to 0.5 s,
+  and that prompt's first token from about 13 s to about 16 s. A pass with
+  fewer than 1,024 rows to compute, an image prompt's first chunk and four
+  Sparks do not yield.
 
 0.3.4 pinned `640d7595` (tree `46ccca5c`): the 0.3.3
 engine plus `--thinking-off-budget`
