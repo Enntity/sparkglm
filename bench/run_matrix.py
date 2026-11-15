@@ -6,7 +6,10 @@ field guide, straight at the engine (127.0.0.1:8893 by default).
 Usage: run_matrix.py OUT_DIR [matrix,field] [CASE,...]
 Same drivers, salt, 400-token output budget, one-second stagger and exact
 prompt counts as the published runs. Use MATRIX_SALT=mb-vx2-7c31 for the
-matrix; give the field guide a fresh salt per run (e.g. fg-$(date +%s)).
+matrix; give the field guide a fresh salt per run (e.g. fg-$(date +%s)). The
+field guide's salt is the first line of each prompt, so every run prefills
+cold; until 2026-11-15 it was sent as cache_salt, which the engine no longer
+keys its prefix cache on, and the runs after the warmup were warm.
 MATRIX_IGNORE_EOS=1 also sends ignore_eos, for engines that ignore min_tokens.
 """
 import os
@@ -47,7 +50,7 @@ for kind, name, c, t in cases:
         argv = ["python3", str(B / "four_stream_video.py"), "capture", "--base-url", URL,
                 "--model", MODEL, "--output", str(f), "--streams", "4", "--max-tokens", "400",
                 "--prompt-tokens", "16384", "--stagger-ms", "1000", "--prompt-style", "field-guide",
-                "--cache-salt", f"{SALT}-{name}", "--timeout-s", "900"]
+                "--prompt-salt", f"{SALT}-{name}", "--timeout-s", "900"]
         t0 = time.time()
         rc = subprocess.run(argv, capture_output=True, text=True).returncode
         d = json.loads(f.read_text()) if rc == 0 and f.exists() else {}
