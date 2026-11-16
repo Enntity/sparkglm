@@ -1,0 +1,31 @@
+container lloom-atlas-sparkglm-ennspark01
+ghcr.io/enntity/atlas-sparkglm@sha256:ab56ad3e0879da5b039903fede4838d762f70d991509f2ad3598baca2446b872
+SPARKGLM_KV_SHARD=0
+SPARKGLM_MODE=spark
+NODE_RANK=0
+SPARKGLM_GPU_MEMORY_UTILIZATION=0.82
+SPARKGLM_PROFILE=4x1m-tp4
+2026-11-16T02:55:11.982952Z  WARN spark::main_modules::serve_phases::preflight::glm_chain: GLM-5 at 4 ranks: ATLAS_GLM_K5_FUSED_TP_HC=1 stays off: the fused TP HC exchange is the pair's
+2026-11-16T02:55:40.083646Z  INFO spark_model::factory::build: KV cache: 121.7 GB total × 82% util = 99.8 GB budget; 57.5 GB pre-KV + 0.7 GB reserve → 41.6 GB for KV → 426500 blocks × 16 tok/block = 6824000 max KV 
+2026-11-16T02:55:41.900968Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 426500 blocks × 11 layers = 36.9 GB total (V aliases K)
+2026-11-16T02:55:42.108955Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 1028 blocks × 5 layers = 0.3 GB total
+2026-11-16T02:55:42.313496Z  INFO spark_model::layers::dflash_head::rank_split::exec::head: DFlash rank split over 4 ranks: Parts { mlp: true, head: true, attn: false }, 17 swaps per propose, largest 65536 bytes; up to 3
+suite 1 guardlog 0 greedy 0 lpdump 0 speed 0 matrix 0 
+tp4-030 vs tp4-035: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.68 sumB=-123.68
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6400.24 sumB=-6400.24
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20972.69 sumB=-20972.69
+greedy same: True
+{"passed": 107, "total": 109}
+{"suite": "xml", "case": "anthropic-no-tools-block", "ok": false, "finish": "max_tokens", "s": 12.579}
+{"suite": "xml", "case": "anthropic-no-tools-stream", "ok": false, "finish": "max_tokens", "s": 12.551}
+prose {'median': 58.318, 'minimum': 56.712, 'maximum': 59.735, 'p90': 59.735}
+code {'median': 106.856, 'minimum': 102.198, 'maximum': 109.336, 'p90': 109.336}
+structured {'median': 146.232, 'minimum': 145.644, 'maximum': 151.235, 'p90': 151.235}
+{"case": "c1-16k", "rc": 0, "wall_s": 9.03, "summary": {"successful": 1, "wall_s": 8.458030972164124, "aggregate_decode_tok_s": 85.73761987484731}}
+{"case": "c1-32k", "rc": 0, "wall_s": 13.0, "summary": {"successful": 1, "wall_s": 12.143145981710404, "aggregate_decode_tok_s": 84.19241740942638}}
+{"case": "c2-16k", "rc": 0, "wall_s": 17.63, "summary": {"successful": 2, "wall_s": 16.850942267104983, "aggregate_decode_tok_s": 70.64039867532308}}
+{"case": "c2-32k", "rc": 0, "wall_s": 24.83, "summary": {"successful": 2, "wall_s": 23.521349404007196, "aggregate_decode_tok_s": 55.65729014165357}}
+{"case": "c4-16k", "rc": 0, "wall_s": 30.4, "summary": {"successful": 4, "wall_s": 29.178417433053255, "aggregate_decode_tok_s": 67.39783343237399}}
+RESULT: PASS
+=== TP4 DONE 03:04:02

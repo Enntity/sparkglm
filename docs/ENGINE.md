@@ -49,6 +49,16 @@ pair and all leaving every token as it was.
   can set it. A pass with fewer than 1,024 rows to compute, an image
   prompt's first chunk and four Sparks do not yield.
 
+0.3.5 is the release to install on two Sparks and on four. It qualified on a
+DGX Spark pair (TP-2, Spark mode) on 2026-11-15 against 0.3.4
+([results](../results/2026-11-15-0.3.5/RESULT.md)). On 2026-11-16 it was
+installed through LLooM's recipe; its Strict output and its image and video
+output were identical to 0.3.3's; and on a four-Spark chain its output was
+identical to 0.3.0's with speed level
+([results](../results/2026-11-16-0.3.5-promotion/RESULT.md)). The four-Spark
+run used GPU utilization 0.82 where the recipe sets 0.88, and Strict mode and
+images were not run on four Sparks.
+
 0.3.4 pinned `640d7595` (tree `46ccca5c`): the 0.3.3
 engine plus `--thinking-off-budget`
 ([Enntity/atlas#29](https://github.com/Enntity/atlas/pull/29)), which Spark
@@ -108,8 +118,8 @@ qualified on a DGX Spark pair (TP-2) on 2026-11-10 against 0.3.1: greedy output
 (8 prompts), prompt logprobs (about 20K tokens) and vision output (images and a
 19K-token video, alone and beside text decodes, every token logprob) identical,
 109/109 live checks with an identical guard log, and decode and image/video
-time to first token level. It has not been run at TP-4. On four Sparks, 0.3.0 (`162b4226`,
-qualified at TP-4 on 2026-11-03) stays the qualified release.
+time to first token level. It was not run at TP-4. On four Sparks, 0.3.0 (`162b4226`,
+qualified at TP-4 on 2026-11-03) stayed the qualified release until 0.3.5.
 
 SparkGLM 0.2.0 used the common `spark-shared` engine of the public fork
 [`Enntity/atlas`](https://github.com/Enntity/atlas) and pinned
