@@ -5,7 +5,7 @@
 
 # SparkGLM
 
-**SparkGLM 0.3.5** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
+**SparkGLM 0.3.6** · [Versioning](docs/VERSIONING.md). Run `./start.sh --version`
 for this checkout, or `./start.sh status` for the version and image IDs on both ranks.
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
@@ -177,7 +177,9 @@ JSON streams go from 43 to 68 tok/s combined and four free-text streams from
 64 to 69, with the same tokens, and
 [prompts that arrive together](results/2026-11-15-0.3.5/RESULT.md) prefill in
 arrival order, so the first of four 16K-token prompts gets its first token in
-5.9 s where it took 11.2 s. Rows
+5.9 s where it took 11.2 s.
+[0.3.6](results/2026-11-18-0.3.6/RESULT.md) fixes forced tool calls that a
+model could answer as text; GLM-5.3-Flash's output is unchanged. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
