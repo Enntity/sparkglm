@@ -4,18 +4,30 @@
 managed models, behind its authenticated gateway, instead of `./start.sh`:
 
 ```sh
-lloom setup --recipe linux-nvidia-dgx-spark-2x-glm53-atlas --additive --apply --yes
+lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --additive --apply --yes
 lloom runtime-start glm53-flash-atlas-cluster
 ```
 
-The recipe pins a SparkGLM commit and uses the same image, profiles and
-engine. Setup does four things on each Spark:
+The recipe pins a SparkGLM release and uses the same image, profiles and
+engine. Its current version, 7, installs SparkGLM 0.3.6 in Spark mode. Options
+pick the deployment:
 
-1. Downloads the pinned checkpoints.
-2. Gets the image for the pinned `install/` tree, pulling it or building it.
-3. Converts and verifies the MTP overlay, for recipes that pin the NVFP4
-   checkpoint (FP4-Local, this repository's default since 2026-10-17, needs none).
-4. Registers the worker and leader runtimes.
+| Option | Values | Default |
+| --- | --- | --- |
+| `--sparks` | `2`: a pair (profile `4x1m`); `4`: a four-Spark chain (profile `4x1m-tp4`) | `2` |
+| `--drafter` | `dflash2`: `incoai/GLM-5.3-Flash-DFlash2`; `v81` or `v80`: Enntity's drafters (private repository) | `dflash2` |
+| `--memory` | `full`: 114 GB a Spark; `shared`: 108 GB, for a Spark that hosts about 10 GB of other services | `full` |
+| `--streams` | `4`: four requests of up to 1M tokens; `8`: eight of up to 128K, on a pair | `4` |
+| `--model` | `glm53-flash`: `nvidia/GLM-5.3-Flash-FP4-Local`; `sage-s21-flash`: [Sage S2.1 Flash](#sage-s21-flash) | `glm53-flash` |
+
+A host keeps the options it was installed with until setup is given others.
+Earlier releases install with `--recipe-version N`; LLooM's
+[recipe notes](https://github.com/Enntity/lloom/blob/main/docs/recipes.md#atlas-sparkglm)
+describe each version. Setup does three things on each Spark:
+
+1. Downloads the pinned checkpoint and drafter.
+2. Pulls the pinned image by digest and checks its `install/` tree label.
+3. Registers the worker and leader runtimes.
 
 Starting launches rank 1, then rank 0, and routes the gateway model
 `glm-5.3-flash-atlas` to the leader.
@@ -34,8 +46,7 @@ both sizes. See [current validation and image identity](../results/2026-10-21-un
 An existing LLooM recipe may pin an earlier SparkGLM commit; check its resolved image and
 `install/` tree before assuming these options are present.
 
-For four nodes, the recipe is
-`linux-nvidia-dgx-spark-4x-glm53-atlas-tp4`, using the `4x1m-tp4` profile.
+For four nodes, pass `--sparks 4`, which uses the `4x1m-tp4` profile.
 Each rank must receive the same `SPARKGLM_MODE=strict|spark`. Strict defaults
 to serial target execution; `SPARKGLM_STRICT_MTP=1` explicitly enables the
 checkpoint's native predictor while retaining the four-slot capacity and
@@ -68,3 +79,25 @@ shared-prefix C4 capacity and two disk eviction/restore cycles. All release
 profiles enable `ATLAS_GLM_PC_WRITE_FLOOR=1` to protect matched prefix blocks
 during another request's recomputation. Use a single image identity across
 all ranks and check the resolved mode/topology in startup receipts.
+
+## Sage S2.1 Flash
+
+`--model sage-s21-flash` serves
+[Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4)
+in place of the GLM checkpoint: a calibrated NVFP4 quantization of
+`internlm/Sage-S2.1-Flash` (MIT), 179 GB, with text, image and video input.
+
+```sh
+lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --model sage-s21-flash --additive --apply --yes
+```
+
+- It is served under the same gateway model, `glm-5.3-flash-atlas`, so routes
+  and aliases stay as they are. To switch, suspend the model, run setup with
+  the other `--model`, and resume.
+- Installed this way on a pair on 2026-11-18, Sage passed 109/109 live checks
+  and decoded 38.6 / 67.9 / 90.0 tok/s (prose, code, structured) against
+  GLM-5.3-Flash's 37.7 / 66.1 / 88.8 on the same pair. Its prompt cache pool
+  read 2.22M tokens against GLM-5.3-Flash's 2.38M in consecutive starts.
+- It needs 0.3.6: on 0.3.5 Sage returned forced tool calls as text
+  ([results](../results/2026-11-18-0.3.6/RESULT.md)).
+- Not run: Sage on four Sparks, with `--memory shared` or with `--streams 8`.

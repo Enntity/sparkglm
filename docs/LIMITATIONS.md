@@ -137,6 +137,14 @@ endurance guarantee.
   through `start-node.sh` with production's prompt logprobs.
 - A fresh download of the 165.3 GiB checkpoint through `./start.sh`,
   including its subdirectory shard, has not been run; the pair had a copy.
+- Sage S2.1 Flash NVFP4 (`Enntity/Sage-S2.1-Flash-NVFP4`) was run on two
+  Sparks in Spark mode, installed through LLooM, where it passes the suite's
+  109 cases on 0.3.6
+  ([results](../results/2026-11-18-0.3.6/RESULT.md#sage-s21-flash)). In Strict
+  mode it passes 97: Sage reasons even when a request turns thinking off, and
+  Strict mode does not cap that. It has not been run through `./start.sh`, on
+  four Sparks or with the 8-stream profile, and the drafter was trained on
+  GLM-5.3-Flash, not on Sage.
 
 ## Performance gaps
 
@@ -305,9 +313,11 @@ chunks, which halve our KV pool).
   delivered as compact JSON, not byte-for-byte as the model wrote them.
   Validate tool arguments in the client
   ([2026-10-27](../results/2026-10-27-engine-c87f2790/RESULT.md#forced-tool-choice-and-streamed-markup)).
-- A forced call can still end as tool markup written as text, without the
-  native opener. No call is delivered. Streamed and blocking content now carry
-  the same text.
+- Before 0.3.6 a forced call could end as tool markup written as text,
+  without the native opener, and no call was delivered. From 0.3.6 the first
+  token of a forced call is the native opener
+  ([results](../results/2026-11-18-0.3.6/RESULT.md)). GLM-5.3-Flash already
+  chose it; Sage S2.1 Flash did not.
 
 ## Installer notes (FP4-Local release)
 

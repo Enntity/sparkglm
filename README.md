@@ -179,7 +179,10 @@ JSON streams go from 43 to 68 tok/s combined and four free-text streams from
 arrival order, so the first of four 16K-token prompts gets its first token in
 5.9 s where it took 11.2 s.
 [0.3.6](results/2026-11-18-0.3.6/RESULT.md) fixes forced tool calls that a
-model could answer as text; GLM-5.3-Flash's output is unchanged. Rows
+model could answer as text; GLM-5.3-Flash's output is unchanged. Before it
+became the release to install it was
+[installed through LLooM, run in Strict mode and with images, and run on four Sparks](results/2026-11-18-0.3.6-promotion/RESULT.md),
+with output identical to 0.3.5's each time. Rows
 not re-run on 2026-10-17 keep their earlier receipts linked above. Against RC4 on the NVFP4
 checkpoint, FP4-Local prefills 2–5% faster and RigMark decode is 1–6% slower:
 the QAD weights change how often the drafter's proposals are accepted, so
@@ -353,6 +356,21 @@ CHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4
 CHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93
 ```
 
+The same two lines select another checkpoint of this architecture, if it is
+laid out as the engine loads it.
+[Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4),
+a calibrated NVFP4 quantization of `internlm/Sage-S2.1-Flash`, is one. It needs
+0.3.6 and Spark mode (`./start.sh --mode spark`):
+
+```sh
+CHECKPOINT_REPO=Enntity/Sage-S2.1-Flash-NVFP4
+CHECKPOINT_REVISION=6967e49571a951ac0c71bb554eeeca365e838130
+```
+
+Sage passed 109/109 live checks on a pair installed through
+[LLooM's recipe](docs/LLOOM.md#sage-s21-flash). It has not been run through
+`./start.sh` ([limits](docs/LIMITATIONS.md#fp4-local)).
+
 ## Prefix cache on disk (optional)
 
 TP4 now supports sharded KV spill/restore through
@@ -462,8 +480,9 @@ comparison videos.
 - **By hand:** every step of `./start.sh` as a separate command, in
   [docs/INSTALL-MANUAL.md](docs/INSTALL-MANUAL.md).
 - **With [LLooM](https://github.com/Enntity/lloom):** the recipe
-  `linux-nvidia-dgx-spark-2x-glm53-atlas` puts SparkGLM behind LLooM's
-  authenticated gateway ([docs/LLOOM.md](docs/LLOOM.md)).
+  `linux-nvidia-dgx-spark-glm53-atlas` puts SparkGLM behind LLooM's
+  authenticated gateway, on two Sparks or four, and can serve Sage S2.1 Flash
+  in place of GLM-5.3-Flash ([docs/LLOOM.md](docs/LLOOM.md)).
 
 ## The engine
 
