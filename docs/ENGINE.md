@@ -8,7 +8,23 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `59ead299` (tree `dfd866dc`): the 0.3.4
+merged in. The pinned snapshot is `01d34b34` (tree `f769ec3c`): the 0.3.5
+engine plus one fix.
+
+- **A forced tool call opens with the native token**
+  ([Enntity/atlas#33](https://github.com/Enntity/atlas/pull/33)). With
+  `tool_choice` set to `required` or to a named tool, the grammar masks the
+  first token of the answer. It accepted the opening tag either as the
+  native `<tool_call>` token or spelled out as text. A model that ranked the
+  literal `<` first then reasoned from it, and the call came back as text:
+  no tool call, and nothing for the tool-call guard to check. Only the
+  native token is legal there now. GLM-5.3-Flash FP4-Local already chose it,
+  so its output is unchanged, token for token
+  ([results](../results/2026-11-18-0.3.6/RESULT.md)). Sage S2.1 Flash, a
+  checkpoint of the same architecture, did not: 12 of the live suite's 109
+  cases failed on 0.3.5 and none do on 0.3.6.
+
+0.3.5 pinned `59ead299` (tree `dfd866dc`): the 0.3.4
 engine plus three changes for concurrent streams, all set by Spark mode on a
 pair and all leaving every token as it was.
 

@@ -1,0 +1,51 @@
+=== wait for 0.3.6 15:20:32
+SPARKGLM_MODE=spark
+MODEL_PATH=/home/enntitysparkadmin/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local
+ghcr.io/enntity/atlas-sparkglm:9d6a18895552
+SparkGLM 0.3.6
+Atlas 01d34b343be6d675d8a1d6185e5b044b804b900c
+Engine tree f769ec3c1b741f490d1a561e4793b622388586b8
+=== start check 15:20:33
+prompt 19034 cached 0 ttft 7.24 tok/s 2629
+prompt 18428 cached 16 ttft 6.98 tok/s 2640
+prompt 19043 cached 16 ttft 7.08 tok/s 2690
+=== qualify product 15:20:56
+suite 0 guardlog 0 greedy 0 lpdump 0 speed 0 matrix 0 
+109 cases, 0 failed: []
+{"guard_events": 36, "blocked_responses": 36, "reason_counts": {"metadata_access": 8, "blocked_host": 12, "credential_transfer": 16}, "expected_reason_counts": {"metadata_access": 8, "blocked_host": 12, "credential_transfer": 16}, "reasons_match_cases": true, "guard_events_contain_arguments": false}
+sg036-1118 vs sg035-1114: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.82 sumB=-123.82
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6410.26 sumB=-6410.26
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20994.59 sumB=-20994.59
+greedy same: True
+prose {'median': 37.696, 'minimum': 37.59, 'maximum': 38.205, 'p90': 38.205}
+code {'median': 66.149, 'minimum': 66.105, 'maximum': 67.924, 'p90': 67.924}
+structured {'median': 88.809, 'minimum': 86.207, 'maximum': 89.309, 'p90': 89.309}
+{"case": "c1-16k", "rc": 0, "wall_s": 15.3, "summary": {"successful": 1, "wall_s": 14.724279702175409, "aggregate_decode_tok_s": 44.13457445053368}}
+{"case": "c1-32k", "rc": 0, "wall_s": 21.74, "summary": {"successful": 1, "wall_s": 20.912001966964453, "aggregate_decode_tok_s": 41.18436828427386}}
+{"case": "c2-16k", "rc": 0, "wall_s": 25.35, "summary": {"successful": 2, "wall_s": 24.568380490876734, "aggregate_decode_tok_s": 42.183773054634536}}
+{"case": "c2-32k", "rc": 0, "wall_s": 36.73, "summary": {"successful": 2, "wall_s": 35.38061011675745, "aggregate_decode_tok_s": 32.968320136813134}}
+{"case": "c4-16k", "rc": 0, "wall_s": 46.35, "summary": {"successful": 4, "wall_s": 45.10504218097776, "aggregate_decode_tok_s": 40.449839367582115}}
+=== sage on 0.3.6 15:30:28
+  "applied": true,
+2 runtimes -> /home/enntitysparkadmin/sage/out/sage-c8 | backup /home/enntitysparkadmin/.lloom/config.before-sage-20261118T153033Z.json
+2 runtimes -> /home/enntitysparkadmin/sage/out/sage-c8 | backup /home/enntitysparkadmin/.lloom/config.before-sage-20261118T153034Z.json
+15:31:37 resume:   "applied": true,
+MODEL_PATH=/home/enntitysparkadmin/sage/out/sage-c8
+SPARKGLM_MODE=spark
+ghcr.io/enntity/atlas-sparkglm:9d6a18895552
+suite exit 0
+109 cases, 0 failed: []
+=== restore the 0.3.5 release configuration 15:34:39
+  "applied": true,
+restored ('glm53-flash-atlas-head', 'glm53-flash-atlas-worker') from /home/enntitysparkadmin/.lloom/config.before-sage-20261118T020129Z.json
+restored ('glm53-flash-atlas-head', 'glm53-flash-atlas-worker') from /home/enntitysparkadmin/.lloom/config.before-sage-20261118T020130Z.json
+3 runtimes -> 0.91 114
+3 runtimes -> 0.91 114
+15:35:58 resume at 0.91/114:   "applied": true,
+15:35:58 resume:   "applied": false,
+SPARKGLM_MODE=spark
+MODEL_PATH=/home/enntitysparkadmin/.lloom/models/nvidia--GLM-5.3-Flash-FP4-Local
+ghcr.io/enntity/atlas-sparkglm@sha256:ab56ad3e0879da5b039903fede4838d762f70d991509f2ad3598baca2446b872
+SPARKGLM_GPU_MEMORY_UTILIZATION=0.91
+CHAIN036 DONE 15:35:58
