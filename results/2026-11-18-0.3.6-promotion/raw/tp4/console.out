@@ -1,0 +1,40 @@
+  "applied": true,
+container lloom-atlas-sparkglm-spark01
+ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8
+SPARKGLM_MODE=spark SPARKGLM_GPU_MEMORY_UTILIZATION=0.69 SPARKGLM_PROFILE=4x1m-tp4 NODE_RANK=0 SPARKGLM_KV_SHARD=0 
+2026-11-18T19:43:58.308304Z  WARN spark::main_modules::serve_phases::preflight::glm_chain: GLM-5 at 4 ranks: ATLAS_GLM_K5_FUSED_TP_HC=1 stays off: the fused TP HC exchange is the pair's
+2026-11-18T19:44:26.028772Z  INFO spark_model::factory::build: KV cache: 121.7 GB total × 69% util = 84.0 GB budget; 57.7 GB pre-KV + 0.7 GB reserve → 25.6 GB for KV → 261596 blocks × 16 tok/block = 4185536 max KV 
+2026-11-18T19:44:28.949672Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 261596 blocks × 11 layers = 22.6 GB total (V aliases K)
+2026-11-18T19:44:29.097268Z  INFO spark_runtime::kv_cache::paged_impl: KV cache: 1028 blocks × 5 layers = 0.3 GB total
+2026-11-18T19:44:29.300447Z  INFO spark_model::layers::dflash_head::rank_split::exec::head: DFlash rank split over 4 ranks: Parts { mlp: true, head: true, attn: false }, 17 swaps per propose, largest 65536 bytes; up to 3
+=== serving tp4 19:44:36
+suite 1 guardlog 0 greedy 0 lpdump 0 speed 0 matrix 0 
+tp4-035 vs tp4-036: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.68 sumB=-123.68
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6400.24 sumB=-6400.24
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20972.69 sumB=-20972.69
+greedy same: True
+{"passed": 107, "total": 109}
+{"suite": "xml", "case": "anthropic-no-tools-block", "ok": false, "finish": "max_tokens", "s": 12.607}
+{"suite": "xml", "case": "anthropic-no-tools-stream", "ok": false, "finish": "max_tokens", "s": 12.585}
+prose {'median': 57.471, 'minimum': 56.477, 'maximum': 59.319, 'p90': 59.319}
+code {'median': 106.486, 'minimum': 99.473, 'maximum': 109.654, 'p90': 109.654}
+structured {'median': 146.75, 'minimum': 146.447, 'maximum': 151.958, 'p90': 151.958}
+{"case": "c1-16k", "rc": 0, "wall_s": 10.02, "summary": {"successful": 1, "wall_s": 9.272263949736953, "aggregate_decode_tok_s": 73.69676822480307}}
+{"case": "c1-32k", "rc": 0, "wall_s": 14.73, "summary": {"successful": 1, "wall_s": 13.553740209899843, "aggregate_decode_tok_s": 66.00113468668329}}
+{"case": "c2-16k", "rc": 0, "wall_s": 19.33, "summary": {"successful": 2, "wall_s": 18.340496404096484, "aggregate_decode_tok_s": 64.88298742244815}}
+{"case": "c2-32k", "rc": 0, "wall_s": 25.4, "summary": {"successful": 2, "wall_s": 23.38706851610914, "aggregate_decode_tok_s": 56.06287349390861}}
+{"case": "c4-16k", "rc": 0, "wall_s": 31.03, "summary": {"successful": 4, "wall_s": 29.030732788611203, "aggregate_decode_tok_s": 67.93192224949766}}
+--- 0.3.5 baseline
+prose {'median': 58.318, 'minimum': 56.712, 'maximum': 59.735, 'p90': 59.735}
+code {'median': 106.856, 'minimum': 102.198, 'maximum': 109.336, 'p90': 109.336}
+structured {'median': 146.232, 'minimum': 145.644, 'maximum': 151.235, 'p90': 151.235}
+{"case": "c1-16k", "rc": 0, "wall_s": 9.03, "summary": {"successful": 1, "wall_s": 8.458030972164124, "aggregate_decode_tok_s": 85.73761987484731}}
+{"case": "c1-32k", "rc": 0, "wall_s": 13.0, "summary": {"successful": 1, "wall_s": 12.143145981710404, "aggregate_decode_tok_s": 84.19241740942638}}
+{"case": "c2-16k", "rc": 0, "wall_s": 17.63, "summary": {"successful": 2, "wall_s": 16.850942267104983, "aggregate_decode_tok_s": 70.64039867532308}}
+{"case": "c2-32k", "rc": 0, "wall_s": 24.83, "summary": {"successful": 2, "wall_s": 23.521349404007196, "aggregate_decode_tok_s": 55.65729014165357}}
+{"case": "c4-16k", "rc": 0, "wall_s": 30.4, "summary": {"successful": 4, "wall_s": 29.178417433053255, "aggregate_decode_tok_s": 67.39783343237399}}
+{"passed": 107, "total": 109}
+=== TP4 DONE 19:51:49
+  "applied": true,
+=== TP4 DOWN 19:51:58

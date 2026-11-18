@@ -1,0 +1,60 @@
+=== INSTALL 19:31:55
+  "applied": true,
+setup rc 0
+{'dryRun': False, 'selectedRecipe': '…', 'configPath': '/home/user/.lloom/config.json', 'modelRoot': '/home/user/.lloom/models', 'modelRootDetected': False, 'modelRootCandidates': '…', 'ports': '…', 'keepWarm': '…', 'phases': '…', 'next': '…', 'ok': True, 'status': 'applied', 'runtimeStart': None}
+recipe {'id': 'linux-nvidia-dgx-spark-glm53-atlas', 'name': 'DGX Spark GLM-5.3 Flash FP4-Local Atlas (SparkGLM 0.3.6 candidate)', 'backendId': 'docker-atlas-sparkglm', 'options': {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'}, 'version': 7}
+phase init {'dryRun': False, 'configPath': '/home/user/.lloom/config.json', 'modelRoot': '/home/user/.lloom/models', 'modelRootDetected': False, 'sessionCacheRoot': '/home/user/.lloom/session-cache'}
+phase bootstrap {'dryRun': False, 'statePath': '/home/user/.lloom/install-state.json', 'ok': True, 'status': 'completed'}
+phase clusterSync {'skipped': True}
+glm53-flash-atlas-worker | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node spark02 | maint None | ['ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8']
+glm53-flash-atlas-head | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node spark01 | maint None | ['ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8']
+glm53-flash-atlas-cluster | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node None | maint None | []
+setup rc 0
+{'dryRun': False, 'selectedRecipe': '…', 'configPath': '/home/user/.lloom/config.json', 'modelRoot': '/home/user/.lloom/models', 'modelRootDetected': False, 'modelRootCandidates': '…', 'ports': '…', 'keepWarm': '…', 'phases': '…', 'next': '…', 'ok': True, 'status': 'applied', 'runtimeStart': None}
+recipe {'id': 'linux-nvidia-dgx-spark-glm53-atlas', 'name': 'DGX Spark GLM-5.3 Flash FP4-Local Atlas (SparkGLM 0.3.6 candidate)', 'backendId': 'docker-atlas-sparkglm', 'options': {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'}, 'version': 7}
+phase init {'dryRun': False, 'configPath': '/home/user/.lloom/config.json', 'modelRoot': '/home/user/.lloom/models', 'modelRootDetected': False, 'sessionCacheRoot': '/home/user/.lloom/session-cache'}
+phase bootstrap {'dryRun': False, 'statePath': '/home/user/.lloom/install-state.json', 'ok': True, 'status': 'completed'}
+phase clusterSync {'skipped': False}
+glm53-flash-atlas-worker | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node spark02 | maint None | ['ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8']
+glm53-flash-atlas-head | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node spark01 | maint None | ['ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8']
+glm53-flash-atlas-cluster | recipe 7 {'sparks': '2', 'drafter': 'dflash2', 'memory': 'full', 'streams': '4'} | mem 114 | node None | maint suspended | []
+ghcr.io/enntity/atlas-sparkglm:9d6a18895552 sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8
+  "applied": true,
+ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8
+SPARKGLM_PROFILE=4x1m SPARKGLM_GPU_MEMORY_UTILIZATION=0.91 SPARKGLM_MODE=spark 
+2026-11-18T19:33:30.932675Z  INFO spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 102.1 GB pre-KV + 1.3 GB reserve → 7.3 GB for KV → 121580 blocks × 16 tok/block = 1945280 max KV tokens
+2026-11-18T19:33:30.935512Z  INFO spark_model::factory::build::kv_carveout: KV cache: display carveout 2044 MiB holds 3 buffers (1882 MiB) → 155770 blocks (+34190, +28.1%) for the same system memory
+=== serving recipe-v7 19:33:34
+greedy rc 0
+lpdump rc 0
+sg036-1118 vs sg036-recipe: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-123.82 sumB=-123.82
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6410.26 sumB=-6410.26
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20994.59 sumB=-20994.59
+greedy same: True
+=== SPARK DONE 19:34:51
+vision run rc 0
+sg035 vs sg036: 10/10 identical (text, reasoning and every token logprob)
+holds 3 buffers (1882 MiB) → 155770 blocks
+=== VISION DONE 19:36:22
+  "applied": true,
+2 runtimes -> ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8 strict
+2 runtimes -> ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8 strict
+  "applied": true,
+ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8
+SPARKGLM_MODE=strict SPARKGLM_PROFILE=4x1m SPARKGLM_GPU_MEMORY_UTILIZATION=0.91 
+2026-11-18T19:37:50.844656Z  INFO spark_model::factory::build: KV cache: 121.7 GB total × 91% util = 110.7 GB budget; 101.0 GB pre-KV + 1.3 GB reserve → 8.4 GB for KV → 141442 blocks × 16 tok/block = 2263072 max KV tokens
+2026-11-18T19:37:50.853589Z  INFO spark_model::factory::build::kv_carveout: KV cache: display carveout 2044 MiB holds 3 buffers (2044 MiB) → 169130 blocks (+27688, +19.6%) for the same system memory
+=== serving strict 19:37:54
+greedy rc 0
+lpdump rc 0
+strict035 vs strict036: 8/8 identical
+prose   n=   984 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-124.30 sumB=-124.30
+reg6k   n=  4429 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-6349.89 sumB=-6349.89
+reg20k  n= 15292 mean|d|=0.00000 max|d|=0.0000 >0.05: 0 first>0.05 at None  sumA=-20930.98 sumB=-20930.98
+greedy same: True
+=== STRICT DONE 19:40:14
+  "applied": true,
+2 runtimes -> ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8 spark
+2 runtimes -> ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8 spark
+=== TP2 CHECKS DONE 19:40:20
