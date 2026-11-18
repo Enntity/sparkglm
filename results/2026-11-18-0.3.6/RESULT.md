@@ -39,7 +39,10 @@ token after the first are as before.
 
 The engine pin is Enntity/atlas `spark` `01d34b34` (tree `f769ec3c`); the
 image is `ghcr.io/enntity/atlas-sparkglm:9d6a18895552`, built with
-`ATLAS_IMAGE_CHECKS=0`. It has not been pushed.
+`ATLAS_IMAGE_CHECKS=0`. It was published on 2026-11-18, after these checks,
+as
+`ghcr.io/enntity/atlas-sparkglm@sha256:e241d69dc3d1c592c6c605ad8e01b67763ff96178676282d40ccea18f43373d8`
+(tags `9d6a18895552` and `0.3.6`).
 
 ## Sage S2.1 Flash
 
