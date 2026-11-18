@@ -24,6 +24,16 @@ engine plus one fix.
   checkpoint of the same architecture, did not: 12 of the live suite's 109
   cases failed on 0.3.5 and none do on 0.3.6.
 
+0.3.6 is the release to install on two Sparks and on four. It qualified on a
+DGX Spark pair (TP-2, Spark mode) on 2026-11-18 against 0.3.5
+([results](../results/2026-11-18-0.3.6/RESULT.md)). The same day it was
+installed through LLooM's recipe; its Strict output and its image and video
+output were identical to 0.3.5's; and on a four-Spark chain its output was
+identical to 0.3.5's with speed level
+([results](../results/2026-11-18-0.3.6-promotion/RESULT.md)). The four-Spark
+run used GPU utilization 0.69 where the recipe sets 0.88, and Strict mode and
+images were not run on four Sparks.
+
 0.3.5 pinned `59ead299` (tree `dfd866dc`): the 0.3.4
 engine plus three changes for concurrent streams, all set by Spark mode on a
 pair and all leaving every token as it was.
@@ -65,7 +75,8 @@ pair and all leaving every token as it was.
   can set it. A pass with fewer than 1,024 rows to compute, an image
   prompt's first chunk and four Sparks do not yield.
 
-0.3.5 is the release to install on two Sparks and on four. It qualified on a
+0.3.5 was the release to install on two Sparks and on four until 0.3.6. It
+qualified on a
 DGX Spark pair (TP-2, Spark mode) on 2026-11-15 against 0.3.4
 ([results](../results/2026-11-15-0.3.5/RESULT.md)). On 2026-11-16 it was
 installed through LLooM's recipe; its Strict output and its image and video
