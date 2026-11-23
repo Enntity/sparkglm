@@ -29,6 +29,12 @@ class ToolGuardContract(unittest.TestCase):
                 self.assertIn('--tool-guard=on', args)
                 self.assertIn('--tool-guard-max-bytes=1048576', args)
 
+    def test_stream_mode_is_forwarded_and_other_values_are_refused(self):
+        args, _ = serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='stream'), load_profile('4x512k'))
+        self.assertIn('--tool-guard=stream', args)
+        with self.assertRaises(ValueError):
+            serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='streaming'), load_profile('4x512k'))
+
     def test_operator_settings_forwarded_without_shell_interpretation(self):
         args, _ = serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='off',
             SPARKGLM_TOOL_GUARD_ALLOW_HOSTS='uploads.example.org,api.example.org',
