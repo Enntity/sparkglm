@@ -168,7 +168,7 @@ serve() {
   local common repo=${CHECKPOINT%@*}
   common=(--model-root "$MODEL_ROOT" --checkpoint "${repo/\//--}" --image "$IMAGE"
           --profile "$PROFILE" --mode "$MODE"
-          --tool-guard "${TOOL_GUARD:-on}" --tool-guard-max-bytes "${TOOL_GUARD_MAX_BYTES:-1048576}"
+          --tool-guard "${TOOL_GUARD:-stream}" --tool-guard-max-bytes "${TOOL_GUARD_MAX_BYTES:-1048576}"
           --tool-guard-allow-hosts "${TOOL_GUARD_ALLOW_HOSTS:-}" --tool-guard-deny-hosts "${TOOL_GUARD_DENY_HOSTS:-}"
           ${THINKING_OFF:+--thinking-off "$THINKING_OFF"}
           ${GPU_MEMORY_UTILIZATION:+--gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"}
@@ -230,7 +230,7 @@ serve() {
 if [[ ${1:-up} == fabric ]]; then pick_fabric; exit; fi
 if [[ ${1:-up} == clock-cap ]]; then clock_cap; exit; fi
 if [[ ${1:-up} == up ]]; then
-  SPARKGLM_TOOL_GUARD="${TOOL_GUARD:-on}" SPARKGLM_TOOL_GUARD_MAX_BYTES="${TOOL_GUARD_MAX_BYTES:-1048576}" \
+  SPARKGLM_TOOL_GUARD="${TOOL_GUARD:-stream}" SPARKGLM_TOOL_GUARD_MAX_BYTES="${TOOL_GUARD_MAX_BYTES:-1048576}" \
   SPARKGLM_TOOL_GUARD_ALLOW_HOSTS="${TOOL_GUARD_ALLOW_HOSTS:-}" SPARKGLM_TOOL_GUARD_DENY_HOSTS="${TOOL_GUARD_DENY_HOSTS:-}" \
     python3 -c 'import os,sys; sys.path.insert(0,"install"); import serve; serve.tool_guard_args(os.environ, [])'
   pick_fabric; check_clock_cap
