@@ -238,6 +238,20 @@ class LaunchContract(unittest.TestCase):
                 # would both write the rest of it.
                 self.assertEqual(profile['environment'].get('ATLAS_PREFIX_SUBBLOCK'), '0')
 
+    def test_profiles_plant_branch_checkpoints_from_512_shared_tokens(self):
+        # A client that rebuilds its last few messages every turn (a voice rig)
+        # diverges from its previous prompt a few hundred tokens before its end.
+        # A checkpoint at that fork once 512 tokens have built up since the last
+        # one keeps each user turn's replay short; at the engine's 2048 the
+        # replay grows for several turns first. Every rank reads the same value.
+        for name in ('4x512k', '4x1m', '8x128k', '4x1m-tp4'):
+            profile = json.loads(serve.profile_path({'SPARKGLM_PROFILE': name}, HERE).read_text())
+            with self.subTest(profile=name):
+                self.assertEqual(profile['environment'].get('ATLAS_GLM_PC_BRANCH'), '1')
+                self.assertEqual(profile['environment'].get('ATLAS_GLM_PC_BRANCH_MIN'), '512')
+        _, env = serve.launch(dict(self.environment, ATLAS_GLM_PC_BRANCH_MIN='2048'), self.profile)
+        self.assertEqual(env['ATLAS_GLM_PC_BRANCH_MIN'], '512')
+
     def test_profiles_enable_only_exact_engine_options(self):
         # Every kernel option switched on is bit-exact against the engine with
         # the option off; the lossy and the not-yet-qualified options stay out
