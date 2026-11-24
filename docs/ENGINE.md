@@ -8,9 +8,15 @@ target `glm-5.3-flash`. [`install/build.sh`](../install/build.sh)
 refuses any other tree.
 
 `spark` is Atlas-Inf `main` plus Enntity's open Atlas-Inf pull requests,
-merged in. The pinned snapshot is `01d34b34` (tree `f769ec3c`): the 0.3.5
-engine plus one fix.
+merged in. The pinned snapshot is `6bb95b52` (tree `7635878b`): the 0.3.5
+engine plus two fixes.
 
+- **The closure-attestation check passes in a one-model build**
+  ([Enntity/atlas#38](https://github.com/Enntity/atlas/pull/38), Atlas-Inf
+  issue 250). The test that compares the kernel hashes baked at build time
+  with the tree expected every target in the tree to be attested, which only
+  an all-models build does, so this image's full-suite release check failed.
+  It now expects the targets the build resolved. Serving code is unchanged.
 - **A forced tool call opens with the native token**
   ([Enntity/atlas#33](https://github.com/Enntity/atlas/pull/33)). With
   `tool_choice` set to `required` or to a named tool, the grammar masks the
