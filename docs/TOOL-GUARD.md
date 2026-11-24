@@ -5,7 +5,8 @@ SparkGLM 0.2.0 and Atlas block recognizable exfiltration patterns in tool calls
 by default, in Strict and Spark modes, TP2 and TP4. This is a bounded CPU filter
 over parsed arguments. There is no second model or GPU pass. Ordinary assistant
 prose and reasoning are not scanned; tool calls wait until their complete
-arguments pass.
+arguments pass, unless a request asks for them as they are written
+([below](#streamed-arguments-on-request)).
 
 The guard is part of the common Spark engine SparkGLM shares with SparkQwen
 (0.3.3 shipped the same policy). It runs after GLM's tool parser, on the calls
@@ -90,12 +91,31 @@ There is no provider-wide or country-based blocklist. The
 [Cohere report](https://cohere.com/blog/concerning-behaviour-popular-open-weight-ai-model)
 does not establish a deliberate model backdoor.
 
+## Streamed arguments, on request
+
+A client may ask for a call's arguments as they are written: the request body
+field `stream_tool_arguments: true` (an Atlas extension to
+`/v1/chat/completions`). Only a request that asks gets them; every other
+request's calls are held until they pass. SparkInkling works the same way.
+
+| `TOOL_GUARD` | What a client sees |
+|---|---|
+| `stream` (default) | A request with `stream_tool_arguments: true`: `function.arguments` streams as it is generated, and the guard checks the call when it ends. A call it blocks, or one cut off before its end, finishes the response with `finish_reason: "content_filter"` and `guard_stop: "tool_call_guard"` instead of `tool_calls`. Any other request: as under `on`. |
+| `on` | Each call is held until its complete arguments pass. A blocked call is never shown. `stream_tool_arguments` is ignored. |
+| `off` | No check. |
+
+**A client that asks for streamed arguments is part of the guard.** The
+blocked arguments have already been sent when the verdict arrives, so it must
+not run any call from a response that finished `content_filter`, nor run a
+call before the response finishes. A client that cannot promise that should
+not send `stream_tool_arguments`.
+
 ## Configure
 
 Set these in `.env` before starting the pair:
 
 ```sh
-TOOL_GUARD=on
+TOOL_GUARD=stream
 TOOL_GUARD_MAX_BYTES=1048576
 # Optional comma-separated exact hosts:
 #TOOL_GUARD_ALLOW_HOSTS=uploads.example.org
@@ -107,7 +127,7 @@ TOOL_GUARD_MAX_BYTES=1048576
 `--tool-guard-deny-hosts`, the same on every rank. Direct container and LLooM
 recipe operators use `SPARKGLM_TOOL_GUARD`, `SPARKGLM_TOOL_GUARD_MAX_BYTES`,
 `SPARKGLM_TOOL_GUARD_ALLOW_HOSTS`, and `SPARKGLM_TOOL_GUARD_DENY_HOSTS`; unset,
-the guard is on with the 1 MiB limit.
+the guard runs as `stream` with the 1 MiB limit.
 Atlas's flags are `--tool-guard`, `--tool-guard-max-bytes`,
 `--tool-guard-allow-host` and `--tool-guard-deny-host`. Requests cannot change
 server policy; performance profiles cannot override these flags.

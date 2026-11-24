@@ -14,7 +14,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--mode strict|spark] [--strict-mtp] [--profile 4x1m|4x512k|8x128k|4x1m-tp4|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
-                     [--tool-guard on|off] [--tool-guard-allow-hosts HOST,...]
+                     [--tool-guard stream|on|off] [--tool-guard-allow-hosts HOST,...]
                      [--tool-guard-deny-hosts HOST,...] [--tool-guard-max-bytes BYTES]
                      [--thinking-off low|reference]
                      [--cuda-cache DIR] [--name NAME]
@@ -55,7 +55,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      (2 GiB more KV cache); use it on every rank (default: off)
   --kv-shard         split latent KV ownership across the Sparks; enable it on
                      every rank (default: off)
-  --tool-guard       screen complete tool calls before release (default: on);
+  --tool-guard       screen tool calls: stream, on or off (default: stream);
                      see docs/TOOL-GUARD.md
   --tool-guard-allow-hosts, --tool-guard-deny-hosts  exact host exceptions or
                      additional blocks, comma-separated
@@ -75,7 +75,7 @@ mode_given=0
 topology=""
 profile_given=0
 strict_mtp=0
-guard=on guard_allow="" guard_deny="" guard_max=1048576
+guard=stream guard_allow="" guard_deny="" guard_max=1048576
 thinking_off=""
 checkpoint_name=nvidia--GLM-5.3-Flash-FP4-Local
 while [[ $# -gt 0 ]]; do
@@ -115,7 +115,7 @@ done
 if [[ $mode_given == 0 ]]; then mode=strict; fi
 [[ $mode == strict || $mode == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
 [[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires strict mode" >&2; exit 2; }
-[[ $guard == on || $guard == off ]] || { echo "--tool-guard must be on or off" >&2; exit 2; }
+[[ $guard == stream || $guard == on || $guard == off ]] || { echo "--tool-guard must be stream, on or off" >&2; exit 2; }
 [[ $guard_max =~ ^[1-9][0-9]{0,7}$ && $guard_max -le 67108864 ]] || { echo "invalid --tool-guard-max-bytes" >&2; exit 2; }
 [[ -z $thinking_off || $thinking_off == low || $thinking_off == reference ]] || { echo "--thinking-off must be low or reference" >&2; exit 2; }
 if [[ $world == 2 ]]; then

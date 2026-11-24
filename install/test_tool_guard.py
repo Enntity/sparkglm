@@ -2,7 +2,9 @@
 """Guard defaults and operator configuration through the production launcher."""
 import json
 from pathlib import Path
+import tempfile
 import unittest
+import test_install
 from test_install import serve
 
 HERE = Path(__file__).resolve().parent
@@ -26,8 +28,29 @@ class ToolGuardContract(unittest.TestCase):
         for extra, profile in cases:
             with self.subTest(extra=extra, profile=profile):
                 args, _ = serve.launch(dict(self.env, **extra), load_profile(profile))
-                self.assertIn('--tool-guard=on', args)
+                self.assertIn('--tool-guard=stream', args)
                 self.assertIn('--tool-guard-max-bytes=1048576', args)
+
+    def test_stream_mode_is_forwarded_and_other_values_are_refused(self):
+        args, _ = serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='stream'), load_profile('4x512k'))
+        self.assertIn('--tool-guard=stream', args)
+        with self.assertRaises(ValueError):
+            serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='streaming'), load_profile('4x512k'))
+
+    def test_start_node_takes_every_mode_and_refuses_others(self):
+        with tempfile.TemporaryDirectory() as root:
+            _, start = test_install.LaunchContract.fake_node(Path(root))
+            for mode in ('stream', 'on', 'off'):
+                run, docker_run = start('0', '--tool-guard', mode)
+                with self.subTest(mode=mode):
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertIn(f'-e SPARKGLM_TOOL_GUARD={mode} ', docker_run[0])
+            run, docker_run = start('0')
+            self.assertIn('-e SPARKGLM_TOOL_GUARD=stream ', docker_run[0])
+            run, docker_run = start('0', '--tool-guard', 'streaming')
+            self.assertNotEqual(run.returncode, 0)
+            self.assertIn('--tool-guard must be stream, on or off', run.stderr)
+            self.assertEqual(docker_run, [])
 
     def test_operator_settings_forwarded_without_shell_interpretation(self):
         args, _ = serve.launch(dict(self.env, SPARKGLM_TOOL_GUARD='off',
