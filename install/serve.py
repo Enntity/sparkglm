@@ -144,9 +144,9 @@ def serving_mode(environ, profile, world):
     """Resolve precision independently of capacity and physical topology."""
     if world not in (2, 4):
         raise ValueError('strict/spark modes require TP2 or TP4')
-    mode = environ.get('SPARKGLM_MODE', 'strict')
+    mode = environ.get('SPARKGLM_MODE', 'spark')
     if mode not in ('strict', 'spark'):
-        raise ValueError('SPARKGLM_MODE must be strict or spark')
+        raise ValueError('SPARKGLM_MODE must be spark or strict')
     required = {
         'ATLAS_GLM_FP4L_NATIVE': '1',
         'ATLAS_GLM_FP4L_MLA_FP8': '1',
@@ -433,8 +433,8 @@ def main():
         raise ValueError('Incomplete DFlash drafter')
     source = json.loads((here/'source-manifest.json').read_text())
     print(json.dumps({'event': 'atlas-recipe-start', **release_info(here), 'rank': env['NODE_RANK'], 'profile': profile.stem,
-                      'mode': env.get('SPARKGLM_MODE', 'strict'),
-                      'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE') == 'spark' else 'native',
+                      'mode': env.get('SPARKGLM_MODE', 'spark'),
+                      'target_kda_decode': 'nvfp4-rne' if env.get('SPARKGLM_MODE', 'spark') == 'spark' else 'native',
                       'source': f"{source['repository']}@{source['commit']}"}), flush=True)
     os.execve(argv[0], argv, env)
 
