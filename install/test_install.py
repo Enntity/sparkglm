@@ -39,7 +39,7 @@ class LaunchContract(unittest.TestCase):
         # Spark uses A4 speculative decode; strict uses serial A16 decode.
         for path in sorted((HERE/'profiles').glob('*.json')):
             profile = json.loads(path.read_text())
-            environment = dict(self.environment, ATLAS_GLM_FP4L_DECODE_A16='1',
+            environment = dict(self.environment, SPARKGLM_MODE='strict', ATLAS_GLM_FP4L_DECODE_A16='1',
                                ATLAS_DFLASH_MASKED_VERIFY='0')
             if serve.world_size(profile) == 4:
                 environment.update(FABRIC_HCA='', FABRIC_RIGHT_HCA='rocep1s0f1')
@@ -358,9 +358,9 @@ class LaunchContract(unittest.TestCase):
             _, env = serve.launch(dict(self.environment, NODE_RANK=rank, SPARKGLM_PREFIX_CACHE_GB='48'),
                                   self.profile)
             self.assertEqual({k: v for k, v in env.items() if k.startswith(DISK_TIER)}, {
-                'ATLAS_KV_NVME_DIR': '/prefix-cache/strict/kv', 'ATLAS_KV_NVME_GB': '24',
+                'ATLAS_KV_NVME_DIR': '/prefix-cache/spark/kv', 'ATLAS_KV_NVME_GB': '24',
                 'ATLAS_GLM_NVME_FAST': '1', 'ATLAS_SSM_TIER': '1', 'ATLAS_SSM_TIER_UNIFIED': '1',
-                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/strict/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
+                'ATLAS_SSM_TIER_SWAP_DIR': '/prefix-cache/spark/ssm', 'ATLAS_SSM_TIER_DISK_GB': '24',
                 'ATLAS_SSM_TIER_SLOTS': '2'})
         _, env = serve.launch(dict(self.environment, SPARKGLM_PREFIX_CACHE_GB='17'), self.profile)
         self.assertEqual((env['ATLAS_KV_NVME_GB'], env['ATLAS_SSM_TIER_DISK_GB']), ('8', '9'))
@@ -444,6 +444,9 @@ class LaunchContract(unittest.TestCase):
                     run, launched = start(rank, '--mode', mode)
                     self.assertEqual(run.returncode, 0, run.stderr)
                     self.assertIn(f'-e SPARKGLM_MODE={mode} ', launched[0])
+            run, launched = start('0')
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn('-e SPARKGLM_MODE=spark ', launched[0])  # the default
             for mode in ('', 'fast', 'STRICT'):
                 run, launched = start('0', '--mode', mode)
                 self.assertNotEqual(run.returncode, 0)

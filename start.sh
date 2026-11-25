@@ -24,9 +24,9 @@ case ${#workers[@]} in
 esac
 MODEL_ROOT=${MODEL_ROOT:-$HOME/models/sparkglm}
 PROFILE=${PROFILE:-$tp_profile}
-MODE=${MODE:-strict}
+MODE=${MODE:-spark}
 if [[ ${1:-} == --mode ]]; then MODE=${2:-}; shift 2; fi
-[[ $MODE == strict || $MODE == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
+[[ $MODE == spark || $MODE == strict ]] || { echo "--mode must be spark or strict" >&2; exit 2; }
 IMAGE=${IMAGE:-}
 CHECKPOINT=nvidia/GLM-5.3-Flash-FP4-Local@76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
 # .env may name another checkpoint (both values or neither); the image stays the same.

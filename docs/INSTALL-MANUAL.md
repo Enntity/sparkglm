@@ -105,9 +105,10 @@ each shape; later starts reuse it. Run one warmup pass before measuring.
 **Profiles.** `start-node.sh` defaults to `4x512k`. `--profile 4x1m` runs what
 `./start.sh` runs (four requests of up to 1,048,576 tokens), and
 `--profile 8x128k` selects the third shipped profile. A path to a JSON file
-runs your own profile. Use the same profile on every rank. `--mode strict`
-is the default; `--mode spark` selects the performance policy described in
-the [README](../README.md#strict-and-spark-modes). Native MTP is opt-in with
+runs your own profile. Use the same profile on every rank. `--mode spark`,
+the performance policy described in the
+[README](../README.md#spark-and-strict-modes), is the default; `--mode strict`
+keeps the checkpoint's weight formats. Native MTP is opt-in with
 `--mode strict --strict-mtp`; it supports C1..C4 and retains prefix caching.
 The eight-slot `8x128k` profile is not a native-MTP configuration.
 

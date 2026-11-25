@@ -47,8 +47,8 @@ An existing LLooM recipe may pin an earlier SparkGLM commit; check its resolved 
 `install/` tree before assuming these options are present.
 
 For four nodes, pass `--sparks 4`, which uses the `4x1m-tp4` profile.
-Each rank must receive the same `SPARKGLM_MODE=strict|spark`. Strict defaults
-to serial target execution; `SPARKGLM_STRICT_MTP=1` explicitly enables the
+Each rank must receive the same `SPARKGLM_MODE=spark|strict` (spark when
+unset). Strict defaults to serial target execution; `SPARKGLM_STRICT_MTP=1` explicitly enables the
 checkpoint's native predictor while retaining the four-slot capacity and
 prefix cache. The TP4 profile keeps shared-expert TP splitting off in both
 modes after the Strict C4 arithmetic control. Spark remains unsplit on TP2

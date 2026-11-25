@@ -20,7 +20,7 @@ class ToolGuardContract(unittest.TestCase):
     def test_default_enabled_in_every_mode_rank_and_topology(self):
         cases = [(dict(SPARKGLM_MODE=mode, NODE_RANK=rank), '4x512k')
                  for mode in ('strict', 'spark') for rank in ('0', '1')]
-        cases += [(dict(SPARKGLM_STRICT_MTP='1'), '4x1m'),
+        cases += [(dict(SPARKGLM_MODE='strict', SPARKGLM_STRICT_MTP='1'), '4x1m'),
                   (dict(SPARKGLM_DISPLAY_CARVEOUT='1'), '4x512k'),
                   (dict(FABRIC_HCA='', FABRIC_RIGHT_HCA='roce1'), '4x1m-tp4')]
         for extra, profile in cases:

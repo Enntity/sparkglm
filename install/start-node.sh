@@ -11,7 +11,7 @@ usage() {
 usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
                      [--fabric-interface IFACE] [--fabric-hca DEVICE[,DEVICE...]]
                      [--world-size 2|4 [--topology chain|ring] [--left-hca DEVICE[,...]] [--right-hca DEVICE[,...]]]
-                     [--mode strict|spark] [--strict-mtp] [--profile 4x1m|4x512k|8x128k|4x1m-tp4|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
+                     [--mode spark|strict] [--strict-mtp] [--profile 4x1m|4x512k|8x128k|4x1m-tp4|FILE] [--gpu-memory-utilization 0.80-0.95 (0.60- on four Sparks)]
                      [--prefix-cache-dir DIR [--prefix-cache-gb 16-100]]
                      [--display-carveout] [--kv-shard] [--no-fabric-siblings] [--checkpoint NAME]
                      [--tool-guard on|off] [--tool-guard-allow-hosts HOST,...]
@@ -40,7 +40,7 @@ usage: start-node.sh --rank 0-3 --leader-address IP --model-root DIR --image TAG
   --topology         chain (default for TP4) or ring; ring requires the 3-0 link
   --left-hca         with --world-size 4: devices to rank - 1 (modulo 4 for ring)
   --right-hca        with --world-size 4: devices to rank + 1 (modulo 4 for ring)
-  --mode             strict (default) or spark; same on every rank
+  --mode             spark (default) or strict; same on every rank
   --strict-mtp       native MTP in strict mode; requires a profile with one to four active slots
   --profile          a profile shipped in the image (TP2 default 4x512k, TP4 4x1m-tp4) or a JSON
                      file of your own; use the same one on every rank
@@ -112,9 +112,9 @@ while [[ $# -gt 0 ]]; do
 done
 [[ $world == 2 || $world == 4 ]] && [[ $rank =~ ^[0-9]$ ]] && (( rank < world )) &&
   [[ -n $leader && -n $model_root && -n $image ]] || usage
-if [[ $mode_given == 0 ]]; then mode=strict; fi
-[[ $mode == strict || $mode == spark ]] || { echo "--mode must be strict or spark" >&2; exit 2; }
-[[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires strict mode" >&2; exit 2; }
+if [[ $mode_given == 0 ]]; then mode=spark; fi
+[[ $mode == spark || $mode == strict ]] || { echo "--mode must be spark or strict" >&2; exit 2; }
+[[ $strict_mtp == 0 || $mode == strict ]] || { echo "--strict-mtp requires --mode strict" >&2; exit 2; }
 [[ $guard == on || $guard == off ]] || { echo "--tool-guard must be on or off" >&2; exit 2; }
 [[ $guard_max =~ ^[1-9][0-9]{0,7}$ && $guard_max -le 67108864 ]] || { echo "invalid --tool-guard-max-bytes" >&2; exit 2; }
 [[ -z $thinking_off || $thinking_off == low || $thinking_off == reference ]] || { echo "--thinking-off must be low or reference" >&2; exit 2; }

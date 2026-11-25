@@ -10,15 +10,15 @@ for this checkout, or `./start.sh status` for the version and image IDs on both 
 
 GLM-5.3-Flash on two or four NVIDIA DGX Sparks, served by the
 [Atlas](https://github.com/Enntity/atlas) inference engine. One image supplies
-TP2 and TP4, Strict and Spark modes, prefix caching, and an OpenAI-compatible
+TP2 and TP4, Spark and Strict modes, prefix caching, and an OpenAI-compatible
 API. TP4 supports a switchless chain or an explicitly configured ring.
 The supplied profiles allow up to four concurrent requests with a per-request
 limit of the model's full 1M context; a TP2 profile also offers eight slots at 128K.
 
 The [2026-10-21 unified release](https://github.com/Enntity/sparkglm/releases/tag/unified-20261021)
-ships one image for both sizes and modes. Strict preserves the checkpoint's
-weight formats; Spark uses the measured, qualified FP4 conversions and
-DFlash2. Focused TP4 chain/ring, native-MTP concurrency and cache-restore
+ships one image for both sizes and modes. Spark, the default, uses the
+measured, qualified FP4 conversions and DFlash2; Strict preserves the
+checkpoint's weight formats. Focused TP4 chain/ring, native-MTP concurrency and cache-restore
 checks extend the retained TP2 validation.
 [Release identity, benchmarks and raw receipts](results/2026-10-21-unified-release/RESULT.md)
 record the tested configurations and remaining limits.
@@ -30,17 +30,17 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination (or 
 ./start.sh
 ```
 
-## Strict and Spark modes
+## Spark and Strict modes
 
-Select `MODE=strict` (default) or `MODE=spark` in `.env`, or run
-`./start.sh --mode spark` for a TP2 pair. The per-node launcher accepts
-`--mode strict|spark` on TP2 and TP4; managed containers use `SPARKGLM_MODE`.
-Every rank must use the same image, profile and mode.
+Select `MODE=spark` (default) or `MODE=strict` in `.env`, or run
+`./start.sh --mode strict` for a TP2 pair. The per-node launcher accepts
+`--mode spark|strict` on TP2 and TP4; managed containers use `SPARKGLM_MODE`,
+also `spark` when unset. Every rank must use the same image, profile and mode.
 
 | Mode | Target execution |
 |---|---|
+| **Spark** (default) | Uses calibrated A4 routed decode and DFlash2, with corrected round-to-nearest-even FP4 KDA decode and shared-expert weights. KDA prefill, MLA, dense projections and the vocabulary head retain checkpoint formats. |
 | **Strict** | Preserves checkpoint weight formats and calibrated input scales, with A16 routed decode. Serial by default; the checkpoint's native MTP predictor is an explicit option. |
-| **Spark** | Uses calibrated A4 routed decode and DFlash2, with corrected round-to-nearest-even FP4 KDA decode and shared-expert weights. KDA prefill, MLA, dense projections and the vocabulary head retain checkpoint formats. |
 
 Drafter weight conversions use corrected rounding too. Spark disables
 shared-expert TP splitting on TP2 and TP4 because the split's partial-output
@@ -98,14 +98,14 @@ runs and 193 streams per mode including warmups. These are earlier qualified
 measurements, not a rerun of the final release. Spark's shared-expert split
 was already off in this profile.
 
-| Workload | Strict serial (tok/s) | Spark (tok/s) |
+| Workload | Spark (tok/s) | Strict serial (tok/s) |
 |---|---:|---:|
-| Prose | 25.759 | 42.194 |
-| Code | 25.573 | 70.959 |
-| Structured | 25.685 | 91.054 |
-| Counting | 25.692 | 98.376 |
-| Mixed C4, aggregate | 25.209 | 80.283 |
-| Mixed C8, aggregate | 25.184 | 95.081 |
+| Prose | 42.194 | 25.759 |
+| Code | 70.959 | 25.573 |
+| Structured | 91.054 | 25.685 |
+| Counting | 98.376 | 25.692 |
+| Mixed C4, aggregate | 80.283 | 25.209 |
+| Mixed C8, aggregate | 95.081 | 25.184 |
 
 [The retained report and all receipts](results/2026-10-20-tp2-qualification/RESULT.md)
 preserve the original arithmetic and capacity failures. The subsequent
@@ -335,7 +335,7 @@ MLP and `lm_head` in MXFP8, the MLA projections and shared experts in FP8 with
 is 25 GiB smaller than NVIDIA's earlier NVFP4 release, so the KV pool gains
 about 13%, and it needs no overlay.
 
-The unified release selects precision through [Strict and Spark modes](#strict-and-spark-modes).
+The unified release selects precision through [Spark and Strict modes](#spark-and-strict-modes).
 Both use checkpoint input scales. Strict keeps native projection weights and
 A16 routed decode; Spark permits the selected FP4 KDA/shared-expert conversions
 with corrected rounding and A4 routed decode. MLA, dense projections and the
@@ -360,7 +360,7 @@ The same two lines select another checkpoint of this architecture, if it is
 laid out as the engine loads it.
 [Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4),
 a calibrated NVFP4 quantization of `internlm/Sage-S2.1-Flash`, is one. It needs
-0.3.6 and Spark mode (`./start.sh --mode spark`):
+0.3.6 and Spark mode (the default):
 
 ```sh
 CHECKPOINT_REPO=Enntity/Sage-S2.1-Flash-NVFP4

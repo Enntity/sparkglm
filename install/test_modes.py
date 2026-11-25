@@ -27,8 +27,11 @@ class ServingModes(unittest.TestCase):
             env["SPARKGLM_MODE"] = mode
         return serve.launch(env, self.profile)
 
-    def test_default_strict_preserves_native_decode_and_reference_activation_policy(self):
-        _, env = self.launch()
+    def test_spark_is_the_default(self):
+        self.assertEqual(self.launch()[1]["ATLAS_GLM_SERVING_MODE"], "spark")
+
+    def test_strict_preserves_native_decode_and_reference_activation_policy(self):
+        _, env = self.launch("strict")
         self.assertEqual(env["ATLAS_GLM_SERVING_MODE"], "strict")
         self.assertEqual(env["ATLAS_GLM_FP4L_NATIVE"], "1")
         self.assertEqual(env["ATLAS_GLM_FP4L_KDA_MXFP8_DECODE"], "1")
