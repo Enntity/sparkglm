@@ -478,8 +478,8 @@ in the upstream Atlas series. The idea comes from kindling-spark-os's
 ## Reproduce our numbers
 
 Run the pinned [SparkModelBench](https://github.com/enntity/sparkmodelbench) suite through
-[`bench/run.sh`](bench/run.sh). It measures code and prose decode, cold and replayed
-prefill, staggered C4, and seconds and tokens to a checked answer.
+[`bench/run.sh`](bench/run.sh). It runs Alex Ellis’s RigMark and RigMark Quality with pinned
+settings, plus SparkGLM’s staggered C4 scenario.
 [Reproduction instructions](docs/REPRODUCE.md) include the setup and commands for historical results.
 
 ## Other ways to run it
