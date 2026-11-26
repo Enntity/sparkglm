@@ -14,8 +14,8 @@ cp bench/sparkmodelbench/upstream/rigmark/metadata.example.json /tmp/sparkglm-ap
 bench/run.sh --metadata /tmp/sparkglm-appliance.json --out /tmp/sparkglm-benchmark
 ```
 
-Use a new result directory for each run. Add `--extended` for 512K and near-1M
-prefill on the 1M profile. Identical comparison IDs, request settings and trial
+Use a new result directory for each run. The prefill sweep stops at 256K.
+Identical comparison IDs, request settings and trial
 salts reproduce inputs across contenders. Every result includes a card, raw
 JSON and SHA256SUMS. See the [suite protocol](../bench/sparkmodelbench) for how
 to interpret output gates, cache evidence and task budgets.
