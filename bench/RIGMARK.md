@@ -1,4 +1,6 @@
-# RigMark cell set
+# Historical RigMark cell set
+
+For current measurements use [SparkModelBench](../docs/REPRODUCE.md#current-suite).
 
 The RigMark numbers in the result bundle use the 8 × 128K profile
 (`PROFILE=8x128k` in `.env`, or `install/profiles/8x128k.json`) and the RiNGSiDE TP2 cell set, thinking on with
