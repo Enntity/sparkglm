@@ -477,9 +477,10 @@ in the upstream Atlas series. The idea comes from kindling-spark-os's
 
 ## Reproduce our numbers
 
-The benchmark drivers are in [`bench/`](bench/). See
-[docs/REPRODUCE.md](docs/REPRODUCE.md) for the exact commands and the
-comparison videos.
+Run the pinned [SparkModelBench](https://github.com/enntity/sparkmodelbench) suite through
+[`bench/run.sh`](bench/run.sh). It runs Alex Ellis’s RigMark and RigMark Quality with pinned
+settings, plus SparkGLM’s staggered C4 scenario.
+[Reproduction instructions](docs/REPRODUCE.md) include the setup and commands for historical results.
 
 ## Other ways to run it
 

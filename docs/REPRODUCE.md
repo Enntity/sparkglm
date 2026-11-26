@@ -1,12 +1,24 @@
 # Reproduce our numbers
 
-Run the drivers in [`bench/`](../bench/) on rank 0 against the running engine.
-Run one workload at a time, with nothing else using the pair. They need only
-Python 3; the comparison videos also need Pillow and ffmpeg.
+## Current suite
 
-The current release's numbers and raw receipts are in
-[`results/2026-10-21-unified-release/`](../results/2026-10-21-unified-release/RESULT.md); earlier
-releases' are in the other folders under [`results/`](../results/).
+Run SparkModelBench from rank zero with the server up and the pair dedicated to
+the comparison. The Git submodule pins the shared runner and both upstream
+RigMark suites. Prepare the CPU quality judge before measuring.
+
+```sh
+git submodule update --init --recursive -- bench/sparkmodelbench
+docker build -t rigmark-quality-runtime:0.4 bench/sparkmodelbench/upstream/rigmark-quality/quality_suite
+cp bench/sparkmodelbench/upstream/rigmark/metadata.example.json /tmp/sparkglm-appliance.json
+# Fill in the hardware, model, image and settings of the serving instance.
+bench/run.sh --metadata /tmp/sparkglm-appliance.json --out /tmp/sparkglm-benchmark
+```
+
+Use a new result directory for each run. The prefill sweep stops at 256K.
+Identical comparison IDs, request settings and trial
+salts reproduce inputs across contenders. Every result includes a card, raw
+JSON and SHA256SUMS. See the [suite protocol](../bench/sparkmodelbench) for how
+to interpret output gates, cache evidence and task budgets.
 
 ## Historical benchmark commands
 
