@@ -9,14 +9,15 @@ Run the same checks as CI before opening a pull request:
 python3 -m unittest discover -s install -p 'test_*.py'
 python3 -m unittest discover -s install/converter
 shellcheck -S warning -e SC2054 start.sh install/*.sh
-python3 -m py_compile bench/*.py
+python3 -m py_compile bench/archive/*.py
 ```
 
 **Changes to `install/`** change the image. Before merging, test them with
 `BUILD=1 ./start.sh` from a clean clone on two Sparks.
 
-**Performance changes** need raw receipts under `results/`, with the baseline
-run on the same pair (see [results/README.md](results/README.md)).
+For each new version, run the full pinned SparkModelBench suite on the candidate
+and include the reviewed scorecard. For speed comparisons, run both versions on
+the same pair. [Release benchmark procedure](docs/VERSIONING.md#benchmark-each-release)
 
 **Engine changes** go to [Enntity/atlas](https://github.com/Enntity/atlas)
 first; here you then update the pin in `install/atlas-source.json`.

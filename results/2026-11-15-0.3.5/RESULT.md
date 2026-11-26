@@ -70,7 +70,7 @@ mean is the same in either order. The same rule ordered the wave before this
 change.
 
 The matrix, wall seconds, mean of three passes with the same prompts on each
-build ([`bench/run_matrix.py`](../../bench/run_matrix.py), salts
+build ([`bench/run_matrix.py`](../../bench/archive/run_matrix.py), salts
 `mb-1115-p1` to `p3`); exlr8 ran the first pass only:
 
 | Case | This release | Before | Yield at 300 ms | exlr8, pass 1 |

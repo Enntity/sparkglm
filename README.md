@@ -83,7 +83,32 @@ and two-cycle disk-restore checks passed. All release profiles protect matched
 prefix blocks from being rewritten during another request's prefill. See the
 [manual launcher instructions](docs/INSTALL-MANUAL.md#four-spark-chain-or-ring).
 
-## Current release measurements
+## SparkModelBench scorecard · v0.3.6 on two Sparks
+
+We ran GLM-5.3-Flash FP4-Local in Spark mode on two DGX Sparks (TP=2) on November 26, 2026. SparkModelBench pins Alex Ellis’s RigMark and RigMark Quality and selects the workloads and settings. Alex Ellis and OpenFaaS Ltd publish both under the MIT license. Enntity adds the staggered four-request test. [SparkModelBench](https://github.com/enntity/sparkmodelbench) · [RigMark](https://github.com/alexellis/rigmark) · [RigMark Quality](https://github.com/alexellis/rigmark-quality)
+
+| RigMark generation | Decode (tokens/s) | Time to last output (s) | Output tokens | Completion gates |
+|---|---:|---:|---:|---:|
+| Code | 65.14 | 30.22 | 1,924 | 5/5 |
+| Prose | 37.67 | 27.25 | 1,019 | 5/5 |
+| Structured | 89.32 | 5.54 | 441 | 5/5 |
+
+Generation figures are medians of five runs per workload. Each quality task ran once at low reasoning effort. Time includes grading, and output tokens count all turns.
+
+| RigMark Quality task | Checks | Conversation | Elapsed (s) | Output tokens |
+|---|---|---|---:|---:|
+| `python-expiry` | Passed | Finished | 16.20 | 526 |
+| `go-transfer-ledger` | Passed | Finished | 95.00 | 2,726 |
+| `payment-recovery` | Passed | Finished | 8.20 | 263 |
+| `evidence-revisions` | Passed | Finished | 3.60 | 102 |
+
+**Staggered C4.** Four roughly 16K-token prompts arrived one second apart, so incoming prompts shared the server with requests already decoding. All 12 measured streams reached 400 output tokens. The median time from the first request to the end of the round was **45.56 seconds** across three rounds after warm-up.
+
+![SparkGLM v0.3.6 on two Sparks. First-request prefill peaks at 3,076 tokens/s at 64K and reaches 2,861 tokens/s at 256K, with 91.6 seconds to first token.](results/sparkmodelbench-v0.3.6/prefill.png)
+
+The regular sweep ends at 256K. This run also completed three pairs at 512K and two near 1M before the third was stopped. The graph shows the first request of each pair. The full card includes immediate-replay timings and per-stream C4 measurements. [Full scorecard](results/sparkmodelbench-v0.3.6/CARD.md)
+
+## Earlier TP2 and TP4 measurements · October 2026
 
 Spark mode, GPU clocks uncapped, two repetitions per workload. Every response
 stopped naturally below the 4,096-token allowance. These are **medians**, not
@@ -480,7 +505,7 @@ in the upstream Atlas series. The idea comes from kindling-spark-os's
 Run the pinned [SparkModelBench](https://github.com/enntity/sparkmodelbench) suite through
 [`bench/run.sh`](bench/run.sh). It runs Alex Ellis’s RigMark and RigMark Quality with pinned
 settings, plus SparkGLM’s staggered C4 scenario.
-[Reproduction instructions](docs/REPRODUCE.md) include the setup and commands for historical results.
+[Run the release suite](docs/REPRODUCE.md) · [Archived benchmark commands](bench/archive/README.md)
 
 ## Other ways to run it
 
