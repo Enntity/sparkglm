@@ -1,5 +1,7 @@
 # Results
 
+- [SparkModelBench v0.3.6 scorecard, 2026-11-26](sparkmodelbench-v0.3.6/CARD.md) covers RigMark generation, prefill, quality and staggered C4 on two DGX Sparks.
+
 - [SparkGLM 0.3.6 promotion checks, 2026-11-18](2026-11-18-0.3.6-promotion/RESULT.md): installed through LLooM's recipe from the published image. Strict, image and video output identical to 0.3.5 on a pair; on four Sparks output identical to 0.3.5, 107/109, speed level.
 - [SparkGLM 0.3.6, 2026-11-18](2026-11-18-0.3.6/RESULT.md): one engine fix against 0.3.5: a forced tool call opens with the native token. GLM-5.3-Flash output identical, 109/109; Sage S2.1 Flash 109/109 where it passed 97.
 - [SparkGLM 0.3.5 promotion checks, 2026-11-16](2026-11-16-0.3.5-promotion/RESULT.md): installed through LLooM's recipe. Strict, image and video output identical to 0.3.3 on a pair; on four Sparks output identical to 0.3.0, 107/109, speed level.
@@ -14,7 +16,9 @@
 - [Retained TP2 campaign](2026-10-20-tp2-qualification/RESULT.md): full measured suite and its original failed gates, resolved by the later focused checks.
 
 
-Each directory is one measured configuration: `RESULT.md` says what was run
+Release scorecards are under `sparkmodelbench-v<VERSION>/`. Each contains the reviewed `CARD.md` and checksums for its public files. Keep the run directory, logs and appliance metadata in private research storage.
+
+Each historical result directory is one measured configuration: `RESULT.md` says what was run
 and what it showed, `raw/` holds the unedited receipts, and `SHA256SUMS`
 covers every raw file.
 

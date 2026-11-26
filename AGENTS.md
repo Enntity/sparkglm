@@ -10,8 +10,10 @@
   After qualification, update the exact commit and tree together in
   `install/atlas-source.json` and document the tested product image. Do not
   reintroduce a separate active SparkGLM engine branch.
-- A performance claim needs raw receipts and `SHA256SUMS` under `results/`,
-  with its baseline measured on the same pair. Report every repetition.
+- Qualify every new product version with the full pinned SparkModelBench suite
+  through `bench/run.sh`. Publish its reviewed scorecard as described in
+  `docs/VERSIONING.md`. Keep raw run logs and private appliance details local.
+  Measure performance comparisons on the same pair and retain every repetition.
 - Keep lossy or quality-affecting optimizations off by default.
 - New files carry an SPDX header. Keep third-party headers and licenses intact
   (see `docs/LICENSING.md`).

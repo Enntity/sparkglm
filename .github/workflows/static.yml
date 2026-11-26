@@ -30,6 +30,6 @@ jobs:
           bench/run.sh --help
           python3 -m unittest discover -s bench/sparkmodelbench
       - name: Benchmark drivers compile
-        run: python3 -m py_compile bench/*.py
+        run: python3 -m py_compile bench/archive/*.py
       - name: Result receipts
         run: for d in results/*/; do (cd "$d" && sha256sum -c --quiet SHA256SUMS); done

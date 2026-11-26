@@ -30,5 +30,8 @@ in the release assets. Engine pins and image digests remain immutable identities
 versions do not replace them. Image tags remain the first 12 characters of the
 `install/` tree hash, and `start.sh` continues to select that exact tag.
 
-A version number is not a new model-quality or performance qualification. Each
-release must link its actual checks and evidence, including any limitations.
+## Benchmark each release
+
+Before promoting each version, serve its candidate image on two DGX Sparks in Spark mode and run the full pinned SparkModelBench suite through `bench/run.sh`. Use the default lanes and keep failed quality checks and incomplete streams visible. Run the existing correctness and topology checks as well. [Benchmark setup](REPRODUCE.md#current-suite)
+
+Archive the complete run and its checksums privately. Copy the reviewed scorecard to `results/sparkmodelbench-v<VERSION>/CARD.md`. Give it the heading `# SparkGLM v<VERSION> · SparkModelBench`, identify the measured suite revision, and keep the four result tables. Retain public model and TP details and remove private appliance fields. Include the public files in that directory’s `SHA256SUMS` and link the scorecard in the release notes. CI checks that the version in `install/release.json` has its own four-lane scorecard.
