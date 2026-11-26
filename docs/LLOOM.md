@@ -101,5 +101,5 @@ lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --model sage-s2.1-flash 
 - It needs 0.3.6: on 0.3.5 Sage returned forced tool calls as text
   ([results](../results/2026-11-18-0.3.6/RESULT.md)).
 - Not run: Sage on four Sparks, with `--memory shared` or with `--streams 8`.
-- The values match `./start.sh --model`. LLooM before Enntity/lloom#PR spelled them
-  `glm53-flash` and `sage-s21-flash`.
+- The values match `./start.sh --model`. The earlier `glm53-flash` and
+  `sage-s21-flash` still select the same checkpoints.
