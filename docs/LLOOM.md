@@ -18,7 +18,7 @@ pick the deployment:
 | `--drafter` | `dflash2`: `incoai/GLM-5.3-Flash-DFlash2`; `v81` or `v80`: Enntity's drafters (private repository) | `dflash2` |
 | `--memory` | `full`: 114 GB a Spark; `shared`: 108 GB, for a Spark that hosts about 10 GB of other services | `full` |
 | `--streams` | `4`: four requests of up to 1M tokens; `8`: eight of up to 128K, on a pair | `4` |
-| `--model` | `glm53-flash`: `nvidia/GLM-5.3-Flash-FP4-Local`; `sage-s21-flash`: [Sage S2.1 Flash](#sage-s21-flash) | `glm53-flash` |
+| `--model` | `glm-5.3-flash`: `nvidia/GLM-5.3-Flash-FP4-Local`; `sage-s2.1-flash`: [Sage S2.1 Flash](#sage-s21-flash) | `glm-5.3-flash` |
 
 A host keeps the options it was installed with until setup is given others.
 Earlier releases install with `--recipe-version N`; LLooM's
@@ -82,13 +82,13 @@ all ranks and check the resolved mode/topology in startup receipts.
 
 ## Sage S2.1 Flash
 
-`--model sage-s21-flash` serves
+`--model sage-s2.1-flash` serves
 [Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4)
 in place of the GLM checkpoint: a calibrated NVFP4 quantization of
 `internlm/Sage-S2.1-Flash` (MIT), 179 GB, with text, image and video input.
 
 ```sh
-lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --model sage-s21-flash --additive --apply --yes
+lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --model sage-s2.1-flash --additive --apply --yes
 ```
 
 - It is served under the same gateway model, `glm-5.3-flash-atlas`, so routes
@@ -101,3 +101,5 @@ lloom setup --recipe linux-nvidia-dgx-spark-glm53-atlas --model sage-s21-flash -
 - It needs 0.3.6: on 0.3.5 Sage returned forced tool calls as text
   ([results](../results/2026-11-18-0.3.6/RESULT.md)).
 - Not run: Sage on four Sparks, with `--memory shared` or with `--streams 8`.
+- The values match `./start.sh --model`. LLooM before Enntity/lloom#PR spelled them
+  `glm53-flash` and `sage-s21-flash`.

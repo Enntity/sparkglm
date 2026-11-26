@@ -11,6 +11,9 @@
 #   ./start.sh status       container state and health
 #   ./start.sh logs [worker [HOST]]
 #   ./start.sh build | download | convert    run one preparation step
+#   ./start.sh --model sage-s2.1-flash [--mode strict] [command]
+#                           Sage S2.1 Flash instead of GLM-5.3-Flash (SPARKGLM_MODEL in .env);
+#                           --mode strict (MODE in .env) instead of the Spark default
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 if [[ ${1:-} == --version ]]; then exec python3 install/serve.py --version; fi
@@ -25,12 +28,23 @@ esac
 MODEL_ROOT=${MODEL_ROOT:-$HOME/models/sparkglm}
 PROFILE=${PROFILE:-$tp_profile}
 MODE=${MODE:-spark}
-if [[ ${1:-} == --mode ]]; then MODE=${2:-}; shift 2; fi
+while [[ ${1:-} == --mode || ${1:-} == --model ]]; do
+  [[ $# -ge 2 ]] || { echo "$1 needs a value" >&2; exit 2; }
+  case $1 in --mode) MODE=$2 ;; --model) SPARKGLM_MODEL=$2 ;; esac
+  shift 2
+done
 [[ $MODE == spark || $MODE == strict ]] || { echo "--mode must be spark or strict" >&2; exit 2; }
 IMAGE=${IMAGE:-}
 CHECKPOINT=nvidia/GLM-5.3-Flash-FP4-Local@76348ddb2be2e35e39ecfc00e75dc07703f4f3d5
-# .env may name another checkpoint (both values or neither); the image stays the same.
+case ${SPARKGLM_MODEL:=glm-5.3-flash} in
+  glm-5.3-flash) ;;
+  sage-s2.1-flash) CHECKPOINT=Enntity/Sage-S2.1-Flash-NVFP4@6967e49571a951ac0c71bb554eeeca365e838130 ;;
+  *) echo '--model (SPARKGLM_MODEL) must be glm-5.3-flash or sage-s2.1-flash' >&2; exit 2 ;;
+esac
+# .env may name another GLM-5.3-Flash checkpoint (both values or neither); the image stays the same.
 if [[ -n ${CHECKPOINT_REPO:-} || -n ${CHECKPOINT_REVISION:-} ]]; then
+  [[ $SPARKGLM_MODEL == glm-5.3-flash ]] ||
+    { echo "CHECKPOINT_REPO and CHECKPOINT_REVISION replace glm-5.3-flash's checkpoint; unset them for --model $SPARKGLM_MODEL" >&2; exit 2; }
   [[ ${CHECKPOINT_REPO:-} =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$ && ${CHECKPOINT_REVISION:-} =~ ^[0-9a-f]{40}$ ]] ||
     { echo 'set both CHECKPOINT_REPO (owner/name) and CHECKPOINT_REVISION (a 40-hex commit) in .env, or neither' >&2; exit 2; }
   CHECKPOINT=$CHECKPOINT_REPO@$CHECKPOINT_REVISION
@@ -250,5 +264,5 @@ case ${1:-up} in
     echo "rank 0 $(state)"
     curl -sf "$API/health" >/dev/null && echo "health ok ($API)" || echo 'health: not serving' ;;
   logs) if [[ ${2:-} == worker ]]; then worker_logs "${3:-${workers[0]}}" -f --tail 100; else docker logs -f --tail 100 "${NAME}0"; fi ;;
-  *) sed -n '5,12p' "$0" >&2; exit 2 ;;
+  *) sed -n '5,16p' "$0" >&2; exit 2 ;;
 esac

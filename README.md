@@ -30,6 +30,23 @@ cp .env.example .env      # set WORKER to the other Spark's ssh destination (or 
 ./start.sh
 ```
 
+## Two models, one entry point
+
+SparkGLM serves either of two checkpoints of the GLM-5.3-Flash architecture on
+the same image. Pick one with `--model` (or `SPARKGLM_MODEL` in `.env`):
+
+| | GLM-5.3-Flash | Sage S2.1 Flash |
+|---|---|---|
+| Start | `./start.sh` (`--model glm-5.3-flash`, the default) | `./start.sh --model sage-s2.1-flash` |
+| Checkpoint | [nvidia/GLM-5.3-Flash-FP4-Local](https://huggingface.co/nvidia/GLM-5.3-Flash-FP4-Local) | [Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4), our calibrated NVFP4 of `internlm/Sage-S2.1-Flash` |
+| Input | text, images, video | text, images, video |
+| Served as | `glm-5.3-flash-atlas` | `glm-5.3-flash-atlas` |
+| Status | released | 109/109 live checks on a pair through [LLooM](docs/LLOOM.md#sage-s21-flash); not yet run through `./start.sh` |
+
+Both use the same drafter, profiles and modes. Sage needs 0.3.6 or later and
+Spark mode (the default); see [limits](docs/LIMITATIONS.md#fp4-local). With
+LLooM, the recipe takes the same `--model` values.
+
 ## Spark and Strict modes
 
 Select `MODE=spark` (default) or `MODE=strict` in `.env`, or run
@@ -356,20 +373,9 @@ CHECKPOINT_REPO=nvidia/GLM-5.3-Flash-NVFP4
 CHECKPOINT_REVISION=423acf37583782c51c142d145aef733d72943d93
 ```
 
-The same two lines select another checkpoint of this architecture, if it is
-laid out as the engine loads it.
-[Enntity/Sage-S2.1-Flash-NVFP4](https://huggingface.co/Enntity/Sage-S2.1-Flash-NVFP4),
-a calibrated NVFP4 quantization of `internlm/Sage-S2.1-Flash`, is one. It needs
-0.3.6 and Spark mode (the default):
-
-```sh
-CHECKPOINT_REPO=Enntity/Sage-S2.1-Flash-NVFP4
-CHECKPOINT_REVISION=6967e49571a951ac0c71bb554eeeca365e838130
-```
-
-Sage passed 109/109 live checks on a pair installed through
-[LLooM's recipe](docs/LLOOM.md#sage-s21-flash). It has not been run through
-`./start.sh` ([limits](docs/LIMITATIONS.md#fp4-local)).
+The same two lines select another GLM-5.3-Flash checkpoint, if it is laid
+out as the engine loads it. They apply to `--model glm-5.3-flash` only; Sage is
+`--model sage-s2.1-flash` ([Two models](#two-models-one-entry-point)).
 
 ## Prefix cache on disk (optional)
 
@@ -481,8 +487,8 @@ comparison videos.
   [docs/INSTALL-MANUAL.md](docs/INSTALL-MANUAL.md).
 - **With [LLooM](https://github.com/Enntity/lloom):** the recipe
   `linux-nvidia-dgx-spark-glm53-atlas` puts SparkGLM behind LLooM's
-  authenticated gateway, on two Sparks or four, and can serve Sage S2.1 Flash
-  in place of GLM-5.3-Flash ([docs/LLOOM.md](docs/LLOOM.md)).
+  authenticated gateway, on two Sparks or four, with the same `--model`
+  values ([docs/LLOOM.md](docs/LLOOM.md)).
 
 ## The engine
 
